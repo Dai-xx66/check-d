@@ -31,6 +31,14 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统与 Phase 4 �
 3. 运行 `dart run build_runner build`。
 4. 使用 `flutter run -d macos` 或目标设备启动。
 
+浏览器测试可运行：
+
+```bash
+flutter run -d chrome
+```
+
+Web 版使用 `web/sqlite3.wasm` 与 `web/drift_worker.js` 在浏览器本地持久化离线数据。
+
 未配置 Supabase 时可以使用离线体验模式。启用云端登录时通过 `dart-define` 传入：
 
 ```bash
