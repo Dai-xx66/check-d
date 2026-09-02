@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../tags/presentation/tag_picker.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'task_color_picker.dart';
@@ -25,6 +26,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   late final TextEditingController _targetDaysController;
   late int _colorValue;
   late String _iconName;
+  String? _tagId;
   late LongTermCheckMode _checkMode;
   late SchedulePreset _schedulePreset;
   late Set<int> _weekdays;
@@ -36,6 +38,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   @override
   void initState() {
     super.initState();
+    _tagId = _initial?.tagId;
     _nameController = TextEditingController(text: _initial?.name ?? '');
     _notesController = TextEditingController(text: _initial?.notes ?? '');
     _durationController = TextEditingController(
@@ -276,6 +279,13 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                         ],
                       ),
                     ),
+                    if (_checkMode != LongTermCheckMode.simple) ...[
+                      const SizedBox(height: 16),
+                      TagPicker(
+                        value: _tagId,
+                        onChanged: (value) => setState(() => _tagId = value),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: _isSaving ? null : _save,
@@ -328,6 +338,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
         name: _nameController.text,
         colorValue: _colorValue,
         iconName: _iconName,
+        tagId: _checkMode == LongTermCheckMode.simple ? null : _tagId,
         notes: _notesController.text,
         checkMode: _checkMode,
         targetDurationSeconds: _checkMode == LongTermCheckMode.targetTimer

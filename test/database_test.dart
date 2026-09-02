@@ -52,6 +52,10 @@ void main() {
       NativeDatabase.memory(
         setup: (db) {
           db.execute('CREATE TABLE one_time_reminder_records (task_id TEXT)');
+          db.execute('CREATE TABLE local_tasks (id TEXT PRIMARY KEY)');
+          db.execute(
+            'CREATE TABLE timer_session_records (id TEXT PRIMARY KEY)',
+          );
           db.execute(
             'CREATE TABLE long_term_task_records '
             '(task_id TEXT, check_mode TEXT, target_duration_seconds INTEGER)',
@@ -80,5 +84,36 @@ void main() {
     expect(completion.read<int>('target_reached'), 1);
     expect(completion.read<int>('is_success'), 1);
     expect(completion.read<int>('completed_at'), 123);
+  });
+
+  test('v5 migration retains sessions and leaves old tags unassigned', () async {
+    await database.close();
+    database = AppDatabase.forTesting(
+      NativeDatabase.memory(
+        setup: (db) {
+          db.execute('CREATE TABLE local_tasks (id TEXT PRIMARY KEY)');
+          db.execute(
+            'CREATE TABLE timer_session_records (id TEXT PRIMARY KEY, duration_seconds INTEGER, state TEXT)',
+          );
+          db.execute("INSERT INTO local_tasks VALUES ('old')");
+          db.execute(
+            "INSERT INTO timer_session_records VALUES ('session', 1800, 'paused')",
+          );
+          db.execute('PRAGMA user_version = 5');
+        },
+      ),
+    );
+    final session = await database
+        .customSelect('SELECT * FROM timer_session_records')
+        .getSingle();
+    expect(session.read<int>('duration_seconds'), 1800);
+    expect(session.read<String>('state'), 'paused');
+    expect(session.readNullable<String>('tag_id'), null);
+    final task = await database
+        .customSelect('SELECT * FROM local_tasks')
+        .getSingle();
+    expect(task.read<String>('id'), 'old');
+    expect(task.readNullable<String>('tag_id'), null);
+    expect(await database.select(database.tagRecords).get(), isEmpty);
   });
 }

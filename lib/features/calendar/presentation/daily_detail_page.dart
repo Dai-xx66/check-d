@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../statistics/presentation/tag_time_breakdown.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../../tasks/presentation/task_detail_page.dart';
@@ -121,6 +122,13 @@ class _DailyContent extends ConsumerWidget {
           totalCount: data.scheduledCount,
           timedSeconds: timedSeconds,
         ),
+        const SizedBox(height: 22),
+        const Text(
+          '标签时间分布',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        DailyTagTime(date: date),
         const SizedBox(height: 22),
         if (data.tasks.isEmpty)
           const EmptyState(

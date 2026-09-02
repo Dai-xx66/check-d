@@ -70,6 +70,15 @@ class $LocalTasksTable extends LocalTasks
     requiredDuringInsert: false,
     defaultValue: const Constant('target'),
   );
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+    'tag_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -142,6 +151,7 @@ class $LocalTasksTable extends LocalTasks
     taskType,
     colorValue,
     iconName,
+    tagId,
     notes,
     status,
     createdAt,
@@ -200,6 +210,12 @@ class $LocalTasksTable extends LocalTasks
       context.handle(
         _iconNameMeta,
         iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
+    }
+    if (data.containsKey('tag_id')) {
+      context.handle(
+        _tagIdMeta,
+        tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta),
       );
     }
     if (data.containsKey('notes')) {
@@ -278,6 +294,10 @@ class $LocalTasksTable extends LocalTasks
         DriftSqlType.string,
         data['${effectivePrefix}icon_name'],
       )!,
+      tagId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_id'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -318,6 +338,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
   final String taskType;
   final int colorValue;
   final String iconName;
+  final String? tagId;
   final String? notes;
   final String status;
   final DateTime createdAt;
@@ -331,6 +352,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     required this.taskType,
     required this.colorValue,
     required this.iconName,
+    this.tagId,
     this.notes,
     required this.status,
     required this.createdAt,
@@ -349,6 +371,9 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     map['task_type'] = Variable<String>(taskType);
     map['color_value'] = Variable<int>(colorValue);
     map['icon_name'] = Variable<String>(iconName);
+    if (!nullToAbsent || tagId != null) {
+      map['tag_id'] = Variable<String>(tagId);
+    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -372,6 +397,9 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       taskType: Value(taskType),
       colorValue: Value(colorValue),
       iconName: Value(iconName),
+      tagId: tagId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagId),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -397,6 +425,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       taskType: serializer.fromJson<String>(json['taskType']),
       colorValue: serializer.fromJson<int>(json['colorValue']),
       iconName: serializer.fromJson<String>(json['iconName']),
+      tagId: serializer.fromJson<String?>(json['tagId']),
       notes: serializer.fromJson<String?>(json['notes']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -415,6 +444,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       'taskType': serializer.toJson<String>(taskType),
       'colorValue': serializer.toJson<int>(colorValue),
       'iconName': serializer.toJson<String>(iconName),
+      'tagId': serializer.toJson<String?>(tagId),
       'notes': serializer.toJson<String?>(notes),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -431,6 +461,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     String? taskType,
     int? colorValue,
     String? iconName,
+    Value<String?> tagId = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? status,
     DateTime? createdAt,
@@ -444,6 +475,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     taskType: taskType ?? this.taskType,
     colorValue: colorValue ?? this.colorValue,
     iconName: iconName ?? this.iconName,
+    tagId: tagId.present ? tagId.value : this.tagId,
     notes: notes.present ? notes.value : this.notes,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
@@ -461,6 +493,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
           ? data.colorValue.value
           : this.colorValue,
       iconName: data.iconName.present ? data.iconName.value : this.iconName,
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
       notes: data.notes.present ? data.notes.value : this.notes,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -481,6 +514,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
           ..write('taskType: $taskType, ')
           ..write('colorValue: $colorValue, ')
           ..write('iconName: $iconName, ')
+          ..write('tagId: $tagId, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -499,6 +533,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     taskType,
     colorValue,
     iconName,
+    tagId,
     notes,
     status,
     createdAt,
@@ -516,6 +551,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
           other.taskType == this.taskType &&
           other.colorValue == this.colorValue &&
           other.iconName == this.iconName &&
+          other.tagId == this.tagId &&
           other.notes == this.notes &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
@@ -531,6 +567,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
   final Value<String> taskType;
   final Value<int> colorValue;
   final Value<String> iconName;
+  final Value<String?> tagId;
   final Value<String?> notes;
   final Value<String> status;
   final Value<DateTime> createdAt;
@@ -545,6 +582,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     this.taskType = const Value.absent(),
     this.colorValue = const Value.absent(),
     this.iconName = const Value.absent(),
+    this.tagId = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -560,6 +598,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     required String taskType,
     required int colorValue,
     this.iconName = const Value.absent(),
+    this.tagId = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     required DateTime createdAt,
@@ -580,6 +619,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     Expression<String>? taskType,
     Expression<int>? colorValue,
     Expression<String>? iconName,
+    Expression<String>? tagId,
     Expression<String>? notes,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
@@ -595,6 +635,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
       if (taskType != null) 'task_type': taskType,
       if (colorValue != null) 'color_value': colorValue,
       if (iconName != null) 'icon_name': iconName,
+      if (tagId != null) 'tag_id': tagId,
       if (notes != null) 'notes': notes,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
@@ -612,6 +653,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     Value<String>? taskType,
     Value<int>? colorValue,
     Value<String>? iconName,
+    Value<String?>? tagId,
     Value<String?>? notes,
     Value<String>? status,
     Value<DateTime>? createdAt,
@@ -627,6 +669,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
       taskType: taskType ?? this.taskType,
       colorValue: colorValue ?? this.colorValue,
       iconName: iconName ?? this.iconName,
+      tagId: tagId ?? this.tagId,
       notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -657,6 +700,9 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     }
     if (iconName.present) {
       map['icon_name'] = Variable<String>(iconName.value);
+    }
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -691,6 +737,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
           ..write('taskType: $taskType, ')
           ..write('colorValue: $colorValue, ')
           ..write('iconName: $iconName, ')
+          ..write('tagId: $tagId, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -3188,6 +3235,15 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+    'tag_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _startedAtMeta = const VerificationMeta(
     'startedAt',
   );
@@ -3258,6 +3314,7 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
     id,
     taskId,
     userId,
+    tagId,
     startedAt,
     endedAt,
     durationSeconds,
@@ -3297,6 +3354,12 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
       );
     } else if (isInserting) {
       context.missing(_userIdMeta);
+    }
+    if (data.containsKey('tag_id')) {
+      context.handle(
+        _tagIdMeta,
+        tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta),
+      );
     }
     if (data.containsKey('started_at')) {
       context.handle(
@@ -3366,6 +3429,10 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
         DriftSqlType.string,
         data['${effectivePrefix}user_id'],
       )!,
+      tagId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_id'],
+      ),
       startedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}started_at'],
@@ -3404,6 +3471,7 @@ class TimerSessionRecord extends DataClass
   final String id;
   final String taskId;
   final String userId;
+  final String? tagId;
   final DateTime startedAt;
   final DateTime? endedAt;
   final int durationSeconds;
@@ -3414,6 +3482,7 @@ class TimerSessionRecord extends DataClass
     required this.id,
     required this.taskId,
     required this.userId,
+    this.tagId,
     required this.startedAt,
     this.endedAt,
     required this.durationSeconds,
@@ -3427,6 +3496,9 @@ class TimerSessionRecord extends DataClass
     map['id'] = Variable<String>(id);
     map['task_id'] = Variable<String>(taskId);
     map['user_id'] = Variable<String>(userId);
+    if (!nullToAbsent || tagId != null) {
+      map['tag_id'] = Variable<String>(tagId);
+    }
     map['started_at'] = Variable<DateTime>(startedAt);
     if (!nullToAbsent || endedAt != null) {
       map['ended_at'] = Variable<DateTime>(endedAt);
@@ -3443,6 +3515,9 @@ class TimerSessionRecord extends DataClass
       id: Value(id),
       taskId: Value(taskId),
       userId: Value(userId),
+      tagId: tagId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagId),
       startedAt: Value(startedAt),
       endedAt: endedAt == null && nullToAbsent
           ? const Value.absent()
@@ -3463,6 +3538,7 @@ class TimerSessionRecord extends DataClass
       id: serializer.fromJson<String>(json['id']),
       taskId: serializer.fromJson<String>(json['taskId']),
       userId: serializer.fromJson<String>(json['userId']),
+      tagId: serializer.fromJson<String?>(json['tagId']),
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
       durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
@@ -3478,6 +3554,7 @@ class TimerSessionRecord extends DataClass
       'id': serializer.toJson<String>(id),
       'taskId': serializer.toJson<String>(taskId),
       'userId': serializer.toJson<String>(userId),
+      'tagId': serializer.toJson<String?>(tagId),
       'startedAt': serializer.toJson<DateTime>(startedAt),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
       'durationSeconds': serializer.toJson<int>(durationSeconds),
@@ -3491,6 +3568,7 @@ class TimerSessionRecord extends DataClass
     String? id,
     String? taskId,
     String? userId,
+    Value<String?> tagId = const Value.absent(),
     DateTime? startedAt,
     Value<DateTime?> endedAt = const Value.absent(),
     int? durationSeconds,
@@ -3501,6 +3579,7 @@ class TimerSessionRecord extends DataClass
     id: id ?? this.id,
     taskId: taskId ?? this.taskId,
     userId: userId ?? this.userId,
+    tagId: tagId.present ? tagId.value : this.tagId,
     startedAt: startedAt ?? this.startedAt,
     endedAt: endedAt.present ? endedAt.value : this.endedAt,
     durationSeconds: durationSeconds ?? this.durationSeconds,
@@ -3513,6 +3592,7 @@ class TimerSessionRecord extends DataClass
       id: data.id.present ? data.id.value : this.id,
       taskId: data.taskId.present ? data.taskId.value : this.taskId,
       userId: data.userId.present ? data.userId.value : this.userId,
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
       durationSeconds: data.durationSeconds.present
@@ -3530,6 +3610,7 @@ class TimerSessionRecord extends DataClass
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
+          ..write('tagId: $tagId, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
           ..write('durationSeconds: $durationSeconds, ')
@@ -3545,6 +3626,7 @@ class TimerSessionRecord extends DataClass
     id,
     taskId,
     userId,
+    tagId,
     startedAt,
     endedAt,
     durationSeconds,
@@ -3559,6 +3641,7 @@ class TimerSessionRecord extends DataClass
           other.id == this.id &&
           other.taskId == this.taskId &&
           other.userId == this.userId &&
+          other.tagId == this.tagId &&
           other.startedAt == this.startedAt &&
           other.endedAt == this.endedAt &&
           other.durationSeconds == this.durationSeconds &&
@@ -3571,6 +3654,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
   final Value<String> id;
   final Value<String> taskId;
   final Value<String> userId;
+  final Value<String?> tagId;
   final Value<DateTime> startedAt;
   final Value<DateTime?> endedAt;
   final Value<int> durationSeconds;
@@ -3582,6 +3666,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     this.id = const Value.absent(),
     this.taskId = const Value.absent(),
     this.userId = const Value.absent(),
+    this.tagId = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
     this.durationSeconds = const Value.absent(),
@@ -3594,6 +3679,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     required String id,
     required String taskId,
     required String userId,
+    this.tagId = const Value.absent(),
     required DateTime startedAt,
     this.endedAt = const Value.absent(),
     this.durationSeconds = const Value.absent(),
@@ -3612,6 +3698,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     Expression<String>? id,
     Expression<String>? taskId,
     Expression<String>? userId,
+    Expression<String>? tagId,
     Expression<DateTime>? startedAt,
     Expression<DateTime>? endedAt,
     Expression<int>? durationSeconds,
@@ -3624,6 +3711,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
       if (id != null) 'id': id,
       if (taskId != null) 'task_id': taskId,
       if (userId != null) 'user_id': userId,
+      if (tagId != null) 'tag_id': tagId,
       if (startedAt != null) 'started_at': startedAt,
       if (endedAt != null) 'ended_at': endedAt,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
@@ -3638,6 +3726,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     Value<String>? id,
     Value<String>? taskId,
     Value<String>? userId,
+    Value<String?>? tagId,
     Value<DateTime>? startedAt,
     Value<DateTime?>? endedAt,
     Value<int>? durationSeconds,
@@ -3650,6 +3739,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
       id: id ?? this.id,
       taskId: taskId ?? this.taskId,
       userId: userId ?? this.userId,
+      tagId: tagId ?? this.tagId,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
       durationSeconds: durationSeconds ?? this.durationSeconds,
@@ -3671,6 +3761,9 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     }
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
+    }
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
     }
     if (startedAt.present) {
       map['started_at'] = Variable<DateTime>(startedAt.value);
@@ -3702,6 +3795,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
           ..write('id: $id, ')
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
+          ..write('tagId: $tagId, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
           ..write('durationSeconds: $durationSeconds, ')
@@ -5048,6 +5142,829 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $TagRecordsTable extends TagRecords
+    with TableInfo<$TagRecordsTable, TagRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TagRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _archivedMeta = const VerificationMeta(
+    'archived',
+  );
+  @override
+  late final GeneratedColumn<bool> archived = GeneratedColumn<bool>(
+    'archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    name,
+    colorValue,
+    archived,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tag_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TagRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('archived')) {
+      context.handle(
+        _archivedMeta,
+        archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TagRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TagRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
+      archived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}archived'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TagRecordsTable createAlias(String alias) {
+    return $TagRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class TagRecord extends DataClass implements Insertable<TagRecord> {
+  final String id;
+  final String userId;
+  final String name;
+  final int colorValue;
+  final bool archived;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const TagRecord({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.colorValue,
+    required this.archived,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    map['color_value'] = Variable<int>(colorValue);
+    map['archived'] = Variable<bool>(archived);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TagRecordsCompanion toCompanion(bool nullToAbsent) {
+    return TagRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      name: Value(name),
+      colorValue: Value(colorValue),
+      archived: Value(archived),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TagRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TagRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
+      archived: serializer.fromJson<bool>(json['archived']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int>(colorValue),
+      'archived': serializer.toJson<bool>(archived),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TagRecord copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    int? colorValue,
+    bool? archived,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => TagRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    name: name ?? this.name,
+    colorValue: colorValue ?? this.colorValue,
+    archived: archived ?? this.archived,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TagRecord copyWithCompanion(TagRecordsCompanion data) {
+    return TagRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      archived: data.archived.present ? data.archived.value : this.archived,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('archived: $archived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, userId, name, colorValue, archived, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TagRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue &&
+          other.archived == this.archived &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TagRecordsCompanion extends UpdateCompanion<TagRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<int> colorValue;
+  final Value<bool> archived;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TagRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.archived = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TagRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String name,
+    required int colorValue,
+    this.archived = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       name = Value(name),
+       colorValue = Value(colorValue),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<TagRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<int>? colorValue,
+    Expression<bool>? archived,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
+      if (archived != null) 'archived': archived,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TagRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? name,
+    Value<int>? colorValue,
+    Value<bool>? archived,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return TagRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+      archived: archived ?? this.archived,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (archived.present) {
+      map['archived'] = Variable<bool>(archived.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('archived: $archived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TagRevisionRecordsTable extends TagRevisionRecords
+    with TableInfo<$TagRevisionRecordsTable, TagRevisionRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TagRevisionRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+    'tag_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES tag_records (id)',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _snapshotJsonMeta = const VerificationMeta(
+    'snapshotJson',
+  );
+  @override
+  late final GeneratedColumn<String> snapshotJson = GeneratedColumn<String>(
+    'snapshot_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _changedAtMeta = const VerificationMeta(
+    'changedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> changedAt = GeneratedColumn<DateTime>(
+    'changed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    tagId,
+    userId,
+    snapshotJson,
+    changedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tag_revision_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TagRevisionRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tag_id')) {
+      context.handle(
+        _tagIdMeta,
+        tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tagIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('snapshot_json')) {
+      context.handle(
+        _snapshotJsonMeta,
+        snapshotJson.isAcceptableOrUnknown(
+          data['snapshot_json']!,
+          _snapshotJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_snapshotJsonMeta);
+    }
+    if (data.containsKey('changed_at')) {
+      context.handle(
+        _changedAtMeta,
+        changedAt.isAcceptableOrUnknown(data['changed_at']!, _changedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_changedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TagRevisionRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TagRevisionRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      tagId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      snapshotJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot_json'],
+      )!,
+      changedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}changed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TagRevisionRecordsTable createAlias(String alias) {
+    return $TagRevisionRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class TagRevisionRecord extends DataClass
+    implements Insertable<TagRevisionRecord> {
+  final String id;
+  final String tagId;
+  final String userId;
+  final String snapshotJson;
+  final DateTime changedAt;
+  const TagRevisionRecord({
+    required this.id,
+    required this.tagId,
+    required this.userId,
+    required this.snapshotJson,
+    required this.changedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tag_id'] = Variable<String>(tagId);
+    map['user_id'] = Variable<String>(userId);
+    map['snapshot_json'] = Variable<String>(snapshotJson);
+    map['changed_at'] = Variable<DateTime>(changedAt);
+    return map;
+  }
+
+  TagRevisionRecordsCompanion toCompanion(bool nullToAbsent) {
+    return TagRevisionRecordsCompanion(
+      id: Value(id),
+      tagId: Value(tagId),
+      userId: Value(userId),
+      snapshotJson: Value(snapshotJson),
+      changedAt: Value(changedAt),
+    );
+  }
+
+  factory TagRevisionRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TagRevisionRecord(
+      id: serializer.fromJson<String>(json['id']),
+      tagId: serializer.fromJson<String>(json['tagId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      snapshotJson: serializer.fromJson<String>(json['snapshotJson']),
+      changedAt: serializer.fromJson<DateTime>(json['changedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tagId': serializer.toJson<String>(tagId),
+      'userId': serializer.toJson<String>(userId),
+      'snapshotJson': serializer.toJson<String>(snapshotJson),
+      'changedAt': serializer.toJson<DateTime>(changedAt),
+    };
+  }
+
+  TagRevisionRecord copyWith({
+    String? id,
+    String? tagId,
+    String? userId,
+    String? snapshotJson,
+    DateTime? changedAt,
+  }) => TagRevisionRecord(
+    id: id ?? this.id,
+    tagId: tagId ?? this.tagId,
+    userId: userId ?? this.userId,
+    snapshotJson: snapshotJson ?? this.snapshotJson,
+    changedAt: changedAt ?? this.changedAt,
+  );
+  TagRevisionRecord copyWithCompanion(TagRevisionRecordsCompanion data) {
+    return TagRevisionRecord(
+      id: data.id.present ? data.id.value : this.id,
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      snapshotJson: data.snapshotJson.present
+          ? data.snapshotJson.value
+          : this.snapshotJson,
+      changedAt: data.changedAt.present ? data.changedAt.value : this.changedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagRevisionRecord(')
+          ..write('id: $id, ')
+          ..write('tagId: $tagId, ')
+          ..write('userId: $userId, ')
+          ..write('snapshotJson: $snapshotJson, ')
+          ..write('changedAt: $changedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, tagId, userId, snapshotJson, changedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TagRevisionRecord &&
+          other.id == this.id &&
+          other.tagId == this.tagId &&
+          other.userId == this.userId &&
+          other.snapshotJson == this.snapshotJson &&
+          other.changedAt == this.changedAt);
+}
+
+class TagRevisionRecordsCompanion extends UpdateCompanion<TagRevisionRecord> {
+  final Value<String> id;
+  final Value<String> tagId;
+  final Value<String> userId;
+  final Value<String> snapshotJson;
+  final Value<DateTime> changedAt;
+  final Value<int> rowid;
+  const TagRevisionRecordsCompanion({
+    this.id = const Value.absent(),
+    this.tagId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.snapshotJson = const Value.absent(),
+    this.changedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TagRevisionRecordsCompanion.insert({
+    required String id,
+    required String tagId,
+    required String userId,
+    required String snapshotJson,
+    required DateTime changedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       tagId = Value(tagId),
+       userId = Value(userId),
+       snapshotJson = Value(snapshotJson),
+       changedAt = Value(changedAt);
+  static Insertable<TagRevisionRecord> custom({
+    Expression<String>? id,
+    Expression<String>? tagId,
+    Expression<String>? userId,
+    Expression<String>? snapshotJson,
+    Expression<DateTime>? changedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tagId != null) 'tag_id': tagId,
+      if (userId != null) 'user_id': userId,
+      if (snapshotJson != null) 'snapshot_json': snapshotJson,
+      if (changedAt != null) 'changed_at': changedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TagRevisionRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? tagId,
+    Value<String>? userId,
+    Value<String>? snapshotJson,
+    Value<DateTime>? changedAt,
+    Value<int>? rowid,
+  }) {
+    return TagRevisionRecordsCompanion(
+      id: id ?? this.id,
+      tagId: tagId ?? this.tagId,
+      userId: userId ?? this.userId,
+      snapshotJson: snapshotJson ?? this.snapshotJson,
+      changedAt: changedAt ?? this.changedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (snapshotJson.present) {
+      map['snapshot_json'] = Variable<String>(snapshotJson.value);
+    }
+    if (changedAt.present) {
+      map['changed_at'] = Variable<DateTime>(changedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TagRevisionRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('tagId: $tagId, ')
+          ..write('userId: $userId, ')
+          ..write('snapshotJson: $snapshotJson, ')
+          ..write('changedAt: $changedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5066,6 +5983,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $TaskRevisionRecordsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $TagRecordsTable tagRecords = $TagRecordsTable(this);
+  late final $TagRevisionRecordsTable tagRevisionRecords =
+      $TagRevisionRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5080,6 +6000,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     taskRevisionRecords,
     syncOperations,
     appSettings,
+    tagRecords,
+    tagRevisionRecords,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5138,6 +6060,7 @@ typedef $$LocalTasksTableCreateCompanionBuilder =
       required String taskType,
       required int colorValue,
       Value<String> iconName,
+      Value<String?> tagId,
       Value<String?> notes,
       Value<String> status,
       required DateTime createdAt,
@@ -5154,6 +6077,7 @@ typedef $$LocalTasksTableUpdateCompanionBuilder =
       Value<String> taskType,
       Value<int> colorValue,
       Value<String> iconName,
+      Value<String?> tagId,
       Value<String?> notes,
       Value<String> status,
       Value<DateTime> createdAt,
@@ -5350,6 +6274,11 @@ class $$LocalTasksTableFilterComposer
 
   ColumnFilters<String> get iconName => $composableBuilder(
     column: $table.iconName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagId => $composableBuilder(
+    column: $table.tagId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5575,6 +6504,11 @@ class $$LocalTasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -5634,6 +6568,9 @@ class $$LocalTasksTableAnnotationComposer
 
   GeneratedColumn<String> get iconName =>
       $composableBuilder(column: $table.iconName, builder: (column) => column);
+
+  GeneratedColumn<String> get tagId =>
+      $composableBuilder(column: $table.tagId, builder: (column) => column);
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -5853,6 +6790,7 @@ class $$LocalTasksTableTableManager
                 Value<String> taskType = const Value.absent(),
                 Value<int> colorValue = const Value.absent(),
                 Value<String> iconName = const Value.absent(),
+                Value<String?> tagId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5867,6 +6805,7 @@ class $$LocalTasksTableTableManager
                 taskType: taskType,
                 colorValue: colorValue,
                 iconName: iconName,
+                tagId: tagId,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,
@@ -5883,6 +6822,7 @@ class $$LocalTasksTableTableManager
                 required String taskType,
                 required int colorValue,
                 Value<String> iconName = const Value.absent(),
+                Value<String?> tagId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required DateTime createdAt,
@@ -5897,6 +6837,7 @@ class $$LocalTasksTableTableManager
                 taskType: taskType,
                 colorValue: colorValue,
                 iconName: iconName,
+                tagId: tagId,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,
@@ -7815,6 +8756,7 @@ typedef $$TimerSessionRecordsTableCreateCompanionBuilder =
       required String id,
       required String taskId,
       required String userId,
+      Value<String?> tagId,
       required DateTime startedAt,
       Value<DateTime?> endedAt,
       Value<int> durationSeconds,
@@ -7828,6 +8770,7 @@ typedef $$TimerSessionRecordsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> taskId,
       Value<String> userId,
+      Value<String?> tagId,
       Value<DateTime> startedAt,
       Value<DateTime?> endedAt,
       Value<int> durationSeconds,
@@ -7884,6 +8827,11 @@ class $$TimerSessionRecordsTableFilterComposer
 
   ColumnFilters<String> get userId => $composableBuilder(
     column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagId => $composableBuilder(
+    column: $table.tagId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7960,6 +8908,11 @@ class $$TimerSessionRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get startedAt => $composableBuilder(
     column: $table.startedAt,
     builder: (column) => ColumnOrderings(column),
@@ -8028,6 +8981,9 @@ class $$TimerSessionRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get tagId =>
+      $composableBuilder(column: $table.tagId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get startedAt =>
       $composableBuilder(column: $table.startedAt, builder: (column) => column);
@@ -8112,6 +9068,7 @@ class $$TimerSessionRecordsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> taskId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
+                Value<String?> tagId = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
@@ -8123,6 +9080,7 @@ class $$TimerSessionRecordsTableTableManager
                 id: id,
                 taskId: taskId,
                 userId: userId,
+                tagId: tagId,
                 startedAt: startedAt,
                 endedAt: endedAt,
                 durationSeconds: durationSeconds,
@@ -8136,6 +9094,7 @@ class $$TimerSessionRecordsTableTableManager
                 required String id,
                 required String taskId,
                 required String userId,
+                Value<String?> tagId = const Value.absent(),
                 required DateTime startedAt,
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
@@ -8147,6 +9106,7 @@ class $$TimerSessionRecordsTableTableManager
                 id: id,
                 taskId: taskId,
                 userId: userId,
+                tagId: tagId,
                 startedAt: startedAt,
                 endedAt: endedAt,
                 durationSeconds: durationSeconds,
@@ -9065,6 +10025,688 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$TagRecordsTableCreateCompanionBuilder =
+    TagRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String name,
+      required int colorValue,
+      Value<bool> archived,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$TagRecordsTableUpdateCompanionBuilder =
+    TagRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> name,
+      Value<int> colorValue,
+      Value<bool> archived,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$TagRecordsTableReferences
+    extends BaseReferences<_$AppDatabase, $TagRecordsTable, TagRecord> {
+  $$TagRecordsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$TagRevisionRecordsTable, List<TagRevisionRecord>>
+  _tagRevisionRecordsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.tagRevisionRecords,
+        aliasName: 'tag_records__id__tag_revision_records__tag_id',
+      );
+
+  $$TagRevisionRecordsTableProcessedTableManager get tagRevisionRecordsRefs {
+    final manager = $$TagRevisionRecordsTableTableManager(
+      $_db,
+      $_db.tagRevisionRecords,
+    ).filter((f) => f.tagId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _tagRevisionRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$TagRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $TagRecordsTable> {
+  $$TagRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> tagRevisionRecordsRefs(
+    Expression<bool> Function($$TagRevisionRecordsTableFilterComposer f) f,
+  ) {
+    final $$TagRevisionRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.tagRevisionRecords,
+      getReferencedColumn: (t) => t.tagId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TagRevisionRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.tagRevisionRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TagRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TagRecordsTable> {
+  $$TagRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get archived => $composableBuilder(
+    column: $table.archived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TagRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TagRecordsTable> {
+  $$TagRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get archived =>
+      $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> tagRevisionRecordsRefs<T extends Object>(
+    Expression<T> Function($$TagRevisionRecordsTableAnnotationComposer a) f,
+  ) {
+    final $$TagRevisionRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.tagRevisionRecords,
+          getReferencedColumn: (t) => t.tagId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TagRevisionRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.tagRevisionRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$TagRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TagRecordsTable,
+          TagRecord,
+          $$TagRecordsTableFilterComposer,
+          $$TagRecordsTableOrderingComposer,
+          $$TagRecordsTableAnnotationComposer,
+          $$TagRecordsTableCreateCompanionBuilder,
+          $$TagRecordsTableUpdateCompanionBuilder,
+          (TagRecord, $$TagRecordsTableReferences),
+          TagRecord,
+          PrefetchHooks Function({bool tagRevisionRecordsRefs})
+        > {
+  $$TagRecordsTableTableManager(_$AppDatabase db, $TagRecordsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TagRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TagRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TagRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
+                Value<bool> archived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TagRecordsCompanion(
+                id: id,
+                userId: userId,
+                name: name,
+                colorValue: colorValue,
+                archived: archived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String name,
+                required int colorValue,
+                Value<bool> archived = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TagRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                name: name,
+                colorValue: colorValue,
+                archived: archived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TagRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({tagRevisionRecordsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (tagRevisionRecordsRefs) db.tagRevisionRecords,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (tagRevisionRecordsRefs)
+                    await $_getPrefetchedData<
+                      TagRecord,
+                      $TagRecordsTable,
+                      TagRevisionRecord
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TagRecordsTableReferences
+                          ._tagRevisionRecordsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$TagRecordsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).tagRevisionRecordsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.tagId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TagRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TagRecordsTable,
+      TagRecord,
+      $$TagRecordsTableFilterComposer,
+      $$TagRecordsTableOrderingComposer,
+      $$TagRecordsTableAnnotationComposer,
+      $$TagRecordsTableCreateCompanionBuilder,
+      $$TagRecordsTableUpdateCompanionBuilder,
+      (TagRecord, $$TagRecordsTableReferences),
+      TagRecord,
+      PrefetchHooks Function({bool tagRevisionRecordsRefs})
+    >;
+typedef $$TagRevisionRecordsTableCreateCompanionBuilder =
+    TagRevisionRecordsCompanion Function({
+      required String id,
+      required String tagId,
+      required String userId,
+      required String snapshotJson,
+      required DateTime changedAt,
+      Value<int> rowid,
+    });
+typedef $$TagRevisionRecordsTableUpdateCompanionBuilder =
+    TagRevisionRecordsCompanion Function({
+      Value<String> id,
+      Value<String> tagId,
+      Value<String> userId,
+      Value<String> snapshotJson,
+      Value<DateTime> changedAt,
+      Value<int> rowid,
+    });
+
+final class $$TagRevisionRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TagRevisionRecordsTable,
+          TagRevisionRecord
+        > {
+  $$TagRevisionRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TagRecordsTable _tagIdTable(_$AppDatabase db) => db.tagRecords
+      .createAlias('tag_revision_records__tag_id__tag_records__id');
+
+  $$TagRecordsTableProcessedTableManager get tagId {
+    final $_column = $_itemColumn<String>('tag_id')!;
+
+    final manager = $$TagRecordsTableTableManager(
+      $_db,
+      $_db.tagRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tagIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TagRevisionRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $TagRevisionRecordsTable> {
+  $$TagRevisionRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get changedAt => $composableBuilder(
+    column: $table.changedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TagRecordsTableFilterComposer get tagId {
+    final $$TagRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tagId,
+      referencedTable: $db.tagRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TagRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.tagRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TagRevisionRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TagRevisionRecordsTable> {
+  $$TagRevisionRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get changedAt => $composableBuilder(
+    column: $table.changedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TagRecordsTableOrderingComposer get tagId {
+    final $$TagRecordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tagId,
+      referencedTable: $db.tagRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TagRecordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.tagRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TagRevisionRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TagRevisionRecordsTable> {
+  $$TagRevisionRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get snapshotJson => $composableBuilder(
+    column: $table.snapshotJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get changedAt =>
+      $composableBuilder(column: $table.changedAt, builder: (column) => column);
+
+  $$TagRecordsTableAnnotationComposer get tagId {
+    final $$TagRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.tagId,
+      referencedTable: $db.tagRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TagRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.tagRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TagRevisionRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TagRevisionRecordsTable,
+          TagRevisionRecord,
+          $$TagRevisionRecordsTableFilterComposer,
+          $$TagRevisionRecordsTableOrderingComposer,
+          $$TagRevisionRecordsTableAnnotationComposer,
+          $$TagRevisionRecordsTableCreateCompanionBuilder,
+          $$TagRevisionRecordsTableUpdateCompanionBuilder,
+          (TagRevisionRecord, $$TagRevisionRecordsTableReferences),
+          TagRevisionRecord,
+          PrefetchHooks Function({bool tagId})
+        > {
+  $$TagRevisionRecordsTableTableManager(
+    _$AppDatabase db,
+    $TagRevisionRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TagRevisionRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TagRevisionRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TagRevisionRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> tagId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> snapshotJson = const Value.absent(),
+                Value<DateTime> changedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TagRevisionRecordsCompanion(
+                id: id,
+                tagId: tagId,
+                userId: userId,
+                snapshotJson: snapshotJson,
+                changedAt: changedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String tagId,
+                required String userId,
+                required String snapshotJson,
+                required DateTime changedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TagRevisionRecordsCompanion.insert(
+                id: id,
+                tagId: tagId,
+                userId: userId,
+                snapshotJson: snapshotJson,
+                changedAt: changedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TagRevisionRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({tagId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (tagId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.tagId,
+                                referencedTable:
+                                    $$TagRevisionRecordsTableReferences
+                                        ._tagIdTable(db),
+                                referencedColumn:
+                                    $$TagRevisionRecordsTableReferences
+                                        ._tagIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TagRevisionRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TagRevisionRecordsTable,
+      TagRevisionRecord,
+      $$TagRevisionRecordsTableFilterComposer,
+      $$TagRevisionRecordsTableOrderingComposer,
+      $$TagRevisionRecordsTableAnnotationComposer,
+      $$TagRevisionRecordsTableCreateCompanionBuilder,
+      $$TagRevisionRecordsTableUpdateCompanionBuilder,
+      (TagRevisionRecord, $$TagRevisionRecordsTableReferences),
+      TagRevisionRecord,
+      PrefetchHooks Function({bool tagId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9090,4 +10732,8 @@ class $AppDatabaseManager {
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$TagRecordsTableTableManager get tagRecords =>
+      $$TagRecordsTableTableManager(_db, _db.tagRecords);
+  $$TagRevisionRecordsTableTableManager get tagRevisionRecords =>
+      $$TagRevisionRecordsTableTableManager(_db, _db.tagRevisionRecords);
 }

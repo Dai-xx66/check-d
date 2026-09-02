@@ -351,16 +351,19 @@ class _MonthSummary extends StatelessWidget {
     final scheduledDays = data.days.values
         .where((day) => day.scheduledCount > 0)
         .toList();
-    final completedDays = scheduledDays
+    final elapsedDays = scheduledDays
+        .where((day) => !dateOnly(day.date).isAfter(dateOnly(DateTime.now())))
+        .toList();
+    final completedDays = elapsedDays
         .where((day) => day.completionPercent >= 100)
         .length;
-    final average = scheduledDays.isEmpty
+    final average = elapsedDays.isEmpty
         ? 0.0
-        : scheduledDays.fold<double>(
+        : elapsedDays.fold<double>(
                 0,
                 (sum, day) => sum + day.completionPercent,
               ) /
-              scheduledDays.length;
+              elapsedDays.length;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: const BoxDecoration(

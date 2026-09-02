@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../statistics/presentation/task_insights.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'long_term_task_form_page.dart';
@@ -140,6 +141,7 @@ class _TaskDetailContent extends ConsumerWidget {
                       _LongTermStatusCard(task: task, color: color)
                     else
                       _OneTimeStatusCard(task: task, color: color),
+                    TaskInsights(task: task),
                     if (task.notes != null) ...[
                       const SizedBox(height: 14),
                       Card(

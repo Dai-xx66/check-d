@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../domain/task_models.dart';
+import 'task_history.dart';
 
 class TaskRepository {
   TaskRepository({
@@ -126,6 +127,7 @@ class TaskRepository {
         _database.oneTimeReminderRecords,
         _database.taskCompletionRecords,
         _database.timerSessionRecords,
+        _database.taskRevisionRecords,
       },
     );
     final normalizedMonth = DateTime(month.year, month.month);
@@ -183,6 +185,25 @@ class TaskRepository {
 
     final longTermByTask = {for (final row in longTerms) row.taskId: row};
     final scheduleByTask = {for (final row in schedules) row.taskId: row};
+    final revisions =
+        await (_database.select(_database.taskRevisionRecords)
+              ..where((row) => row.userId.equals(_userId))
+              ..orderBy([
+                (row) => OrderingTerm.asc(row.changedAt),
+                (row) => OrderingTerm.asc(row.rowId),
+              ]))
+            .get();
+    final histories = {
+      for (final task in tasks)
+        if (longTermByTask.containsKey(task.id) &&
+            scheduleByTask.containsKey(task.id))
+          task.id: TaskHistory(
+            task,
+            longTermByTask[task.id]!,
+            scheduleByTask[task.id]!,
+            revisions.where((row) => row.taskId == task.id).toList(),
+          ),
+    };
     final reminderByTask = {for (final row in reminders) row.taskId: row};
     final completionByTaskAndDay = {
       for (final row in completions) '${row.taskId}:${row.localDate}': row,
@@ -202,7 +223,8 @@ class TaskRepository {
       final dayTasks = <TaskDetails>[];
       for (final task in tasks) {
         final status = TaskLifecycle.values.byName(task.status);
-        if (status != TaskLifecycle.active &&
+        if (task.taskType == TaskKind.oneTime.name &&
+            status != TaskLifecycle.active &&
             day.isAfter(dateOnly(task.updatedAt.toLocal()))) {
           continue;
         }
@@ -246,18 +268,23 @@ class TaskRepository {
         final longTerm = longTermByTask[task.id];
         final scheduleRow = scheduleByTask[task.id];
         if (longTerm == null || scheduleRow == null) continue;
+        final snapshot = histories[task.id]!.on(day);
+        if (snapshot['status'] != 'active') continue;
         final schedule = TaskScheduleRule(
-          preset: SchedulePreset.values.byName(scheduleRow.scheduleType),
-          weekdaysMask: scheduleRow.weekdaysMask,
-          startsOn: DateTime.parse(scheduleRow.startsOn),
-          endsOn: scheduleRow.endsOn == null
-              ? null
-              : DateTime.parse(scheduleRow.endsOn!),
+          preset: SchedulePreset.values.byName(
+            snapshot['schedule_type'] as String,
+          ),
+          weekdaysMask: WeekdayMask.fromDays(
+            (snapshot['weekdays'] as List).cast<int>(),
+          ),
+          startsOn: DateTime.parse(snapshot['starts_on'] as String),
+          endsOn: DateTime.tryParse(snapshot['ends_on'] as String? ?? ''),
         );
         if (!schedule.isDueOn(day)) continue;
-        final checkMode = _longTermMode(longTerm.checkMode);
+        final checkMode = _longTermMode(snapshot['check_mode'] as String);
         final completion =
             completionByTaskAndDay['${task.id}:${localDateKey(day)}'];
+        if (completion?.exclusionReason != null) continue;
         final actualDuration = checkMode != LongTermCheckMode.simple
             ? _durationFromSessionsForDay(
                 sessionsByTask[task.id] ?? const [],
@@ -265,7 +292,7 @@ class TaskRepository {
                 nowUtc,
               )
             : completion?.actualDurationSeconds ?? 0;
-        final targetDuration = longTerm.targetDurationSeconds ?? 0;
+        final targetDuration = snapshot['target_duration_seconds'] as int? ?? 0;
         final progress = checkMode == LongTermCheckMode.targetTimer
             ? targetDuration <= 0
                   ? 0.0
@@ -285,7 +312,7 @@ class TaskRepository {
             updatedAt: task.updatedAt,
             notes: task.notes,
             checkMode: checkMode,
-            targetDurationSeconds: longTerm.targetDurationSeconds,
+            targetDurationSeconds: snapshot['target_duration_seconds'] as int?,
             targetDays: longTerm.targetDays,
             holidayPause: longTerm.holidayPause,
             schedule: schedule,
@@ -323,6 +350,8 @@ class TaskRepository {
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
+    await _validateTag(draft.tagId);
+    if (taskId != null && existing == null) throw StateError('Task not found');
     if (existing?.hasTimer == true &&
         draft.checkMode == LongTermCheckMode.simple) {
       final latest = await _latestTimerSession(id);
@@ -345,6 +374,7 @@ class TaskRepository {
                 colorValue: draft.colorValue,
                 iconName: Value(draft.iconName),
                 notes: Value(_normalizedNotes(draft.notes)),
+                tagId: Value(draft.tagId),
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -357,6 +387,7 @@ class TaskRepository {
             name: Value(draft.name.trim()),
             colorValue: Value(draft.colorValue),
             iconName: Value(draft.iconName),
+            tagId: Value(draft.tagId),
             notes: Value(_normalizedNotes(draft.notes)),
             updatedAt: Value(now),
           ),
@@ -423,6 +454,8 @@ class TaskRepository {
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
+    await _validateTag(draft.tagId);
+    if (taskId != null && existing == null) throw StateError('Task not found');
     if (existing?.hasTimer == true &&
         draft.executionMode == OneTimeExecutionMode.normal) {
       final latest = await _latestTimerSession(id);
@@ -444,6 +477,7 @@ class TaskRepository {
                 taskType: TaskKind.oneTime.name,
                 colorValue: draft.colorValue,
                 iconName: Value(draft.iconName),
+                tagId: Value(draft.tagId),
                 notes: Value(_normalizedNotes(draft.notes)),
                 createdAt: now,
                 updatedAt: now,
@@ -457,6 +491,7 @@ class TaskRepository {
             name: Value(draft.name.trim()),
             colorValue: Value(draft.colorValue),
             iconName: Value(draft.iconName),
+            tagId: Value(draft.tagId),
             notes: Value(_normalizedNotes(draft.notes)),
             updatedAt: Value(now),
           ),
@@ -611,7 +646,7 @@ class TaskRepository {
   }
 
   Future<void> startTimer(String taskId, {DateTime? now}) async {
-    await _requireTimerTask(taskId);
+    final task = await _requireTimerTask(taskId);
     final timestamp = (now ?? DateTime.now()).toUtc();
     final sessionId = _uuid.v4();
     await _database.transaction(() async {
@@ -628,6 +663,7 @@ class TaskRepository {
             TimerSessionRecordsCompanion.insert(
               id: sessionId,
               taskId: taskId,
+              tagId: Value(task.tagId),
               userId: _userId,
               startedAt: timestamp,
               state: TimerSessionStatus.running.name,
@@ -662,7 +698,7 @@ class TaskRepository {
   }
 
   Future<void> resumeTimer(String taskId, {DateTime? now}) async {
-    await _requireTimerTask(taskId);
+    final task = await _requireTimerTask(taskId);
     final timestamp = (now ?? DateTime.now()).toUtc();
     final sessionId = _uuid.v4();
     await _database.transaction(() async {
@@ -687,6 +723,7 @@ class TaskRepository {
             TimerSessionRecordsCompanion.insert(
               id: sessionId,
               taskId: taskId,
+              tagId: Value(task.tagId),
               userId: _userId,
               startedAt: timestamp,
               state: TimerSessionStatus.running.name,
@@ -844,6 +881,7 @@ class TaskRepository {
         kind: kind,
         colorValue: task.colorValue,
         iconName: task.iconName,
+        tagId: task.tagId,
         status: TaskLifecycle.values.byName(task.status),
         notes: task.notes,
         createdAt: task.createdAt,
@@ -882,6 +920,7 @@ class TaskRepository {
       kind: kind,
       colorValue: task.colorValue,
       iconName: task.iconName,
+      tagId: task.tagId,
       status: TaskLifecycle.values.byName(task.status),
       notes: task.notes,
       createdAt: task.createdAt,
@@ -1072,7 +1111,12 @@ class TaskRepository {
     required TimerSessionStatus status,
     DateTime? endedAt,
     int durationSeconds = 0,
-  }) {
+  }) async {
+    final session =
+        await (_database.select(_database.timerSessionRecords)..where(
+              (row) => row.id.equals(sessionId) & row.userId.equals(_userId),
+            ))
+            .getSingle();
     return _syncQueue.enqueue(
       entityType: 'timer_sessions',
       entityId: sessionId,
@@ -1080,6 +1124,7 @@ class TaskRepository {
       payload: {
         'id': sessionId,
         'task_id': taskId,
+        'tag_id': session.tagId,
         'started_at': startedAt.toIso8601String(),
         'ended_at': endedAt?.toIso8601String(),
         'duration_seconds': durationSeconds,
@@ -1107,6 +1152,16 @@ class TaskRepository {
             changedAt: changedAt,
           ),
         );
+  }
+
+  Future<void> _validateTag(String? tagId) async {
+    if (tagId == null) return;
+    final tag =
+        await (_database.select(_database.tagRecords)..where(
+              (row) => row.id.equals(tagId) & row.userId.equals(_userId),
+            ))
+            .getSingleOrNull();
+    if (tag == null) throw ArgumentError('Unknown tag');
   }
 
   void _validateLongTermDraft(LongTermTaskDraft draft) {
@@ -1139,6 +1194,7 @@ class TaskRepository {
       'type': 'long_term',
       'color': draft.colorValue,
       'icon_name': draft.iconName,
+      'tag_id': draft.tagId,
       'notes': _normalizedNotes(draft.notes),
       'check_mode': _longTermModeWireValue(draft.checkMode),
       'target_duration_seconds': draft.targetDurationSeconds,
@@ -1164,6 +1220,7 @@ class TaskRepository {
       'type': 'one_time',
       'color': draft.colorValue,
       'icon_name': draft.iconName,
+      'tag_id': draft.tagId,
       'notes': _normalizedNotes(draft.notes),
       'scheduled_at': draft.scheduledAt.toUtc().toIso8601String(),
       'remind_before_minutes': draft.remindBeforeMinutes,
@@ -1179,6 +1236,7 @@ class TaskRepository {
       'type': task.kind.name,
       'color': task.colorValue,
       'icon_name': task.iconName,
+      'tag_id': task.tagId,
       'status': task.status.name,
       'notes': task.notes,
       'check_mode': task.checkMode == null

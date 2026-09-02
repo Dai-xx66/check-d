@@ -53,7 +53,9 @@ class TaskScheduleRule {
 }
 
 class LongTermTaskDraft {
+  final String? tagId;
   const LongTermTaskDraft({
+    this.tagId,
     required this.name,
     required this.colorValue,
     this.iconName = 'target',
@@ -83,7 +85,9 @@ class LongTermTaskDraft {
 }
 
 class OneTimeReminderDraft {
+  final String? tagId;
   const OneTimeReminderDraft({
+    this.tagId,
     required this.name,
     required this.colorValue,
     this.iconName = 'event',
@@ -103,7 +107,9 @@ class OneTimeReminderDraft {
 }
 
 class TaskDetails {
+  final String? tagId;
   const TaskDetails({
+    this.tagId,
     required this.id,
     required this.name,
     required this.kind,

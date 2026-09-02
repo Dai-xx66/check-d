@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../tags/presentation/tag_picker.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'task_color_picker.dart';
@@ -26,6 +27,7 @@ class _OneTimeReminderFormPageState
   late DateTime _scheduledAt;
   late int _colorValue;
   late String _iconName;
+  String? _tagId;
   late int? _remindBeforeMinutes;
   late OneTimeExecutionMode _executionMode;
   bool _isSaving = false;
@@ -35,6 +37,7 @@ class _OneTimeReminderFormPageState
   @override
   void initState() {
     super.initState();
+    _tagId = _initial?.tagId;
     _nameController = TextEditingController(text: _initial?.name ?? '');
     _notesController = TextEditingController(text: _initial?.notes ?? '');
     _scheduledAt =
@@ -231,6 +234,13 @@ class _OneTimeReminderFormPageState
                         ],
                       ),
                     ),
+                    if (_executionMode == OneTimeExecutionMode.timer) ...[
+                      const SizedBox(height: 16),
+                      TagPicker(
+                        value: _tagId,
+                        onChanged: (value) => setState(() => _tagId = value),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: _isSaving ? null : _save,
@@ -297,6 +307,9 @@ class _OneTimeReminderFormPageState
               name: _nameController.text,
               colorValue: _colorValue,
               iconName: _iconName,
+              tagId: _executionMode == OneTimeExecutionMode.timer
+                  ? _tagId
+                  : null,
               scheduledAt: _scheduledAt,
               executionMode: _executionMode,
               remindBeforeMinutes: _remindBeforeMinutes,

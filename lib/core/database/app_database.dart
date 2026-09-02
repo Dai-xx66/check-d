@@ -10,6 +10,7 @@ class LocalTasks extends Table {
   TextColumn get taskType => text()();
   IntColumn get colorValue => integer()();
   TextColumn get iconName => text().withDefault(const Constant('target'))();
+  TextColumn get tagId => text().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   DateTimeColumn get createdAt => dateTime()();
@@ -99,6 +100,7 @@ class TimerSessionRecords extends Table {
   TextColumn get taskId =>
       text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
   TextColumn get userId => text()();
+  TextColumn get tagId => text().nullable()();
   DateTimeColumn get startedAt => dateTime()();
   DateTimeColumn get endedAt => dateTime().nullable()();
   IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
@@ -149,6 +151,30 @@ class AppSettings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
+class TagRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  IntColumn get colorValue => integer()();
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class TagRevisionRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get tagId => text().references(TagRecords, #id)();
+  TextColumn get userId => text()();
+  TextColumn get snapshotJson => text()();
+  DateTimeColumn get changedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalTasks,
@@ -160,6 +186,8 @@ class AppSettings extends Table {
     TaskRevisionRecords,
     SyncOperations,
     AppSettings,
+    TagRecords,
+    TagRevisionRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -168,7 +196,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -213,6 +241,17 @@ class AppDatabase extends _$AppDatabase {
           'WHERE task_id IN (SELECT task_id FROM long_term_task_records '
           "WHERE check_mode = 'targetTimer')",
         );
+      }
+      if (from < 6) {
+        await migrator.createTable(tagRecords);
+        await migrator.createTable(tagRevisionRecords);
+        await migrator.addColumn(localTasks, localTasks.tagId);
+        if (from >= 3) {
+          await migrator.addColumn(
+            timerSessionRecords,
+            timerSessionRecords.tagId,
+          );
+        }
       }
     },
     beforeOpen: (details) async {

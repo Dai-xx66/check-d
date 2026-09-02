@@ -3,6 +3,8 @@ import 'package:check_d/app/app_providers.dart';
 import 'package:check_d/core/config/app_config.dart';
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/features/calendar/presentation/calendar_page.dart';
+import 'package:check_d/features/statistics/application/statistics_providers.dart';
+import 'package:check_d/features/statistics/domain/statistics_models.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
 import 'package:drift/native.dart';
@@ -105,6 +107,16 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          statisticsDataProvider.overrideWith(
+            (ref) => Stream.value(
+              const StatisticsData(
+                tags: [],
+                sessions: [],
+                tasks: [],
+                reminderCompletions: [],
+              ),
+            ),
+          ),
           appConfigProvider.overrideWithValue(
             const AppConfig(supabaseUrl: '', supabaseAnonKey: ''),
           ),
@@ -150,6 +162,16 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          statisticsDataProvider.overrideWith(
+            (ref) => Stream.value(
+              const StatisticsData(
+                tags: [],
+                sessions: [],
+                tasks: [],
+                reminderCompletions: [],
+              ),
+            ),
+          ),
           calendarMonthProvider.overrideWith(
             (ref, value) =>
                 Stream.value(CalendarMonthData(month: value, days: const [])),
