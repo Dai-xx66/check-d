@@ -9,6 +9,7 @@ class LocalTasks extends Table {
   TextColumn get name => text()();
   TextColumn get taskType => text()();
   IntColumn get colorValue => integer()();
+  TextColumn get iconName => text().withDefault(const Constant('target'))();
   TextColumn get notes => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   DateTimeColumn get createdAt => dateTime()();
@@ -164,7 +165,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,6 +183,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await migrator.createTable(timerSessionRecords);
+      }
+      if (from < 4) {
+        await migrator.addColumn(localTasks, localTasks.iconName);
       }
     },
     beforeOpen: (details) async {

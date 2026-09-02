@@ -7,6 +7,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../../tasks/presentation/task_detail_page.dart';
+import '../../tasks/presentation/task_icon_picker.dart';
 
 class DailyDetailPage extends StatelessWidget {
   const DailyDetailPage({required this.date, super.key});
@@ -273,11 +274,7 @@ class _DailyTaskCard extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            task.kind == TaskKind.oneTime
-                                ? Icons.event_note_outlined
-                                : task.isTimer
-                                ? Icons.timer_outlined
-                                : Icons.check_circle_outline_rounded,
+                            taskIconData(task.iconName),
                             size: 20,
                             color: color,
                           ),

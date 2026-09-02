@@ -8,6 +8,7 @@ import '../../../shared/widgets/page_header.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../../tasks/presentation/task_detail_page.dart';
+import '../../tasks/presentation/task_icon_picker.dart';
 import '../../tasks/presentation/task_list_page.dart';
 
 class TodayPage extends ConsumerWidget {
@@ -230,14 +231,7 @@ class _TaskCard extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
                   child: Row(
                     children: [
-                      Icon(
-                        task.kind == TaskKind.longTerm
-                            ? task.isTimer
-                                  ? Icons.timer_outlined
-                                  : Icons.check_circle_outline_rounded
-                            : Icons.event_note_outlined,
-                        color: color,
-                      ),
+                      Icon(taskIconData(task.iconName), color: color),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

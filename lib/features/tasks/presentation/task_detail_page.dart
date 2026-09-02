@@ -7,6 +7,7 @@ import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'long_term_task_form_page.dart';
 import 'one_time_reminder_form_page.dart';
+import 'task_icon_picker.dart';
 
 class TaskDetailPage extends ConsumerWidget {
   const TaskDetailPage({required this.taskId, super.key});
@@ -100,9 +101,7 @@ class _TaskDetailContent extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
-                                task.kind == TaskKind.longTerm
-                                    ? Icons.loop_rounded
-                                    : Icons.event_note_rounded,
+                                taskIconData(task.iconName),
                                 color: color,
                               ),
                             ),

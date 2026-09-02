@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'task_color_picker.dart';
+import 'task_icon_picker.dart';
 
 class OneTimeReminderFormPage extends ConsumerStatefulWidget {
   const OneTimeReminderFormPage({this.initialTask, super.key});
@@ -24,6 +25,7 @@ class _OneTimeReminderFormPageState
   late final TextEditingController _notesController;
   late DateTime _scheduledAt;
   late int _colorValue;
+  late String _iconName;
   late int? _remindBeforeMinutes;
   bool _isSaving = false;
 
@@ -37,6 +39,7 @@ class _OneTimeReminderFormPageState
     _scheduledAt =
         _initial?.scheduledAt ?? DateTime.now().add(const Duration(hours: 1));
     _colorValue = _initial?.colorValue ?? taskColorValues[2];
+    _iconName = _initial?.iconName ?? TaskIconKey.event;
     _remindBeforeMinutes = _initial?.remindBeforeMinutes;
   }
 
@@ -99,6 +102,13 @@ class _OneTimeReminderFormPageState
                             selectedValue: _colorValue,
                             onSelected: (value) =>
                                 setState(() => _colorValue = value),
+                          ),
+                          const SizedBox(height: 18),
+                          TaskIconPicker(
+                            selectedKey: _iconName,
+                            color: Color(_colorValue),
+                            onSelected: (value) =>
+                                setState(() => _iconName = value),
                           ),
                         ],
                       ),
@@ -262,6 +272,7 @@ class _OneTimeReminderFormPageState
             OneTimeReminderDraft(
               name: _nameController.text,
               colorValue: _colorValue,
+              iconName: _iconName,
               scheduledAt: _scheduledAt,
               remindBeforeMinutes: _remindBeforeMinutes,
               notes: _notesController.text,

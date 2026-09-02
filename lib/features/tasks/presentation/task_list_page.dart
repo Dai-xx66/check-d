@@ -7,6 +7,7 @@ import '../../../shared/widgets/empty_state.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'task_detail_page.dart';
+import 'task_icon_picker.dart';
 
 class TaskListPage extends ConsumerStatefulWidget {
   const TaskListPage({super.key});
@@ -114,12 +115,7 @@ class _TaskListTile extends StatelessWidget {
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            task.kind == TaskKind.longTerm
-                ? Icons.loop_rounded
-                : Icons.event_note_rounded,
-            color: color,
-          ),
+          child: Icon(taskIconData(task.iconName), color: color),
         ),
         title: Text(
           task.name,

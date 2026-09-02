@@ -4,6 +4,7 @@ import 'package:check_d/core/config/app_config.dart';
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
+import 'package:check_d/features/tasks/presentation/task_icon_picker.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +47,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, '晨间整理');
+    await tester.tap(find.byTooltip('阅读'));
     await tester.tap(find.widgetWithText(TextButton, '保存'));
     await tester.pumpAndSettle();
 
@@ -53,6 +55,7 @@ void main() {
     final tasks = await database.select(database.localTasks).get();
     expect(tasks.single.name, '晨间整理');
     expect(tasks.single.taskType, TaskKind.longTerm.name);
+    expect(tasks.single.iconName, TaskIconKey.book);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

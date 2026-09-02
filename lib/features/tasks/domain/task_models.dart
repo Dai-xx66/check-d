@@ -54,6 +54,7 @@ class LongTermTaskDraft {
   const LongTermTaskDraft({
     required this.name,
     required this.colorValue,
+    this.iconName = 'target',
     required this.checkMode,
     required this.schedulePreset,
     required this.weekdays,
@@ -67,6 +68,7 @@ class LongTermTaskDraft {
 
   final String name;
   final int colorValue;
+  final String iconName;
   final String? notes;
   final LongTermCheckMode checkMode;
   final int? targetDurationSeconds;
@@ -82,6 +84,7 @@ class OneTimeReminderDraft {
   const OneTimeReminderDraft({
     required this.name,
     required this.colorValue,
+    this.iconName = 'event',
     required this.scheduledAt,
     this.remindBeforeMinutes,
     this.notes,
@@ -89,6 +92,7 @@ class OneTimeReminderDraft {
 
   final String name;
   final int colorValue;
+  final String iconName;
   final DateTime scheduledAt;
   final int? remindBeforeMinutes;
   final String? notes;
@@ -100,6 +104,7 @@ class TaskDetails {
     required this.name,
     required this.kind,
     required this.colorValue,
+    this.iconName = 'target',
     required this.status,
     required this.createdAt,
     required this.updatedAt,
@@ -121,6 +126,7 @@ class TaskDetails {
   final String name;
   final TaskKind kind;
   final int colorValue;
+  final String iconName;
   final TaskLifecycle status;
   final DateTime createdAt;
   final DateTime updatedAt;

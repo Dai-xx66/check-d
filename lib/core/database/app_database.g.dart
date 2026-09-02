@@ -58,6 +58,18 @@ class $LocalTasksTable extends LocalTasks
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
+  @override
+  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
+    'icon_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('target'),
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -129,6 +141,7 @@ class $LocalTasksTable extends LocalTasks
     name,
     taskType,
     colorValue,
+    iconName,
     notes,
     status,
     createdAt,
@@ -182,6 +195,12 @@ class $LocalTasksTable extends LocalTasks
       );
     } else if (isInserting) {
       context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('icon_name')) {
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
     }
     if (data.containsKey('notes')) {
       context.handle(
@@ -255,6 +274,10 @@ class $LocalTasksTable extends LocalTasks
         DriftSqlType.int,
         data['${effectivePrefix}color_value'],
       )!,
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      )!,
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -294,6 +317,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
   final String name;
   final String taskType;
   final int colorValue;
+  final String iconName;
   final String? notes;
   final String status;
   final DateTime createdAt;
@@ -306,6 +330,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     required this.name,
     required this.taskType,
     required this.colorValue,
+    required this.iconName,
     this.notes,
     required this.status,
     required this.createdAt,
@@ -323,6 +348,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     map['name'] = Variable<String>(name);
     map['task_type'] = Variable<String>(taskType);
     map['color_value'] = Variable<int>(colorValue);
+    map['icon_name'] = Variable<String>(iconName);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -345,6 +371,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       name: Value(name),
       taskType: Value(taskType),
       colorValue: Value(colorValue),
+      iconName: Value(iconName),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -369,6 +396,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       name: serializer.fromJson<String>(json['name']),
       taskType: serializer.fromJson<String>(json['taskType']),
       colorValue: serializer.fromJson<int>(json['colorValue']),
+      iconName: serializer.fromJson<String>(json['iconName']),
       notes: serializer.fromJson<String?>(json['notes']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -386,6 +414,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       'name': serializer.toJson<String>(name),
       'taskType': serializer.toJson<String>(taskType),
       'colorValue': serializer.toJson<int>(colorValue),
+      'iconName': serializer.toJson<String>(iconName),
       'notes': serializer.toJson<String?>(notes),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -401,6 +430,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     String? name,
     String? taskType,
     int? colorValue,
+    String? iconName,
     Value<String?> notes = const Value.absent(),
     String? status,
     DateTime? createdAt,
@@ -413,6 +443,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     name: name ?? this.name,
     taskType: taskType ?? this.taskType,
     colorValue: colorValue ?? this.colorValue,
+    iconName: iconName ?? this.iconName,
     notes: notes.present ? notes.value : this.notes,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
@@ -429,6 +460,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
       colorValue: data.colorValue.present
           ? data.colorValue.value
           : this.colorValue,
+      iconName: data.iconName.present ? data.iconName.value : this.iconName,
       notes: data.notes.present ? data.notes.value : this.notes,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -448,6 +480,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
           ..write('name: $name, ')
           ..write('taskType: $taskType, ')
           ..write('colorValue: $colorValue, ')
+          ..write('iconName: $iconName, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -465,6 +498,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
     name,
     taskType,
     colorValue,
+    iconName,
     notes,
     status,
     createdAt,
@@ -481,6 +515,7 @@ class LocalTask extends DataClass implements Insertable<LocalTask> {
           other.name == this.name &&
           other.taskType == this.taskType &&
           other.colorValue == this.colorValue &&
+          other.iconName == this.iconName &&
           other.notes == this.notes &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
@@ -495,6 +530,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
   final Value<String> name;
   final Value<String> taskType;
   final Value<int> colorValue;
+  final Value<String> iconName;
   final Value<String?> notes;
   final Value<String> status;
   final Value<DateTime> createdAt;
@@ -508,6 +544,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     this.name = const Value.absent(),
     this.taskType = const Value.absent(),
     this.colorValue = const Value.absent(),
+    this.iconName = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -522,6 +559,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     required String name,
     required String taskType,
     required int colorValue,
+    this.iconName = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     required DateTime createdAt,
@@ -541,6 +579,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     Expression<String>? name,
     Expression<String>? taskType,
     Expression<int>? colorValue,
+    Expression<String>? iconName,
     Expression<String>? notes,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
@@ -555,6 +594,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
       if (name != null) 'name': name,
       if (taskType != null) 'task_type': taskType,
       if (colorValue != null) 'color_value': colorValue,
+      if (iconName != null) 'icon_name': iconName,
       if (notes != null) 'notes': notes,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
@@ -571,6 +611,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     Value<String>? name,
     Value<String>? taskType,
     Value<int>? colorValue,
+    Value<String>? iconName,
     Value<String?>? notes,
     Value<String>? status,
     Value<DateTime>? createdAt,
@@ -585,6 +626,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
       name: name ?? this.name,
       taskType: taskType ?? this.taskType,
       colorValue: colorValue ?? this.colorValue,
+      iconName: iconName ?? this.iconName,
       notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -612,6 +654,9 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
     }
     if (colorValue.present) {
       map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (iconName.present) {
+      map['icon_name'] = Variable<String>(iconName.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -645,6 +690,7 @@ class LocalTasksCompanion extends UpdateCompanion<LocalTask> {
           ..write('name: $name, ')
           ..write('taskType: $taskType, ')
           ..write('colorValue: $colorValue, ')
+          ..write('iconName: $iconName, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -4988,6 +5034,7 @@ typedef $$LocalTasksTableCreateCompanionBuilder =
       required String name,
       required String taskType,
       required int colorValue,
+      Value<String> iconName,
       Value<String?> notes,
       Value<String> status,
       required DateTime createdAt,
@@ -5003,6 +5050,7 @@ typedef $$LocalTasksTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> taskType,
       Value<int> colorValue,
+      Value<String> iconName,
       Value<String?> notes,
       Value<String> status,
       Value<DateTime> createdAt,
@@ -5194,6 +5242,11 @@ class $$LocalTasksTableFilterComposer
 
   ColumnFilters<int> get colorValue => $composableBuilder(
     column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconName => $composableBuilder(
+    column: $table.iconName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5414,6 +5467,11 @@ class $$LocalTasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get iconName => $composableBuilder(
+    column: $table.iconName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -5470,6 +5528,9 @@ class $$LocalTasksTableAnnotationComposer
     column: $table.colorValue,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get iconName =>
+      $composableBuilder(column: $table.iconName, builder: (column) => column);
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -5688,6 +5749,7 @@ class $$LocalTasksTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> taskType = const Value.absent(),
                 Value<int> colorValue = const Value.absent(),
+                Value<String> iconName = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -5701,6 +5763,7 @@ class $$LocalTasksTableTableManager
                 name: name,
                 taskType: taskType,
                 colorValue: colorValue,
+                iconName: iconName,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,
@@ -5716,6 +5779,7 @@ class $$LocalTasksTableTableManager
                 required String name,
                 required String taskType,
                 required int colorValue,
+                Value<String> iconName = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required DateTime createdAt,
@@ -5729,6 +5793,7 @@ class $$LocalTasksTableTableManager
                 name: name,
                 taskType: taskType,
                 colorValue: colorValue,
+                iconName: iconName,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,

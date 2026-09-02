@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
 import 'task_color_picker.dart';
+import 'task_icon_picker.dart';
 
 class LongTermTaskFormPage extends ConsumerStatefulWidget {
   const LongTermTaskFormPage({this.initialTask, super.key});
@@ -23,6 +24,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   late final TextEditingController _durationController;
   late final TextEditingController _targetDaysController;
   late int _colorValue;
+  late String _iconName;
   late LongTermCheckMode _checkMode;
   late SchedulePreset _schedulePreset;
   late Set<int> _weekdays;
@@ -45,6 +47,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
       text: _initial?.targetDays?.toString() ?? '',
     );
     _colorValue = _initial?.colorValue ?? taskColorValues.first;
+    _iconName = _initial?.iconName ?? TaskIconKey.check;
     _checkMode = _initial?.checkMode ?? LongTermCheckMode.simple;
     _schedulePreset = _initial?.schedule?.preset ?? SchedulePreset.daily;
     _weekdays = _initial?.schedule == null
@@ -115,6 +118,13 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                             onSelected: (value) =>
                                 setState(() => _colorValue = value),
                           ),
+                          const SizedBox(height: 18),
+                          TaskIconPicker(
+                            selectedKey: _iconName,
+                            color: Color(_colorValue),
+                            onSelected: (value) =>
+                                setState(() => _iconName = value),
+                          ),
                         ],
                       ),
                     ),
@@ -159,14 +169,6 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                                     ? '请输入大于 0 的分钟数'
                                     : null;
                               },
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              '计时器将在 Phase 3 开放，当前先保存目标配置。',
-                              style: TextStyle(
-                                color: AppColors.muted,
-                                fontSize: 13,
-                              ),
                             ),
                           ],
                         ],
@@ -310,6 +312,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
       final draft = LongTermTaskDraft(
         name: _nameController.text,
         colorValue: _colorValue,
+        iconName: _iconName,
         notes: _notesController.text,
         checkMode: _checkMode,
         targetDurationSeconds: _checkMode == LongTermCheckMode.timer
