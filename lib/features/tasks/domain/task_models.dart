@@ -218,6 +218,43 @@ class CompletionHistoryEntry {
   final DateTime? completedAt;
 }
 
+class CalendarDayData {
+  const CalendarDayData({required this.date, required this.tasks});
+
+  final DateTime date;
+  final List<TaskDetails> tasks;
+
+  int get scheduledCount => tasks.length;
+  int get completedCount => tasks.where((task) => task.isCompleted).length;
+  int get timedSeconds =>
+      tasks.fold(0, (total, task) => total + task.todayActualDurationSeconds);
+  double get completionPercent {
+    if (tasks.isEmpty) return 0;
+    final totalProgress = tasks.fold<double>(0, (total, task) {
+      if (task.kind == TaskKind.oneTime) {
+        return total + (task.isCompleted ? 100 : 0);
+      }
+      return total + task.todayProgressPercent.clamp(0, 100);
+    });
+    return totalProgress / tasks.length;
+  }
+}
+
+class CalendarMonthData {
+  CalendarMonthData({
+    required this.month,
+    required Iterable<CalendarDayData> days,
+  }) : days = {for (final day in days) localDateKey(day.date): day};
+
+  final DateTime month;
+  final Map<String, CalendarDayData> days;
+
+  CalendarDayData day(DateTime date) {
+    return days[localDateKey(date)] ??
+        CalendarDayData(date: dateOnly(date), tasks: const []);
+  }
+}
+
 DateTime dateOnly(DateTime value) =>
     DateTime(value.year, value.month, value.day);
 

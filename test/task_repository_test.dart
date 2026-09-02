@@ -278,6 +278,63 @@ void main() {
     expect(session.endedAt, isNotNull);
     expect(session.durationSeconds, greaterThanOrEqualTo(120));
   });
+
+  test('calendar month combines partial timers and completed tasks', () async {
+    final day = DateTime(2026, 9, 2);
+    final simpleId = await repository.saveLongTermTask(_simpleDraft(day));
+    final timerId = await repository.saveLongTermTask(_timerDraft(day));
+    final reminderId = await repository.saveOneTimeReminder(
+      OneTimeReminderDraft(
+        name: '项目会议',
+        colorValue: 0xFFE69545,
+        scheduledAt: DateTime(2026, 9, 2, 14),
+      ),
+    );
+    await repository.toggleSimpleCompletion(simpleId, day);
+    await repository.startTimer(timerId, now: DateTime(2026, 9, 2, 8));
+    await repository.endTimer(timerId, now: DateTime(2026, 9, 2, 8, 5));
+    await repository.toggleOneTimeCompletion(reminderId);
+
+    final month = await repository.watchCalendarMonth(day).first;
+    final details = month.day(day);
+
+    expect(details.scheduledCount, 3);
+    expect(details.completedCount, 2);
+    expect(details.timedSeconds, 300);
+    expect(details.completionPercent, closeTo(83.33, 0.01));
+  });
+
+  test('calendar excludes non-scheduled weekdays', () async {
+    final monday = DateTime(2026, 8, 3);
+    await repository.saveLongTermTask(
+      LongTermTaskDraft(
+        name: '周一阅读',
+        colorValue: 0xFF3D73E8,
+        checkMode: LongTermCheckMode.simple,
+        schedulePreset: SchedulePreset.custom,
+        weekdays: const {DateTime.monday},
+        startsOn: monday,
+        holidayPause: false,
+      ),
+    );
+
+    final month = await repository.watchCalendarMonth(monday).first;
+
+    expect(month.day(monday).scheduledCount, 1);
+    expect(month.day(DateTime(2026, 8, 4)).scheduledCount, 0);
+  });
+
+  test('calendar retains an archived task on its historical dates', () async {
+    final today = dateOnly(DateTime.now());
+    final taskId = await repository.saveLongTermTask(_simpleDraft(today));
+    await repository.toggleSimpleCompletion(taskId, today);
+    await repository.archiveTask(taskId);
+
+    final month = await repository.watchCalendarMonth(today).first;
+
+    expect(month.day(today).tasks.single.id, taskId);
+    expect(month.day(today).tasks.single.isCompleted, isTrue);
+  });
 }
 
 LongTermTaskDraft _simpleDraft(DateTime startsOn) {

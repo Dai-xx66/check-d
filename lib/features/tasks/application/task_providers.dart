@@ -52,3 +52,8 @@ final timerNowProvider = StreamProvider.autoDispose<DateTime>((ref) async* {
     (_) => DateTime.now(),
   );
 });
+
+final calendarMonthProvider = StreamProvider.autoDispose
+    .family<CalendarMonthData, DateTime>((ref, month) {
+      return ref.watch(taskRepositoryProvider).watchCalendarMonth(month);
+    });

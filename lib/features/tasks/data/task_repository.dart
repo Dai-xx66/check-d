@@ -114,6 +114,22 @@ class TaskRepository {
     );
   }
 
+  Stream<CalendarMonthData> watchCalendarMonth(DateTime month) {
+    final trigger = _database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        _database.localTasks,
+        _database.longTermTaskRecords,
+        _database.taskScheduleRecords,
+        _database.oneTimeReminderRecords,
+        _database.taskCompletionRecords,
+        _database.timerSessionRecords,
+      },
+    );
+    final normalizedMonth = DateTime(month.year, month.month);
+    return trigger.watch().asyncMap((_) => _loadCalendarMonth(normalizedMonth));
+  }
+
   Future<TaskDetails?> getTask(String taskId, {DateTime? date}) async {
     final query = _database.select(_database.localTasks)
       ..where(
@@ -124,6 +140,152 @@ class TaskRepository {
       );
     final task = await query.getSingleOrNull();
     return task == null ? null : _loadDetails(task, date ?? DateTime.now());
+  }
+
+  Future<CalendarMonthData> _loadCalendarMonth(DateTime month) async {
+    final monthStart = DateTime(month.year, month.month);
+    final monthEnd = DateTime(month.year, month.month + 1);
+    final tasks =
+        await (_database.select(_database.localTasks)
+              ..where(
+                (row) => row.userId.equals(_userId) & row.deletedAt.isNull(),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.createdAt)]))
+            .get();
+    final longTerms = await (_database.select(
+      _database.longTermTaskRecords,
+    )..where((row) => row.userId.equals(_userId))).get();
+    final schedules = await (_database.select(
+      _database.taskScheduleRecords,
+    )..where((row) => row.userId.equals(_userId))).get();
+    final reminders = await (_database.select(
+      _database.oneTimeReminderRecords,
+    )..where((row) => row.userId.equals(_userId))).get();
+    final completions =
+        await (_database.select(_database.taskCompletionRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.localDate.isBiggerOrEqualValue(localDateKey(monthStart)) &
+                  row.localDate.isSmallerThanValue(localDateKey(monthEnd)),
+            ))
+            .get();
+    final sessions =
+        await (_database.select(_database.timerSessionRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.startedAt.isSmallerThanValue(monthEnd.toUtc()) &
+                  (row.endedAt.isNull() |
+                      row.endedAt.isBiggerOrEqualValue(monthStart.toUtc())),
+            ))
+            .get();
+
+    final longTermByTask = {for (final row in longTerms) row.taskId: row};
+    final scheduleByTask = {for (final row in schedules) row.taskId: row};
+    final reminderByTask = {for (final row in reminders) row.taskId: row};
+    final completionByTaskAndDay = {
+      for (final row in completions) '${row.taskId}:${row.localDate}': row,
+    };
+    final sessionsByTask = <String, List<TimerSessionRecord>>{};
+    for (final session in sessions) {
+      sessionsByTask.putIfAbsent(session.taskId, () => []).add(session);
+    }
+
+    final days = <CalendarDayData>[];
+    final nowUtc = DateTime.now().toUtc();
+    for (
+      var day = monthStart;
+      day.isBefore(monthEnd);
+      day = day.add(const Duration(days: 1))
+    ) {
+      final dayTasks = <TaskDetails>[];
+      for (final task in tasks) {
+        final status = TaskLifecycle.values.byName(task.status);
+        if (status != TaskLifecycle.active &&
+            day.isAfter(dateOnly(task.updatedAt.toLocal()))) {
+          continue;
+        }
+        final kind = TaskKind.values.byName(task.taskType);
+        if (kind == TaskKind.oneTime) {
+          final reminder = reminderByTask[task.id];
+          if (reminder == null ||
+              localDateKey(reminder.scheduledAt.toLocal()) !=
+                  localDateKey(day)) {
+            continue;
+          }
+          dayTasks.add(
+            TaskDetails(
+              id: task.id,
+              name: task.name,
+              kind: kind,
+              colorValue: task.colorValue,
+              status: status,
+              createdAt: task.createdAt,
+              updatedAt: task.updatedAt,
+              notes: task.notes,
+              scheduledAt: reminder.scheduledAt.toLocal(),
+              remindBeforeMinutes: reminder.remindBeforeMinutes,
+              oneTimeCompletedAt: reminder.completedAt?.toLocal(),
+            ),
+          );
+          continue;
+        }
+
+        final longTerm = longTermByTask[task.id];
+        final scheduleRow = scheduleByTask[task.id];
+        if (longTerm == null || scheduleRow == null) continue;
+        final schedule = TaskScheduleRule(
+          preset: SchedulePreset.values.byName(scheduleRow.scheduleType),
+          weekdaysMask: scheduleRow.weekdaysMask,
+          startsOn: DateTime.parse(scheduleRow.startsOn),
+          endsOn: scheduleRow.endsOn == null
+              ? null
+              : DateTime.parse(scheduleRow.endsOn!),
+        );
+        if (!schedule.isDueOn(day)) continue;
+        final checkMode = LongTermCheckMode.values.byName(longTerm.checkMode);
+        final completion =
+            completionByTaskAndDay['${task.id}:${localDateKey(day)}'];
+        final actualDuration = checkMode == LongTermCheckMode.timer
+            ? _durationFromSessionsForDay(
+                sessionsByTask[task.id] ?? const [],
+                day,
+                nowUtc,
+              )
+            : completion?.actualDurationSeconds ?? 0;
+        final targetDuration = longTerm.targetDurationSeconds ?? 0;
+        final progress = checkMode == LongTermCheckMode.timer
+            ? targetDuration <= 0
+                  ? 0.0
+                  : (actualDuration / targetDuration * 100)
+                        .clamp(0, 100)
+                        .toDouble()
+            : completion?.progressPercent ?? 0;
+        dayTasks.add(
+          TaskDetails(
+            id: task.id,
+            name: task.name,
+            kind: kind,
+            colorValue: task.colorValue,
+            status: status,
+            createdAt: task.createdAt,
+            updatedAt: task.updatedAt,
+            notes: task.notes,
+            checkMode: checkMode,
+            targetDurationSeconds: longTerm.targetDurationSeconds,
+            targetDays: longTerm.targetDays,
+            holidayPause: longTerm.holidayPause,
+            schedule: schedule,
+            todayProgressPercent: progress,
+            todayActualDurationSeconds: actualDuration,
+            todayCompleted: checkMode == LongTermCheckMode.timer
+                ? targetDuration > 0 && actualDuration >= targetDuration
+                : completion?.isSuccess ?? false,
+          ),
+        );
+      }
+      days.add(CalendarDayData(date: day, tasks: dayTasks));
+    }
+    return CalendarMonthData(month: monthStart, days: days);
   }
 
   Future<String> saveLongTermTask(
@@ -810,6 +972,14 @@ class TaskRepository {
               (row) => row.taskId.equals(taskId) & row.userId.equals(_userId),
             ))
             .get();
+    return _durationFromSessionsForDay(sessions, day, nowUtc);
+  }
+
+  int _durationFromSessionsForDay(
+    List<TimerSessionRecord> sessions,
+    DateTime day,
+    DateTime nowUtc,
+  ) {
     final dayStart = dateOnly(day);
     final dayEnd = dayStart.add(const Duration(days: 1));
     var total = 0;
