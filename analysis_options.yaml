@@ -1,0 +1,15 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - build/**
+    - android/**
+    - ios/**
+    - windows/**
+    - macos/**
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    sort_child_properties_last: true

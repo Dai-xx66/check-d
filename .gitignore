@@ -4,15 +4,34 @@
 # Editor and IDE
 .vscode/
 .idea/
+*.iml
 
 # Dependencies
 node_modules/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
 
 # Build output
 dist/
 build/
 .next/
 out/
+coverage/
+
+# Flutter platform output
+android/.gradle/
+android/local.properties
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/.symlinks/
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/.symlinks/
+windows/flutter/ephemeral/
 
 # Logs
 *.log
@@ -25,6 +44,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+**/supabase/.temp/
 
 # Temporary files
 *.tmp
