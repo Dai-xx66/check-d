@@ -31,6 +31,11 @@ void main() {
           ),
           appDatabaseProvider.overrideWithValue(database),
           supabaseClientProvider.overrideWithValue(null),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
+          ),
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
@@ -66,6 +71,11 @@ void main() {
           ),
           appDatabaseProvider.overrideWithValue(database),
           supabaseClientProvider.overrideWithValue(null),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
+          ),
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
@@ -100,6 +110,11 @@ void main() {
           ),
           appDatabaseProvider.overrideWithValue(database),
           supabaseClientProvider.overrideWithValue(null),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
+          ),
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
@@ -138,6 +153,11 @@ void main() {
           calendarMonthProvider.overrideWith(
             (ref, value) =>
                 Stream.value(CalendarMonthData(month: value, days: const [])),
+          ),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
           ),
         ],
         child: const MaterialApp(home: Scaffold(body: CalendarPage())),

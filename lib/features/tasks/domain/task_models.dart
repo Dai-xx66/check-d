@@ -2,7 +2,9 @@ enum TaskKind { longTerm, oneTime }
 
 enum TaskLifecycle { active, paused, archived }
 
-enum LongTermCheckMode { timer, simple }
+enum LongTermCheckMode { freeTimer, targetTimer, simple }
+
+enum OneTimeExecutionMode { normal, timer }
 
 enum TimerSessionStatus { running, paused, finished }
 
@@ -86,6 +88,7 @@ class OneTimeReminderDraft {
     required this.colorValue,
     this.iconName = 'event',
     required this.scheduledAt,
+    this.executionMode = OneTimeExecutionMode.normal,
     this.remindBeforeMinutes,
     this.notes,
   });
@@ -94,6 +97,7 @@ class OneTimeReminderDraft {
   final int colorValue;
   final String iconName;
   final DateTime scheduledAt;
+  final OneTimeExecutionMode executionMode;
   final int? remindBeforeMinutes;
   final String? notes;
 }
@@ -116,10 +120,12 @@ class TaskDetails {
     this.schedule,
     this.scheduledAt,
     this.remindBeforeMinutes,
+    this.oneTimeExecutionMode,
     this.oneTimeCompletedAt,
     this.todayProgressPercent = 0,
     this.todayActualDurationSeconds = 0,
     this.todayCompleted = false,
+    this.todayTargetReached = false,
   });
 
   final String id;
@@ -138,12 +144,19 @@ class TaskDetails {
   final TaskScheduleRule? schedule;
   final DateTime? scheduledAt;
   final int? remindBeforeMinutes;
+  final OneTimeExecutionMode? oneTimeExecutionMode;
   final DateTime? oneTimeCompletedAt;
   final double todayProgressPercent;
   final int todayActualDurationSeconds;
   final bool todayCompleted;
+  final bool todayTargetReached;
 
-  bool get isTimer => checkMode == LongTermCheckMode.timer;
+  bool get hasTimer =>
+      checkMode == LongTermCheckMode.freeTimer ||
+      checkMode == LongTermCheckMode.targetTimer ||
+      oneTimeExecutionMode == OneTimeExecutionMode.timer;
+
+  bool get hasDurationTarget => checkMode == LongTermCheckMode.targetTimer;
 
   bool get isCompleted =>
       kind == TaskKind.oneTime ? oneTimeCompletedAt != null : todayCompleted;
@@ -183,6 +196,11 @@ class TaskTimerState {
   bool get isPaused => latest?.status == TimerSessionStatus.paused;
   bool get canStart => !isRunning && !isPaused;
 
+  int totalElapsedSecondsAt(DateTime now) => sessions.fold(
+    0,
+    (total, session) => total + session.elapsedSecondsAt(now),
+  );
+
   int elapsedSecondsAt(DateTime now) {
     final dayStart = dateOnly(localDate);
     final dayEnd = dayStart.add(const Duration(days: 1));
@@ -214,6 +232,7 @@ class CompletionHistoryEntry {
     required this.progressPercent,
     required this.isSuccess,
     required this.actualDurationSeconds,
+    required this.targetReached,
     this.completedAt,
   });
 
@@ -221,28 +240,29 @@ class CompletionHistoryEntry {
   final double progressPercent;
   final bool isSuccess;
   final int actualDurationSeconds;
+  final bool targetReached;
   final DateTime? completedAt;
 }
 
 class CalendarDayData {
-  const CalendarDayData({required this.date, required this.tasks});
+  const CalendarDayData({
+    required this.date,
+    required this.tasks,
+    this.recordedTimedSeconds,
+  });
 
   final DateTime date;
   final List<TaskDetails> tasks;
+  final int? recordedTimedSeconds;
 
   int get scheduledCount => tasks.length;
   int get completedCount => tasks.where((task) => task.isCompleted).length;
   int get timedSeconds =>
+      recordedTimedSeconds ??
       tasks.fold(0, (total, task) => total + task.todayActualDurationSeconds);
   double get completionPercent {
     if (tasks.isEmpty) return 0;
-    final totalProgress = tasks.fold<double>(0, (total, task) {
-      if (task.kind == TaskKind.oneTime) {
-        return total + (task.isCompleted ? 100 : 0);
-      }
-      return total + task.todayProgressPercent.clamp(0, 100);
-    });
-    return totalProgress / tasks.length;
+    return completedCount / tasks.length * 100;
   }
 }
 

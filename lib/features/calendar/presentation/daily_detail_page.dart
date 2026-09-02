@@ -66,12 +66,11 @@ class _DailyContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isToday = localDateKey(date) == localDateKey(DateTime.now());
-    final hasTimers = data.tasks.any((task) => task.isTimer);
-    final now = isToday && hasTimers
+    final now = isToday
         ? ref.watch(timerNowProvider).value ?? DateTime.now()
         : DateTime.now();
     int elapsedFor(TaskDetails task) {
-      if (!isToday || !task.isTimer) return task.todayActualDurationSeconds;
+      if (!isToday || !task.hasTimer) return task.todayActualDurationSeconds;
       return ref
               .watch(taskTimerStateProvider(task.id))
               .value
@@ -80,21 +79,23 @@ class _DailyContent extends ConsumerWidget {
     }
 
     double progressFor(TaskDetails task) {
-      if (task.kind == TaskKind.oneTime) return task.isCompleted ? 100 : 0;
-      if (!task.isTimer) return task.todayProgressPercent.clamp(0, 100);
+      if (!task.hasDurationTarget) return task.isCompleted ? 100 : 0;
       final target = task.targetDurationSeconds ?? 0;
       if (target <= 0) return 0;
       return (elapsedFor(task) / target * 100).clamp(0, 100).toDouble();
     }
 
-    final progressValues = data.tasks.map(progressFor).toList();
-    final completionPercent = progressValues.isEmpty
+    final completionPercent = data.tasks.isEmpty
         ? 0.0
-        : progressValues.reduce((a, b) => a + b) / progressValues.length;
-    final completedCount = progressValues.where((value) => value >= 100).length;
-    final timedSeconds = data.tasks
-        .where((task) => task.isTimer)
-        .fold(0, (total, task) => total + elapsedFor(task));
+        : data.completedCount / data.tasks.length * 100;
+    final completedCount = data.completedCount;
+    final timedSeconds = isToday
+        ? ref
+                  .watch(dailyTimerStateProvider(dateOnly(date)))
+                  .value
+                  ?.elapsedSecondsAt(now) ??
+              data.timedSeconds
+        : data.timedSeconds;
     final longTermTasks = data.tasks
         .where((task) => task.kind == TaskKind.longTerm)
         .toList();
@@ -155,7 +156,7 @@ class _DailyContent extends ConsumerWidget {
                 child: _DailyTaskCard(
                   task: task,
                   progress: progressFor(task),
-                  actualDurationSeconds: 0,
+                  actualDurationSeconds: elapsedFor(task),
                 ),
               ),
             ),
@@ -306,11 +307,20 @@ class _DailyTaskCard extends StatelessWidget {
                         backgroundColor: const Color(0xFFE9EBEF),
                         borderRadius: BorderRadius.circular(3),
                       ),
-                      if (task.isTimer) ...[
+                      if (task.hasDurationTarget) ...[
                         const SizedBox(height: 7),
                         Text(
                           '${formatDuration(actualDurationSeconds)} / '
                           '${formatDuration(task.targetDurationSeconds ?? 0)}',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ] else if (task.hasTimer) ...[
+                        const SizedBox(height: 7),
+                        Text(
+                          '计时 ${formatDuration(actualDurationSeconds)}',
                           style: const TextStyle(
                             color: AppColors.muted,
                             fontSize: 12,

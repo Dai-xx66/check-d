@@ -84,7 +84,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 icon: Icons.loop_rounded,
                 color: AppColors.primary,
                 title: '长期任务',
-                subtitle: '计时型或点击型打卡',
+                subtitle: '计时记录与完成状态独立',
                 onTap: () => _openLongTermForm(context),
               ),
               const SizedBox(height: 10),

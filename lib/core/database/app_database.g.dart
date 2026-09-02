@@ -1917,6 +1917,21 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isTimedMeta = const VerificationMeta(
+    'isTimed',
+  );
+  @override
+  late final GeneratedColumn<bool> isTimed = GeneratedColumn<bool>(
+    'is_timed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_timed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _completedAtMeta = const VerificationMeta(
     'completedAt',
   );
@@ -1956,6 +1971,7 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     userId,
     scheduledAt,
     remindBeforeMinutes,
+    isTimed,
     completedAt,
     createdAt,
     updatedAt,
@@ -2008,6 +2024,12 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
         ),
       );
     }
+    if (data.containsKey('is_timed')) {
+      context.handle(
+        _isTimedMeta,
+        isTimed.isAcceptableOrUnknown(data['is_timed']!, _isTimedMeta),
+      );
+    }
     if (data.containsKey('completed_at')) {
       context.handle(
         _completedAtMeta,
@@ -2058,6 +2080,10 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
         DriftSqlType.int,
         data['${effectivePrefix}remind_before_minutes'],
       ),
+      isTimed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_timed'],
+      )!,
       completedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}completed_at'],
@@ -2085,6 +2111,7 @@ class OneTimeReminderRecord extends DataClass
   final String userId;
   final DateTime scheduledAt;
   final int? remindBeforeMinutes;
+  final bool isTimed;
   final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2093,6 +2120,7 @@ class OneTimeReminderRecord extends DataClass
     required this.userId,
     required this.scheduledAt,
     this.remindBeforeMinutes,
+    required this.isTimed,
     this.completedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -2106,6 +2134,7 @@ class OneTimeReminderRecord extends DataClass
     if (!nullToAbsent || remindBeforeMinutes != null) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
     }
+    map['is_timed'] = Variable<bool>(isTimed);
     if (!nullToAbsent || completedAt != null) {
       map['completed_at'] = Variable<DateTime>(completedAt);
     }
@@ -2122,6 +2151,7 @@ class OneTimeReminderRecord extends DataClass
       remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(remindBeforeMinutes),
+      isTimed: Value(isTimed),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(completedAt),
@@ -2142,6 +2172,7 @@ class OneTimeReminderRecord extends DataClass
       remindBeforeMinutes: serializer.fromJson<int?>(
         json['remindBeforeMinutes'],
       ),
+      isTimed: serializer.fromJson<bool>(json['isTimed']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2155,6 +2186,7 @@ class OneTimeReminderRecord extends DataClass
       'userId': serializer.toJson<String>(userId),
       'scheduledAt': serializer.toJson<DateTime>(scheduledAt),
       'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
+      'isTimed': serializer.toJson<bool>(isTimed),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2166,6 +2198,7 @@ class OneTimeReminderRecord extends DataClass
     String? userId,
     DateTime? scheduledAt,
     Value<int?> remindBeforeMinutes = const Value.absent(),
+    bool? isTimed,
     Value<DateTime?> completedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -2176,6 +2209,7 @@ class OneTimeReminderRecord extends DataClass
     remindBeforeMinutes: remindBeforeMinutes.present
         ? remindBeforeMinutes.value
         : this.remindBeforeMinutes,
+    isTimed: isTimed ?? this.isTimed,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -2192,6 +2226,7 @@ class OneTimeReminderRecord extends DataClass
       remindBeforeMinutes: data.remindBeforeMinutes.present
           ? data.remindBeforeMinutes.value
           : this.remindBeforeMinutes,
+      isTimed: data.isTimed.present ? data.isTimed.value : this.isTimed,
       completedAt: data.completedAt.present
           ? data.completedAt.value
           : this.completedAt,
@@ -2207,6 +2242,7 @@ class OneTimeReminderRecord extends DataClass
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('isTimed: $isTimed, ')
           ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -2220,6 +2256,7 @@ class OneTimeReminderRecord extends DataClass
     userId,
     scheduledAt,
     remindBeforeMinutes,
+    isTimed,
     completedAt,
     createdAt,
     updatedAt,
@@ -2232,6 +2269,7 @@ class OneTimeReminderRecord extends DataClass
           other.userId == this.userId &&
           other.scheduledAt == this.scheduledAt &&
           other.remindBeforeMinutes == this.remindBeforeMinutes &&
+          other.isTimed == this.isTimed &&
           other.completedAt == this.completedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -2243,6 +2281,7 @@ class OneTimeReminderRecordsCompanion
   final Value<String> userId;
   final Value<DateTime> scheduledAt;
   final Value<int?> remindBeforeMinutes;
+  final Value<bool> isTimed;
   final Value<DateTime?> completedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -2252,6 +2291,7 @@ class OneTimeReminderRecordsCompanion
     this.userId = const Value.absent(),
     this.scheduledAt = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
+    this.isTimed = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2262,6 +2302,7 @@ class OneTimeReminderRecordsCompanion
     required String userId,
     required DateTime scheduledAt,
     this.remindBeforeMinutes = const Value.absent(),
+    this.isTimed = const Value.absent(),
     this.completedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -2276,6 +2317,7 @@ class OneTimeReminderRecordsCompanion
     Expression<String>? userId,
     Expression<DateTime>? scheduledAt,
     Expression<int>? remindBeforeMinutes,
+    Expression<bool>? isTimed,
     Expression<DateTime>? completedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -2287,6 +2329,7 @@ class OneTimeReminderRecordsCompanion
       if (scheduledAt != null) 'scheduled_at': scheduledAt,
       if (remindBeforeMinutes != null)
         'remind_before_minutes': remindBeforeMinutes,
+      if (isTimed != null) 'is_timed': isTimed,
       if (completedAt != null) 'completed_at': completedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2299,6 +2342,7 @@ class OneTimeReminderRecordsCompanion
     Value<String>? userId,
     Value<DateTime>? scheduledAt,
     Value<int?>? remindBeforeMinutes,
+    Value<bool>? isTimed,
     Value<DateTime?>? completedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -2309,6 +2353,7 @@ class OneTimeReminderRecordsCompanion
       userId: userId ?? this.userId,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
+      isTimed: isTimed ?? this.isTimed,
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2330,6 +2375,9 @@ class OneTimeReminderRecordsCompanion
     }
     if (remindBeforeMinutes.present) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes.value);
+    }
+    if (isTimed.present) {
+      map['is_timed'] = Variable<bool>(isTimed.value);
     }
     if (completedAt.present) {
       map['completed_at'] = Variable<DateTime>(completedAt.value);
@@ -2353,6 +2401,7 @@ class OneTimeReminderRecordsCompanion
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('isTimed: $isTimed, ')
           ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2432,6 +2481,21 @@ class $TaskCompletionRecordsTable extends TaskCompletionRecords
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _targetReachedMeta = const VerificationMeta(
+    'targetReached',
+  );
+  @override
+  late final GeneratedColumn<bool> targetReached = GeneratedColumn<bool>(
+    'target_reached',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("target_reached" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _isSuccessMeta = const VerificationMeta(
     'isSuccess',
   );
@@ -2499,6 +2563,7 @@ class $TaskCompletionRecordsTable extends TaskCompletionRecords
     localDate,
     actualDurationSeconds,
     progressPercent,
+    targetReached,
     isSuccess,
     exclusionReason,
     completedAt,
@@ -2561,6 +2626,15 @@ class $TaskCompletionRecordsTable extends TaskCompletionRecords
         progressPercent.isAcceptableOrUnknown(
           data['progress_percent']!,
           _progressPercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('target_reached')) {
+      context.handle(
+        _targetReachedMeta,
+        targetReached.isAcceptableOrUnknown(
+          data['target_reached']!,
+          _targetReachedMeta,
         ),
       );
     }
@@ -2641,6 +2715,10 @@ class $TaskCompletionRecordsTable extends TaskCompletionRecords
         DriftSqlType.double,
         data['${effectivePrefix}progress_percent'],
       )!,
+      targetReached: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}target_reached'],
+      )!,
       isSuccess: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_success'],
@@ -2678,6 +2756,7 @@ class TaskCompletionRecord extends DataClass
   final String localDate;
   final int actualDurationSeconds;
   final double progressPercent;
+  final bool targetReached;
   final bool isSuccess;
   final String? exclusionReason;
   final DateTime? completedAt;
@@ -2690,6 +2769,7 @@ class TaskCompletionRecord extends DataClass
     required this.localDate,
     required this.actualDurationSeconds,
     required this.progressPercent,
+    required this.targetReached,
     required this.isSuccess,
     this.exclusionReason,
     this.completedAt,
@@ -2705,6 +2785,7 @@ class TaskCompletionRecord extends DataClass
     map['local_date'] = Variable<String>(localDate);
     map['actual_duration_seconds'] = Variable<int>(actualDurationSeconds);
     map['progress_percent'] = Variable<double>(progressPercent);
+    map['target_reached'] = Variable<bool>(targetReached);
     map['is_success'] = Variable<bool>(isSuccess);
     if (!nullToAbsent || exclusionReason != null) {
       map['exclusion_reason'] = Variable<String>(exclusionReason);
@@ -2725,6 +2806,7 @@ class TaskCompletionRecord extends DataClass
       localDate: Value(localDate),
       actualDurationSeconds: Value(actualDurationSeconds),
       progressPercent: Value(progressPercent),
+      targetReached: Value(targetReached),
       isSuccess: Value(isSuccess),
       exclusionReason: exclusionReason == null && nullToAbsent
           ? const Value.absent()
@@ -2751,6 +2833,7 @@ class TaskCompletionRecord extends DataClass
         json['actualDurationSeconds'],
       ),
       progressPercent: serializer.fromJson<double>(json['progressPercent']),
+      targetReached: serializer.fromJson<bool>(json['targetReached']),
       isSuccess: serializer.fromJson<bool>(json['isSuccess']),
       exclusionReason: serializer.fromJson<String?>(json['exclusionReason']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
@@ -2768,6 +2851,7 @@ class TaskCompletionRecord extends DataClass
       'localDate': serializer.toJson<String>(localDate),
       'actualDurationSeconds': serializer.toJson<int>(actualDurationSeconds),
       'progressPercent': serializer.toJson<double>(progressPercent),
+      'targetReached': serializer.toJson<bool>(targetReached),
       'isSuccess': serializer.toJson<bool>(isSuccess),
       'exclusionReason': serializer.toJson<String?>(exclusionReason),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
@@ -2783,6 +2867,7 @@ class TaskCompletionRecord extends DataClass
     String? localDate,
     int? actualDurationSeconds,
     double? progressPercent,
+    bool? targetReached,
     bool? isSuccess,
     Value<String?> exclusionReason = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
@@ -2795,6 +2880,7 @@ class TaskCompletionRecord extends DataClass
     localDate: localDate ?? this.localDate,
     actualDurationSeconds: actualDurationSeconds ?? this.actualDurationSeconds,
     progressPercent: progressPercent ?? this.progressPercent,
+    targetReached: targetReached ?? this.targetReached,
     isSuccess: isSuccess ?? this.isSuccess,
     exclusionReason: exclusionReason.present
         ? exclusionReason.value
@@ -2815,6 +2901,9 @@ class TaskCompletionRecord extends DataClass
       progressPercent: data.progressPercent.present
           ? data.progressPercent.value
           : this.progressPercent,
+      targetReached: data.targetReached.present
+          ? data.targetReached.value
+          : this.targetReached,
       isSuccess: data.isSuccess.present ? data.isSuccess.value : this.isSuccess,
       exclusionReason: data.exclusionReason.present
           ? data.exclusionReason.value
@@ -2836,6 +2925,7 @@ class TaskCompletionRecord extends DataClass
           ..write('localDate: $localDate, ')
           ..write('actualDurationSeconds: $actualDurationSeconds, ')
           ..write('progressPercent: $progressPercent, ')
+          ..write('targetReached: $targetReached, ')
           ..write('isSuccess: $isSuccess, ')
           ..write('exclusionReason: $exclusionReason, ')
           ..write('completedAt: $completedAt, ')
@@ -2853,6 +2943,7 @@ class TaskCompletionRecord extends DataClass
     localDate,
     actualDurationSeconds,
     progressPercent,
+    targetReached,
     isSuccess,
     exclusionReason,
     completedAt,
@@ -2869,6 +2960,7 @@ class TaskCompletionRecord extends DataClass
           other.localDate == this.localDate &&
           other.actualDurationSeconds == this.actualDurationSeconds &&
           other.progressPercent == this.progressPercent &&
+          other.targetReached == this.targetReached &&
           other.isSuccess == this.isSuccess &&
           other.exclusionReason == this.exclusionReason &&
           other.completedAt == this.completedAt &&
@@ -2884,6 +2976,7 @@ class TaskCompletionRecordsCompanion
   final Value<String> localDate;
   final Value<int> actualDurationSeconds;
   final Value<double> progressPercent;
+  final Value<bool> targetReached;
   final Value<bool> isSuccess;
   final Value<String?> exclusionReason;
   final Value<DateTime?> completedAt;
@@ -2897,6 +2990,7 @@ class TaskCompletionRecordsCompanion
     this.localDate = const Value.absent(),
     this.actualDurationSeconds = const Value.absent(),
     this.progressPercent = const Value.absent(),
+    this.targetReached = const Value.absent(),
     this.isSuccess = const Value.absent(),
     this.exclusionReason = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -2911,6 +3005,7 @@ class TaskCompletionRecordsCompanion
     required String localDate,
     this.actualDurationSeconds = const Value.absent(),
     this.progressPercent = const Value.absent(),
+    this.targetReached = const Value.absent(),
     this.isSuccess = const Value.absent(),
     this.exclusionReason = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -2930,6 +3025,7 @@ class TaskCompletionRecordsCompanion
     Expression<String>? localDate,
     Expression<int>? actualDurationSeconds,
     Expression<double>? progressPercent,
+    Expression<bool>? targetReached,
     Expression<bool>? isSuccess,
     Expression<String>? exclusionReason,
     Expression<DateTime>? completedAt,
@@ -2945,6 +3041,7 @@ class TaskCompletionRecordsCompanion
       if (actualDurationSeconds != null)
         'actual_duration_seconds': actualDurationSeconds,
       if (progressPercent != null) 'progress_percent': progressPercent,
+      if (targetReached != null) 'target_reached': targetReached,
       if (isSuccess != null) 'is_success': isSuccess,
       if (exclusionReason != null) 'exclusion_reason': exclusionReason,
       if (completedAt != null) 'completed_at': completedAt,
@@ -2961,6 +3058,7 @@ class TaskCompletionRecordsCompanion
     Value<String>? localDate,
     Value<int>? actualDurationSeconds,
     Value<double>? progressPercent,
+    Value<bool>? targetReached,
     Value<bool>? isSuccess,
     Value<String?>? exclusionReason,
     Value<DateTime?>? completedAt,
@@ -2976,6 +3074,7 @@ class TaskCompletionRecordsCompanion
       actualDurationSeconds:
           actualDurationSeconds ?? this.actualDurationSeconds,
       progressPercent: progressPercent ?? this.progressPercent,
+      targetReached: targetReached ?? this.targetReached,
       isSuccess: isSuccess ?? this.isSuccess,
       exclusionReason: exclusionReason ?? this.exclusionReason,
       completedAt: completedAt ?? this.completedAt,
@@ -3008,6 +3107,9 @@ class TaskCompletionRecordsCompanion
     if (progressPercent.present) {
       map['progress_percent'] = Variable<double>(progressPercent.value);
     }
+    if (targetReached.present) {
+      map['target_reached'] = Variable<bool>(targetReached.value);
+    }
     if (isSuccess.present) {
       map['is_success'] = Variable<bool>(isSuccess.value);
     }
@@ -3038,6 +3140,7 @@ class TaskCompletionRecordsCompanion
           ..write('localDate: $localDate, ')
           ..write('actualDurationSeconds: $actualDurationSeconds, ')
           ..write('progressPercent: $progressPercent, ')
+          ..write('targetReached: $targetReached, ')
           ..write('isSuccess: $isSuccess, ')
           ..write('exclusionReason: $exclusionReason, ')
           ..write('completedAt: $completedAt, ')
@@ -6829,6 +6932,7 @@ typedef $$OneTimeReminderRecordsTableCreateCompanionBuilder =
       required String userId,
       required DateTime scheduledAt,
       Value<int?> remindBeforeMinutes,
+      Value<bool> isTimed,
       Value<DateTime?> completedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -6840,6 +6944,7 @@ typedef $$OneTimeReminderRecordsTableUpdateCompanionBuilder =
       Value<String> userId,
       Value<DateTime> scheduledAt,
       Value<int?> remindBeforeMinutes,
+      Value<bool> isTimed,
       Value<DateTime?> completedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -6898,6 +7003,11 @@ class $$OneTimeReminderRecordsTableFilterComposer
 
   ColumnFilters<int> get remindBeforeMinutes => $composableBuilder(
     column: $table.remindBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isTimed => $composableBuilder(
+    column: $table.isTimed,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6964,6 +7074,11 @@ class $$OneTimeReminderRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isTimed => $composableBuilder(
+    column: $table.isTimed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
     builder: (column) => ColumnOrderings(column),
@@ -7024,6 +7139,9 @@ class $$OneTimeReminderRecordsTableAnnotationComposer
     column: $table.remindBeforeMinutes,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isTimed =>
+      $composableBuilder(column: $table.isTimed, builder: (column) => column);
 
   GeneratedColumn<DateTime> get completedAt => $composableBuilder(
     column: $table.completedAt,
@@ -7103,6 +7221,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 Value<String> userId = const Value.absent(),
                 Value<DateTime> scheduledAt = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
+                Value<bool> isTimed = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -7112,6 +7231,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 userId: userId,
                 scheduledAt: scheduledAt,
                 remindBeforeMinutes: remindBeforeMinutes,
+                isTimed: isTimed,
                 completedAt: completedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7123,6 +7243,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 required String userId,
                 required DateTime scheduledAt,
                 Value<int?> remindBeforeMinutes = const Value.absent(),
+                Value<bool> isTimed = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -7132,6 +7253,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 userId: userId,
                 scheduledAt: scheduledAt,
                 remindBeforeMinutes: remindBeforeMinutes,
+                isTimed: isTimed,
                 completedAt: completedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7214,6 +7336,7 @@ typedef $$TaskCompletionRecordsTableCreateCompanionBuilder =
       required String localDate,
       Value<int> actualDurationSeconds,
       Value<double> progressPercent,
+      Value<bool> targetReached,
       Value<bool> isSuccess,
       Value<String?> exclusionReason,
       Value<DateTime?> completedAt,
@@ -7229,6 +7352,7 @@ typedef $$TaskCompletionRecordsTableUpdateCompanionBuilder =
       Value<String> localDate,
       Value<int> actualDurationSeconds,
       Value<double> progressPercent,
+      Value<bool> targetReached,
       Value<bool> isSuccess,
       Value<String?> exclusionReason,
       Value<DateTime?> completedAt,
@@ -7299,6 +7423,11 @@ class $$TaskCompletionRecordsTableFilterComposer
 
   ColumnFilters<double> get progressPercent => $composableBuilder(
     column: $table.progressPercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get targetReached => $composableBuilder(
+    column: $table.targetReached,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7385,6 +7514,11 @@ class $$TaskCompletionRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get targetReached => $composableBuilder(
+    column: $table.targetReached,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isSuccess => $composableBuilder(
     column: $table.isSuccess,
     builder: (column) => ColumnOrderings(column),
@@ -7459,6 +7593,11 @@ class $$TaskCompletionRecordsTableAnnotationComposer
 
   GeneratedColumn<double> get progressPercent => $composableBuilder(
     column: $table.progressPercent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get targetReached => $composableBuilder(
+    column: $table.targetReached,
     builder: (column) => column,
   );
 
@@ -7550,6 +7689,7 @@ class $$TaskCompletionRecordsTableTableManager
                 Value<String> localDate = const Value.absent(),
                 Value<int> actualDurationSeconds = const Value.absent(),
                 Value<double> progressPercent = const Value.absent(),
+                Value<bool> targetReached = const Value.absent(),
                 Value<bool> isSuccess = const Value.absent(),
                 Value<String?> exclusionReason = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
@@ -7563,6 +7703,7 @@ class $$TaskCompletionRecordsTableTableManager
                 localDate: localDate,
                 actualDurationSeconds: actualDurationSeconds,
                 progressPercent: progressPercent,
+                targetReached: targetReached,
                 isSuccess: isSuccess,
                 exclusionReason: exclusionReason,
                 completedAt: completedAt,
@@ -7578,6 +7719,7 @@ class $$TaskCompletionRecordsTableTableManager
                 required String localDate,
                 Value<int> actualDurationSeconds = const Value.absent(),
                 Value<double> progressPercent = const Value.absent(),
+                Value<bool> targetReached = const Value.absent(),
                 Value<bool> isSuccess = const Value.absent(),
                 Value<String?> exclusionReason = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
@@ -7591,6 +7733,7 @@ class $$TaskCompletionRecordsTableTableManager
                 localDate: localDate,
                 actualDurationSeconds: actualDurationSeconds,
                 progressPercent: progressPercent,
+                targetReached: targetReached,
                 isSuccess: isSuccess,
                 exclusionReason: exclusionReason,
                 completedAt: completedAt,

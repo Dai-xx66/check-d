@@ -85,6 +85,7 @@ class TaskRepository {
               progressPercent: row.progressPercent,
               isSuccess: row.isSuccess,
               actualDurationSeconds: row.actualDurationSeconds,
+              targetReached: row.targetReached,
               completedAt: row.completedAt?.toLocal(),
             ),
           )
@@ -92,10 +93,11 @@ class TaskRepository {
     );
   }
 
-  Stream<TaskTimerState> watchTimerState(String taskId, DateTime date) {
+  Stream<TaskTimerState> watchTimerState(String? taskId, DateTime date) {
     final query = _database.select(_database.timerSessionRecords)
-      ..where((row) => row.taskId.equals(taskId) & row.userId.equals(_userId))
-      ..orderBy([(row) => OrderingTerm.desc(row.startedAt)]);
+      ..where((row) => row.userId.equals(_userId));
+    if (taskId != null) query.where((row) => row.taskId.equals(taskId));
+    query.orderBy([(row) => OrderingTerm.desc(row.startedAt)]);
     return query.watch().map(
       (rows) => TaskTimerState(
         localDate: dateOnly(date),
@@ -225,7 +227,17 @@ class TaskRepository {
               notes: task.notes,
               scheduledAt: reminder.scheduledAt.toLocal(),
               remindBeforeMinutes: reminder.remindBeforeMinutes,
+              oneTimeExecutionMode: reminder.isTimed
+                  ? OneTimeExecutionMode.timer
+                  : OneTimeExecutionMode.normal,
               oneTimeCompletedAt: reminder.completedAt?.toLocal(),
+              todayActualDurationSeconds: reminder.isTimed
+                  ? _durationFromSessionsForDay(
+                      sessionsByTask[task.id] ?? const [],
+                      day,
+                      nowUtc,
+                    )
+                  : 0,
             ),
           );
           continue;
@@ -243,10 +255,10 @@ class TaskRepository {
               : DateTime.parse(scheduleRow.endsOn!),
         );
         if (!schedule.isDueOn(day)) continue;
-        final checkMode = LongTermCheckMode.values.byName(longTerm.checkMode);
+        final checkMode = _longTermMode(longTerm.checkMode);
         final completion =
             completionByTaskAndDay['${task.id}:${localDateKey(day)}'];
-        final actualDuration = checkMode == LongTermCheckMode.timer
+        final actualDuration = checkMode != LongTermCheckMode.simple
             ? _durationFromSessionsForDay(
                 sessionsByTask[task.id] ?? const [],
                 day,
@@ -254,7 +266,7 @@ class TaskRepository {
               )
             : completion?.actualDurationSeconds ?? 0;
         final targetDuration = longTerm.targetDurationSeconds ?? 0;
-        final progress = checkMode == LongTermCheckMode.timer
+        final progress = checkMode == LongTermCheckMode.targetTimer
             ? targetDuration <= 0
                   ? 0.0
                   : (actualDuration / targetDuration * 100)
@@ -279,13 +291,26 @@ class TaskRepository {
             schedule: schedule,
             todayProgressPercent: progress,
             todayActualDurationSeconds: actualDuration,
-            todayCompleted: checkMode == LongTermCheckMode.timer
-                ? targetDuration > 0 && actualDuration >= targetDuration
-                : completion?.isSuccess ?? false,
+            todayCompleted: completion?.isSuccess ?? false,
+            todayTargetReached:
+                completion?.targetReached ??
+                (checkMode == LongTermCheckMode.targetTimer &&
+                    targetDuration > 0 &&
+                    actualDuration >= targetDuration),
           ),
         );
       }
-      days.add(CalendarDayData(date: day, tasks: dayTasks));
+      days.add(
+        CalendarDayData(
+          date: day,
+          tasks: dayTasks,
+          recordedTimedSeconds: _durationFromSessionsForDay(
+            sessions,
+            day,
+            nowUtc,
+          ),
+        ),
+      );
     }
     return CalendarMonthData(month: monthStart, days: days);
   }
@@ -298,8 +323,8 @@ class TaskRepository {
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
-    if (existing?.isTimer == true &&
-        draft.checkMode != LongTermCheckMode.timer) {
+    if (existing?.hasTimer == true &&
+        draft.checkMode == LongTermCheckMode.simple) {
       final latest = await _latestTimerSession(id);
       if (latest != null && latest.state != TimerSessionStatus.finished.name) {
         throw StateError('End the active timer before changing task mode.');
@@ -398,6 +423,13 @@ class TaskRepository {
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
+    if (existing?.hasTimer == true &&
+        draft.executionMode == OneTimeExecutionMode.normal) {
+      final latest = await _latestTimerSession(id);
+      if (latest != null && latest.state != TimerSessionStatus.finished.name) {
+        throw StateError('End the active timer before changing task mode.');
+      }
+    }
     final payload = _oneTimePayload(id, draft, now);
 
     await _database.transaction(() async {
@@ -439,6 +471,7 @@ class TaskRepository {
               userId: _userId,
               scheduledAt: draft.scheduledAt.toUtc(),
               remindBeforeMinutes: Value(draft.remindBeforeMinutes),
+              isTimed: Value(draft.executionMode == OneTimeExecutionMode.timer),
               completedAt: Value(existing?.oneTimeCompletedAt),
               createdAt: existing?.createdAt ?? now,
               updatedAt: now,
@@ -462,10 +495,10 @@ class TaskRepository {
     return id;
   }
 
-  Future<void> toggleSimpleCompletion(String taskId, DateTime date) async {
+  Future<void> toggleLongTermCompletion(String taskId, DateTime date) async {
     final task = await getTask(taskId, date: date);
-    if (task == null || task.checkMode != LongTermCheckMode.simple) {
-      throw StateError('Only simple long-term tasks can be toggled.');
+    if (task == null || task.kind != TaskKind.longTerm) {
+      throw StateError('Only long-term tasks can be toggled.');
     }
     final key = localDateKey(date);
     final existingQuery = _database.select(_database.taskCompletionRecords)
@@ -473,6 +506,17 @@ class TaskRepository {
     final existing = await existingQuery.getSingleOrNull();
     final shouldComplete = !(existing?.isSuccess ?? false);
     final now = DateTime.now().toUtc();
+    final actualDuration = task.hasTimer
+        ? await _durationForDay(taskId, dateOnly(date), now)
+        : 0;
+    final target = task.targetDurationSeconds ?? 0;
+    final targetReached =
+        task.hasDurationTarget && target > 0 && actualDuration >= target;
+    final progress = task.hasDurationTarget
+        ? (actualDuration / target * 100).clamp(0, 100).toDouble()
+        : shouldComplete
+        ? 100.0
+        : 0.0;
 
     await _database.transaction(() async {
       await _database
@@ -483,7 +527,9 @@ class TaskRepository {
               taskId: taskId,
               userId: _userId,
               localDate: key,
-              progressPercent: Value(shouldComplete ? 100 : 0),
+              actualDurationSeconds: Value(actualDuration),
+              progressPercent: Value(progress),
+              targetReached: Value(targetReached),
               isSuccess: Value(shouldComplete),
               completedAt: Value(shouldComplete ? now : null),
               createdAt: existing?.createdAt ?? now,
@@ -498,7 +544,8 @@ class TaskRepository {
           ..._detailsToJson(task),
           'local_date': key,
           'is_success': shouldComplete,
-          'progress_percent': shouldComplete ? 100 : 0,
+          'progress_percent': progress,
+          'target_reached': targetReached,
         },
         changedAt: now,
       );
@@ -509,13 +556,19 @@ class TaskRepository {
         payload: {
           'task_id': taskId,
           'local_date': key,
-          'progress_percent': shouldComplete ? 100 : 0,
+          'actual_duration_seconds': actualDuration,
+          'progress_percent': progress,
+          'target_reached': targetReached,
           'is_success': shouldComplete,
           'completed_at': shouldComplete ? now.toIso8601String() : null,
         },
         userId: _userId,
       );
     });
+  }
+
+  Future<void> toggleSimpleCompletion(String taskId, DateTime date) {
+    return toggleLongTermCompletion(taskId, date);
   }
 
   Future<void> toggleOneTimeCompletion(String taskId) async {
@@ -701,7 +754,9 @@ class TaskRepository {
     final task = await getTask(taskId);
     if (task == null) return;
     final now = DateTime.now().toUtc();
-    final activeTimer = task.isTimer ? await _latestTimerSession(taskId) : null;
+    final activeTimer = task.hasTimer
+        ? await _latestTimerSession(taskId)
+        : null;
     await _database.transaction(() async {
       if (activeTimer != null &&
           activeTimer.state == TimerSessionStatus.running.name) {
@@ -771,9 +826,8 @@ class TaskRepository {
       final longTerm = results[0] as LongTermTaskRecord;
       final schedule = results[1] as TaskScheduleRecord;
       final completion = results[2] as TaskCompletionRecord?;
-      final actualDuration =
-          LongTermCheckMode.values.byName(longTerm.checkMode) ==
-              LongTermCheckMode.timer
+      final checkMode = _longTermMode(longTerm.checkMode);
+      final actualDuration = checkMode != LongTermCheckMode.simple
           ? await _durationForDay(
               task.id,
               dateOnly(date),
@@ -794,7 +848,7 @@ class TaskRepository {
         notes: task.notes,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
-        checkMode: LongTermCheckMode.values.byName(longTerm.checkMode),
+        checkMode: checkMode,
         targetDurationSeconds: longTerm.targetDurationSeconds,
         targetDays: longTerm.targetDays,
         holidayPause: longTerm.holidayPause,
@@ -806,17 +860,16 @@ class TaskRepository {
               ? null
               : DateTime.parse(schedule.endsOn!),
         ),
-        todayProgressPercent:
-            LongTermCheckMode.values.byName(longTerm.checkMode) ==
-                LongTermCheckMode.timer
+        todayProgressPercent: checkMode == LongTermCheckMode.targetTimer
             ? timerProgress
             : completion?.progressPercent ?? 0,
         todayActualDurationSeconds: actualDuration,
-        todayCompleted:
-            LongTermCheckMode.values.byName(longTerm.checkMode) ==
-                LongTermCheckMode.timer
-            ? targetDuration > 0 && actualDuration >= targetDuration
-            : completion?.isSuccess ?? false,
+        todayCompleted: completion?.isSuccess ?? false,
+        todayTargetReached:
+            completion?.targetReached ??
+            (checkMode == LongTermCheckMode.targetTimer &&
+                targetDuration > 0 &&
+                actualDuration >= targetDuration),
       );
     }
 
@@ -835,7 +888,17 @@ class TaskRepository {
       updatedAt: task.updatedAt,
       scheduledAt: reminder.scheduledAt.toLocal(),
       remindBeforeMinutes: reminder.remindBeforeMinutes,
+      oneTimeExecutionMode: reminder.isTimed
+          ? OneTimeExecutionMode.timer
+          : OneTimeExecutionMode.normal,
       oneTimeCompletedAt: reminder.completedAt?.toLocal(),
+      todayActualDurationSeconds: reminder.isTimed
+          ? await _durationForDay(
+              task.id,
+              dateOnly(date),
+              DateTime.now().toUtc(),
+            )
+          : 0,
     );
   }
 
@@ -847,10 +910,7 @@ class TaskRepository {
 
   Future<TaskDetails> _requireTimerTask(String taskId) async {
     final task = await getTask(taskId);
-    if (task == null ||
-        task.kind != TaskKind.longTerm ||
-        task.checkMode != LongTermCheckMode.timer ||
-        task.status != TaskLifecycle.active) {
+    if (task == null || !task.hasTimer || task.status != TaskLifecycle.active) {
       throw StateError('Only active timer tasks can be timed.');
     }
     return task;
@@ -909,6 +969,7 @@ class TaskRepository {
     DateTime startedAt,
     DateTime endedAt,
   ) async {
+    if (task.kind != TaskKind.longTerm) return;
     var day = dateOnly(startedAt.toLocal());
     final lastDay = dateOnly(endedAt.toLocal());
     while (!day.isAfter(lastDay)) {
@@ -928,7 +989,8 @@ class TaskRepository {
     final progress = target <= 0
         ? 0.0
         : (duration / target * 100).clamp(0, 100).toDouble();
-    final success = target > 0 && duration >= target;
+    final targetReached =
+        task.hasDurationTarget && target > 0 && duration >= target;
     final query = _database.select(_database.taskCompletionRecords)
       ..where(
         (row) =>
@@ -947,10 +1009,9 @@ class TaskRepository {
             localDate: key,
             actualDurationSeconds: Value(duration),
             progressPercent: Value(progress),
-            isSuccess: Value(success),
-            completedAt: Value(
-              success ? existing?.completedAt ?? nowUtc : null,
-            ),
+            targetReached: Value(targetReached),
+            isSuccess: Value(existing?.isSuccess ?? false),
+            completedAt: Value(existing?.completedAt),
             createdAt: existing?.createdAt ?? nowUtc,
             updatedAt: nowUtc,
           ),
@@ -964,7 +1025,8 @@ class TaskRepository {
         'local_date': key,
         'actual_duration_seconds': duration,
         'progress_percent': progress,
-        'is_success': success,
+        'target_reached': targetReached,
+        'is_success': existing?.isSuccess ?? false,
       },
       userId: _userId,
     );
@@ -1054,7 +1116,7 @@ class TaskRepository {
     if (draft.weekdays.isEmpty) {
       throw ArgumentError('At least one weekday is required.');
     }
-    if (draft.checkMode == LongTermCheckMode.timer &&
+    if (draft.checkMode == LongTermCheckMode.targetTimer &&
         (draft.targetDurationSeconds ?? 0) <= 0) {
       throw ArgumentError('Timer tasks require a positive duration.');
     }
@@ -1078,7 +1140,7 @@ class TaskRepository {
       'color': draft.colorValue,
       'icon_name': draft.iconName,
       'notes': _normalizedNotes(draft.notes),
-      'check_mode': draft.checkMode.name,
+      'check_mode': _longTermModeWireValue(draft.checkMode),
       'target_duration_seconds': draft.targetDurationSeconds,
       'target_days': draft.targetDays,
       'holiday_pause': draft.holidayPause,
@@ -1105,6 +1167,7 @@ class TaskRepository {
       'notes': _normalizedNotes(draft.notes),
       'scheduled_at': draft.scheduledAt.toUtc().toIso8601String(),
       'remind_before_minutes': draft.remindBeforeMinutes,
+      'is_timed': draft.executionMode == OneTimeExecutionMode.timer,
       'updated_at': updatedAt.toIso8601String(),
     };
   }
@@ -1118,7 +1181,9 @@ class TaskRepository {
       'icon_name': task.iconName,
       'status': task.status.name,
       'notes': task.notes,
-      'check_mode': task.checkMode?.name,
+      'check_mode': task.checkMode == null
+          ? null
+          : _longTermModeWireValue(task.checkMode!),
       'target_duration_seconds': task.targetDurationSeconds,
       'target_days': task.targetDays,
       'holiday_pause': task.holidayPause,
@@ -1134,6 +1199,7 @@ class TaskRepository {
           : localDateKey(task.schedule!.endsOn!),
       'scheduled_at': task.scheduledAt?.toUtc().toIso8601String(),
       'remind_before_minutes': task.remindBeforeMinutes,
+      'is_timed': task.oneTimeExecutionMode == OneTimeExecutionMode.timer,
       'updated_at': task.updatedAt.toIso8601String(),
     };
   }
@@ -1141,5 +1207,21 @@ class TaskRepository {
   List<int> _sortedWeekdays(Iterable<int> weekdays) {
     final values = weekdays.toList()..sort();
     return values;
+  }
+
+  LongTermCheckMode _longTermMode(String value) {
+    return switch (value) {
+      'timer' || 'target_timer' => LongTermCheckMode.targetTimer,
+      'free_timer' => LongTermCheckMode.freeTimer,
+      _ => LongTermCheckMode.values.byName(value),
+    };
+  }
+
+  String _longTermModeWireValue(LongTermCheckMode mode) {
+    return switch (mode) {
+      LongTermCheckMode.freeTimer => 'free_timer',
+      LongTermCheckMode.targetTimer => 'target_timer',
+      LongTermCheckMode.simple => 'simple',
+    };
   }
 }

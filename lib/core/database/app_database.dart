@@ -59,6 +59,7 @@ class OneTimeReminderRecords extends Table {
   TextColumn get userId => text()();
   DateTimeColumn get scheduledAt => dateTime()();
   IntColumn get remindBeforeMinutes => integer().nullable()();
+  BoolColumn get isTimed => boolean().withDefault(const Constant(false))();
   DateTimeColumn get completedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -76,6 +77,8 @@ class TaskCompletionRecords extends Table {
   IntColumn get actualDurationSeconds =>
       integer().withDefault(const Constant(0))();
   RealColumn get progressPercent => real().withDefault(const Constant(0))();
+  BoolColumn get targetReached =>
+      boolean().withDefault(const Constant(false))();
   BoolColumn get isSuccess => boolean().withDefault(const Constant(false))();
   TextColumn get exclusionReason => text().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
@@ -165,7 +168,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -186,6 +189,30 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await migrator.addColumn(localTasks, localTasks.iconName);
+      }
+      if (from < 5) {
+        if (from >= 2) {
+          await migrator.addColumn(
+            oneTimeReminderRecords,
+            oneTimeReminderRecords.isTimed,
+          );
+          await migrator.addColumn(
+            taskCompletionRecords,
+            taskCompletionRecords.targetReached,
+          );
+        }
+        await customStatement(
+          "UPDATE long_term_task_records SET check_mode = 'targetTimer' "
+          "WHERE check_mode = 'timer'",
+        );
+        await customStatement(
+          'UPDATE task_completion_records '
+          'SET target_reached = CASE WHEN actual_duration_seconds >= '
+          '(SELECT target_duration_seconds FROM long_term_task_records '
+          'WHERE task_id = task_completion_records.task_id) THEN 1 ELSE 0 END '
+          'WHERE task_id IN (SELECT task_id FROM long_term_task_records '
+          "WHERE check_mode = 'targetTimer')",
+        );
       }
     },
     beforeOpen: (details) async {

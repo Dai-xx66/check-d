@@ -34,6 +34,11 @@ void main() {
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
+          ),
         ],
         child: const CheckDApp(),
       ),

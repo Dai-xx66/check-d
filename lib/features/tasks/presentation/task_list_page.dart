@@ -136,9 +136,14 @@ class _TaskListTile extends StatelessWidget {
 
   String _subtitle(TaskDetails task) {
     if (task.kind == TaskKind.oneTime) {
-      return '单次事项 · ${DateFormat('M月d日 HH:mm').format(task.scheduledAt!)}';
+      final mode = task.hasTimer ? '计时事项' : '普通事项';
+      return '$mode · ${DateFormat('M月d日 HH:mm').format(task.scheduledAt!)}';
     }
-    final mode = task.isTimer ? '计时型' : '点击型';
+    final mode = switch (task.checkMode) {
+      LongTermCheckMode.freeTimer => '自由计时',
+      LongTermCheckMode.targetTimer => '目标计时',
+      _ => '点击完成',
+    };
     return '长期任务 · $mode';
   }
 }

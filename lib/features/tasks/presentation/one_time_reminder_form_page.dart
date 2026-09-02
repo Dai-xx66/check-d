@@ -27,6 +27,7 @@ class _OneTimeReminderFormPageState
   late int _colorValue;
   late String _iconName;
   late int? _remindBeforeMinutes;
+  late OneTimeExecutionMode _executionMode;
   bool _isSaving = false;
 
   TaskDetails? get _initial => widget.initialTask;
@@ -41,6 +42,8 @@ class _OneTimeReminderFormPageState
     _colorValue = _initial?.colorValue ?? taskColorValues[2];
     _iconName = _initial?.iconName ?? TaskIconKey.event;
     _remindBeforeMinutes = _initial?.remindBeforeMinutes;
+    _executionMode =
+        _initial?.oneTimeExecutionMode ?? OneTimeExecutionMode.normal;
   }
 
   @override
@@ -111,6 +114,27 @@ class _OneTimeReminderFormPageState
                                 setState(() => _iconName = value),
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _FormSection(
+                      title: '执行方式',
+                      child: SegmentedButton<OneTimeExecutionMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: OneTimeExecutionMode.normal,
+                            icon: Icon(Icons.check_circle_outline_rounded),
+                            label: Text('普通事项'),
+                          ),
+                          ButtonSegment(
+                            value: OneTimeExecutionMode.timer,
+                            icon: Icon(Icons.timer_outlined),
+                            label: Text('计时事项'),
+                          ),
+                        ],
+                        selected: {_executionMode},
+                        onSelectionChanged: (selection) =>
+                            setState(() => _executionMode = selection.first),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -274,6 +298,7 @@ class _OneTimeReminderFormPageState
               colorValue: _colorValue,
               iconName: _iconName,
               scheduledAt: _scheduledAt,
+              executionMode: _executionMode,
               remindBeforeMinutes: _remindBeforeMinutes,
               notes: _notesController.text,
             ),

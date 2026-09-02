@@ -45,19 +45,13 @@ class _TodayContent extends ConsumerWidget {
         .where((task) => task.kind == TaskKind.oneTime)
         .toList();
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
-    var completedCount = 0;
-    var timedSeconds = 0;
-    for (final task in tasks) {
-      if (!task.isTimer) {
-        if (task.isCompleted) completedCount++;
-        continue;
-      }
-      final timer = ref.watch(taskTimerStateProvider(task.id)).value;
-      final elapsed =
-          timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
-      timedSeconds += elapsed;
-      if (elapsed >= (task.targetDurationSeconds ?? 0)) completedCount++;
-    }
+    final completedCount = tasks.where((task) => task.isCompleted).length;
+    final timedSeconds =
+        ref
+            .watch(dailyTimerStateProvider(dateOnly(now)))
+            .value
+            ?.elapsedSecondsAt(now) ??
+        0;
 
     return CustomScrollView(
       slivers: [
@@ -199,21 +193,19 @@ class _TaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Color(task.colorValue);
-    final now = task.isTimer
+    final now = task.hasTimer
         ? ref.watch(timerNowProvider).value ?? DateTime.now()
         : DateTime.now();
-    final timer = task.isTimer
+    final timer = task.hasTimer
         ? ref.watch(taskTimerStateProvider(task.id)).value
         : null;
     final elapsed =
         timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
     final target = task.targetDurationSeconds ?? 0;
-    final progress = task.isTimer && target > 0
+    final progress = task.hasDurationTarget && target > 0
         ? (elapsed / target * 100).clamp(0, 100).toDouble()
         : task.todayProgressPercent;
-    final completed = task.isTimer
-        ? target > 0 && elapsed >= target
-        : task.isCompleted;
+    final completed = task.isCompleted;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -260,25 +252,26 @@ class _TaskCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (task.isTimer)
+                      if (task.hasDurationTarget) ...[
                         Text(
                           '${progress.round()}%',
                           style: TextStyle(
                             color: color,
                             fontWeight: FontWeight.w700,
                           ),
-                        )
-                      else
-                        IconButton(
-                          tooltip: task.isCompleted ? '撤销完成' : '标记完成',
-                          onPressed: () => _toggle(context, ref),
-                          icon: Icon(
-                            task.isCompleted
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            color: task.isCompleted ? color : AppColors.muted,
-                          ),
                         ),
+                        const SizedBox(width: 4),
+                      ],
+                      IconButton(
+                        tooltip: task.isCompleted ? '撤销完成' : '标记完成',
+                        onPressed: () => _toggle(context, ref),
+                        icon: Icon(
+                          task.isCompleted
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          color: task.isCompleted ? color : AppColors.muted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -313,7 +306,7 @@ class _TaskCard extends ConsumerWidget {
     }
     final repository = ref.read(taskRepositoryProvider);
     if (task.kind == TaskKind.longTerm) {
-      await repository.toggleSimpleCompletion(task.id, DateTime.now());
+      await repository.toggleLongTermCompletion(task.id, DateTime.now());
     } else {
       await repository.toggleOneTimeCompletion(task.id);
     }
@@ -321,12 +314,16 @@ class _TaskCard extends ConsumerWidget {
 
   String _subtitle(TaskDetails task, int elapsedSeconds) {
     if (task.kind == TaskKind.oneTime) {
-      return DateFormat('HH:mm').format(task.scheduledAt!);
+      final time = DateFormat('HH:mm').format(task.scheduledAt!);
+      return task.hasTimer
+          ? '$time · 已计时 ${formatDuration(elapsedSeconds)}'
+          : time;
     }
-    if (task.isTimer) {
+    if (task.hasDurationTarget) {
       return '${formatDuration(elapsedSeconds)} / '
           '${formatDuration(task.targetDurationSeconds ?? 0)}';
     }
+    if (task.hasTimer) return '今日计时 ${formatDuration(elapsedSeconds)}';
     return '点击打卡';
   }
 }

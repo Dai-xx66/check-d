@@ -130,28 +130,42 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                     ),
                     const SizedBox(height: 16),
                     _Section(
-                      title: '打卡方式',
+                      title: '执行方式',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SegmentedButton<LongTermCheckMode>(
-                            segments: const [
-                              ButtonSegment(
-                                value: LongTermCheckMode.simple,
-                                icon: Icon(Icons.check_circle_outline_rounded),
-                                label: Text('点击打卡'),
-                              ),
-                              ButtonSegment(
-                                value: LongTermCheckMode.timer,
-                                icon: Icon(Icons.timer_outlined),
-                                label: Text('计时任务'),
-                              ),
-                            ],
-                            selected: {_checkMode},
-                            onSelectionChanged: (selection) =>
-                                setState(() => _checkMode = selection.first),
+                          LayoutBuilder(
+                            builder: (context, constraints) =>
+                                SegmentedButton<LongTermCheckMode>(
+                                  direction: constraints.maxWidth < 420
+                                      ? Axis.vertical
+                                      : Axis.horizontal,
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: LongTermCheckMode.simple,
+                                      icon: Icon(
+                                        Icons.check_circle_outline_rounded,
+                                      ),
+                                      label: Text('点击完成'),
+                                    ),
+                                    ButtonSegment(
+                                      value: LongTermCheckMode.freeTimer,
+                                      icon: Icon(Icons.timer_outlined),
+                                      label: Text('自由计时'),
+                                    ),
+                                    ButtonSegment(
+                                      value: LongTermCheckMode.targetTimer,
+                                      icon: Icon(Icons.track_changes_rounded),
+                                      label: Text('目标计时'),
+                                    ),
+                                  ],
+                                  selected: {_checkMode},
+                                  onSelectionChanged: (selection) => setState(
+                                    () => _checkMode = selection.first,
+                                  ),
+                                ),
                           ),
-                          if (_checkMode == LongTermCheckMode.timer) ...[
+                          if (_checkMode == LongTermCheckMode.targetTimer) ...[
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _durationController,
@@ -161,7 +175,8 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                                 suffixText: '分钟',
                               ),
                               validator: (value) {
-                                if (_checkMode != LongTermCheckMode.timer) {
+                                if (_checkMode !=
+                                    LongTermCheckMode.targetTimer) {
                                   return null;
                                 }
                                 final minutes = int.tryParse(value ?? '');
@@ -315,7 +330,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
         iconName: _iconName,
         notes: _notesController.text,
         checkMode: _checkMode,
-        targetDurationSeconds: _checkMode == LongTermCheckMode.timer
+        targetDurationSeconds: _checkMode == LongTermCheckMode.targetTimer
             ? minutes! * 60
             : null,
         targetDays: targetDays,

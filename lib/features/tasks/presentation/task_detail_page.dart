@@ -213,7 +213,11 @@ class _TaskDetailContent extends ConsumerWidget {
   }
 
   String _longTermSubtitle(TaskDetails task) {
-    final mode = task.isTimer ? '计时型' : '点击型';
+    final mode = switch (task.checkMode) {
+      LongTermCheckMode.freeTimer => '自由计时',
+      LongTermCheckMode.targetTimer => '目标时长计时',
+      _ => '点击直接完成',
+    };
     return '$mode · ${_scheduleDescription(task.schedule!)}';
   }
 
@@ -236,9 +240,27 @@ class _LongTermStatusCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (task.isTimer)
-              _TimerControl(task: task, color: color)
-            else ...[
+            if (task.hasTimer) ...[
+              _TimerControl(task: task, color: color),
+              const SizedBox(height: 18),
+              const Divider(),
+              const SizedBox(height: 12),
+              _DetailValue(
+                label: '今日任务状态',
+                value: task.todayCompleted ? '已完成' : '未完成',
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: color),
+                onPressed: () => _toggle(context, ref),
+                icon: Icon(
+                  task.todayCompleted
+                      ? Icons.undo_rounded
+                      : Icons.check_rounded,
+                ),
+                label: Text(task.todayCompleted ? '撤销今日完成' : '完成今日任务'),
+              ),
+            ] else ...[
               Row(
                 children: [
                   Expanded(
@@ -297,7 +319,7 @@ class _LongTermStatusCard extends ConsumerWidget {
     }
     await ref
         .read(taskRepositoryProvider)
-        .toggleSimpleCompletion(task.id, DateTime.now());
+        .toggleLongTermCompletion(task.id, DateTime.now());
   }
 }
 
@@ -323,8 +345,13 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
       error: (error, stackTrace) => const Text('计时状态加载失败'),
       data: (timer) {
         final target = widget.task.targetDurationSeconds ?? 0;
-        final elapsed = timer.elapsedSecondsAt(now);
-        final progress = timer.progressAt(now, target);
+        final isOneTime = widget.task.kind == TaskKind.oneTime;
+        final elapsed = isOneTime
+            ? timer.totalElapsedSecondsAt(now)
+            : timer.elapsedSecondsAt(now);
+        final progress = widget.task.hasDurationTarget
+            ? timer.progressAt(now, target)
+            : 0.0;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -336,43 +363,55 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
                         ? '正在计时'
                         : timer.isPaused
                         ? '已暂停'
+                        : isOneTime
+                        ? '累计计时'
                         : '今日累计',
                     value: formatDuration(elapsed),
                   ),
                 ),
-                Expanded(
-                  child: _DetailValue(
-                    label: '每日目标',
-                    value: '${target ~/ 60} 分钟',
+                if (widget.task.hasDurationTarget)
+                  Expanded(
+                    child: _DetailValue(
+                      label: '每日目标',
+                      value: '${target ~/ 60} 分钟',
+                    ),
+                  )
+                else
+                  const Expanded(
+                    child: _DetailValue(label: '计时方式', value: '自由计时'),
                   ),
-                ),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  progress >= 100 ? '今日已达标' : '今日进度 ${progress.round()}%',
-                  style: TextStyle(
-                    color: progress >= 100 ? widget.color : AppColors.muted,
-                    fontWeight: FontWeight.w600,
+            if (widget.task.hasDurationTarget) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Text(
+                    progress >= 100 ? '今日目标时长已达到' : '时长进度 ${progress.round()}%',
+                    style: TextStyle(
+                      color: progress >= 100 ? widget.color : AppColors.muted,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  '${formatDuration(elapsed)} / ${formatDuration(target)}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progress / 100,
-              minHeight: 8,
-              color: widget.color,
-              backgroundColor: const Color(0xFFE9EBEF),
-              borderRadius: BorderRadius.circular(4),
-            ),
+                  const Spacer(),
+                  Text(
+                    '${formatDuration(elapsed)} / ${formatDuration(target)}',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: progress / 100,
+                minHeight: 8,
+                color: widget.color,
+                backgroundColor: const Color(0xFFE9EBEF),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
             const SizedBox(height: 18),
             if (timer.canStart)
               FilledButton.icon(
@@ -434,13 +473,14 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 10),
-              const Text(
-                '今日计时片段',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              Text(
+                isOneTime ? '计时片段' : '今日计时片段',
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               ...timer.sessions
                   .where((session) {
+                    if (isOneTime) return true;
                     final end = session.endedAt ?? now;
                     final startDay = dateOnly(session.startedAt);
                     final endDay = dateOnly(end);
@@ -522,6 +562,12 @@ class _OneTimeStatusCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (task.hasTimer) ...[
+              _TimerControl(task: task, color: color),
+              const SizedBox(height: 18),
+              const Divider(),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -547,7 +593,7 @@ class _OneTimeStatusCard extends ConsumerWidget {
               icon: Icon(
                 task.isCompleted ? Icons.undo_rounded : Icons.check_rounded,
               ),
-              label: Text(task.isCompleted ? '撤销完成' : '标记完成'),
+              label: Text(task.isCompleted ? '撤销完成' : '完成事项'),
             ),
           ],
         ),
@@ -589,8 +635,12 @@ class _CompletionHistory extends ConsumerWidget {
                     color: entries[index].isSuccess ? color : AppColors.muted,
                   ),
                   title: Text(entries[index].localDate),
+                  subtitle: Text(
+                    '计时 ${formatDuration(entries[index].actualDurationSeconds)}'
+                    '${entries[index].targetReached ? ' · 时长目标已达到' : ''}',
+                  ),
                   trailing: Text(
-                    '${entries[index].progressPercent.round()}%',
+                    entries[index].isSuccess ? '已完成' : '未完成',
                     style: TextStyle(
                       color: entries[index].isSuccess ? color : AppColors.muted,
                       fontWeight: FontWeight.w600,

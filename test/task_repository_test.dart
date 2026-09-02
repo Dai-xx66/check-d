@@ -160,33 +160,36 @@ void main() {
     expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 10, 7)), 420);
   });
 
-  test(
-    'pause, resume and end preserve segments and reach the daily goal',
-    () async {
-      final day = DateTime(2026, 9, 2);
-      final taskId = await repository.saveLongTermTask(_timerDraft(day));
+  test('reaching the duration target does not complete the task', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(day));
 
-      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
-      await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 10, 4));
-      expect(
-        (await repository.watchTimerState(taskId, day).first).isPaused,
-        isTrue,
-      );
-      await repository.resumeTimer(taskId, now: DateTime(2026, 9, 2, 10, 10));
-      await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 16));
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+    await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 10, 4));
+    expect(
+      (await repository.watchTimerState(taskId, day).first).isPaused,
+      isTrue,
+    );
+    await repository.resumeTimer(taskId, now: DateTime(2026, 9, 2, 10, 10));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 16));
 
-      final timer = await repository.watchTimerState(taskId, day).first;
-      final completion = await database
-          .select(database.taskCompletionRecords)
-          .getSingle();
-      expect(timer.canStart, isTrue);
-      expect(timer.sessions, hasLength(2));
-      expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 11)), 600);
-      expect(completion.actualDurationSeconds, 600);
-      expect(completion.progressPercent, 100);
-      expect(completion.isSuccess, isTrue);
-    },
-  );
+    final timer = await repository.watchTimerState(taskId, day).first;
+    final completion = await database
+        .select(database.taskCompletionRecords)
+        .getSingle();
+    expect(timer.canStart, isTrue);
+    expect(timer.sessions, hasLength(2));
+    expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 11)), 600);
+    expect(completion.actualDurationSeconds, 600);
+    expect(completion.progressPercent, 100);
+    expect(completion.targetReached, isTrue);
+    expect(completion.isSuccess, isFalse);
+    expect((await repository.getTask(taskId, date: day))!.isCompleted, isFalse);
+
+    await repository.toggleLongTermCompletion(taskId, day);
+
+    expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
+  });
 
   test('partial timer duration is retained as proportional progress', () async {
     final day = DateTime(2026, 9, 2);
@@ -200,6 +203,7 @@ void main() {
         .getSingle();
     expect(completion.actualDurationSeconds, 300);
     expect(completion.progressPercent, 50);
+    expect(completion.targetReached, isFalse);
     expect(completion.isSuccess, isFalse);
   });
 
@@ -242,7 +246,7 @@ void main() {
       LongTermTaskDraft(
         name: '运动',
         colorValue: 0xFF45A77A,
-        checkMode: LongTermCheckMode.timer,
+        checkMode: LongTermCheckMode.targetTimer,
         targetDurationSeconds: 1200,
         schedulePreset: SchedulePreset.daily,
         weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
@@ -301,8 +305,68 @@ void main() {
     expect(details.scheduledCount, 3);
     expect(details.completedCount, 2);
     expect(details.timedSeconds, 300);
-    expect(details.completionPercent, closeTo(83.33, 0.01));
+    expect(details.completionPercent, closeTo(66.67, 0.01));
   });
+
+  test('free timer records time and requires manual completion', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(
+      LongTermTaskDraft(
+        name: '写作业',
+        colorValue: 0xFF3D73E8,
+        checkMode: LongTermCheckMode.freeTimer,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: day,
+        holidayPause: false,
+      ),
+    );
+
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 18));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 18, 40));
+
+    final completion = await database
+        .select(database.taskCompletionRecords)
+        .getSingle();
+    expect(completion.actualDurationSeconds, 2400);
+    expect(completion.targetReached, isFalse);
+    expect(completion.isSuccess, isFalse);
+
+    await repository.toggleLongTermCompletion(taskId, day);
+    expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
+  });
+
+  test(
+    'timed one-time reminder shares timer without auto completion',
+    () async {
+      final day = DateTime(2026, 9, 2);
+      final taskId = await repository.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: '完成数据库作业',
+          colorValue: 0xFFE69545,
+          scheduledAt: DateTime(2026, 9, 2, 20),
+          executionMode: OneTimeExecutionMode.timer,
+        ),
+      );
+
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 18));
+      await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 18, 40));
+      await repository.resumeTimer(taskId, now: DateTime(2026, 9, 2, 19));
+      await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 19, 50));
+
+      final task = await repository.getTask(taskId, date: day);
+      expect(task!.hasTimer, isTrue);
+      expect(task.todayActualDurationSeconds, 5400);
+      expect(task.isCompleted, isFalse);
+      expect(
+        await database.select(database.taskCompletionRecords).get(),
+        isEmpty,
+      );
+
+      await repository.toggleOneTimeCompletion(taskId);
+      expect((await repository.getTask(taskId))!.isCompleted, isTrue);
+    },
+  );
 
   test('calendar excludes non-scheduled weekdays', () async {
     final monday = DateTime(2026, 8, 3);
@@ -322,6 +386,40 @@ void main() {
 
     expect(month.day(monday).scheduledCount, 1);
     expect(month.day(DateTime(2026, 8, 4)).scheduledCount, 0);
+  });
+
+  test('time on a future reminder counts on the day it was spent', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveOneTimeReminder(
+      OneTimeReminderDraft(
+        name: '未来事项',
+        colorValue: 0xFF3D73E8,
+        scheduledAt: DateTime(2026, 9, 5),
+        executionMode: OneTimeExecutionMode.timer,
+      ),
+    );
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 15));
+    final month = await repository.watchCalendarMonth(day).first;
+    expect(month.day(day).scheduledCount, 0);
+    expect(month.day(day).timedSeconds, 900);
+    expect(month.day(day).completedCount, 0);
+    final timer = await repository.watchTimerState(null, day).first;
+    expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 11)), 900);
+  });
+
+  test('further timer sessions preserve manual completion and undo', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+    await repository.toggleLongTermCompletion(taskId, day);
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 20));
+    expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
+    await repository.toggleLongTermCompletion(taskId, day);
+    final task = await repository.getTask(taskId, date: day);
+    expect(task!.isCompleted, isFalse);
+    expect(task.todayTargetReached, isTrue);
+    expect(task.todayActualDurationSeconds, 1200);
   });
 
   test('calendar retains an archived task on its historical dates', () async {
@@ -362,7 +460,7 @@ LongTermTaskDraft _timerDraft(DateTime startsOn) {
   return LongTermTaskDraft(
     name: '英语听力',
     colorValue: 0xFF3D73E8,
-    checkMode: LongTermCheckMode.timer,
+    checkMode: LongTermCheckMode.targetTimer,
     targetDurationSeconds: 600,
     targetDays: 365,
     schedulePreset: SchedulePreset.daily,
