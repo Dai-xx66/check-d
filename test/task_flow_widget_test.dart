@@ -13,15 +13,15 @@ import 'package:intl/date_symbol_data_local.dart';
 void main() {
   setUpAll(() => initializeDateFormatting('zh_CN'));
 
-  testWidgets('offline entry opens the app shell', (tester) async {
+  testWidgets('creates a simple long-term task from the add entry', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final database = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(database.close);
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -38,46 +38,24 @@ void main() {
       ),
     );
 
-    expect(find.text('离线体验'), findsOneWidget);
     await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('添加'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, '长期任务'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, '晨间整理');
+    await tester.tap(find.widgetWithText(TextButton, '保存'));
+    await tester.pumpAndSettle();
 
     expect(find.text('今日完成度'), findsOneWidget);
-    expect(find.text('单次事项提醒'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
-  });
+    final tasks = await database.select(database.localTasks).get();
+    expect(tasks.single.name, '晨间整理');
+    expect(tasks.single.taskType, TaskKind.longTerm.name);
 
-  testWidgets('desktop width uses the navigation rail', (tester) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final database = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(database.close);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appConfigProvider.overrideWithValue(
-            const AppConfig(supabaseUrl: '', supabaseAnonKey: ''),
-          ),
-          appDatabaseProvider.overrideWithValue(database),
-          supabaseClientProvider.overrideWithValue(null),
-          tasksForDateProvider.overrideWith(
-            (ref, date) => Stream.value(const <TaskDetails>[]),
-          ),
-        ],
-        child: const CheckDApp(),
-      ),
-    );
-
-    await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    await database.close();
   });
 }

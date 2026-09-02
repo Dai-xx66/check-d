@@ -6,6 +6,8 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../reviews/presentation/reviews_page.dart';
 import '../../statistics/presentation/statistics_page.dart';
+import '../../tasks/presentation/long_term_task_form_page.dart';
+import '../../tasks/presentation/one_time_reminder_form_page.dart';
 import '../../today/presentation/today_page.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -83,7 +85,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 color: AppColors.primary,
                 title: '长期任务',
                 subtitle: '计时型或点击型打卡',
-                onTap: () => _showPhaseNotice(context),
+                onTap: () => _openLongTermForm(context),
               ),
               const SizedBox(height: 10),
               _CreateOption(
@@ -91,7 +93,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 color: AppColors.orange,
                 title: '单次事项提醒',
                 subtitle: '会议、截止日期或临时事项',
-                onTap: () => _showPhaseNotice(context),
+                onTap: () => _openOneTimeForm(context),
               ),
             ],
           ),
@@ -100,11 +102,18 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  void _showPhaseNotice(BuildContext sheetContext) {
+  void _openLongTermForm(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('任务创建将在 Phase 2 开放')));
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const LongTermTaskFormPage()),
+    );
+  }
+
+  void _openOneTimeForm(BuildContext sheetContext) {
+    Navigator.of(sheetContext).pop();
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const OneTimeReminderFormPage()),
+    );
   }
 
   Future<void> _signOut() {

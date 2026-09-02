@@ -9,11 +9,95 @@ class LocalTasks extends Table {
   TextColumn get name => text()();
   TextColumn get taskType => text()();
   IntColumn get colorValue => integer()();
+  TextColumn get notes => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   IntColumn get syncVersion => integer().withDefault(const Constant(0))();
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class LongTermTaskRecords extends Table {
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  TextColumn get checkMode => text()();
+  IntColumn get targetDurationSeconds => integer().nullable()();
+  IntColumn get targetDays => integer().nullable()();
+  BoolColumn get holidayPause => boolean().withDefault(const Constant(false))();
+  IntColumn get reminderMinuteOfDay => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {taskId};
+}
+
+class TaskScheduleRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  TextColumn get scheduleType => text()();
+  IntColumn get weekdaysMask => integer()();
+  TextColumn get startsOn => text()();
+  TextColumn get endsOn => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class OneTimeReminderRecords extends Table {
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  DateTimeColumn get scheduledAt => dateTime()();
+  IntColumn get remindBeforeMinutes => integer().nullable()();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {taskId};
+}
+
+class TaskCompletionRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  TextColumn get localDate => text()();
+  IntColumn get actualDurationSeconds =>
+      integer().withDefault(const Constant(0))();
+  RealColumn get progressPercent => real().withDefault(const Constant(0))();
+  BoolColumn get isSuccess => boolean().withDefault(const Constant(false))();
+  TextColumn get exclusionReason => text().nullable()();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {taskId, localDate},
+  ];
+}
+
+class TaskRevisionRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  TextColumn get beforeJson => text().nullable()();
+  TextColumn get afterJson => text()();
+  DateTimeColumn get changedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -45,19 +129,40 @@ class AppSettings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [LocalTasks, SyncOperations, AppSettings])
+@DriftDatabase(
+  tables: [
+    LocalTasks,
+    LongTermTaskRecords,
+    TaskScheduleRecords,
+    OneTimeReminderRecords,
+    TaskCompletionRecords,
+    TaskRevisionRecords,
+    SyncOperations,
+    AppSettings,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       await migrator.createAll();
+    },
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.addColumn(localTasks, localTasks.notes);
+        await migrator.createTable(longTermTaskRecords);
+        await migrator.createTable(taskScheduleRecords);
+        await migrator.createTable(oneTimeReminderRecords);
+        await migrator.createTable(taskCompletionRecords);
+        await migrator.createTable(taskRevisionRecords);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

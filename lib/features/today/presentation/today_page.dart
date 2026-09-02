@@ -1,82 +1,152 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/page_header.dart';
+import '../../tasks/application/task_providers.dart';
+import '../../tasks/domain/task_models.dart';
+import '../../tasks/presentation/task_detail_page.dart';
+import '../../tasks/presentation/task_list_page.dart';
 
-class TodayPage extends StatelessWidget {
+class TodayPage extends ConsumerWidget {
   const TodayPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final dateText = DateFormat('M月d日 EEEE', 'zh_CN').format(DateTime.now());
+  Widget build(BuildContext context, WidgetRef ref) {
+    final now = DateTime.now();
+    final dateText = DateFormat('M月d日 EEEE', 'zh_CN').format(now);
+    final tasksValue = ref.watch(tasksForDateProvider(dateOnly(now)));
 
     return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-            sliver: SliverList.list(
-              children: [
-                PageHeader(title: '今日', subtitle: dateText),
-                const SizedBox(height: 22),
-                const _TodaySummary(),
-                const SizedBox(height: 28),
-                Text(
-                  '长期任务',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                const EmptyState(
-                  icon: Icons.loop_rounded,
-                  title: '还没有长期任务',
-                  message: '从中央的“添加”入口创建第一个长期目标。',
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  '单次事项提醒',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                const EmptyState(
-                  icon: Icons.event_note_outlined,
-                  title: '今天没有单次事项',
-                  message: '临时事项和重要日期会单独显示在这里。',
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: tasksValue.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => const Center(child: Text('今日任务加载失败')),
+        data: (tasks) => _TodayContent(dateText: dateText, tasks: tasks),
       ),
     );
   }
 }
 
-class _TodaySummary extends StatelessWidget {
-  const _TodaySummary();
+class _TodayContent extends StatelessWidget {
+  const _TodayContent({required this.dateText, required this.tasks});
+
+  final String dateText;
+  final List<TaskDetails> tasks;
 
   @override
   Widget build(BuildContext context) {
+    final longTermTasks = tasks
+        .where((task) => task.kind == TaskKind.longTerm)
+        .toList();
+    final oneTimeTasks = tasks
+        .where((task) => task.kind == TaskKind.oneTime)
+        .toList();
+    final completedCount = tasks.where((task) => task.isCompleted).length;
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          sliver: SliverList.list(
+            children: [
+              PageHeader(
+                title: '今日',
+                subtitle: dateText,
+                trailing: IconButton(
+                  tooltip: '全部任务',
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (context) => const TaskListPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.checklist_rounded),
+                ),
+              ),
+              const SizedBox(height: 22),
+              _TodaySummary(
+                totalCount: tasks.length,
+                completedCount: completedCount,
+              ),
+              const SizedBox(height: 28),
+              _SectionTitle(
+                title: '长期任务',
+                count: longTermTasks.length,
+                icon: Icons.loop_rounded,
+              ),
+              const SizedBox(height: 12),
+              if (longTermTasks.isEmpty)
+                const EmptyState(
+                  icon: Icons.loop_rounded,
+                  title: '今天没有长期任务',
+                  message: '从中央的“添加”入口创建第一个长期目标。',
+                )
+              else
+                ...longTermTasks.map(
+                  (task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _TaskCard(task: task),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _SectionTitle(
+                title: '单次事项提醒',
+                count: oneTimeTasks.length,
+                icon: Icons.event_note_outlined,
+              ),
+              const SizedBox(height: 12),
+              if (oneTimeTasks.isEmpty)
+                const EmptyState(
+                  icon: Icons.event_note_outlined,
+                  title: '今天没有单次事项',
+                  message: '临时事项和重要日期会单独显示在这里。',
+                )
+              else
+                ...oneTimeTasks.map(
+                  (task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _TaskCard(task: task),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodaySummary extends StatelessWidget {
+  const _TodaySummary({required this.totalCount, required this.completedCount});
+
+  final int totalCount;
+  final int completedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Expanded(
-                  child: _Metric(label: '今日完成度', value: '0%'),
+                  child: _Metric(
+                    label: '今日完成度',
+                    value: '${(progress * 100).round()}%',
+                  ),
                 ),
                 Expanded(
-                  child: _Metric(label: '已完成', value: '0'),
+                  child: _Metric(
+                    label: '已完成',
+                    value: '$completedCount/$totalCount',
+                  ),
                 ),
-                Expanded(
+                const Expanded(
                   child: _Metric(label: '计时时长', value: '0m'),
                 ),
               ],
@@ -84,16 +154,177 @@ class _TodaySummary extends StatelessWidget {
             const SizedBox(height: 18),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: const LinearProgressIndicator(
-                value: 0,
+              child: LinearProgressIndicator(
+                value: progress,
                 minHeight: 8,
                 color: AppColors.primary,
-                backgroundColor: Color(0xFFE9EBEF),
+                backgroundColor: const Color(0xFFE9EBEF),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TaskCard extends ConsumerWidget {
+  const _TaskCard({required this.task});
+
+  final TaskDetails task;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = Color(task.colorValue);
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push<void>(
+          MaterialPageRoute(
+            builder: (context) => TaskDetailPage(taskId: task.id),
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(width: 5, color: color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                  child: Row(
+                    children: [
+                      Icon(
+                        task.kind == TaskKind.longTerm
+                            ? task.isTimer
+                                  ? Icons.timer_outlined
+                                  : Icons.check_circle_outline_rounded
+                            : Icons.event_note_outlined,
+                        color: color,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              task.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                decoration: task.isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _subtitle(task),
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (task.isTimer)
+                        Text(
+                          '${task.todayProgressPercent.round()}%',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      else
+                        IconButton(
+                          tooltip: task.isCompleted ? '撤销完成' : '标记完成',
+                          onPressed: () => _toggle(context, ref),
+                          icon: Icon(
+                            task.isCompleted
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            color: task.isCompleted ? color : AppColors.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggle(BuildContext context, WidgetRef ref) async {
+    if (task.isCompleted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('撤销完成状态？'),
+          content: const Text('状态会改回未完成，但历史记录不会被删除。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认撤销'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    final repository = ref.read(taskRepositoryProvider);
+    if (task.kind == TaskKind.longTerm) {
+      await repository.toggleSimpleCompletion(task.id, DateTime.now());
+    } else {
+      await repository.toggleOneTimeCompletion(task.id);
+    }
+  }
+
+  String _subtitle(TaskDetails task) {
+    if (task.kind == TaskKind.oneTime) {
+      return DateFormat('HH:mm').format(task.scheduledAt!);
+    }
+    if (task.isTimer) {
+      return '目标 ${(task.targetDurationSeconds ?? 0) ~/ 60} 分钟';
+    }
+    return '点击打卡';
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.title,
+    required this.count,
+    required this.icon,
+  });
+
+  final String title;
+  final int count;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: AppColors.muted),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 8),
+        Text('$count', style: const TextStyle(color: AppColors.muted)),
+      ],
     );
   }
 }
