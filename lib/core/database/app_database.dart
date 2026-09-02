@@ -90,6 +90,22 @@ class TaskCompletionRecords extends Table {
   ];
 }
 
+class TimerSessionRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  DateTimeColumn get startedAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
+  TextColumn get state => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class TaskRevisionRecords extends Table {
   TextColumn get id => text()();
   TextColumn get taskId =>
@@ -136,6 +152,7 @@ class AppSettings extends Table {
     TaskScheduleRecords,
     OneTimeReminderRecords,
     TaskCompletionRecords,
+    TimerSessionRecords,
     TaskRevisionRecords,
     SyncOperations,
     AppSettings,
@@ -147,7 +164,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -162,6 +179,9 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(oneTimeReminderRecords);
         await migrator.createTable(taskCompletionRecords);
         await migrator.createTable(taskRevisionRecords);
+      }
+      if (from < 3) {
+        await migrator.createTable(timerSessionRecords);
       }
     },
     beforeOpen: (details) async {

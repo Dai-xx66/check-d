@@ -29,21 +29,34 @@ class TodayPage extends ConsumerWidget {
   }
 }
 
-class _TodayContent extends StatelessWidget {
+class _TodayContent extends ConsumerWidget {
   const _TodayContent({required this.dateText, required this.tasks});
 
   final String dateText;
   final List<TaskDetails> tasks;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final longTermTasks = tasks
         .where((task) => task.kind == TaskKind.longTerm)
         .toList();
     final oneTimeTasks = tasks
         .where((task) => task.kind == TaskKind.oneTime)
         .toList();
-    final completedCount = tasks.where((task) => task.isCompleted).length;
+    final now = ref.watch(timerNowProvider).value ?? DateTime.now();
+    var completedCount = 0;
+    var timedSeconds = 0;
+    for (final task in tasks) {
+      if (!task.isTimer) {
+        if (task.isCompleted) completedCount++;
+        continue;
+      }
+      final timer = ref.watch(taskTimerStateProvider(task.id)).value;
+      final elapsed =
+          timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
+      timedSeconds += elapsed;
+      if (elapsed >= (task.targetDurationSeconds ?? 0)) completedCount++;
+    }
 
     return CustomScrollView(
       slivers: [
@@ -68,6 +81,7 @@ class _TodayContent extends StatelessWidget {
               _TodaySummary(
                 totalCount: tasks.length,
                 completedCount: completedCount,
+                timedSeconds: timedSeconds,
               ),
               const SizedBox(height: 28),
               _SectionTitle(
@@ -118,10 +132,15 @@ class _TodayContent extends StatelessWidget {
 }
 
 class _TodaySummary extends StatelessWidget {
-  const _TodaySummary({required this.totalCount, required this.completedCount});
+  const _TodaySummary({
+    required this.totalCount,
+    required this.completedCount,
+    required this.timedSeconds,
+  });
 
   final int totalCount;
   final int completedCount;
+  final int timedSeconds;
 
   @override
   Widget build(BuildContext context) {
@@ -146,8 +165,11 @@ class _TodaySummary extends StatelessWidget {
                     value: '$completedCount/$totalCount',
                   ),
                 ),
-                const Expanded(
-                  child: _Metric(label: '计时时长', value: '0m'),
+                Expanded(
+                  child: _Metric(
+                    label: '计时时长',
+                    value: formatDuration(timedSeconds),
+                  ),
                 ),
               ],
             ),
@@ -176,6 +198,21 @@ class _TaskCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Color(task.colorValue);
+    final now = task.isTimer
+        ? ref.watch(timerNowProvider).value ?? DateTime.now()
+        : DateTime.now();
+    final timer = task.isTimer
+        ? ref.watch(taskTimerStateProvider(task.id)).value
+        : null;
+    final elapsed =
+        timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
+    final target = task.targetDurationSeconds ?? 0;
+    final progress = task.isTimer && target > 0
+        ? (elapsed / target * 100).clamp(0, 100).toDouble()
+        : task.todayProgressPercent;
+    final completed = task.isTimer
+        ? target > 0 && elapsed >= target
+        : task.isCompleted;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -212,14 +249,14 @@ class _TaskCard extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                decoration: task.isCompleted
+                                decoration: completed
                                     ? TextDecoration.lineThrough
                                     : null,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _subtitle(task),
+                              _subtitle(task, elapsed),
                               style: const TextStyle(
                                 color: AppColors.muted,
                                 fontSize: 13,
@@ -231,7 +268,7 @@ class _TaskCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       if (task.isTimer)
                         Text(
-                          '${task.todayProgressPercent.round()}%',
+                          '${progress.round()}%',
                           style: TextStyle(
                             color: color,
                             fontWeight: FontWeight.w700,
@@ -288,12 +325,13 @@ class _TaskCard extends ConsumerWidget {
     }
   }
 
-  String _subtitle(TaskDetails task) {
+  String _subtitle(TaskDetails task, int elapsedSeconds) {
     if (task.kind == TaskKind.oneTime) {
       return DateFormat('HH:mm').format(task.scheduledAt!);
     }
     if (task.isTimer) {
-      return '目标 ${(task.targetDurationSeconds ?? 0) ~/ 60} 分钟';
+      return '${formatDuration(elapsedSeconds)} / '
+          '${formatDuration(task.targetDurationSeconds ?? 0)}';
     }
     return '点击打卡';
   }

@@ -92,6 +92,28 @@ class TaskRepository {
     );
   }
 
+  Stream<TaskTimerState> watchTimerState(String taskId, DateTime date) {
+    final query = _database.select(_database.timerSessionRecords)
+      ..where((row) => row.taskId.equals(taskId) & row.userId.equals(_userId))
+      ..orderBy([(row) => OrderingTerm.desc(row.startedAt)]);
+    return query.watch().map(
+      (rows) => TaskTimerState(
+        localDate: dateOnly(date),
+        sessions: rows
+            .map(
+              (row) => TimerSessionEntry(
+                id: row.id,
+                startedAt: row.startedAt.toLocal(),
+                endedAt: row.endedAt?.toLocal(),
+                durationSeconds: row.durationSeconds,
+                status: TimerSessionStatus.values.byName(row.state),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
   Future<TaskDetails?> getTask(String taskId, {DateTime? date}) async {
     final query = _database.select(_database.localTasks)
       ..where(
@@ -112,6 +134,13 @@ class TaskRepository {
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
+    if (existing?.isTimer == true &&
+        draft.checkMode != LongTermCheckMode.timer) {
+      final latest = await _latestTimerSession(id);
+      if (latest != null && latest.state != TimerSessionStatus.finished.name) {
+        throw StateError('End the active timer before changing task mode.');
+      }
+    }
     final payload = _longTermPayload(id, draft, now);
 
     await _database.transaction(() async {
@@ -360,11 +389,175 @@ class TaskRepository {
     });
   }
 
+  Future<void> startTimer(String taskId, {DateTime? now}) async {
+    await _requireTimerTask(taskId);
+    final timestamp = (now ?? DateTime.now()).toUtc();
+    final sessionId = _uuid.v4();
+    await _database.transaction(() async {
+      final latest = await _latestTimerSession(taskId);
+      if (latest != null && latest.state != TimerSessionStatus.finished.name) {
+        throw StateError('Timer is already active.');
+      }
+      if (await _runningTimerSession() != null) {
+        throw StateError('Another timer is already running.');
+      }
+      await _database
+          .into(_database.timerSessionRecords)
+          .insert(
+            TimerSessionRecordsCompanion.insert(
+              id: sessionId,
+              taskId: taskId,
+              userId: _userId,
+              startedAt: timestamp,
+              state: TimerSessionStatus.running.name,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            ),
+          );
+      await _touchTask(taskId, timestamp);
+      await _enqueueTimerSession(
+        sessionId: sessionId,
+        taskId: taskId,
+        startedAt: timestamp,
+        status: TimerSessionStatus.running,
+      );
+    });
+  }
+
+  Future<void> pauseTimer(String taskId, {DateTime? now}) async {
+    final task = await _requireTimerTask(taskId);
+    final timestamp = (now ?? DateTime.now()).toUtc();
+    await _database.transaction(() async {
+      final session = await _latestTimerSession(taskId);
+      if (session == null ||
+          session.state != TimerSessionStatus.running.name ||
+          session.endedAt != null) {
+        throw StateError('Only a running timer can be paused.');
+      }
+      await _closeTimerSession(session, timestamp, TimerSessionStatus.paused);
+      await _refreshTimerCompletions(task, session.startedAt, timestamp);
+      await _touchTask(taskId, timestamp);
+    });
+  }
+
+  Future<void> resumeTimer(String taskId, {DateTime? now}) async {
+    await _requireTimerTask(taskId);
+    final timestamp = (now ?? DateTime.now()).toUtc();
+    final sessionId = _uuid.v4();
+    await _database.transaction(() async {
+      final paused = await _latestTimerSession(taskId);
+      if (paused == null || paused.state != TimerSessionStatus.paused.name) {
+        throw StateError('Only a paused timer can be resumed.');
+      }
+      if (await _runningTimerSession() != null) {
+        throw StateError('Another timer is already running.');
+      }
+      await (_database.update(
+        _database.timerSessionRecords,
+      )..where((row) => row.id.equals(paused.id))).write(
+        TimerSessionRecordsCompanion(
+          state: Value(TimerSessionStatus.finished.name),
+          updatedAt: Value(timestamp),
+        ),
+      );
+      await _database
+          .into(_database.timerSessionRecords)
+          .insert(
+            TimerSessionRecordsCompanion.insert(
+              id: sessionId,
+              taskId: taskId,
+              userId: _userId,
+              startedAt: timestamp,
+              state: TimerSessionStatus.running.name,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            ),
+          );
+      await _touchTask(taskId, timestamp);
+      await _enqueueTimerSession(
+        sessionId: paused.id,
+        taskId: taskId,
+        startedAt: paused.startedAt,
+        endedAt: paused.endedAt,
+        durationSeconds: paused.durationSeconds,
+        status: TimerSessionStatus.finished,
+      );
+      await _enqueueTimerSession(
+        sessionId: sessionId,
+        taskId: taskId,
+        startedAt: timestamp,
+        status: TimerSessionStatus.running,
+      );
+    });
+  }
+
+  Future<void> endTimer(String taskId, {DateTime? now}) async {
+    final task = await _requireTimerTask(taskId);
+    final timestamp = (now ?? DateTime.now()).toUtc();
+    await _database.transaction(() async {
+      final session = await _latestTimerSession(taskId);
+      if (session == null ||
+          session.state == TimerSessionStatus.finished.name) {
+        throw StateError('There is no active timer to end.');
+      }
+      if (session.state == TimerSessionStatus.running.name) {
+        await _closeTimerSession(
+          session,
+          timestamp,
+          TimerSessionStatus.finished,
+        );
+        await _refreshTimerCompletions(task, session.startedAt, timestamp);
+      } else {
+        await (_database.update(
+          _database.timerSessionRecords,
+        )..where((row) => row.id.equals(session.id))).write(
+          TimerSessionRecordsCompanion(
+            state: Value(TimerSessionStatus.finished.name),
+            updatedAt: Value(timestamp),
+          ),
+        );
+        await _enqueueTimerSession(
+          sessionId: session.id,
+          taskId: taskId,
+          startedAt: session.startedAt,
+          endedAt: session.endedAt,
+          durationSeconds: session.durationSeconds,
+          status: TimerSessionStatus.finished,
+        );
+      }
+      await _touchTask(taskId, timestamp);
+    });
+  }
+
   Future<void> archiveTask(String taskId) async {
     final task = await getTask(taskId);
     if (task == null) return;
     final now = DateTime.now().toUtc();
+    final activeTimer = task.isTimer ? await _latestTimerSession(taskId) : null;
     await _database.transaction(() async {
+      if (activeTimer != null &&
+          activeTimer.state == TimerSessionStatus.running.name) {
+        await _closeTimerSession(activeTimer, now, TimerSessionStatus.finished);
+        await _refreshTimerCompletions(task, activeTimer.startedAt, now);
+      } else if (activeTimer != null &&
+          activeTimer.state == TimerSessionStatus.paused.name) {
+        await (_database.update(
+          _database.timerSessionRecords,
+        )..where((row) => row.id.equals(activeTimer.id))).write(
+          TimerSessionRecordsCompanion(
+            state: Value(TimerSessionStatus.finished.name),
+            updatedAt: Value(now),
+          ),
+        );
+        await _enqueueTimerSession(
+          sessionId: activeTimer.id,
+          taskId: taskId,
+          startedAt: activeTimer.startedAt,
+          endedAt: activeTimer.endedAt,
+          durationSeconds: activeTimer.durationSeconds,
+          status: TimerSessionStatus.finished,
+        );
+      }
       await (_database.update(
         _database.localTasks,
       )..where((row) => row.id.equals(taskId))).write(
@@ -410,6 +603,19 @@ class TaskRepository {
       final longTerm = results[0] as LongTermTaskRecord;
       final schedule = results[1] as TaskScheduleRecord;
       final completion = results[2] as TaskCompletionRecord?;
+      final actualDuration =
+          LongTermCheckMode.values.byName(longTerm.checkMode) ==
+              LongTermCheckMode.timer
+          ? await _durationForDay(
+              task.id,
+              dateOnly(date),
+              DateTime.now().toUtc(),
+            )
+          : completion?.actualDurationSeconds ?? 0;
+      final targetDuration = longTerm.targetDurationSeconds ?? 0;
+      final timerProgress = targetDuration <= 0
+          ? 0.0
+          : (actualDuration / targetDuration * 100).clamp(0, 100).toDouble();
       return TaskDetails(
         id: task.id,
         name: task.name,
@@ -431,8 +637,17 @@ class TaskRepository {
               ? null
               : DateTime.parse(schedule.endsOn!),
         ),
-        todayProgressPercent: completion?.progressPercent ?? 0,
-        todayCompleted: completion?.isSuccess ?? false,
+        todayProgressPercent:
+            LongTermCheckMode.values.byName(longTerm.checkMode) ==
+                LongTermCheckMode.timer
+            ? timerProgress
+            : completion?.progressPercent ?? 0,
+        todayActualDurationSeconds: actualDuration,
+        todayCompleted:
+            LongTermCheckMode.values.byName(longTerm.checkMode) ==
+                LongTermCheckMode.timer
+            ? targetDuration > 0 && actualDuration >= targetDuration
+            : completion?.isSuccess ?? false,
       );
     }
 
@@ -458,6 +673,180 @@ class TaskRepository {
     return (_database.update(_database.localTasks)
           ..where((row) => row.id.equals(taskId)))
         .write(LocalTasksCompanion(updatedAt: Value(now)));
+  }
+
+  Future<TaskDetails> _requireTimerTask(String taskId) async {
+    final task = await getTask(taskId);
+    if (task == null ||
+        task.kind != TaskKind.longTerm ||
+        task.checkMode != LongTermCheckMode.timer ||
+        task.status != TaskLifecycle.active) {
+      throw StateError('Only active timer tasks can be timed.');
+    }
+    return task;
+  }
+
+  Future<TimerSessionRecord?> _latestTimerSession(String taskId) {
+    final query = _database.select(_database.timerSessionRecords)
+      ..where((row) => row.taskId.equals(taskId) & row.userId.equals(_userId))
+      ..orderBy([(row) => OrderingTerm.desc(row.startedAt)])
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  Future<TimerSessionRecord?> _runningTimerSession() {
+    final query = _database.select(_database.timerSessionRecords)
+      ..where(
+        (row) =>
+            row.userId.equals(_userId) &
+            row.state.equals(TimerSessionStatus.running.name),
+      )
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  Future<void> _closeTimerSession(
+    TimerSessionRecord session,
+    DateTime endedAt,
+    TimerSessionStatus status,
+  ) async {
+    final duration = endedAt
+        .difference(session.startedAt)
+        .inSeconds
+        .clamp(0, 1 << 31);
+    await (_database.update(
+      _database.timerSessionRecords,
+    )..where((row) => row.id.equals(session.id))).write(
+      TimerSessionRecordsCompanion(
+        endedAt: Value(endedAt),
+        durationSeconds: Value(duration),
+        state: Value(status.name),
+        updatedAt: Value(endedAt),
+      ),
+    );
+    await _enqueueTimerSession(
+      sessionId: session.id,
+      taskId: session.taskId,
+      startedAt: session.startedAt,
+      endedAt: endedAt,
+      durationSeconds: duration,
+      status: status,
+    );
+  }
+
+  Future<void> _refreshTimerCompletions(
+    TaskDetails task,
+    DateTime startedAt,
+    DateTime endedAt,
+  ) async {
+    var day = dateOnly(startedAt.toLocal());
+    final lastDay = dateOnly(endedAt.toLocal());
+    while (!day.isAfter(lastDay)) {
+      await _upsertTimerCompletion(task, day, endedAt);
+      day = day.add(const Duration(days: 1));
+    }
+  }
+
+  Future<void> _upsertTimerCompletion(
+    TaskDetails task,
+    DateTime day,
+    DateTime nowUtc,
+  ) async {
+    final key = localDateKey(day);
+    final duration = await _durationForDay(task.id, day, nowUtc);
+    final target = task.targetDurationSeconds ?? 0;
+    final progress = target <= 0
+        ? 0.0
+        : (duration / target * 100).clamp(0, 100).toDouble();
+    final success = target > 0 && duration >= target;
+    final query = _database.select(_database.taskCompletionRecords)
+      ..where(
+        (row) =>
+            row.taskId.equals(task.id) &
+            row.userId.equals(_userId) &
+            row.localDate.equals(key),
+      );
+    final existing = await query.getSingleOrNull();
+    await _database
+        .into(_database.taskCompletionRecords)
+        .insertOnConflictUpdate(
+          TaskCompletionRecordsCompanion.insert(
+            id: existing?.id ?? _uuid.v4(),
+            taskId: task.id,
+            userId: _userId,
+            localDate: key,
+            actualDurationSeconds: Value(duration),
+            progressPercent: Value(progress),
+            isSuccess: Value(success),
+            completedAt: Value(
+              success ? existing?.completedAt ?? nowUtc : null,
+            ),
+            createdAt: existing?.createdAt ?? nowUtc,
+            updatedAt: nowUtc,
+          ),
+        );
+    await _syncQueue.enqueue(
+      entityType: 'task_completions',
+      entityId: '${task.id}:$key',
+      operation: SyncOperationType.upsert,
+      payload: {
+        'task_id': task.id,
+        'local_date': key,
+        'actual_duration_seconds': duration,
+        'progress_percent': progress,
+        'is_success': success,
+      },
+      userId: _userId,
+    );
+  }
+
+  Future<int> _durationForDay(
+    String taskId,
+    DateTime day,
+    DateTime nowUtc,
+  ) async {
+    final sessions =
+        await (_database.select(_database.timerSessionRecords)..where(
+              (row) => row.taskId.equals(taskId) & row.userId.equals(_userId),
+            ))
+            .get();
+    final dayStart = dateOnly(day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    var total = 0;
+    for (final session in sessions) {
+      final start = session.startedAt.toLocal();
+      final end = (session.endedAt ?? nowUtc).toLocal();
+      final overlapStart = start.isAfter(dayStart) ? start : dayStart;
+      final overlapEnd = end.isBefore(dayEnd) ? end : dayEnd;
+      if (overlapEnd.isAfter(overlapStart)) {
+        total += overlapEnd.difference(overlapStart).inSeconds;
+      }
+    }
+    return total;
+  }
+
+  Future<void> _enqueueTimerSession({
+    required String sessionId,
+    required String taskId,
+    required DateTime startedAt,
+    required TimerSessionStatus status,
+    DateTime? endedAt,
+    int durationSeconds = 0,
+  }) {
+    return _syncQueue.enqueue(
+      entityType: 'timer_sessions',
+      entityId: sessionId,
+      operation: SyncOperationType.upsert,
+      payload: {
+        'id': sessionId,
+        'task_id': taskId,
+        'started_at': startedAt.toIso8601String(),
+        'ended_at': endedAt?.toIso8601String(),
+        'duration_seconds': durationSeconds,
+        'state': status.name,
+      },
+      userId: _userId,
+    );
   }
 
   Future<void> _writeRevision({

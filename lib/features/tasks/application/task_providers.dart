@@ -37,3 +37,18 @@ final taskCompletionHistoryProvider = StreamProvider.autoDispose
     .family<List<CompletionHistoryEntry>, String>((ref, taskId) {
       return ref.watch(taskRepositoryProvider).watchCompletionHistory(taskId);
     });
+
+final taskTimerStateProvider = StreamProvider.autoDispose
+    .family<TaskTimerState, String>((ref, taskId) {
+      return ref
+          .watch(taskRepositoryProvider)
+          .watchTimerState(taskId, dateOnly(DateTime.now()));
+    });
+
+final timerNowProvider = StreamProvider.autoDispose<DateTime>((ref) async* {
+  yield DateTime.now();
+  yield* Stream<DateTime>.periodic(
+    const Duration(seconds: 1),
+    (_) => DateTime.now(),
+  );
+});

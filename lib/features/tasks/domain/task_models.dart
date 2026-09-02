@@ -4,6 +4,8 @@ enum TaskLifecycle { active, paused, archived }
 
 enum LongTermCheckMode { timer, simple }
 
+enum TimerSessionStatus { running, paused, finished }
+
 enum SchedulePreset { daily, weekdays, weekends, custom }
 
 abstract final class WeekdayMask {
@@ -111,6 +113,7 @@ class TaskDetails {
     this.remindBeforeMinutes,
     this.oneTimeCompletedAt,
     this.todayProgressPercent = 0,
+    this.todayActualDurationSeconds = 0,
     this.todayCompleted = false,
   });
 
@@ -131,12 +134,72 @@ class TaskDetails {
   final int? remindBeforeMinutes;
   final DateTime? oneTimeCompletedAt;
   final double todayProgressPercent;
+  final int todayActualDurationSeconds;
   final bool todayCompleted;
 
   bool get isTimer => checkMode == LongTermCheckMode.timer;
 
   bool get isCompleted =>
       kind == TaskKind.oneTime ? oneTimeCompletedAt != null : todayCompleted;
+}
+
+class TimerSessionEntry {
+  const TimerSessionEntry({
+    required this.id,
+    required this.startedAt,
+    required this.durationSeconds,
+    required this.status,
+    this.endedAt,
+  });
+
+  final String id;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+  final int durationSeconds;
+  final TimerSessionStatus status;
+
+  int elapsedSecondsAt(DateTime now) {
+    if (status != TimerSessionStatus.running || endedAt != null) {
+      return durationSeconds;
+    }
+    return now.difference(startedAt).inSeconds.clamp(0, 1 << 31);
+  }
+}
+
+class TaskTimerState {
+  const TaskTimerState({required this.sessions, required this.localDate});
+
+  final List<TimerSessionEntry> sessions;
+  final DateTime localDate;
+
+  TimerSessionEntry? get latest => sessions.isEmpty ? null : sessions.first;
+  bool get isRunning => latest?.status == TimerSessionStatus.running;
+  bool get isPaused => latest?.status == TimerSessionStatus.paused;
+  bool get canStart => !isRunning && !isPaused;
+
+  int elapsedSecondsAt(DateTime now) {
+    final dayStart = dateOnly(localDate);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    var total = 0;
+    for (final session in sessions) {
+      final end = session.status == TimerSessionStatus.running
+          ? now
+          : session.endedAt ?? session.startedAt;
+      final overlapStart = session.startedAt.isAfter(dayStart)
+          ? session.startedAt
+          : dayStart;
+      final overlapEnd = end.isBefore(dayEnd) ? end : dayEnd;
+      if (overlapEnd.isAfter(overlapStart)) {
+        total += overlapEnd.difference(overlapStart).inSeconds;
+      }
+    }
+    return total;
+  }
+
+  double progressAt(DateTime now, int targetDurationSeconds) {
+    if (targetDurationSeconds <= 0) return 0;
+    return (elapsedSecondsAt(now) / targetDurationSeconds * 100).clamp(0, 100);
+  }
 }
 
 class CompletionHistoryEntry {
@@ -163,4 +226,18 @@ String localDateKey(DateTime value) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '${date.year}-$month-$day';
+}
+
+String formatDuration(int totalSeconds) {
+  final safeSeconds = totalSeconds.clamp(0, 1 << 31);
+  final hours = safeSeconds ~/ 3600;
+  final minutes = (safeSeconds % 3600) ~/ 60;
+  final seconds = safeSeconds % 60;
+  if (hours > 0) {
+    return '${hours.toString().padLeft(2, '0')}:'
+        '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+  return '${minutes.toString().padLeft(2, '0')}:'
+      '${seconds.toString().padLeft(2, '0')}';
 }

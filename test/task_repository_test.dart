@@ -2,6 +2,7 @@ import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -147,6 +148,136 @@ void main() {
     )..where((row) => row.id.equals(taskId))).getSingle();
     expect(task.status, TaskLifecycle.archived.name);
   });
+
+  test('running timer derives elapsed time from its start timestamp', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+    final timer = await repository.watchTimerState(taskId, day).first;
+
+    expect(timer.isRunning, isTrue);
+    expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 10, 7)), 420);
+  });
+
+  test(
+    'pause, resume and end preserve segments and reach the daily goal',
+    () async {
+      final day = DateTime(2026, 9, 2);
+      final taskId = await repository.saveLongTermTask(_timerDraft(day));
+
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+      await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 10, 4));
+      expect(
+        (await repository.watchTimerState(taskId, day).first).isPaused,
+        isTrue,
+      );
+      await repository.resumeTimer(taskId, now: DateTime(2026, 9, 2, 10, 10));
+      await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 16));
+
+      final timer = await repository.watchTimerState(taskId, day).first;
+      final completion = await database
+          .select(database.taskCompletionRecords)
+          .getSingle();
+      expect(timer.canStart, isTrue);
+      expect(timer.sessions, hasLength(2));
+      expect(timer.elapsedSecondsAt(DateTime(2026, 9, 2, 11)), 600);
+      expect(completion.actualDurationSeconds, 600);
+      expect(completion.progressPercent, 100);
+      expect(completion.isSuccess, isTrue);
+    },
+  );
+
+  test('partial timer duration is retained as proportional progress', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 8));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 8, 5));
+
+    final completion = await database
+        .select(database.taskCompletionRecords)
+        .getSingle();
+    expect(completion.actualDurationSeconds, 300);
+    expect(completion.progressPercent, 50);
+    expect(completion.isSuccess, isFalse);
+  });
+
+  test('timer crossing midnight is aggregated into both local days', () async {
+    final firstDay = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(firstDay));
+
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 23, 55));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 3, 0, 10));
+
+    final completions = await (database.select(
+      database.taskCompletionRecords,
+    )..orderBy([(row) => OrderingTerm.asc(row.localDate)])).get();
+    expect(completions, hasLength(2));
+    expect(completions[0].localDate, '2026-09-02');
+    expect(completions[0].actualDurationSeconds, 300);
+    expect(completions[1].localDate, '2026-09-03');
+    expect(completions[1].actualDurationSeconds, 600);
+  });
+
+  test('invalid timer transitions are rejected', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+
+    await expectLater(
+      repository.pauseTimer(taskId, now: day),
+      throwsStateError,
+    );
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 9));
+    await expectLater(
+      repository.startTimer(taskId, now: DateTime(2026, 9, 2, 9, 1)),
+      throwsStateError,
+    );
+  });
+
+  test('only one timer can run for the same user', () async {
+    final day = DateTime(2026, 9, 2);
+    final firstId = await repository.saveLongTermTask(_timerDraft(day));
+    final secondId = await repository.saveLongTermTask(
+      LongTermTaskDraft(
+        name: '运动',
+        colorValue: 0xFF45A77A,
+        checkMode: LongTermCheckMode.timer,
+        targetDurationSeconds: 1200,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: day,
+        holidayPause: false,
+      ),
+    );
+
+    await repository.startTimer(firstId, now: DateTime(2026, 9, 2, 9));
+
+    await expectLater(
+      repository.startTimer(secondId, now: DateTime(2026, 9, 2, 9, 1)),
+      throwsStateError,
+    );
+  });
+
+  test('archiving a running timer closes its active session', () async {
+    final now = DateTime.now();
+    final taskId = await repository.saveLongTermTask(
+      _timerDraft(dateOnly(now)),
+    );
+    await repository.startTimer(
+      taskId,
+      now: now.subtract(const Duration(minutes: 2)),
+    );
+
+    await repository.archiveTask(taskId);
+
+    final session = await database
+        .select(database.timerSessionRecords)
+        .getSingle();
+    expect(session.state, TimerSessionStatus.finished.name);
+    expect(session.endedAt, isNotNull);
+    expect(session.durationSeconds, greaterThanOrEqualTo(120));
+  });
 }
 
 LongTermTaskDraft _simpleDraft(DateTime startsOn) {
@@ -154,6 +285,28 @@ LongTermTaskDraft _simpleDraft(DateTime startsOn) {
     name: '英语听力',
     colorValue: 0xFF3D73E8,
     checkMode: LongTermCheckMode.simple,
+    targetDays: 365,
+    schedulePreset: SchedulePreset.daily,
+    weekdays: const {
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+      DateTime.sunday,
+    },
+    startsOn: startsOn,
+    holidayPause: true,
+  );
+}
+
+LongTermTaskDraft _timerDraft(DateTime startsOn) {
+  return LongTermTaskDraft(
+    name: '英语听力',
+    colorValue: 0xFF3D73E8,
+    checkMode: LongTermCheckMode.timer,
+    targetDurationSeconds: 600,
     targetDays: 365,
     schedulePreset: SchedulePreset.daily,
     weekdays: const {

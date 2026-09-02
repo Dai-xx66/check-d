@@ -237,36 +237,36 @@ class _LongTermStatusCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _DetailValue(
-                    label: '今日状态',
-                    value: task.todayCompleted ? '已完成' : '未完成',
+            if (task.isTimer)
+              _TimerControl(task: task, color: color)
+            else ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _DetailValue(
+                      label: '今日状态',
+                      value: task.todayCompleted ? '已完成' : '未完成',
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _DetailValue(
-                    label: task.isTimer ? '每日目标' : '长期目标',
-                    value: task.isTimer
-                        ? '${(task.targetDurationSeconds ?? 0) ~/ 60} 分钟'
-                        : task.targetDays == null
-                        ? '未设置'
-                        : '${task.targetDays} 天',
+                  Expanded(
+                    child: _DetailValue(
+                      label: '长期目标',
+                      value: task.targetDays == null
+                          ? '未设置'
+                          : '${task.targetDays} 天',
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            LinearProgressIndicator(
-              value: (task.todayProgressPercent / 100).clamp(0, 1),
-              minHeight: 8,
-              color: color,
-              backgroundColor: const Color(0xFFE9EBEF),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 18),
-            if (task.checkMode == LongTermCheckMode.simple)
+                ],
+              ),
+              const SizedBox(height: 18),
+              LinearProgressIndicator(
+                value: (task.todayProgressPercent / 100).clamp(0, 1),
+                minHeight: 8,
+                color: color,
+                backgroundColor: const Color(0xFFE9EBEF),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(height: 18),
               FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: color),
                 onPressed: () => _toggle(context, ref),
@@ -276,13 +276,8 @@ class _LongTermStatusCard extends ConsumerWidget {
                       : Icons.check_rounded,
                 ),
                 label: Text(task.todayCompleted ? '撤销今日打卡' : '完成今日打卡'),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: null,
-                icon: Icon(Icons.timer_outlined),
-                label: Text('计时器将在 Phase 3 开放'),
               ),
+            ],
             const SizedBox(height: 16),
             _InfoRow(
               label: '执行周期',
@@ -304,6 +299,205 @@ class _LongTermStatusCard extends ConsumerWidget {
     await ref
         .read(taskRepositoryProvider)
         .toggleSimpleCompletion(task.id, DateTime.now());
+  }
+}
+
+class _TimerControl extends ConsumerStatefulWidget {
+  const _TimerControl({required this.task, required this.color});
+
+  final TaskDetails task;
+  final Color color;
+
+  @override
+  ConsumerState<_TimerControl> createState() => _TimerControlState();
+}
+
+class _TimerControlState extends ConsumerState<_TimerControl> {
+  bool _isSubmitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final timerValue = ref.watch(taskTimerStateProvider(widget.task.id));
+    final now = ref.watch(timerNowProvider).value ?? DateTime.now();
+    return timerValue.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => const Text('计时状态加载失败'),
+      data: (timer) {
+        final target = widget.task.targetDurationSeconds ?? 0;
+        final elapsed = timer.elapsedSecondsAt(now);
+        final progress = timer.progressAt(now, target);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _DetailValue(
+                    label: timer.isRunning
+                        ? '正在计时'
+                        : timer.isPaused
+                        ? '已暂停'
+                        : '今日累计',
+                    value: formatDuration(elapsed),
+                  ),
+                ),
+                Expanded(
+                  child: _DetailValue(
+                    label: '每日目标',
+                    value: '${target ~/ 60} 分钟',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(
+                  progress >= 100 ? '今日已达标' : '今日进度 ${progress.round()}%',
+                  style: TextStyle(
+                    color: progress >= 100 ? widget.color : AppColors.muted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${formatDuration(elapsed)} / ${formatDuration(target)}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progress / 100,
+              minHeight: 8,
+              color: widget.color,
+              backgroundColor: const Color(0xFFE9EBEF),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 18),
+            if (timer.canStart)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: widget.color),
+                onPressed: _isSubmitting
+                    ? null
+                    : () => _run(
+                        () => ref
+                            .read(taskRepositoryProvider)
+                            .startTimer(widget.task.id),
+                      ),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('开始计时'),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _run(
+                              () => timer.isRunning
+                                  ? ref
+                                        .read(taskRepositoryProvider)
+                                        .pauseTimer(widget.task.id)
+                                  : ref
+                                        .read(taskRepositoryProvider)
+                                        .resumeTimer(widget.task.id),
+                            ),
+                      icon: Icon(
+                        timer.isRunning
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
+                      label: Text(timer.isRunning ? '暂停' : '继续'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: widget.color,
+                      ),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _run(
+                              () => ref
+                                  .read(taskRepositoryProvider)
+                                  .endTimer(widget.task.id),
+                            ),
+                      icon: const Icon(Icons.stop_rounded),
+                      label: const Text('结束'),
+                    ),
+                  ),
+                ],
+              ),
+            if (timer.sessions.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+              const Text(
+                '今日计时片段',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              ...timer.sessions
+                  .where((session) {
+                    final end = session.endedAt ?? now;
+                    final startDay = dateOnly(session.startedAt);
+                    final endDay = dateOnly(end);
+                    return !timer.localDate.isBefore(startDay) &&
+                        !timer.localDate.isAfter(endDay);
+                  })
+                  .take(6)
+                  .map(
+                    (session) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: [
+                          Icon(
+                            session.status == TimerSessionStatus.running
+                                ? Icons.timelapse_rounded
+                                : Icons.schedule_rounded,
+                            size: 18,
+                            color: widget.color,
+                          ),
+                          const SizedBox(width: 9),
+                          Text(DateFormat('HH:mm').format(session.startedAt)),
+                          const Text(' - '),
+                          Text(
+                            session.endedAt == null
+                                ? '进行中'
+                                : DateFormat('HH:mm').format(session.endedAt!),
+                          ),
+                          const Spacer(),
+                          Text(
+                            formatDuration(session.elapsedSecondsAt(now)),
+                            style: const TextStyle(color: AppColors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => _isSubmitting = true);
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('计时状态已变化，请稍后重试。')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 }
 
