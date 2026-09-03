@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app_providers.dart';
+import '../../../core/holiday/holiday_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../data/statistics_repository.dart';
@@ -10,6 +11,7 @@ final statisticsRepositoryProvider = Provider<StatisticsRepository>(
   (ref) => StatisticsRepository(
     ref.watch(appDatabaseProvider),
     ref.watch(currentDataOwnerProvider),
+    holidayCalendar: ref.watch(holidayCalendarProvider),
   ),
 );
 

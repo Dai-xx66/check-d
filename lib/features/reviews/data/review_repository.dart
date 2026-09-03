@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/holiday/holiday_calendar.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../../tasks/domain/task_models.dart';
 import '../domain/review_models.dart';
@@ -13,12 +14,15 @@ class ReviewRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required this.userId,
+    HolidayCalendar? holidayCalendar,
   }) : _database = database,
-       _syncQueue = syncQueue;
+       _syncQueue = syncQueue,
+       _holidayCalendar = holidayCalendar;
 
   final AppDatabase _database;
   final SyncQueueService _syncQueue;
   final String userId;
+  final HolidayCalendar? _holidayCalendar;
   final Uuid _uuid = const Uuid();
 
   Stream<ReviewDetails?> watchReview(ReviewPeriod period) {
@@ -56,6 +60,9 @@ class ReviewRepository {
     final schedules = await (_database.select(
       _database.taskScheduleRecords,
     )..where((row) => row.userId.equals(userId))).get();
+    final longTerms = await (_database.select(
+      _database.longTermTaskRecords,
+    )..where((row) => row.userId.equals(userId))).get();
     final reminders = await (_database.select(
       _database.oneTimeReminderRecords,
     )..where((row) => row.userId.equals(userId))).get();
@@ -68,6 +75,7 @@ class ReviewRepository {
       _database.timerSessionRecords,
     )..where((row) => row.userId.equals(userId))).get();
     final scheduleByTask = {for (final item in schedules) item.taskId: item};
+    final longTermByTask = {for (final item in longTerms) item.taskId: item};
     final completionKeys = {
       for (final item in completions) '${item.taskId}:${item.localDate}',
     };
@@ -77,7 +85,16 @@ class ReviewRepository {
     for (final task in tasks) {
       if (task.taskType != TaskKind.recurring.name) continue;
       final schedule = scheduleByTask[task.id];
-      if (schedule == null) continue;
+      final longTerm = longTermByTask[task.id];
+      if (schedule == null || longTerm == null) continue;
+      final rule = TaskScheduleRule(
+        preset: SchedulePreset.values.byName(schedule.scheduleType),
+        weekdaysMask: schedule.weekdaysMask,
+        startsOn: DateTime.parse(schedule.startsOn),
+        endsOn: schedule.endsOn == null
+            ? null
+            : DateTime.parse(schedule.endsOn!),
+      );
       final taskStart = DateTime.parse(schedule.startsOn);
       final taskEnd = schedule.endsOn == null
           ? end
@@ -87,7 +104,14 @@ class ReviewRepository {
         !day.isAfter(taskEnd);
         day = day.add(const Duration(days: 1))
       ) {
-        if (!WeekdayMask.contains(schedule.weekdaysMask, day.weekday)) continue;
+        if (!await isRecurringTaskDue(
+          schedule: rule,
+          holidayPause: longTerm.holidayPause,
+          date: day,
+          holidayCalendar: _holidayCalendar,
+        )) {
+          continue;
+        }
         dueCount++;
         if (completionKeys.contains('${task.id}:${localDateKey(day)}')) {
           completedCount++;

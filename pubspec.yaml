@@ -17,6 +17,9 @@ dependencies:
   intl: ^0.20.2
   supabase_flutter: ^2.9.1
   uuid: ^4.5.1
+  http: ^1.6.0
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:

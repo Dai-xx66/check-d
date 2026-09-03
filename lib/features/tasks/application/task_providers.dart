@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app_providers.dart';
+import '../../../core/holiday/holiday_providers.dart';
+import '../../../core/notifications/notification_providers.dart';
 import '../../../core/sync/sync_providers.dart';
 import '../data/task_repository.dart';
 import '../domain/task_models.dart';
@@ -15,6 +17,8 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
     database: ref.watch(appDatabaseProvider),
     syncQueue: ref.watch(syncQueueServiceProvider),
     userId: ref.watch(currentDataOwnerProvider),
+    holidayCalendar: ref.watch(holidayCalendarProvider),
+    notifications: ref.watch(notificationServiceProvider),
   );
 });
 

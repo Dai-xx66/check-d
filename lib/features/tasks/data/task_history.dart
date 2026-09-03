@@ -28,6 +28,7 @@ class TaskHistory {
       'status': task.status,
       'check_mode': goal.checkMode,
       'target_duration_seconds': goal.targetDurationSeconds,
+      'holiday_pause': goal.holidayPause,
     };
     if (ordered.isNotEmpty) {
       _initial.addAll(

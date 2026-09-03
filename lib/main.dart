@@ -7,10 +7,12 @@ import 'app/app.dart';
 import 'app/app_providers.dart';
 import 'core/config/app_config.dart';
 import 'core/database/app_database.dart';
+import 'core/notifications/notification_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
+  await notificationService.initialize();
 
   const config = AppConfig.fromEnvironment();
   SupabaseClient? supabaseClient;

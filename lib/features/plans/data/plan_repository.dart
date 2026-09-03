@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/holiday/holiday_calendar.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../../tasks/domain/task_models.dart';
 import '../domain/plan_models.dart';
@@ -11,12 +12,15 @@ class PlanRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required this.userId,
+    HolidayCalendar? holidayCalendar,
   }) : _database = database,
-       _syncQueue = syncQueue;
+       _syncQueue = syncQueue,
+       _holidayCalendar = holidayCalendar;
 
   final AppDatabase _database;
   final SyncQueueService _syncQueue;
   final String userId;
+  final HolidayCalendar? _holidayCalendar;
   final Uuid _uuid = const Uuid();
 
   Stream<List<PlanDetails>> watchPlans() {
@@ -137,6 +141,9 @@ class PlanRepository {
     final schedules = await (_database.select(
       _database.taskScheduleRecords,
     )..where((row) => row.userId.equals(userId))).get();
+    final longTerms = await (_database.select(
+      _database.longTermTaskRecords,
+    )..where((row) => row.userId.equals(userId))).get();
     final completions =
         await (_database.select(_database.taskCompletionRecords)..where(
               (row) => row.userId.equals(userId) & row.isSuccess.equals(true),
@@ -145,6 +152,7 @@ class PlanRepository {
     final scheduleByTask = {
       for (final schedule in schedules) schedule.taskId: schedule,
     };
+    final longTermByTask = {for (final goal in longTerms) goal.taskId: goal};
     final completionKeys = {
       for (final completion in completions)
         '${completion.taskId}:${completion.localDate}',
@@ -160,7 +168,16 @@ class PlanRepository {
         continue;
       }
       final schedule = scheduleByTask[task.id];
-      if (schedule == null) continue;
+      final longTerm = longTermByTask[task.id];
+      if (schedule == null || longTerm == null) continue;
+      final rule = TaskScheduleRule(
+        preset: SchedulePreset.values.byName(schedule.scheduleType),
+        weekdaysMask: schedule.weekdaysMask,
+        startsOn: DateTime.parse(schedule.startsOn),
+        endsOn: schedule.endsOn == null
+            ? null
+            : DateTime.parse(schedule.endsOn!),
+      );
       final start = _maxDate(
         dateOnly(plan.startsOnDate),
         DateTime.parse(schedule.startsOn),
@@ -173,7 +190,12 @@ class PlanRepository {
         !day.isAfter(scheduleEnd);
         day = day.add(const Duration(days: 1))
       ) {
-        if (WeekdayMask.contains(schedule.weekdaysMask, day.weekday)) {
+        if (await isRecurringTaskDue(
+          schedule: rule,
+          holidayPause: longTerm.holidayPause,
+          date: day,
+          holidayCalendar: _holidayCalendar,
+        )) {
           dueCount++;
           if (completionKeys.contains('${task.id}:${localDateKey(day)}')) {
             completedCount++;

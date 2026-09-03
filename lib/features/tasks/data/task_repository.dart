@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/holiday/holiday_calendar.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../domain/task_models.dart';
 import 'task_history.dart';
@@ -13,13 +15,19 @@ class TaskRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required String userId,
+    HolidayCalendar? holidayCalendar,
+    NotificationService? notifications,
   }) : _database = database,
        _syncQueue = syncQueue,
-       _userId = userId;
+       _userId = userId,
+       _holidayCalendar = holidayCalendar,
+       _notifications = notifications;
 
   final AppDatabase _database;
   final SyncQueueService _syncQueue;
   final String _userId;
+  final HolidayCalendar? _holidayCalendar;
+  final NotificationService? _notifications;
   final Uuid _uuid = const Uuid();
 
   Stream<List<TaskDetails>> watchTasksForDate(DateTime date) {
@@ -36,13 +44,20 @@ class TaskRepository {
       final details = await Future.wait(
         tasks.map((task) => _loadDetails(task, date)),
       );
-      return details.where((task) {
-        if (task.kind == TaskKind.oneTime) {
-          return task.scheduledAt != null &&
-              localDateKey(task.scheduledAt!.toLocal()) == localDateKey(date);
-        }
-        return task.schedule?.isDueOn(date) ?? false;
-      }).toList();
+      final visible = await Future.wait(
+        details.map((task) async {
+          if (task.kind == TaskKind.oneTime) {
+            return task.scheduledAt != null &&
+                localDateKey(task.scheduledAt!.toLocal()) == localDateKey(date);
+          }
+          return task.schedule != null &&
+              await _isDueOn(task.schedule!, task.holidayPause, date);
+        }),
+      );
+      return [
+        for (var index = 0; index < details.length; index++)
+          if (visible[index]) details[index],
+      ];
     });
   }
 
@@ -280,7 +295,8 @@ class TaskRepository {
           startsOn: DateTime.parse(snapshot['starts_on'] as String),
           endsOn: DateTime.tryParse(snapshot['ends_on'] as String? ?? ''),
         );
-        if (!schedule.isDueOn(day)) continue;
+        final holidayPause = snapshot['holiday_pause'] as bool? ?? false;
+        if (!await _isDueOn(schedule, holidayPause, day)) continue;
         final executionMode = _recurringMode(snapshot['check_mode'] as String);
         final completion =
             completionByTaskAndDay['${task.id}:${localDateKey(day)}'];
@@ -314,7 +330,7 @@ class TaskRepository {
             recurringMode: executionMode,
             targetDurationSeconds: snapshot['target_duration_seconds'] as int?,
             targetDays: longTerm.targetDays,
-            holidayPause: longTerm.holidayPause,
+            holidayPause: holidayPause,
             reminderMinuteOfDay: longTerm.reminderMinuteOfDay,
             schedule: schedule,
             todayProgressPercent: progress,
@@ -443,6 +459,7 @@ class TaskRepository {
         userId: _userId,
       );
     });
+    await _syncRecurringReminder(id, draft);
     return id;
   }
 
@@ -529,6 +546,7 @@ class TaskRepository {
         userId: _userId,
       );
     });
+    await _syncOneTimeReminder(id, draft);
     return id;
   }
 
@@ -536,6 +554,10 @@ class TaskRepository {
     final task = await getTask(taskId, date: date);
     if (task == null || task.kind != TaskKind.recurring) {
       throw StateError('Only recurring tasks can be toggled.');
+    }
+    if (task.schedule == null ||
+        !await _isDueOn(task.schedule!, task.holidayPause, date)) {
+      throw StateError('Task is not scheduled for this day.');
     }
     final key = localDateKey(date);
     final existingQuery = _database.select(_database.taskCompletionRecords)
@@ -838,6 +860,91 @@ class TaskRepository {
         userId: _userId,
       );
     });
+    await _cancelReminder(taskId);
+  }
+
+  Future<bool> _isDueOn(
+    TaskScheduleRule schedule,
+    bool holidayPause,
+    DateTime date,
+  ) {
+    return isRecurringTaskDue(
+      schedule: schedule,
+      holidayPause: holidayPause,
+      date: date,
+      holidayCalendar: _holidayCalendar,
+    );
+  }
+
+  Future<void> _syncRecurringReminder(
+    String taskId,
+    RecurringTaskDraft draft,
+  ) async {
+    await _cancelReminder(taskId);
+    if (_notifications == null || draft.reminderMinuteOfDay == null) return;
+    try {
+      await _notifications.requestPermissions();
+      if (draft.schedulePreset == SchedulePreset.daily) {
+        await _notifications.scheduleDaily(
+          id: _notificationId(taskId),
+          minuteOfDay: draft.reminderMinuteOfDay!,
+          title: '任务提醒',
+          body: '今天的${draft.name.trim()}还没有完成。',
+        );
+      } else {
+        for (final weekday in draft.weekdays) {
+          await _notifications.scheduleWeekly(
+            id: _notificationId(taskId, weekday),
+            weekday: weekday,
+            minuteOfDay: draft.reminderMinuteOfDay!,
+            title: '任务提醒',
+            body: '今天的${draft.name.trim()}还没有完成。',
+          );
+        }
+      }
+    } on Object {
+      // A denied system permission must not prevent local task persistence.
+    }
+  }
+
+  Future<void> _syncOneTimeReminder(
+    String taskId,
+    OneTimeReminderDraft draft,
+  ) async {
+    await _cancelReminder(taskId);
+    if (_notifications == null || draft.remindBeforeMinutes == null) return;
+    try {
+      await _notifications.requestPermissions();
+      await _notifications.scheduleAt(
+        id: _notificationId(taskId),
+        when: draft.scheduledAt.subtract(
+          Duration(minutes: draft.remindBeforeMinutes!),
+        ),
+        title: '事项提醒',
+        body: '${draft.name.trim()}即将开始。',
+      );
+    } on Object {
+      // A denied system permission must not prevent local task persistence.
+    }
+  }
+
+  Future<void> _cancelReminder(String taskId) async {
+    if (_notifications == null) return;
+    try {
+      for (var variant = 0; variant <= DateTime.sunday; variant++) {
+        await _notifications.cancel(_notificationId(taskId, variant));
+      }
+    } on Object {
+      // The database remains the source of truth if the OS scheduler fails.
+    }
+  }
+
+  int _notificationId(String taskId, [int variant = 0]) {
+    var value = 2166136261;
+    for (final unit in '$taskId:$variant'.codeUnits) {
+      value = (value ^ unit) * 16777619 & 0x7fffffff;
+    }
+    return value;
   }
 
   Future<TaskDetails> _loadDetails(LocalTask task, DateTime date) async {

@@ -1,14 +1,20 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/holiday/holiday_calendar.dart';
 import '../../tasks/data/task_history.dart';
 import '../../tasks/domain/task_models.dart';
 import '../domain/statistics_models.dart';
 
 class StatisticsRepository {
-  StatisticsRepository(this.database, this.userId);
+  StatisticsRepository(
+    this.database,
+    this.userId, {
+    HolidayCalendar? holidayCalendar,
+  }) : _holidayCalendar = holidayCalendar;
   final AppDatabase database;
   final String userId;
+  final HolidayCalendar? _holidayCalendar;
 
   Stream<StatisticsData> watchData() => database
       .customSelect(
@@ -96,7 +102,22 @@ class StatisticsRepository {
                 !day.isBefore(start) &&
                 (end == null || !day.isAfter(end)) &&
                 weekdays.contains(day.weekday);
-            if (!due) continue;
+            if (!due ||
+                !await isRecurringTaskDue(
+                  schedule: TaskScheduleRule(
+                    preset: SchedulePreset.values.byName(
+                      snapshot['schedule_type'] as String,
+                    ),
+                    weekdaysMask: WeekdayMask.fromDays(weekdays),
+                    startsOn: start,
+                    endsOn: end,
+                  ),
+                  holidayPause: snapshot['holiday_pause'] as bool? ?? false,
+                  date: day,
+                  holidayCalendar: _holidayCalendar,
+                )) {
+              continue;
+            }
             final mode = snapshot['check_mode'];
             final targetMode =
                 mode == 'timed' ||
