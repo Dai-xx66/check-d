@@ -48,7 +48,7 @@ class _TaskDetailContent extends ConsumerWidget {
     final color = Color(task.colorValue);
     return Scaffold(
       appBar: AppBar(
-        title: Text(task.kind == TaskKind.longTerm ? '长期任务详情' : '单次事项详情'),
+        title: Text(task.kind == TaskKind.recurring ? '周期任务详情' : '单次事项详情'),
         backgroundColor: AppColors.background,
         actions: [
           if (task.status != TaskLifecycle.archived) ...[
@@ -120,8 +120,8 @@ class _TaskDetailContent extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    task.kind == TaskKind.longTerm
-                                        ? _longTermSubtitle(task)
+                                    task.kind == TaskKind.recurring
+                                        ? _recurringSubtitle(task)
                                         : _oneTimeSubtitle(task),
                                     style: const TextStyle(
                                       color: AppColors.muted,
@@ -137,8 +137,8 @@ class _TaskDetailContent extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    if (task.kind == TaskKind.longTerm)
-                      _LongTermStatusCard(task: task, color: color)
+                    if (task.kind == TaskKind.recurring)
+                      _RecurringTaskStatusCard(task: task, color: color)
                     else
                       _OneTimeStatusCard(task: task, color: color),
                     TaskInsights(task: task),
@@ -161,7 +161,7 @@ class _TaskDetailContent extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (task.kind == TaskKind.longTerm) ...[
+                    if (task.kind == TaskKind.recurring) ...[
                       const SizedBox(height: 22),
                       Text(
                         '打卡历史',
@@ -184,8 +184,8 @@ class _TaskDetailContent extends ConsumerWidget {
   Future<void> _edit(BuildContext context) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => task.kind == TaskKind.longTerm
-            ? LongTermTaskFormPage(initialTask: task)
+        builder: (context) => task.kind == TaskKind.recurring
+            ? RecurringTaskFormPage(initialTask: task)
             : OneTimeReminderFormPage(initialTask: task),
       ),
     );
@@ -214,12 +214,8 @@ class _TaskDetailContent extends ConsumerWidget {
     if (context.mounted) Navigator.of(context).pop();
   }
 
-  String _longTermSubtitle(TaskDetails task) {
-    final mode = switch (task.checkMode) {
-      LongTermCheckMode.freeTimer => '自由计时',
-      LongTermCheckMode.targetTimer => '目标时长计时',
-      _ => '点击直接完成',
-    };
+  String _recurringSubtitle(TaskDetails task) {
+    final mode = task.hasTimer ? '计时' : '不计时';
     return '$mode · ${_scheduleDescription(task.schedule!)}';
   }
 
@@ -228,8 +224,8 @@ class _TaskDetailContent extends ConsumerWidget {
   }
 }
 
-class _LongTermStatusCard extends ConsumerWidget {
-  const _LongTermStatusCard({required this.task, required this.color});
+class _RecurringTaskStatusCard extends ConsumerWidget {
+  const _RecurringTaskStatusCard({required this.task, required this.color});
 
   final TaskDetails task;
   final Color color;
@@ -273,7 +269,7 @@ class _LongTermStatusCard extends ConsumerWidget {
                   ),
                   Expanded(
                     child: _DetailValue(
-                      label: '长期目标',
+                      label: '周期目标',
                       value: task.targetDays == null
                           ? '未设置'
                           : '${task.targetDays} 天',
@@ -321,7 +317,7 @@ class _LongTermStatusCard extends ConsumerWidget {
     }
     await ref
         .read(taskRepositoryProvider)
-        .toggleLongTermCompletion(task.id, DateTime.now());
+        .toggleRecurringCompletion(task.id, DateTime.now());
   }
 }
 
@@ -380,7 +376,7 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
                   )
                 else
                   const Expanded(
-                    child: _DetailValue(label: '计时方式', value: '自由计时'),
+                    child: _DetailValue(label: '计时方式', value: '计时'),
                   ),
               ],
             ),

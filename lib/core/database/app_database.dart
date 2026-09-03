@@ -196,7 +196,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -250,6 +250,34 @@ class AppDatabase extends _$AppDatabase {
           await migrator.addColumn(
             timerSessionRecords,
             timerSessionRecords.tagId,
+          );
+        }
+      }
+      if (from < 7) {
+        // Preserve old records while unifying the public recurring-task model.
+        final taskColumns = await customSelect(
+          'PRAGMA table_info(local_tasks)',
+        ).get();
+        if (taskColumns.any((row) => row.read<String>('name') == 'task_type')) {
+          await customStatement(
+            "UPDATE local_tasks SET task_type = 'recurring' "
+            "WHERE task_type IN ('longTerm', 'long_term')",
+          );
+        }
+        final recurringColumns = await customSelect(
+          'PRAGMA table_info(long_term_task_records)',
+        ).get();
+        if (recurringColumns.any(
+          (row) => row.read<String>('name') == 'check_mode',
+        )) {
+          await customStatement(
+            "UPDATE long_term_task_records SET check_mode = 'timed' "
+            "WHERE check_mode IN ('timer', 'targetTimer', 'target_timer', "
+            "'freeTimer', 'free_timer')",
+          );
+          await customStatement(
+            "UPDATE long_term_task_records SET check_mode = 'untimed' "
+            "WHERE check_mode = 'simple'",
           );
         }
       }

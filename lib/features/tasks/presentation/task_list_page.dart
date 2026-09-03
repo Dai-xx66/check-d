@@ -72,7 +72,7 @@ class _TaskListPageState extends ConsumerState<TaskListPage> {
                                     ? '还没有任务'
                                     : '没有归档任务',
                                 message: _status == TaskLifecycle.active
-                                    ? '通过中央添加入口创建长期任务或单次事项提醒。'
+                                    ? '通过中央添加入口创建周期任务或单次事项。'
                                     : '归档后的任务会保留在这里。',
                               ),
                             ],
@@ -136,14 +136,10 @@ class _TaskListTile extends StatelessWidget {
 
   String _subtitle(TaskDetails task) {
     if (task.kind == TaskKind.oneTime) {
-      final mode = task.hasTimer ? '计时事项' : '普通事项';
+      final mode = task.hasTimer ? '计时' : '不计时';
       return '$mode · ${DateFormat('M月d日 HH:mm').format(task.scheduledAt!)}';
     }
-    final mode = switch (task.checkMode) {
-      LongTermCheckMode.freeTimer => '自由计时',
-      LongTermCheckMode.targetTimer => '目标计时',
-      _ => '点击完成',
-    };
-    return '长期任务 · $mode';
+    final mode = task.hasTimer ? '计时' : '不计时';
+    return '周期任务 · $mode';
   }
 }

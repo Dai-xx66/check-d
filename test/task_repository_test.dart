@@ -23,7 +23,7 @@ void main() {
 
   test('creates both task types for today', () async {
     final day = DateTime(2026, 9, 2);
-    await repository.saveLongTermTask(_simpleDraft(day));
+    await repository.saveRecurringTask(_untimedDraft(day));
     await repository.saveOneTimeReminder(
       OneTimeReminderDraft(
         name: '项目会议',
@@ -37,19 +37,19 @@ void main() {
 
     expect(tasks, hasLength(2));
     expect(tasks.map((task) => task.kind), {
-      TaskKind.longTerm,
+      TaskKind.recurring,
       TaskKind.oneTime,
     });
   });
 
-  test('simple completion toggles without deleting history', () async {
+  test('untimed completion toggles without deleting history', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_simpleDraft(day));
+    final taskId = await repository.saveRecurringTask(_untimedDraft(day));
 
-    await repository.toggleSimpleCompletion(taskId, day);
+    await repository.toggleRecurringCompletion(taskId, day);
     expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
 
-    await repository.toggleSimpleCompletion(taskId, day);
+    await repository.toggleRecurringCompletion(taskId, day);
     final task = await repository.getTask(taskId, date: day);
     final completions = await database
         .select(database.taskCompletionRecords)
@@ -64,11 +64,11 @@ void main() {
   test('custom schedule only returns tasks on selected weekdays', () async {
     final monday = DateTime(2026, 8, 31);
     final tuesday = DateTime(2026, 9, 1);
-    await repository.saveLongTermTask(
-      LongTermTaskDraft(
+    await repository.saveRecurringTask(
+      RecurringTaskDraft(
         name: '周一阅读',
         colorValue: 0xFF3D73E8,
-        checkMode: LongTermCheckMode.simple,
+        executionMode: RecurringExecutionMode.untimed,
         schedulePreset: SchedulePreset.custom,
         weekdays: const {DateTime.monday},
         startsOn: monday,
@@ -82,13 +82,13 @@ void main() {
 
   test('editing keeps task identity and adds a revision', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_simpleDraft(day));
+    final taskId = await repository.saveRecurringTask(_untimedDraft(day));
 
-    await repository.saveLongTermTask(
-      LongTermTaskDraft(
+    await repository.saveRecurringTask(
+      RecurringTaskDraft(
         name: '英语精听',
         colorValue: 0xFF45A77A,
-        checkMode: LongTermCheckMode.simple,
+        executionMode: RecurringExecutionMode.untimed,
         targetDays: 100,
         schedulePreset: SchedulePreset.weekdays,
         weekdays: const {
@@ -132,7 +132,7 @@ void main() {
 
   test('archive hides task and preserves revisions', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_simpleDraft(day));
+    final taskId = await repository.saveRecurringTask(_untimedDraft(day));
 
     await repository.archiveTask(taskId);
 
@@ -151,7 +151,7 @@ void main() {
 
   test('running timer derives elapsed time from its start timestamp', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+    final taskId = await repository.saveRecurringTask(_timerDraft(day));
 
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
     final timer = await repository.watchTimerState(taskId, day).first;
@@ -162,7 +162,7 @@ void main() {
 
   test('reaching the duration target does not complete the task', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+    final taskId = await repository.saveRecurringTask(_timerDraft(day));
 
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
     await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 10, 4));
@@ -186,14 +186,14 @@ void main() {
     expect(completion.isSuccess, isFalse);
     expect((await repository.getTask(taskId, date: day))!.isCompleted, isFalse);
 
-    await repository.toggleLongTermCompletion(taskId, day);
+    await repository.toggleRecurringCompletion(taskId, day);
 
     expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
   });
 
   test('partial timer duration is retained as proportional progress', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+    final taskId = await repository.saveRecurringTask(_timerDraft(day));
 
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 8));
     await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 8, 5));
@@ -207,9 +207,66 @@ void main() {
     expect(completion.isSuccess, isFalse);
   });
 
+  test('timed recurring task without a target records time only', () async {
+    final day = DateTime(2026, 9, 2);
+    final taskId = await repository.saveRecurringTask(
+      RecurringTaskDraft(
+        name: '整理资料',
+        colorValue: 0xFF3D73E8,
+        executionMode: RecurringExecutionMode.timed,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: day,
+        holidayPause: false,
+      ),
+    );
+
+    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 9));
+    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 9, 12));
+
+    final task = await repository.getTask(taskId, date: day);
+    final completion = await database
+        .select(database.taskCompletionRecords)
+        .getSingle();
+    expect(task!.hasDurationTarget, isFalse);
+    expect(task.todayActualDurationSeconds, 720);
+    expect(task.todayTargetReached, isFalse);
+    expect(task.completionStatus, CompletionStatus.pending);
+    expect(completion.progressPercent, 0);
+    expect(completion.isSuccess, isFalse);
+  });
+
+  test('blank task names are rejected by the data layer', () async {
+    final day = DateTime(2026, 9, 2);
+    await expectLater(
+      repository.saveRecurringTask(
+        RecurringTaskDraft(
+          name: '   ',
+          colorValue: 0xFF3D73E8,
+          executionMode: RecurringExecutionMode.untimed,
+          schedulePreset: SchedulePreset.daily,
+          weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+          startsOn: day,
+          holidayPause: false,
+        ),
+      ),
+      throwsArgumentError,
+    );
+    await expectLater(
+      repository.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: '   ',
+          colorValue: 0xFF3D73E8,
+          scheduledAt: day,
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('timer crossing midnight is aggregated into both local days', () async {
     final firstDay = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(firstDay));
+    final taskId = await repository.saveRecurringTask(_timerDraft(firstDay));
 
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 23, 55));
     await repository.endTimer(taskId, now: DateTime(2026, 9, 3, 0, 10));
@@ -226,7 +283,7 @@ void main() {
 
   test('invalid timer transitions are rejected', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(day));
+    final taskId = await repository.saveRecurringTask(_timerDraft(day));
 
     await expectLater(
       repository.pauseTimer(taskId, now: day),
@@ -241,12 +298,12 @@ void main() {
 
   test('only one timer can run for the same user', () async {
     final day = DateTime(2026, 9, 2);
-    final firstId = await repository.saveLongTermTask(_timerDraft(day));
-    final secondId = await repository.saveLongTermTask(
-      LongTermTaskDraft(
+    final firstId = await repository.saveRecurringTask(_timerDraft(day));
+    final secondId = await repository.saveRecurringTask(
+      RecurringTaskDraft(
         name: '运动',
         colorValue: 0xFF45A77A,
-        checkMode: LongTermCheckMode.targetTimer,
+        executionMode: RecurringExecutionMode.timed,
         targetDurationSeconds: 1200,
         schedulePreset: SchedulePreset.daily,
         weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
@@ -265,7 +322,7 @@ void main() {
 
   test('archiving a running timer closes its active session', () async {
     final now = DateTime.now();
-    final taskId = await repository.saveLongTermTask(
+    final taskId = await repository.saveRecurringTask(
       _timerDraft(dateOnly(now)),
     );
     await repository.startTimer(
@@ -285,8 +342,8 @@ void main() {
 
   test('calendar month combines partial timers and completed tasks', () async {
     final day = DateTime(2026, 9, 2);
-    final simpleId = await repository.saveLongTermTask(_simpleDraft(day));
-    final timerId = await repository.saveLongTermTask(_timerDraft(day));
+    final simpleId = await repository.saveRecurringTask(_untimedDraft(day));
+    final timerId = await repository.saveRecurringTask(_timerDraft(day));
     final reminderId = await repository.saveOneTimeReminder(
       OneTimeReminderDraft(
         name: '项目会议',
@@ -294,7 +351,7 @@ void main() {
         scheduledAt: DateTime(2026, 9, 2, 14),
       ),
     );
-    await repository.toggleSimpleCompletion(simpleId, day);
+    await repository.toggleRecurringCompletion(simpleId, day);
     await repository.startTimer(timerId, now: DateTime(2026, 9, 2, 8));
     await repository.endTimer(timerId, now: DateTime(2026, 9, 2, 8, 5));
     await repository.toggleOneTimeCompletion(reminderId);
@@ -308,33 +365,39 @@ void main() {
     expect(details.completionPercent, closeTo(66.67, 0.01));
   });
 
-  test('free timer records time and requires manual completion', () async {
-    final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(
-      LongTermTaskDraft(
-        name: '写作业',
-        colorValue: 0xFF3D73E8,
-        checkMode: LongTermCheckMode.freeTimer,
-        schedulePreset: SchedulePreset.daily,
-        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
-        startsOn: day,
-        holidayPause: false,
-      ),
-    );
+  test(
+    'timed task without a target records time and requires manual completion',
+    () async {
+      final day = DateTime(2026, 9, 2);
+      final taskId = await repository.saveRecurringTask(
+        RecurringTaskDraft(
+          name: '写作业',
+          colorValue: 0xFF3D73E8,
+          executionMode: RecurringExecutionMode.timed,
+          schedulePreset: SchedulePreset.daily,
+          weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+          startsOn: day,
+          holidayPause: false,
+        ),
+      );
 
-    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 18));
-    await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 18, 40));
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 18));
+      await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 18, 40));
 
-    final completion = await database
-        .select(database.taskCompletionRecords)
-        .getSingle();
-    expect(completion.actualDurationSeconds, 2400);
-    expect(completion.targetReached, isFalse);
-    expect(completion.isSuccess, isFalse);
+      final completion = await database
+          .select(database.taskCompletionRecords)
+          .getSingle();
+      expect(completion.actualDurationSeconds, 2400);
+      expect(completion.targetReached, isFalse);
+      expect(completion.isSuccess, isFalse);
 
-    await repository.toggleLongTermCompletion(taskId, day);
-    expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
-  });
+      await repository.toggleRecurringCompletion(taskId, day);
+      expect(
+        (await repository.getTask(taskId, date: day))!.isCompleted,
+        isTrue,
+      );
+    },
+  );
 
   test(
     'timed one-time reminder shares timer without auto completion',
@@ -345,7 +408,7 @@ void main() {
           name: '完成数据库作业',
           colorValue: 0xFFE69545,
           scheduledAt: DateTime(2026, 9, 2, 20),
-          executionMode: OneTimeExecutionMode.timer,
+          executionMode: OneTimeExecutionMode.timed,
         ),
       );
 
@@ -370,11 +433,11 @@ void main() {
 
   test('calendar excludes non-scheduled weekdays', () async {
     final monday = DateTime(2026, 8, 3);
-    await repository.saveLongTermTask(
-      LongTermTaskDraft(
+    await repository.saveRecurringTask(
+      RecurringTaskDraft(
         name: '周一阅读',
         colorValue: 0xFF3D73E8,
-        checkMode: LongTermCheckMode.simple,
+        executionMode: RecurringExecutionMode.untimed,
         schedulePreset: SchedulePreset.custom,
         weekdays: const {DateTime.monday},
         startsOn: monday,
@@ -395,7 +458,7 @@ void main() {
         name: '未来事项',
         colorValue: 0xFF3D73E8,
         scheduledAt: DateTime(2026, 9, 5),
-        executionMode: OneTimeExecutionMode.timer,
+        executionMode: OneTimeExecutionMode.timed,
       ),
     );
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
@@ -410,12 +473,12 @@ void main() {
 
   test('further timer sessions preserve manual completion and undo', () async {
     final day = DateTime(2026, 9, 2);
-    final taskId = await repository.saveLongTermTask(_timerDraft(day));
-    await repository.toggleLongTermCompletion(taskId, day);
+    final taskId = await repository.saveRecurringTask(_timerDraft(day));
+    await repository.toggleRecurringCompletion(taskId, day);
     await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
     await repository.endTimer(taskId, now: DateTime(2026, 9, 2, 10, 20));
     expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
-    await repository.toggleLongTermCompletion(taskId, day);
+    await repository.toggleRecurringCompletion(taskId, day);
     final task = await repository.getTask(taskId, date: day);
     expect(task!.isCompleted, isFalse);
     expect(task.todayTargetReached, isTrue);
@@ -424,8 +487,8 @@ void main() {
 
   test('calendar retains an archived task on its historical dates', () async {
     final today = dateOnly(DateTime.now());
-    final taskId = await repository.saveLongTermTask(_simpleDraft(today));
-    await repository.toggleSimpleCompletion(taskId, today);
+    final taskId = await repository.saveRecurringTask(_untimedDraft(today));
+    await repository.toggleRecurringCompletion(taskId, today);
     await repository.archiveTask(taskId);
 
     final month = await repository.watchCalendarMonth(today).first;
@@ -435,11 +498,11 @@ void main() {
   });
 }
 
-LongTermTaskDraft _simpleDraft(DateTime startsOn) {
-  return LongTermTaskDraft(
+RecurringTaskDraft _untimedDraft(DateTime startsOn) {
+  return RecurringTaskDraft(
     name: '英语听力',
     colorValue: 0xFF3D73E8,
-    checkMode: LongTermCheckMode.simple,
+    executionMode: RecurringExecutionMode.untimed,
     targetDays: 365,
     schedulePreset: SchedulePreset.daily,
     weekdays: const {
@@ -456,11 +519,11 @@ LongTermTaskDraft _simpleDraft(DateTime startsOn) {
   );
 }
 
-LongTermTaskDraft _timerDraft(DateTime startsOn) {
-  return LongTermTaskDraft(
+RecurringTaskDraft _timerDraft(DateTime startsOn) {
+  return RecurringTaskDraft(
     name: '英语听力',
     colorValue: 0xFF3D73E8,
-    checkMode: LongTermCheckMode.targetTimer,
+    executionMode: RecurringExecutionMode.timed,
     targetDurationSeconds: 600,
     targetDays: 365,
     schedulePreset: SchedulePreset.daily,

@@ -19,15 +19,15 @@ void main() {
   final today = dateOnly(DateTime.now());
   final morning = DateTime(today.year, today.month, today.day, 8);
 
-  LongTermTaskDraft draft({
+  RecurringTaskDraft draft({
     String? tagId,
     Set<int>? weekdays,
     DateTime? startsOn,
-  }) => LongTermTaskDraft(
+  }) => RecurringTaskDraft(
     name: '阅读',
     colorValue: 0xFF3D73E8,
     tagId: tagId,
-    checkMode: LongTermCheckMode.targetTimer,
+    executionMode: RecurringExecutionMode.timed,
     targetDurationSeconds: 600,
     schedulePreset: SchedulePreset.custom,
     weekdays: weekdays ?? WeekdayMask.toDays(127),
@@ -74,7 +74,7 @@ void main() {
     final other = TagRepository(db, 'b', SyncQueueService(db));
     final id = await other.save(name: '私有', colorValue: 1);
     await expectLater(
-      tasks.saveLongTermTask(draft(tagId: id)),
+      tasks.saveRecurringTask(draft(tagId: id)),
       throwsArgumentError,
     );
     await expectLater(tags.setArchived(id, true), throwsStateError);
@@ -90,10 +90,10 @@ void main() {
     () async {
       final a = await tags.save(name: '学习', colorValue: 1);
       final b = await tags.save(name: '工作', colorValue: 2);
-      final id = await tasks.saveLongTermTask(draft(tagId: a));
+      final id = await tasks.saveRecurringTask(draft(tagId: a));
       await tasks.startTimer(id, now: morning);
       await tasks.pauseTimer(id, now: morning.add(const Duration(minutes: 10)));
-      await tasks.saveLongTermTask(draft(tagId: b), taskId: id);
+      await tasks.saveRecurringTask(draft(tagId: b), taskId: id);
       await tasks.resumeTimer(
         id,
         now: morning.add(const Duration(minutes: 20)),
@@ -127,7 +127,7 @@ void main() {
           name: '作业',
           colorValue: 1,
           scheduledAt: today.add(const Duration(days: 3)),
-          executionMode: OneTimeExecutionMode.timer,
+          executionMode: OneTimeExecutionMode.timed,
         ),
       );
       await tasks.startTimer(id, now: morning);
@@ -148,7 +148,7 @@ void main() {
     'cross midnight splits precisely and archived task keeps timing history',
     () async {
       final yesterday = DateTime(today.year, today.month, today.day - 1);
-      final id = await tasks.saveLongTermTask(draft(startsOn: yesterday));
+      final id = await tasks.saveRecurringTask(draft(startsOn: yesterday));
       final start = DateTime(
         yesterday.year,
         yesterday.month,
@@ -172,10 +172,10 @@ void main() {
   test(
     'exclusions and non-execution days are excluded from denominator',
     () async {
-      final id = await tasks.saveLongTermTask(
+      final id = await tasks.saveRecurringTask(
         draft(startsOn: DateTime(2026, 8, 1), weekdays: {1}),
       );
-      await tasks.toggleLongTermCompletion(id, DateTime(2026, 8, 3));
+      await tasks.toggleRecurringCompletion(id, DateTime(2026, 8, 3));
       await (db.update(
         db.taskCompletionRecords,
       )..where((r) => r.taskId.equals(id))).write(
@@ -192,7 +192,7 @@ void main() {
   );
 
   test('schedule edits do not rewrite earlier execution dates', () async {
-    final id = await tasks.saveLongTermTask(
+    final id = await tasks.saveRecurringTask(
       draft(startsOn: DateTime(2026, 8, 1), weekdays: {1}),
     );
     final first = await db.select(db.taskRevisionRecords).getSingle();
@@ -203,7 +203,7 @@ void main() {
         changedAt: Value(DateTime(2026, 8, 1).toUtc()),
       ),
     );
-    await tasks.saveLongTermTask(
+    await tasks.saveRecurringTask(
       draft(startsOn: DateTime(2026, 8, 1), weekdays: {2}),
       taskId: id,
     );

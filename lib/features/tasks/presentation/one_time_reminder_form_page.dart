@@ -22,6 +22,7 @@ class OneTimeReminderFormPage extends ConsumerStatefulWidget {
 class _OneTimeReminderFormPageState
     extends ConsumerState<OneTimeReminderFormPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameFocusNode = FocusNode();
   late final TextEditingController _nameController;
   late final TextEditingController _notesController;
   late DateTime _scheduledAt;
@@ -46,11 +47,12 @@ class _OneTimeReminderFormPageState
     _iconName = _initial?.iconName ?? TaskIconKey.event;
     _remindBeforeMinutes = _initial?.remindBeforeMinutes;
     _executionMode =
-        _initial?.oneTimeExecutionMode ?? OneTimeExecutionMode.normal;
+        _initial?.oneTimeExecutionMode ?? OneTimeExecutionMode.untimed;
   }
 
   @override
   void dispose() {
+    _nameFocusNode.dispose();
     _nameController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -60,7 +62,7 @@ class _OneTimeReminderFormPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_initial == null ? '创建单次事项提醒' : '编辑单次事项提醒'),
+        title: Text(_initial == null ? '创建单次事项' : '编辑单次事项'),
         backgroundColor: AppColors.background,
         actions: [
           TextButton(
@@ -83,24 +85,26 @@ class _OneTimeReminderFormPageState
               constraints: const BoxConstraints(maxWidth: 680),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _FormSection(
-                      title: '事项信息',
+                      title: '基本信息',
                       child: Column(
                         children: [
                           TextFormField(
                             controller: _nameController,
+                            focusNode: _nameFocusNode,
                             autofocus: _initial == null,
                             maxLength: 100,
                             decoration: const InputDecoration(
-                              labelText: '名称',
+                              labelText: '任务名称',
                               hintText: '例如：项目会议',
                             ),
                             validator: (value) =>
                                 value == null || value.trim().isEmpty
-                                ? '请输入事项名称'
+                                ? '请填写任务名称'
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -125,14 +129,14 @@ class _OneTimeReminderFormPageState
                       child: SegmentedButton<OneTimeExecutionMode>(
                         segments: const [
                           ButtonSegment(
-                            value: OneTimeExecutionMode.normal,
+                            value: OneTimeExecutionMode.untimed,
                             icon: Icon(Icons.check_circle_outline_rounded),
-                            label: Text('普通事项'),
+                            label: Text('不计时'),
                           ),
                           ButtonSegment(
-                            value: OneTimeExecutionMode.timer,
+                            value: OneTimeExecutionMode.timed,
                             icon: Icon(Icons.timer_outlined),
-                            label: Text('计时事项'),
+                            label: Text('计时'),
                           ),
                         ],
                         selected: {_executionMode},
@@ -234,7 +238,7 @@ class _OneTimeReminderFormPageState
                         ],
                       ),
                     ),
-                    if (_executionMode == OneTimeExecutionMode.timer) ...[
+                    if (_executionMode == OneTimeExecutionMode.timed) ...[
                       const SizedBox(height: 16),
                       TagPicker(
                         value: _tagId,
@@ -297,7 +301,10 @@ class _OneTimeReminderFormPageState
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _nameFocusNode.requestFocus();
+      return;
+    }
     setState(() => _isSaving = true);
     try {
       await ref
@@ -307,7 +314,7 @@ class _OneTimeReminderFormPageState
               name: _nameController.text,
               colorValue: _colorValue,
               iconName: _iconName,
-              tagId: _executionMode == OneTimeExecutionMode.timer
+              tagId: _executionMode == OneTimeExecutionMode.timed
                   ? _tagId
                   : null,
               scheduledAt: _scheduledAt,

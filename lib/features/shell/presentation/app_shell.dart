@@ -83,7 +83,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _CreateOption(
                 icon: Icons.loop_rounded,
                 color: AppColors.primary,
-                title: '长期任务',
+                title: '周期任务',
                 subtitle: '计时记录与完成状态独立',
                 onTap: () => _openLongTermForm(context),
               ),
@@ -91,7 +91,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _CreateOption(
                 icon: Icons.event_note_rounded,
                 color: AppColors.orange,
-                title: '单次事项提醒',
+                title: '单次事项',
                 subtitle: '会议、截止日期或临时事项',
                 onTap: () => _openOneTimeForm(context),
               ),
@@ -105,7 +105,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _openLongTermForm(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const LongTermTaskFormPage()),
+      MaterialPageRoute(builder: (context) => const RecurringTaskFormPage()),
     );
   }
 

@@ -80,7 +80,7 @@ void main() {
     final completion = await database
         .customSelect('SELECT * FROM task_completion_records')
         .getSingle();
-    expect(mode.read<String>('check_mode'), 'targetTimer');
+    expect(mode.read<String>('check_mode'), 'timed');
     expect(completion.read<int>('target_reached'), 1);
     expect(completion.read<int>('is_success'), 1);
     expect(completion.read<int>('completed_at'), 123);

@@ -1,12 +1,18 @@
-enum TaskKind { longTerm, oneTime }
+enum TaskKind { recurring, oneTime }
 
 enum TaskLifecycle { active, paused, archived }
 
-enum LongTermCheckMode { freeTimer, targetTimer, simple }
+enum RecurringExecutionMode { timed, untimed }
 
-enum OneTimeExecutionMode { normal, timer }
+enum OneTimeExecutionMode { timed, untimed }
 
 enum TimerSessionStatus { running, paused, finished }
+
+/// A task's current timer state. Finished sessions remain in history, while
+/// this value describes only the timer controls currently available.
+enum TimerStatus { idle, running, paused }
+
+enum CompletionStatus { pending, completed }
 
 enum SchedulePreset { daily, weekdays, weekends, custom }
 
@@ -52,14 +58,14 @@ class TaskScheduleRule {
   }
 }
 
-class LongTermTaskDraft {
+class RecurringTaskDraft {
   final String? tagId;
-  const LongTermTaskDraft({
+  const RecurringTaskDraft({
     this.tagId,
     required this.name,
     required this.colorValue,
     this.iconName = 'target',
-    required this.checkMode,
+    required this.executionMode,
     required this.schedulePreset,
     required this.weekdays,
     required this.startsOn,
@@ -74,7 +80,7 @@ class LongTermTaskDraft {
   final int colorValue;
   final String iconName;
   final String? notes;
-  final LongTermCheckMode checkMode;
+  final RecurringExecutionMode executionMode;
   final int? targetDurationSeconds;
   final int? targetDays;
   final SchedulePreset schedulePreset;
@@ -92,7 +98,7 @@ class OneTimeReminderDraft {
     required this.colorValue,
     this.iconName = 'event',
     required this.scheduledAt,
-    this.executionMode = OneTimeExecutionMode.normal,
+    this.executionMode = OneTimeExecutionMode.untimed,
     this.remindBeforeMinutes,
     this.notes,
   });
@@ -119,7 +125,7 @@ class TaskDetails {
     required this.createdAt,
     required this.updatedAt,
     this.notes,
-    this.checkMode,
+    this.recurringMode,
     this.targetDurationSeconds,
     this.targetDays,
     this.holidayPause = false,
@@ -143,7 +149,7 @@ class TaskDetails {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? notes;
-  final LongTermCheckMode? checkMode;
+  final RecurringExecutionMode? recurringMode;
   final int? targetDurationSeconds;
   final int? targetDays;
   final bool holidayPause;
@@ -158,14 +164,16 @@ class TaskDetails {
   final bool todayTargetReached;
 
   bool get hasTimer =>
-      checkMode == LongTermCheckMode.freeTimer ||
-      checkMode == LongTermCheckMode.targetTimer ||
-      oneTimeExecutionMode == OneTimeExecutionMode.timer;
+      recurringMode == RecurringExecutionMode.timed ||
+      oneTimeExecutionMode == OneTimeExecutionMode.timed;
 
-  bool get hasDurationTarget => checkMode == LongTermCheckMode.targetTimer;
+  bool get hasDurationTarget => targetDurationSeconds != null;
 
   bool get isCompleted =>
       kind == TaskKind.oneTime ? oneTimeCompletedAt != null : todayCompleted;
+
+  CompletionStatus get completionStatus =>
+      isCompleted ? CompletionStatus.completed : CompletionStatus.pending;
 }
 
 class TimerSessionEntry {
@@ -201,6 +209,11 @@ class TaskTimerState {
   bool get isRunning => latest?.status == TimerSessionStatus.running;
   bool get isPaused => latest?.status == TimerSessionStatus.paused;
   bool get canStart => !isRunning && !isPaused;
+  TimerStatus get timerStatus => isRunning
+      ? TimerStatus.running
+      : isPaused
+      ? TimerStatus.paused
+      : TimerStatus.idle;
 
   int totalElapsedSecondsAt(DateTime now) => sessions.fold(
     0,

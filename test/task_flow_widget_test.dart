@@ -14,7 +14,7 @@ import 'package:intl/date_symbol_data_local.dart';
 void main() {
   setUpAll(() => initializeDateFormatting('zh_CN'));
 
-  testWidgets('creates a simple long-term task from the add entry', (
+  testWidgets('creates an untimed recurring task from the add entry', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('添加'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, '长期任务'));
+    await tester.tap(find.widgetWithText(ListTile, '周期任务'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).first, '晨间整理');
@@ -59,7 +59,7 @@ void main() {
     expect(find.text('今日完成度'), findsOneWidget);
     final tasks = await database.select(database.localTasks).get();
     expect(tasks.single.name, '晨间整理');
-    expect(tasks.single.taskType, TaskKind.longTerm.name);
+    expect(tasks.single.taskType, TaskKind.recurring.name);
     expect(tasks.single.iconName, TaskIconKey.book);
 
     await tester.pumpWidget(const SizedBox.shrink());

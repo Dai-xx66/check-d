@@ -228,7 +228,7 @@ class TaskRepository {
             day.isAfter(dateOnly(task.updatedAt.toLocal()))) {
           continue;
         }
-        final kind = TaskKind.values.byName(task.taskType);
+        final kind = _taskKind(task.taskType);
         if (kind == TaskKind.oneTime) {
           final reminder = reminderByTask[task.id];
           if (reminder == null ||
@@ -250,8 +250,8 @@ class TaskRepository {
               scheduledAt: reminder.scheduledAt.toLocal(),
               remindBeforeMinutes: reminder.remindBeforeMinutes,
               oneTimeExecutionMode: reminder.isTimed
-                  ? OneTimeExecutionMode.timer
-                  : OneTimeExecutionMode.normal,
+                  ? OneTimeExecutionMode.timed
+                  : OneTimeExecutionMode.untimed,
               oneTimeCompletedAt: reminder.completedAt?.toLocal(),
               todayActualDurationSeconds: reminder.isTimed
                   ? _durationFromSessionsForDay(
@@ -281,11 +281,11 @@ class TaskRepository {
           endsOn: DateTime.tryParse(snapshot['ends_on'] as String? ?? ''),
         );
         if (!schedule.isDueOn(day)) continue;
-        final checkMode = _longTermMode(snapshot['check_mode'] as String);
+        final executionMode = _recurringMode(snapshot['check_mode'] as String);
         final completion =
             completionByTaskAndDay['${task.id}:${localDateKey(day)}'];
         if (completion?.exclusionReason != null) continue;
-        final actualDuration = checkMode != LongTermCheckMode.simple
+        final actualDuration = executionMode != RecurringExecutionMode.untimed
             ? _durationFromSessionsForDay(
                 sessionsByTask[task.id] ?? const [],
                 day,
@@ -293,7 +293,7 @@ class TaskRepository {
               )
             : completion?.actualDurationSeconds ?? 0;
         final targetDuration = snapshot['target_duration_seconds'] as int? ?? 0;
-        final progress = checkMode == LongTermCheckMode.targetTimer
+        final progress = executionMode == RecurringExecutionMode.timed
             ? targetDuration <= 0
                   ? 0.0
                   : (actualDuration / targetDuration * 100)
@@ -311,7 +311,7 @@ class TaskRepository {
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             notes: task.notes,
-            checkMode: checkMode,
+            recurringMode: executionMode,
             targetDurationSeconds: snapshot['target_duration_seconds'] as int?,
             targetDays: longTerm.targetDays,
             holidayPause: longTerm.holidayPause,
@@ -321,7 +321,7 @@ class TaskRepository {
             todayCompleted: completion?.isSuccess ?? false,
             todayTargetReached:
                 completion?.targetReached ??
-                (checkMode == LongTermCheckMode.targetTimer &&
+                (executionMode == RecurringExecutionMode.timed &&
                     targetDuration > 0 &&
                     actualDuration >= targetDuration),
           ),
@@ -342,24 +342,24 @@ class TaskRepository {
     return CalendarMonthData(month: monthStart, days: days);
   }
 
-  Future<String> saveLongTermTask(
-    LongTermTaskDraft draft, {
+  Future<String> saveRecurringTask(
+    RecurringTaskDraft draft, {
     String? taskId,
   }) async {
-    _validateLongTermDraft(draft);
+    _validateRecurringDraft(draft);
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
     final existing = taskId == null ? null : await getTask(taskId);
     await _validateTag(draft.tagId);
     if (taskId != null && existing == null) throw StateError('Task not found');
     if (existing?.hasTimer == true &&
-        draft.checkMode == LongTermCheckMode.simple) {
+        draft.executionMode == RecurringExecutionMode.untimed) {
       final latest = await _latestTimerSession(id);
       if (latest != null && latest.state != TimerSessionStatus.finished.name) {
         throw StateError('End the active timer before changing task mode.');
       }
     }
-    final payload = _longTermPayload(id, draft, now);
+    final payload = _recurringPayload(id, draft, now);
 
     await _database.transaction(() async {
       if (existing == null) {
@@ -370,7 +370,7 @@ class TaskRepository {
                 id: id,
                 userId: Value(_userId),
                 name: draft.name.trim(),
-                taskType: TaskKind.longTerm.name,
+                taskType: TaskKind.recurring.name,
                 colorValue: draft.colorValue,
                 iconName: Value(draft.iconName),
                 notes: Value(_normalizedNotes(draft.notes)),
@@ -400,7 +400,7 @@ class TaskRepository {
             LongTermTaskRecordsCompanion.insert(
               taskId: id,
               userId: _userId,
-              checkMode: draft.checkMode.name,
+              checkMode: draft.executionMode.name,
               targetDurationSeconds: Value(draft.targetDurationSeconds),
               targetDays: Value(draft.targetDays),
               holidayPause: Value(draft.holidayPause),
@@ -449,7 +449,7 @@ class TaskRepository {
     String? taskId,
   }) async {
     if (draft.name.trim().isEmpty) {
-      throw ArgumentError.value(draft.name, 'name', 'Task name is required.');
+      throw ArgumentError.value(draft.name, 'name', '请填写任务名称');
     }
     final id = taskId ?? _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -457,7 +457,7 @@ class TaskRepository {
     await _validateTag(draft.tagId);
     if (taskId != null && existing == null) throw StateError('Task not found');
     if (existing?.hasTimer == true &&
-        draft.executionMode == OneTimeExecutionMode.normal) {
+        draft.executionMode == OneTimeExecutionMode.untimed) {
       final latest = await _latestTimerSession(id);
       if (latest != null && latest.state != TimerSessionStatus.finished.name) {
         throw StateError('End the active timer before changing task mode.');
@@ -506,7 +506,7 @@ class TaskRepository {
               userId: _userId,
               scheduledAt: draft.scheduledAt.toUtc(),
               remindBeforeMinutes: Value(draft.remindBeforeMinutes),
-              isTimed: Value(draft.executionMode == OneTimeExecutionMode.timer),
+              isTimed: Value(draft.executionMode == OneTimeExecutionMode.timed),
               completedAt: Value(existing?.oneTimeCompletedAt),
               createdAt: existing?.createdAt ?? now,
               updatedAt: now,
@@ -530,10 +530,10 @@ class TaskRepository {
     return id;
   }
 
-  Future<void> toggleLongTermCompletion(String taskId, DateTime date) async {
+  Future<void> toggleRecurringCompletion(String taskId, DateTime date) async {
     final task = await getTask(taskId, date: date);
-    if (task == null || task.kind != TaskKind.longTerm) {
-      throw StateError('Only long-term tasks can be toggled.');
+    if (task == null || task.kind != TaskKind.recurring) {
+      throw StateError('Only recurring tasks can be toggled.');
     }
     final key = localDateKey(date);
     final existingQuery = _database.select(_database.taskCompletionRecords)
@@ -600,10 +600,6 @@ class TaskRepository {
         userId: _userId,
       );
     });
-  }
-
-  Future<void> toggleSimpleCompletion(String taskId, DateTime date) {
-    return toggleLongTermCompletion(taskId, date);
   }
 
   Future<void> toggleOneTimeCompletion(String taskId) async {
@@ -843,8 +839,8 @@ class TaskRepository {
   }
 
   Future<TaskDetails> _loadDetails(LocalTask task, DateTime date) async {
-    final kind = TaskKind.values.byName(task.taskType);
-    if (kind == TaskKind.longTerm) {
+    final kind = _taskKind(task.taskType);
+    if (kind == TaskKind.recurring) {
       final longTermQuery = _database.select(_database.longTermTaskRecords)
         ..where((row) => row.taskId.equals(task.id));
       final scheduleQuery = _database.select(_database.taskScheduleRecords)
@@ -863,8 +859,8 @@ class TaskRepository {
       final longTerm = results[0] as LongTermTaskRecord;
       final schedule = results[1] as TaskScheduleRecord;
       final completion = results[2] as TaskCompletionRecord?;
-      final checkMode = _longTermMode(longTerm.checkMode);
-      final actualDuration = checkMode != LongTermCheckMode.simple
+      final executionMode = _recurringMode(longTerm.checkMode);
+      final actualDuration = executionMode != RecurringExecutionMode.untimed
           ? await _durationForDay(
               task.id,
               dateOnly(date),
@@ -886,7 +882,7 @@ class TaskRepository {
         notes: task.notes,
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
-        checkMode: checkMode,
+        recurringMode: executionMode,
         targetDurationSeconds: longTerm.targetDurationSeconds,
         targetDays: longTerm.targetDays,
         holidayPause: longTerm.holidayPause,
@@ -898,14 +894,14 @@ class TaskRepository {
               ? null
               : DateTime.parse(schedule.endsOn!),
         ),
-        todayProgressPercent: checkMode == LongTermCheckMode.targetTimer
+        todayProgressPercent: executionMode == RecurringExecutionMode.timed
             ? timerProgress
             : completion?.progressPercent ?? 0,
         todayActualDurationSeconds: actualDuration,
         todayCompleted: completion?.isSuccess ?? false,
         todayTargetReached:
             completion?.targetReached ??
-            (checkMode == LongTermCheckMode.targetTimer &&
+            (executionMode == RecurringExecutionMode.timed &&
                 targetDuration > 0 &&
                 actualDuration >= targetDuration),
       );
@@ -928,8 +924,8 @@ class TaskRepository {
       scheduledAt: reminder.scheduledAt.toLocal(),
       remindBeforeMinutes: reminder.remindBeforeMinutes,
       oneTimeExecutionMode: reminder.isTimed
-          ? OneTimeExecutionMode.timer
-          : OneTimeExecutionMode.normal,
+          ? OneTimeExecutionMode.timed
+          : OneTimeExecutionMode.untimed,
       oneTimeCompletedAt: reminder.completedAt?.toLocal(),
       todayActualDurationSeconds: reminder.isTimed
           ? await _durationForDay(
@@ -1008,7 +1004,7 @@ class TaskRepository {
     DateTime startedAt,
     DateTime endedAt,
   ) async {
-    if (task.kind != TaskKind.longTerm) return;
+    if (task.kind != TaskKind.recurring) return;
     var day = dateOnly(startedAt.toLocal());
     final lastDay = dateOnly(endedAt.toLocal());
     while (!day.isAfter(lastDay)) {
@@ -1164,16 +1160,20 @@ class TaskRepository {
     if (tag == null) throw ArgumentError('Unknown tag');
   }
 
-  void _validateLongTermDraft(LongTermTaskDraft draft) {
+  void _validateRecurringDraft(RecurringTaskDraft draft) {
     if (draft.name.trim().isEmpty) {
-      throw ArgumentError.value(draft.name, 'name', 'Task name is required.');
+      throw ArgumentError.value(draft.name, 'name', '请填写任务名称');
     }
     if (draft.weekdays.isEmpty) {
       throw ArgumentError('At least one weekday is required.');
     }
-    if (draft.checkMode == LongTermCheckMode.targetTimer &&
-        (draft.targetDurationSeconds ?? 0) <= 0) {
-      throw ArgumentError('Timer tasks require a positive duration.');
+    if (draft.executionMode == RecurringExecutionMode.untimed &&
+        draft.targetDurationSeconds != null) {
+      throw ArgumentError('Untimed tasks cannot set a target duration.');
+    }
+    if (draft.targetDurationSeconds != null &&
+        draft.targetDurationSeconds! <= 0) {
+      throw ArgumentError('Target duration must be positive.');
     }
   }
 
@@ -1182,9 +1182,9 @@ class TaskRepository {
     return value == null || value.isEmpty ? null : value;
   }
 
-  Map<String, Object?> _longTermPayload(
+  Map<String, Object?> _recurringPayload(
     String id,
-    LongTermTaskDraft draft,
+    RecurringTaskDraft draft,
     DateTime updatedAt,
   ) {
     return {
@@ -1196,7 +1196,7 @@ class TaskRepository {
       'icon_name': draft.iconName,
       'tag_id': draft.tagId,
       'notes': _normalizedNotes(draft.notes),
-      'check_mode': _longTermModeWireValue(draft.checkMode),
+      'check_mode': _recurringModeWireValue(draft.executionMode),
       'target_duration_seconds': draft.targetDurationSeconds,
       'target_days': draft.targetDays,
       'holiday_pause': draft.holidayPause,
@@ -1224,7 +1224,7 @@ class TaskRepository {
       'notes': _normalizedNotes(draft.notes),
       'scheduled_at': draft.scheduledAt.toUtc().toIso8601String(),
       'remind_before_minutes': draft.remindBeforeMinutes,
-      'is_timed': draft.executionMode == OneTimeExecutionMode.timer,
+      'is_timed': draft.executionMode == OneTimeExecutionMode.timed,
       'updated_at': updatedAt.toIso8601String(),
     };
   }
@@ -1239,9 +1239,9 @@ class TaskRepository {
       'tag_id': task.tagId,
       'status': task.status.name,
       'notes': task.notes,
-      'check_mode': task.checkMode == null
+      'check_mode': task.recurringMode == null
           ? null
-          : _longTermModeWireValue(task.checkMode!),
+          : _recurringModeWireValue(task.recurringMode!),
       'target_duration_seconds': task.targetDurationSeconds,
       'target_days': task.targetDays,
       'holiday_pause': task.holidayPause,
@@ -1257,7 +1257,7 @@ class TaskRepository {
           : localDateKey(task.schedule!.endsOn!),
       'scheduled_at': task.scheduledAt?.toUtc().toIso8601String(),
       'remind_before_minutes': task.remindBeforeMinutes,
-      'is_timed': task.oneTimeExecutionMode == OneTimeExecutionMode.timer,
+      'is_timed': task.oneTimeExecutionMode == OneTimeExecutionMode.timed,
       'updated_at': task.updatedAt.toIso8601String(),
     };
   }
@@ -1267,19 +1267,30 @@ class TaskRepository {
     return values;
   }
 
-  LongTermCheckMode _longTermMode(String value) {
+  TaskKind _taskKind(String value) {
     return switch (value) {
-      'timer' || 'target_timer' => LongTermCheckMode.targetTimer,
-      'free_timer' => LongTermCheckMode.freeTimer,
-      _ => LongTermCheckMode.values.byName(value),
+      'longTerm' || 'long_term' => TaskKind.recurring,
+      _ => TaskKind.values.byName(value),
     };
   }
 
-  String _longTermModeWireValue(LongTermCheckMode mode) {
+  RecurringExecutionMode _recurringMode(String value) {
+    return switch (value) {
+      'timer' ||
+      'target_timer' ||
+      'targetTimer' ||
+      'free_timer' ||
+      'freeTimer' ||
+      'timed' => RecurringExecutionMode.timed,
+      'simple' || 'untimed' => RecurringExecutionMode.untimed,
+      _ => RecurringExecutionMode.values.byName(value),
+    };
+  }
+
+  String _recurringModeWireValue(RecurringExecutionMode mode) {
     return switch (mode) {
-      LongTermCheckMode.freeTimer => 'free_timer',
-      LongTermCheckMode.targetTimer => 'target_timer',
-      LongTermCheckMode.simple => 'simple',
+      RecurringExecutionMode.timed => 'timed',
+      RecurringExecutionMode.untimed => 'untimed',
     };
   }
 }

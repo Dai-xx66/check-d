@@ -39,7 +39,7 @@ class _TodayContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final longTermTasks = tasks
-        .where((task) => task.kind == TaskKind.longTerm)
+        .where((task) => task.kind == TaskKind.recurring)
         .toList();
     final oneTimeTasks = tasks
         .where((task) => task.kind == TaskKind.oneTime)
@@ -80,7 +80,7 @@ class _TodayContent extends ConsumerWidget {
               ),
               const SizedBox(height: 28),
               _SectionTitle(
-                title: '长期任务',
+                title: '周期任务',
                 count: longTermTasks.length,
                 icon: Icons.loop_rounded,
               ),
@@ -88,8 +88,8 @@ class _TodayContent extends ConsumerWidget {
               if (longTermTasks.isEmpty)
                 const EmptyState(
                   icon: Icons.loop_rounded,
-                  title: '今天没有长期任务',
-                  message: '从中央的“添加”入口创建第一个长期目标。',
+                  title: '今天没有周期任务',
+                  message: '从中央的“添加”入口创建第一个周期目标。',
                 )
               else
                 ...longTermTasks.map(
@@ -100,7 +100,7 @@ class _TodayContent extends ConsumerWidget {
                 ),
               const SizedBox(height: 16),
               _SectionTitle(
-                title: '单次事项提醒',
+                title: '单次事项',
                 count: oneTimeTasks.length,
                 icon: Icons.event_note_outlined,
               ),
@@ -305,8 +305,8 @@ class _TaskCard extends ConsumerWidget {
       if (confirmed != true) return;
     }
     final repository = ref.read(taskRepositoryProvider);
-    if (task.kind == TaskKind.longTerm) {
-      await repository.toggleLongTermCompletion(task.id, DateTime.now());
+    if (task.kind == TaskKind.recurring) {
+      await repository.toggleRecurringCompletion(task.id, DateTime.now());
     } else {
       await repository.toggleOneTimeCompletion(task.id);
     }

@@ -8,29 +8,33 @@ import '../domain/task_models.dart';
 import 'task_color_picker.dart';
 import 'task_icon_picker.dart';
 
-class LongTermTaskFormPage extends ConsumerStatefulWidget {
-  const LongTermTaskFormPage({this.initialTask, super.key});
+class RecurringTaskFormPage extends ConsumerStatefulWidget {
+  const RecurringTaskFormPage({this.initialTask, super.key});
 
   final TaskDetails? initialTask;
 
   @override
-  ConsumerState<LongTermTaskFormPage> createState() =>
-      _LongTermTaskFormPageState();
+  ConsumerState<RecurringTaskFormPage> createState() =>
+      _RecurringTaskFormPageState();
 }
 
-class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
+class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nameFocusNode = FocusNode();
   late final TextEditingController _nameController;
   late final TextEditingController _notesController;
-  late final TextEditingController _durationController;
+  late final TextEditingController _hoursController;
+  late final TextEditingController _minutesController;
+  late final TextEditingController _secondsController;
   late final TextEditingController _targetDaysController;
   late int _colorValue;
   late String _iconName;
   String? _tagId;
-  late LongTermCheckMode _checkMode;
+  late RecurringExecutionMode _executionMode;
   late SchedulePreset _schedulePreset;
   late Set<int> _weekdays;
   late bool _holidayPause;
+  late bool _hasDurationTarget;
   bool _isSaving = false;
 
   TaskDetails? get _initial => widget.initialTask;
@@ -41,17 +45,23 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
     _tagId = _initial?.tagId;
     _nameController = TextEditingController(text: _initial?.name ?? '');
     _notesController = TextEditingController(text: _initial?.notes ?? '');
-    _durationController = TextEditingController(
-      text: _initial?.targetDurationSeconds == null
-          ? '30'
-          : (_initial!.targetDurationSeconds! ~/ 60).toString(),
+    final targetSeconds = _initial?.targetDurationSeconds ?? 0;
+    _hoursController = TextEditingController(
+      text: (targetSeconds ~/ 3600).toString(),
+    );
+    _minutesController = TextEditingController(
+      text: ((targetSeconds % 3600) ~/ 60).toString(),
+    );
+    _secondsController = TextEditingController(
+      text: (targetSeconds % 60).toString(),
     );
     _targetDaysController = TextEditingController(
       text: _initial?.targetDays?.toString() ?? '',
     );
     _colorValue = _initial?.colorValue ?? taskColorValues.first;
     _iconName = _initial?.iconName ?? TaskIconKey.check;
-    _checkMode = _initial?.checkMode ?? LongTermCheckMode.simple;
+    _executionMode = _initial?.recurringMode ?? RecurringExecutionMode.untimed;
+    _hasDurationTarget = _initial?.targetDurationSeconds != null;
     _schedulePreset = _initial?.schedule?.preset ?? SchedulePreset.daily;
     _weekdays = _initial?.schedule == null
         ? WeekdayMask.toDays(WeekdayMask.everyDay)
@@ -61,9 +71,12 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
 
   @override
   void dispose() {
+    _nameFocusNode.dispose();
     _nameController.dispose();
     _notesController.dispose();
-    _durationController.dispose();
+    _hoursController.dispose();
+    _minutesController.dispose();
+    _secondsController.dispose();
     _targetDaysController.dispose();
     super.dispose();
   }
@@ -72,7 +85,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_initial == null ? '创建长期任务' : '编辑长期任务'),
+        title: Text(_initial == null ? '创建周期任务' : '编辑周期任务'),
         backgroundColor: AppColors.background,
         actions: [
           TextButton(
@@ -95,6 +108,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
               constraints: const BoxConstraints(maxWidth: 680),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -104,6 +118,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                         children: [
                           TextFormField(
                             controller: _nameController,
+                            focusNode: _nameFocusNode,
                             autofocus: _initial == null,
                             maxLength: 100,
                             decoration: const InputDecoration(
@@ -112,7 +127,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                             ),
                             validator: (value) =>
                                 value == null || value.trim().isEmpty
-                                ? '请输入任务名称'
+                                ? '请填写任务名称'
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -139,55 +154,52 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                         children: [
                           LayoutBuilder(
                             builder: (context, constraints) =>
-                                SegmentedButton<LongTermCheckMode>(
+                                SegmentedButton<RecurringExecutionMode>(
                                   direction: constraints.maxWidth < 420
                                       ? Axis.vertical
                                       : Axis.horizontal,
                                   segments: const [
                                     ButtonSegment(
-                                      value: LongTermCheckMode.simple,
+                                      value: RecurringExecutionMode.untimed,
                                       icon: Icon(
                                         Icons.check_circle_outline_rounded,
                                       ),
-                                      label: Text('点击完成'),
+                                      label: Text('不计时'),
                                     ),
                                     ButtonSegment(
-                                      value: LongTermCheckMode.freeTimer,
+                                      value: RecurringExecutionMode.timed,
                                       icon: Icon(Icons.timer_outlined),
-                                      label: Text('自由计时'),
-                                    ),
-                                    ButtonSegment(
-                                      value: LongTermCheckMode.targetTimer,
-                                      icon: Icon(Icons.track_changes_rounded),
-                                      label: Text('目标计时'),
+                                      label: Text('计时'),
                                     ),
                                   ],
-                                  selected: {_checkMode},
+                                  selected: {_executionMode},
                                   onSelectionChanged: (selection) => setState(
-                                    () => _checkMode = selection.first,
+                                    () => _executionMode = selection.first,
                                   ),
                                 ),
                           ),
-                          if (_checkMode == LongTermCheckMode.targetTimer) ...[
+                          if (_executionMode ==
+                              RecurringExecutionMode.timed) ...[
                             const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _durationController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: '每日目标时长',
-                                suffixText: '分钟',
-                              ),
-                              validator: (value) {
-                                if (_checkMode !=
-                                    LongTermCheckMode.targetTimer) {
-                                  return null;
-                                }
-                                final minutes = int.tryParse(value ?? '');
-                                return minutes == null || minutes <= 0
-                                    ? '请输入大于 0 的分钟数'
-                                    : null;
-                              },
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('设置目标时长'),
+                              subtitle: const Text('达到时长只标记目标达成，仍需手动完成任务'),
+                              value: _hasDurationTarget,
+                              onChanged: (value) =>
+                                  setState(() => _hasDurationTarget = value),
                             ),
+                            if (_hasDurationTarget) ...[
+                              const SizedBox(height: 8),
+                              _DurationFields(
+                                hours: _hoursController,
+                                minutes: _minutesController,
+                                seconds: _secondsController,
+                                validator: (_) => _durationSeconds() <= 0
+                                    ? '请设置大于 0 的目标时长'
+                                    : null,
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -245,7 +257,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                     ),
                     const SizedBox(height: 16),
                     _Section(
-                      title: '长期目标与备注',
+                      title: '周期目标与备注',
                       child: Column(
                         children: [
                           TextFormField(
@@ -279,7 +291,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
                         ],
                       ),
                     ),
-                    if (_checkMode != LongTermCheckMode.simple) ...[
+                    if (_executionMode != RecurringExecutionMode.untimed) ...[
                       const SizedBox(height: 16),
                       TagPicker(
                         value: _tagId,
@@ -329,20 +341,23 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      _nameFocusNode.requestFocus();
+      return;
+    }
     setState(() => _isSaving = true);
     try {
-      final minutes = int.tryParse(_durationController.text);
       final targetDays = int.tryParse(_targetDaysController.text);
-      final draft = LongTermTaskDraft(
+      final draft = RecurringTaskDraft(
         name: _nameController.text,
         colorValue: _colorValue,
         iconName: _iconName,
-        tagId: _checkMode == LongTermCheckMode.simple ? null : _tagId,
+        tagId: _executionMode == RecurringExecutionMode.untimed ? null : _tagId,
         notes: _notesController.text,
-        checkMode: _checkMode,
-        targetDurationSeconds: _checkMode == LongTermCheckMode.targetTimer
-            ? minutes! * 60
+        executionMode: _executionMode,
+        targetDurationSeconds:
+            _executionMode == RecurringExecutionMode.timed && _hasDurationTarget
+            ? _durationSeconds()
             : null,
         targetDays: targetDays,
         schedulePreset: _schedulePreset,
@@ -353,7 +368,7 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
       );
       await ref
           .read(taskRepositoryProvider)
-          .saveLongTermTask(draft, taskId: _initial?.id);
+          .saveRecurringTask(draft, taskId: _initial?.id);
       if (mounted) Navigator.of(context).pop();
     } on Object {
       if (mounted) {
@@ -363,6 +378,20 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  int _durationSeconds() {
+    final hours = int.tryParse(_hoursController.text.trim()) ?? 0;
+    final minutes = int.tryParse(_minutesController.text.trim()) ?? 0;
+    final seconds = int.tryParse(_secondsController.text.trim()) ?? 0;
+    if (hours < 0 ||
+        minutes < 0 ||
+        seconds < 0 ||
+        minutes >= 60 ||
+        seconds >= 60) {
+      return 0;
+    }
+    return hours * 3600 + minutes * 60 + seconds;
   }
 
   String _scheduleLabel(SchedulePreset preset) {
@@ -377,6 +406,54 @@ class _LongTermTaskFormPageState extends ConsumerState<LongTermTaskFormPage> {
   String _weekdayLabel(int weekday) {
     return const ['一', '二', '三', '四', '五', '六', '日'][weekday - 1];
   }
+}
+
+class _DurationFields extends StatelessWidget {
+  const _DurationFields({
+    required this.hours,
+    required this.minutes,
+    required this.seconds,
+    required this.validator,
+  });
+
+  final TextEditingController hours;
+  final TextEditingController minutes;
+  final TextEditingController seconds;
+  final String? Function(String?) validator;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final fields = [
+        _field(hours, '小时'),
+        _field(minutes, '分钟'),
+        _field(seconds, '秒'),
+      ];
+      if (constraints.maxWidth < 420) {
+        return Column(
+          children: [
+            for (final field in fields) ...[field, const SizedBox(height: 10)],
+          ],
+        );
+      }
+      return Row(
+        children: [
+          for (var index = 0; index < fields.length; index++) ...[
+            Expanded(child: fields[index]),
+            if (index < fields.length - 1) const SizedBox(width: 10),
+          ],
+        ],
+      );
+    },
+  );
+
+  Widget _field(TextEditingController controller, String label) =>
+      TextFormField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(labelText: label),
+        validator: validator,
+      );
 }
 
 class _Section extends StatelessWidget {

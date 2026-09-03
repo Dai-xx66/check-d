@@ -166,7 +166,7 @@ class _ReportContent extends StatelessWidget {
               ),
               _Metric(
                 width: width,
-                label: '长期任务完成率',
+                label: '周期任务完成率',
                 value: report.expected == 0
                     ? '--'
                     : '${(report.rate * 100).toStringAsFixed(0)}%',
@@ -175,7 +175,7 @@ class _ReportContent extends StatelessWidget {
               ),
               _Metric(
                 width: width,
-                label: '长期任务打卡',
+                label: '周期任务打卡',
                 value: '${report.completed} / ${report.expected}',
                 color: AppColors.orange,
                 icon: Icons.check_circle_outline,
@@ -193,7 +193,7 @@ class _ReportContent extends StatelessWidget {
       ),
       const SizedBox(height: 12),
       Text(
-        '单次事项提醒已完成：${report.remindersCompleted}',
+        '单次事项已完成：${report.remindersCompleted}',
         style: const TextStyle(color: AppColors.muted),
       ),
       const SizedBox(height: 30),
@@ -205,10 +205,10 @@ class _ReportContent extends StatelessWidget {
       const SizedBox(height: 10),
       TagTimeBreakdown(report: report),
       const SizedBox(height: 28),
-      const _Heading('长期任务'),
+      const _Heading('周期任务'),
       const SizedBox(height: 12),
       if (report.tasks.isEmpty)
-        const Text('暂无长期任务', style: TextStyle(color: AppColors.muted)),
+        const Text('暂无周期任务', style: TextStyle(color: AppColors.muted)),
       for (final task in report.tasks)
         Padding(
           padding: const EdgeInsets.only(bottom: 10),

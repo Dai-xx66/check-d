@@ -52,7 +52,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('今日完成度'), findsOneWidget);
-    expect(find.text('单次事项提醒'), findsOneWidget);
+    expect(find.text('单次事项'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 

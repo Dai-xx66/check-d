@@ -66,7 +66,7 @@ class StatisticsRepository {
         };
         final result = <StatisticsTask>[];
         for (final task in tasks.where(
-          (t) => t.taskType == TaskKind.longTerm.name,
+          (t) => t.taskType == TaskKind.recurring.name,
         )) {
           final schedule = scheduleById[task.id];
           final goal = goalById[task.id];
@@ -99,9 +99,12 @@ class StatisticsRepository {
             if (!due) continue;
             final mode = snapshot['check_mode'];
             final targetMode =
+                mode == 'timed' ||
                 mode == 'timer' ||
                 mode == 'target_timer' ||
-                mode == 'targetTimer';
+                mode == 'targetTimer' ||
+                mode == 'free_timer' ||
+                mode == 'freeTimer';
             final target = snapshot['target_duration_seconds'] as int?;
             days.add(
               ExecutionDay(

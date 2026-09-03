@@ -98,7 +98,7 @@ class _DailyContent extends ConsumerWidget {
               data.timedSeconds
         : data.timedSeconds;
     final longTermTasks = data.tasks
-        .where((task) => task.kind == TaskKind.longTerm)
+        .where((task) => task.kind == TaskKind.recurring)
         .toList();
     final reminders = data.tasks
         .where((task) => task.kind == TaskKind.oneTime)
@@ -134,10 +134,10 @@ class _DailyContent extends ConsumerWidget {
           const EmptyState(
             icon: Icons.event_available_outlined,
             title: '当天没有安排',
-            message: '这一天没有长期任务或单次事项。',
+            message: '这一天没有周期任务或单次事项。',
           )
         else ...[
-          _SectionTitle(title: '长期任务', count: longTermTasks.length),
+          _SectionTitle(title: '周期任务', count: longTermTasks.length),
           const SizedBox(height: 10),
           if (longTermTasks.isEmpty)
             const Text('无', style: TextStyle(color: AppColors.muted))
@@ -153,7 +153,7 @@ class _DailyContent extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 14),
-          _SectionTitle(title: '单次事项提醒', count: reminders.length),
+          _SectionTitle(title: '单次事项', count: reminders.length),
           const SizedBox(height: 10),
           if (reminders.isEmpty)
             const Text('无', style: TextStyle(color: AppColors.muted))
