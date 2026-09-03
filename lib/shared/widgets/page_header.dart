@@ -35,7 +35,7 @@ class PageHeader extends StatelessWidget {
             ],
           ),
         ),
-        ?trailing,
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
       ],
     );
   }

@@ -8,13 +8,13 @@ import '../domain/statistics_models.dart';
 import 'time_distribution_chart.dart';
 
 class DailyTagTime extends ConsumerWidget {
-  const DailyTagTime({required this.date, super.key});
+  const DailyTagTime({required this.date, required this.now, super.key});
   final DateTime date;
+  final DateTime now;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = ref.watch(timerNowProvider).value ?? DateTime.now();
     return ref
-        .watch(statisticsDataProvider)
+        .watch(statisticsSnapshotProvider)
         .when(
           loading: () => const LinearProgressIndicator(),
           error: (_, _) => TextButton(

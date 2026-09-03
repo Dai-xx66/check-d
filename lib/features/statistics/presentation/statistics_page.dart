@@ -30,86 +30,94 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     final range = StatisticsRange(_period, _anchor);
     final isCurrent = range.contains(now);
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
-        children: [
-          Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1120),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
             children: [
-              Text(
-                '统计',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '统计',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: '标签管理',
+                    icon: const Icon(Icons.label_outline),
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(builder: (_) => const TagsPage()),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              IconButton(
-                tooltip: '标签管理',
-                icon: const Icon(Icons.label_outline),
-                onPressed: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute(builder: (_) => const TagsPage()),
+              const SizedBox(height: 20),
+              SegmentedButton<StatisticsPeriod>(
+                segments: const [
+                  ButtonSegment(value: StatisticsPeriod.day, label: Text('日')),
+                  ButtonSegment(value: StatisticsPeriod.week, label: Text('周')),
+                  ButtonSegment(
+                    value: StatisticsPeriod.month,
+                    label: Text('月'),
+                  ),
+                  ButtonSegment(value: StatisticsPeriod.year, label: Text('年')),
+                ],
+                selected: {_period},
+                onSelectionChanged: (v) => setState(() => _period = v.first),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: '上一周期',
+                    onPressed: () => _move(-1),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Expanded(
+                    child: Text(
+                      _rangeLabel(range),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '下一周期',
+                    onPressed: isCurrent || range.start.isAfter(now)
+                        ? null
+                        : () => _move(1),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                  IconButton(
+                    tooltip: '回到当前周期',
+                    onPressed: isCurrent
+                        ? null
+                        : () => setState(() => _anchor = dateOnly(now)),
+                    icon: const Icon(Icons.today_outlined),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              data.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(50),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
+                error: (_, _) => Center(
+                  child: TextButton.icon(
+                    onPressed: () => ref.invalidate(statisticsDataProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('统计加载失败，重试'),
+                  ),
+                ),
+                data: (value) =>
+                    _ReportContent(report: value.report(_period, _anchor, now)),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          SegmentedButton<StatisticsPeriod>(
-            segments: const [
-              ButtonSegment(value: StatisticsPeriod.day, label: Text('日')),
-              ButtonSegment(value: StatisticsPeriod.week, label: Text('周')),
-              ButtonSegment(value: StatisticsPeriod.month, label: Text('月')),
-              ButtonSegment(value: StatisticsPeriod.year, label: Text('年')),
-            ],
-            selected: {_period},
-            onSelectionChanged: (v) => setState(() => _period = v.first),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              IconButton(
-                tooltip: '上一周期',
-                onPressed: () => _move(-1),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Expanded(
-                child: Text(
-                  _rangeLabel(range),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              IconButton(
-                tooltip: '下一周期',
-                onPressed: isCurrent || range.start.isAfter(now)
-                    ? null
-                    : () => _move(1),
-                icon: const Icon(Icons.chevron_right),
-              ),
-              IconButton(
-                tooltip: '回到当前周期',
-                onPressed: isCurrent
-                    ? null
-                    : () => setState(() => _anchor = dateOnly(now)),
-                icon: const Icon(Icons.today_outlined),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          data.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(50),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-            error: (_, _) => Center(
-              child: TextButton.icon(
-                onPressed: () => ref.invalidate(statisticsDataProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('统计加载失败，重试'),
-              ),
-            ),
-            data: (value) =>
-                _ReportContent(report: value.report(_period, _anchor, now)),
-          ),
-        ],
+        ),
       ),
     );
   }

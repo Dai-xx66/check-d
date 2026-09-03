@@ -34,25 +34,30 @@ class PlansPage extends ConsumerWidget {
           child: plans.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stackTrace) => const Center(child: Text('计划加载失败')),
-            data: (items) => ListView(
-              children: [
-                const PageHeader(title: '计划', subtitle: '把周期任务汇总到月度和年度目标'),
-                const SizedBox(height: 22),
-                if (items.isEmpty)
-                  const EmptyState(
-                    icon: Icons.flag_outlined,
-                    title: '还没有计划',
-                    message: '新建月度或年度计划，并关联要坚持的周期任务。',
-                  )
-                else
-                  ...items.map(
-                    (plan) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _PlanCard(plan: plan),
-                    ),
-                  ),
-                const SizedBox(height: 96),
-              ],
+            data: (items) => Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: ListView(
+                  children: [
+                    const PageHeader(title: '计划', subtitle: '把周期任务汇总到月度和年度目标'),
+                    const SizedBox(height: 22),
+                    if (items.isEmpty)
+                      const EmptyState(
+                        icon: Icons.flag_outlined,
+                        title: '还没有计划',
+                        message: '新建月度或年度计划，并关联要坚持的周期任务。',
+                      )
+                    else
+                      ...items.map(
+                        (plan) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _PlanCard(plan: plan),
+                        ),
+                      ),
+                    const SizedBox(height: 96),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

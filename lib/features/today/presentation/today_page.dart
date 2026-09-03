@@ -107,7 +107,7 @@ class _TodayContent extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 20),
-              DailyTagTime(date: dateOnly(now)),
+              DailyTagTime(date: dateOnly(now), now: now),
             ],
           ),
         ),

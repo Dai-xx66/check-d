@@ -267,7 +267,7 @@ class _CalendarDayCell extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       child: Material(
         color: selected
-            ? const Color(0xFFE8EFFF)
+            ? AppColors.blush
             : inMonth
             ? AppColors.surface
             : Colors.transparent,

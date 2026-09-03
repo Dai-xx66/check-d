@@ -128,7 +128,7 @@ class _DailyContent extends ConsumerWidget {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
-        DailyTagTime(date: date),
+        DailyTagTime(date: date, now: now),
         const SizedBox(height: 22),
         if (data.tasks.isEmpty)
           const EmptyState(

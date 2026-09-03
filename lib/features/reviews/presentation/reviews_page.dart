@@ -34,63 +34,70 @@ class _ReviewsPageState extends ConsumerState<ReviewsPage> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-        child: ListView(
-          children: [
-            const PageHeader(title: '复盘', subtitle: '把客观数据和主观感受放在一起'),
-            const SizedBox(height: 20),
-            SegmentedButton<ReviewType>(
-              segments: const [
-                ButtonSegment(value: ReviewType.day, label: Text('日复盘')),
-                ButtonSegment(value: ReviewType.week, label: Text('周复盘')),
-                ButtonSegment(value: ReviewType.month, label: Text('月复盘')),
-                ButtonSegment(value: ReviewType.year, label: Text('年复盘')),
-              ],
-              selected: {_type},
-              onSelectionChanged: (value) =>
-                  setState(() => _type = value.first),
-            ),
-            const SizedBox(height: 16),
-            _PeriodBar(
-              label: _periodLabel(period),
-              onPrevious: () => setState(() => _anchor = _offset(_anchor, -1)),
-              onNext: () => setState(() => _anchor = _offset(_anchor, 1)),
-            ),
-            const SizedBox(height: 18),
-            snapshot.when(
-              loading: () => const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: ListView(
+              children: [
+                const PageHeader(title: '复盘', subtitle: '把客观数据和主观感受放在一起'),
+                const SizedBox(height: 20),
+                SegmentedButton<ReviewType>(
+                  segments: const [
+                    ButtonSegment(value: ReviewType.day, label: Text('日复盘')),
+                    ButtonSegment(value: ReviewType.week, label: Text('周复盘')),
+                    ButtonSegment(value: ReviewType.month, label: Text('月复盘')),
+                    ButtonSegment(value: ReviewType.year, label: Text('年复盘')),
+                  ],
+                  selected: {_type},
+                  onSelectionChanged: (value) =>
+                      setState(() => _type = value.first),
                 ),
-              ),
-              error: (error, stackTrace) => const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text('数据快照加载失败'),
+                const SizedBox(height: 16),
+                _PeriodBar(
+                  label: _periodLabel(period),
+                  onPrevious: () =>
+                      setState(() => _anchor = _offset(_anchor, -1)),
+                  onNext: () => setState(() => _anchor = _offset(_anchor, 1)),
                 ),
-              ),
-              data: (data) => _SnapshotCard(snapshot: data),
-            ),
-            const SizedBox(height: 16),
-            review.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stackTrace) => const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text('复盘加载失败'),
+                const SizedBox(height: 18),
+                snapshot.when(
+                  loading: () => const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                  error: (error, stackTrace) => const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('数据快照加载失败'),
+                    ),
+                  ),
+                  data: (data) => _SnapshotCard(snapshot: data),
                 ),
-              ),
-              data: (entry) => _ReviewCard(
-                review: entry,
-                onEdit: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute(
-                    builder: (context) => ReviewEditorPage(period: period),
+                const SizedBox(height: 16),
+                review.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('复盘加载失败'),
+                    ),
+                  ),
+                  data: (entry) => _ReviewCard(
+                    review: entry,
+                    onEdit: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (context) => ReviewEditorPage(period: period),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 32),
+              ],
             ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );

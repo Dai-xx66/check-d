@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -270,9 +272,15 @@ class _DesktopShell extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(28),
-                  child: ColoredBox(
-                    color: const Color(0x54FFFFFF),
-                    child: page,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0x8AFFFFFF),
+                        border: Border.all(color: Colors.white),
+                      ),
+                      child: page,
+                    ),
                   ),
                 ),
               ),

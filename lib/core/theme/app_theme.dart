@@ -40,15 +40,17 @@ abstract final class AppTheme {
           color: AppColors.ink,
         ),
         titleLarge: TextStyle(
+          fontSize: 22,
           fontWeight: FontWeight.w800,
           color: AppColors.ink,
         ),
         titleMedium: TextStyle(
+          fontSize: 17,
           fontWeight: FontWeight.w700,
           color: AppColors.ink,
         ),
-        bodyMedium: TextStyle(color: AppColors.ink),
-        bodySmall: TextStyle(color: AppColors.muted),
+        bodyMedium: TextStyle(color: AppColors.ink, height: 1.45),
+        bodySmall: TextStyle(color: AppColors.muted, height: 1.4),
       ),
       cardTheme: const CardThemeData(
         color: AppColors.surface,
@@ -71,6 +73,10 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.all(Radius.circular(18)),
           borderSide: BorderSide(color: AppColors.border),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -86,7 +92,18 @@ abstract final class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: Color(0xFFFFB8C8)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           shape: const StadiumBorder(),
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: TextStyle(
+          color: AppColors.ink,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
         ),
       ),
       dialogTheme: const DialogThemeData(
@@ -101,6 +118,9 @@ abstract final class AppTheme {
         elevation: 0,
         height: 76,
         indicatorColor: AppColors.blush,
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
       ),
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: Colors.transparent,

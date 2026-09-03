@@ -25,3 +25,11 @@ final statisticsDataProvider = StreamProvider.autoDispose<StatisticsData>((
   );
   return ref.watch(statisticsRepositoryProvider).watchData();
 });
+
+/// Used by the Today page, whose parent already owns the live clock. Keeping
+/// this stream clock-free avoids a second periodic subscription for the same UI.
+final statisticsSnapshotProvider = StreamProvider.autoDispose<StatisticsData>((
+  ref,
+) {
+  return ref.watch(statisticsRepositoryProvider).watchData();
+});
