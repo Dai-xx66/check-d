@@ -35,6 +35,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
   late Set<int> _weekdays;
   late bool _holidayPause;
   late bool _hasDurationTarget;
+  int? _scheduledMinuteOfDay;
   int? _reminderMinuteOfDay;
   bool _isSaving = false;
 
@@ -68,6 +69,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
         ? WeekdayMask.toDays(WeekdayMask.everyDay)
         : WeekdayMask.toDays(_initial!.schedule!.weekdaysMask);
     _holidayPause = _initial?.holidayPause ?? false;
+    _scheduledMinuteOfDay = _initial?.scheduledMinuteOfDay;
     _reminderMinuteOfDay = _initial?.reminderMinuteOfDay;
   }
 
@@ -256,8 +258,28 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
                           ),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.schedule_rounded),
+                            title: const Text('安排时间（可选）'),
+                            subtitle: Text(
+                              _scheduledMinuteOfDay == null
+                                  ? '未设置'
+                                  : _reminderLabel(_scheduledMinuteOfDay!),
+                            ),
+                            trailing: _scheduledMinuteOfDay == null
+                                ? const Icon(Icons.chevron_right_rounded)
+                                : IconButton(
+                                    tooltip: '清除安排时间',
+                                    onPressed: () => setState(
+                                      () => _scheduledMinuteOfDay = null,
+                                    ),
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                            onTap: _pickScheduledTime,
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
                             leading: const Icon(Icons.notifications_outlined),
-                            title: const Text('每日提醒（可选）'),
+                            title: const Text('提醒时间（可选）'),
                             subtitle: Text(
                               _reminderMinuteOfDay == null
                                   ? '未设置'
@@ -387,6 +409,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
         startsOn: _initial?.schedule?.startsOn ?? DateTime.now(),
         endsOn: _initial?.schedule?.endsOn,
         holidayPause: _holidayPause,
+        scheduledMinuteOfDay: _scheduledMinuteOfDay,
         reminderMinuteOfDay: _reminderMinuteOfDay,
       );
       await ref
@@ -427,6 +450,19 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
     final picked = await showTimePicker(context: context, initialTime: initial);
     if (picked != null && mounted) {
       setState(() => _reminderMinuteOfDay = picked.hour * 60 + picked.minute);
+    }
+  }
+
+  Future<void> _pickScheduledTime() async {
+    final initial = _scheduledMinuteOfDay == null
+        ? const TimeOfDay(hour: 9, minute: 0)
+        : TimeOfDay(
+            hour: _scheduledMinuteOfDay! ~/ 60,
+            minute: _scheduledMinuteOfDay! % 60,
+          );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null && mounted) {
+      setState(() => _scheduledMinuteOfDay = picked.hour * 60 + picked.minute);
     }
   }
 

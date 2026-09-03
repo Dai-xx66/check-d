@@ -119,6 +119,7 @@ class ReviewRepository {
       }
     }
     for (final reminder in reminders) {
+      if (!reminder.hasScheduledDate) continue;
       final scheduled = dateOnly(reminder.scheduledAt.toLocal());
       if (scheduled.isBefore(start) || scheduled.isAfter(end)) continue;
       dueCount++;

@@ -30,6 +30,7 @@ class LongTermTaskRecords extends Table {
   IntColumn get targetDurationSeconds => integer().nullable()();
   IntColumn get targetDays => integer().nullable()();
   BoolColumn get holidayPause => boolean().withDefault(const Constant(false))();
+  IntColumn get scheduledMinuteOfDay => integer().nullable()();
   IntColumn get reminderMinuteOfDay => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -59,6 +60,8 @@ class OneTimeReminderRecords extends Table {
       text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
   TextColumn get userId => text()();
   DateTimeColumn get scheduledAt => dateTime()();
+  BoolColumn get hasScheduledDate =>
+      boolean().withDefault(const Constant(true))();
   IntColumn get remindBeforeMinutes => integer().nullable()();
   BoolColumn get isTimed => boolean().withDefault(const Constant(false))();
   DateTimeColumn get completedAt => dateTime().nullable()();
@@ -255,7 +258,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -346,6 +349,24 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 9) {
         await migrator.createTable(reviewRecords);
+      }
+      if (from < 10) {
+        final tables = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table'",
+        ).get();
+        final names = tables.map((row) => row.read<String>('name')).toSet();
+        if (names.contains('long_term_task_records')) {
+          await migrator.addColumn(
+            longTermTaskRecords,
+            longTermTaskRecords.scheduledMinuteOfDay,
+          );
+        }
+        if (names.contains('one_time_reminder_records')) {
+          await migrator.addColumn(
+            oneTimeReminderRecords,
+            oneTimeReminderRecords.hasScheduledDate,
+          );
+        }
       }
     },
     beforeOpen: (details) async {

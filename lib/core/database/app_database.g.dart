@@ -824,6 +824,16 @@ class $LongTermTaskRecordsTable extends LongTermTaskRecords
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _scheduledMinuteOfDayMeta =
+      const VerificationMeta('scheduledMinuteOfDay');
+  @override
+  late final GeneratedColumn<int> scheduledMinuteOfDay = GeneratedColumn<int>(
+    'scheduled_minute_of_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _reminderMinuteOfDayMeta =
       const VerificationMeta('reminderMinuteOfDay');
   @override
@@ -864,6 +874,7 @@ class $LongTermTaskRecordsTable extends LongTermTaskRecords
     targetDurationSeconds,
     targetDays,
     holidayPause,
+    scheduledMinuteOfDay,
     reminderMinuteOfDay,
     createdAt,
     updatedAt,
@@ -928,6 +939,15 @@ class $LongTermTaskRecordsTable extends LongTermTaskRecords
         ),
       );
     }
+    if (data.containsKey('scheduled_minute_of_day')) {
+      context.handle(
+        _scheduledMinuteOfDayMeta,
+        scheduledMinuteOfDay.isAcceptableOrUnknown(
+          data['scheduled_minute_of_day']!,
+          _scheduledMinuteOfDayMeta,
+        ),
+      );
+    }
     if (data.containsKey('reminder_minute_of_day')) {
       context.handle(
         _reminderMinuteOfDayMeta,
@@ -986,6 +1006,10 @@ class $LongTermTaskRecordsTable extends LongTermTaskRecords
         DriftSqlType.bool,
         data['${effectivePrefix}holiday_pause'],
       )!,
+      scheduledMinuteOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scheduled_minute_of_day'],
+      ),
       reminderMinuteOfDay: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}reminder_minute_of_day'],
@@ -1015,6 +1039,7 @@ class LongTermTaskRecord extends DataClass
   final int? targetDurationSeconds;
   final int? targetDays;
   final bool holidayPause;
+  final int? scheduledMinuteOfDay;
   final int? reminderMinuteOfDay;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1025,6 +1050,7 @@ class LongTermTaskRecord extends DataClass
     this.targetDurationSeconds,
     this.targetDays,
     required this.holidayPause,
+    this.scheduledMinuteOfDay,
     this.reminderMinuteOfDay,
     required this.createdAt,
     required this.updatedAt,
@@ -1042,6 +1068,9 @@ class LongTermTaskRecord extends DataClass
       map['target_days'] = Variable<int>(targetDays);
     }
     map['holiday_pause'] = Variable<bool>(holidayPause);
+    if (!nullToAbsent || scheduledMinuteOfDay != null) {
+      map['scheduled_minute_of_day'] = Variable<int>(scheduledMinuteOfDay);
+    }
     if (!nullToAbsent || reminderMinuteOfDay != null) {
       map['reminder_minute_of_day'] = Variable<int>(reminderMinuteOfDay);
     }
@@ -1062,6 +1091,9 @@ class LongTermTaskRecord extends DataClass
           ? const Value.absent()
           : Value(targetDays),
       holidayPause: Value(holidayPause),
+      scheduledMinuteOfDay: scheduledMinuteOfDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledMinuteOfDay),
       reminderMinuteOfDay: reminderMinuteOfDay == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderMinuteOfDay),
@@ -1084,6 +1116,9 @@ class LongTermTaskRecord extends DataClass
       ),
       targetDays: serializer.fromJson<int?>(json['targetDays']),
       holidayPause: serializer.fromJson<bool>(json['holidayPause']),
+      scheduledMinuteOfDay: serializer.fromJson<int?>(
+        json['scheduledMinuteOfDay'],
+      ),
       reminderMinuteOfDay: serializer.fromJson<int?>(
         json['reminderMinuteOfDay'],
       ),
@@ -1101,6 +1136,7 @@ class LongTermTaskRecord extends DataClass
       'targetDurationSeconds': serializer.toJson<int?>(targetDurationSeconds),
       'targetDays': serializer.toJson<int?>(targetDays),
       'holidayPause': serializer.toJson<bool>(holidayPause),
+      'scheduledMinuteOfDay': serializer.toJson<int?>(scheduledMinuteOfDay),
       'reminderMinuteOfDay': serializer.toJson<int?>(reminderMinuteOfDay),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1114,6 +1150,7 @@ class LongTermTaskRecord extends DataClass
     Value<int?> targetDurationSeconds = const Value.absent(),
     Value<int?> targetDays = const Value.absent(),
     bool? holidayPause,
+    Value<int?> scheduledMinuteOfDay = const Value.absent(),
     Value<int?> reminderMinuteOfDay = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1126,6 +1163,9 @@ class LongTermTaskRecord extends DataClass
         : this.targetDurationSeconds,
     targetDays: targetDays.present ? targetDays.value : this.targetDays,
     holidayPause: holidayPause ?? this.holidayPause,
+    scheduledMinuteOfDay: scheduledMinuteOfDay.present
+        ? scheduledMinuteOfDay.value
+        : this.scheduledMinuteOfDay,
     reminderMinuteOfDay: reminderMinuteOfDay.present
         ? reminderMinuteOfDay.value
         : this.reminderMinuteOfDay,
@@ -1146,6 +1186,9 @@ class LongTermTaskRecord extends DataClass
       holidayPause: data.holidayPause.present
           ? data.holidayPause.value
           : this.holidayPause,
+      scheduledMinuteOfDay: data.scheduledMinuteOfDay.present
+          ? data.scheduledMinuteOfDay.value
+          : this.scheduledMinuteOfDay,
       reminderMinuteOfDay: data.reminderMinuteOfDay.present
           ? data.reminderMinuteOfDay.value
           : this.reminderMinuteOfDay,
@@ -1163,6 +1206,7 @@ class LongTermTaskRecord extends DataClass
           ..write('targetDurationSeconds: $targetDurationSeconds, ')
           ..write('targetDays: $targetDays, ')
           ..write('holidayPause: $holidayPause, ')
+          ..write('scheduledMinuteOfDay: $scheduledMinuteOfDay, ')
           ..write('reminderMinuteOfDay: $reminderMinuteOfDay, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1178,6 +1222,7 @@ class LongTermTaskRecord extends DataClass
     targetDurationSeconds,
     targetDays,
     holidayPause,
+    scheduledMinuteOfDay,
     reminderMinuteOfDay,
     createdAt,
     updatedAt,
@@ -1192,6 +1237,7 @@ class LongTermTaskRecord extends DataClass
           other.targetDurationSeconds == this.targetDurationSeconds &&
           other.targetDays == this.targetDays &&
           other.holidayPause == this.holidayPause &&
+          other.scheduledMinuteOfDay == this.scheduledMinuteOfDay &&
           other.reminderMinuteOfDay == this.reminderMinuteOfDay &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1204,6 +1250,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
   final Value<int?> targetDurationSeconds;
   final Value<int?> targetDays;
   final Value<bool> holidayPause;
+  final Value<int?> scheduledMinuteOfDay;
   final Value<int?> reminderMinuteOfDay;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1215,6 +1262,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
     this.targetDurationSeconds = const Value.absent(),
     this.targetDays = const Value.absent(),
     this.holidayPause = const Value.absent(),
+    this.scheduledMinuteOfDay = const Value.absent(),
     this.reminderMinuteOfDay = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1227,6 +1275,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
     this.targetDurationSeconds = const Value.absent(),
     this.targetDays = const Value.absent(),
     this.holidayPause = const Value.absent(),
+    this.scheduledMinuteOfDay = const Value.absent(),
     this.reminderMinuteOfDay = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -1243,6 +1292,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
     Expression<int>? targetDurationSeconds,
     Expression<int>? targetDays,
     Expression<bool>? holidayPause,
+    Expression<int>? scheduledMinuteOfDay,
     Expression<int>? reminderMinuteOfDay,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1256,6 +1306,8 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
         'target_duration_seconds': targetDurationSeconds,
       if (targetDays != null) 'target_days': targetDays,
       if (holidayPause != null) 'holiday_pause': holidayPause,
+      if (scheduledMinuteOfDay != null)
+        'scheduled_minute_of_day': scheduledMinuteOfDay,
       if (reminderMinuteOfDay != null)
         'reminder_minute_of_day': reminderMinuteOfDay,
       if (createdAt != null) 'created_at': createdAt,
@@ -1271,6 +1323,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
     Value<int?>? targetDurationSeconds,
     Value<int?>? targetDays,
     Value<bool>? holidayPause,
+    Value<int?>? scheduledMinuteOfDay,
     Value<int?>? reminderMinuteOfDay,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1284,6 +1337,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
           targetDurationSeconds ?? this.targetDurationSeconds,
       targetDays: targetDays ?? this.targetDays,
       holidayPause: holidayPause ?? this.holidayPause,
+      scheduledMinuteOfDay: scheduledMinuteOfDay ?? this.scheduledMinuteOfDay,
       reminderMinuteOfDay: reminderMinuteOfDay ?? this.reminderMinuteOfDay,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1314,6 +1368,11 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
     if (holidayPause.present) {
       map['holiday_pause'] = Variable<bool>(holidayPause.value);
     }
+    if (scheduledMinuteOfDay.present) {
+      map['scheduled_minute_of_day'] = Variable<int>(
+        scheduledMinuteOfDay.value,
+      );
+    }
     if (reminderMinuteOfDay.present) {
       map['reminder_minute_of_day'] = Variable<int>(reminderMinuteOfDay.value);
     }
@@ -1338,6 +1397,7 @@ class LongTermTaskRecordsCompanion extends UpdateCompanion<LongTermTaskRecord> {
           ..write('targetDurationSeconds: $targetDurationSeconds, ')
           ..write('targetDays: $targetDays, ')
           ..write('holidayPause: $holidayPause, ')
+          ..write('scheduledMinuteOfDay: $scheduledMinuteOfDay, ')
           ..write('reminderMinuteOfDay: $reminderMinuteOfDay, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1954,6 +2014,21 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _hasScheduledDateMeta = const VerificationMeta(
+    'hasScheduledDate',
+  );
+  @override
+  late final GeneratedColumn<bool> hasScheduledDate = GeneratedColumn<bool>(
+    'has_scheduled_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_scheduled_date" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _remindBeforeMinutesMeta =
       const VerificationMeta('remindBeforeMinutes');
   @override
@@ -2017,6 +2092,7 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     taskId,
     userId,
     scheduledAt,
+    hasScheduledDate,
     remindBeforeMinutes,
     isTimed,
     completedAt,
@@ -2061,6 +2137,15 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
       );
     } else if (isInserting) {
       context.missing(_scheduledAtMeta);
+    }
+    if (data.containsKey('has_scheduled_date')) {
+      context.handle(
+        _hasScheduledDateMeta,
+        hasScheduledDate.isAcceptableOrUnknown(
+          data['has_scheduled_date']!,
+          _hasScheduledDateMeta,
+        ),
+      );
     }
     if (data.containsKey('remind_before_minutes')) {
       context.handle(
@@ -2123,6 +2208,10 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}scheduled_at'],
       )!,
+      hasScheduledDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_scheduled_date'],
+      )!,
       remindBeforeMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}remind_before_minutes'],
@@ -2157,6 +2246,7 @@ class OneTimeReminderRecord extends DataClass
   final String taskId;
   final String userId;
   final DateTime scheduledAt;
+  final bool hasScheduledDate;
   final int? remindBeforeMinutes;
   final bool isTimed;
   final DateTime? completedAt;
@@ -2166,6 +2256,7 @@ class OneTimeReminderRecord extends DataClass
     required this.taskId,
     required this.userId,
     required this.scheduledAt,
+    required this.hasScheduledDate,
     this.remindBeforeMinutes,
     required this.isTimed,
     this.completedAt,
@@ -2178,6 +2269,7 @@ class OneTimeReminderRecord extends DataClass
     map['task_id'] = Variable<String>(taskId);
     map['user_id'] = Variable<String>(userId);
     map['scheduled_at'] = Variable<DateTime>(scheduledAt);
+    map['has_scheduled_date'] = Variable<bool>(hasScheduledDate);
     if (!nullToAbsent || remindBeforeMinutes != null) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
     }
@@ -2195,6 +2287,7 @@ class OneTimeReminderRecord extends DataClass
       taskId: Value(taskId),
       userId: Value(userId),
       scheduledAt: Value(scheduledAt),
+      hasScheduledDate: Value(hasScheduledDate),
       remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(remindBeforeMinutes),
@@ -2216,6 +2309,7 @@ class OneTimeReminderRecord extends DataClass
       taskId: serializer.fromJson<String>(json['taskId']),
       userId: serializer.fromJson<String>(json['userId']),
       scheduledAt: serializer.fromJson<DateTime>(json['scheduledAt']),
+      hasScheduledDate: serializer.fromJson<bool>(json['hasScheduledDate']),
       remindBeforeMinutes: serializer.fromJson<int?>(
         json['remindBeforeMinutes'],
       ),
@@ -2232,6 +2326,7 @@ class OneTimeReminderRecord extends DataClass
       'taskId': serializer.toJson<String>(taskId),
       'userId': serializer.toJson<String>(userId),
       'scheduledAt': serializer.toJson<DateTime>(scheduledAt),
+      'hasScheduledDate': serializer.toJson<bool>(hasScheduledDate),
       'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
       'isTimed': serializer.toJson<bool>(isTimed),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
@@ -2244,6 +2339,7 @@ class OneTimeReminderRecord extends DataClass
     String? taskId,
     String? userId,
     DateTime? scheduledAt,
+    bool? hasScheduledDate,
     Value<int?> remindBeforeMinutes = const Value.absent(),
     bool? isTimed,
     Value<DateTime?> completedAt = const Value.absent(),
@@ -2253,6 +2349,7 @@ class OneTimeReminderRecord extends DataClass
     taskId: taskId ?? this.taskId,
     userId: userId ?? this.userId,
     scheduledAt: scheduledAt ?? this.scheduledAt,
+    hasScheduledDate: hasScheduledDate ?? this.hasScheduledDate,
     remindBeforeMinutes: remindBeforeMinutes.present
         ? remindBeforeMinutes.value
         : this.remindBeforeMinutes,
@@ -2270,6 +2367,9 @@ class OneTimeReminderRecord extends DataClass
       scheduledAt: data.scheduledAt.present
           ? data.scheduledAt.value
           : this.scheduledAt,
+      hasScheduledDate: data.hasScheduledDate.present
+          ? data.hasScheduledDate.value
+          : this.hasScheduledDate,
       remindBeforeMinutes: data.remindBeforeMinutes.present
           ? data.remindBeforeMinutes.value
           : this.remindBeforeMinutes,
@@ -2288,6 +2388,7 @@ class OneTimeReminderRecord extends DataClass
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
+          ..write('hasScheduledDate: $hasScheduledDate, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('isTimed: $isTimed, ')
           ..write('completedAt: $completedAt, ')
@@ -2302,6 +2403,7 @@ class OneTimeReminderRecord extends DataClass
     taskId,
     userId,
     scheduledAt,
+    hasScheduledDate,
     remindBeforeMinutes,
     isTimed,
     completedAt,
@@ -2315,6 +2417,7 @@ class OneTimeReminderRecord extends DataClass
           other.taskId == this.taskId &&
           other.userId == this.userId &&
           other.scheduledAt == this.scheduledAt &&
+          other.hasScheduledDate == this.hasScheduledDate &&
           other.remindBeforeMinutes == this.remindBeforeMinutes &&
           other.isTimed == this.isTimed &&
           other.completedAt == this.completedAt &&
@@ -2327,6 +2430,7 @@ class OneTimeReminderRecordsCompanion
   final Value<String> taskId;
   final Value<String> userId;
   final Value<DateTime> scheduledAt;
+  final Value<bool> hasScheduledDate;
   final Value<int?> remindBeforeMinutes;
   final Value<bool> isTimed;
   final Value<DateTime?> completedAt;
@@ -2337,6 +2441,7 @@ class OneTimeReminderRecordsCompanion
     this.taskId = const Value.absent(),
     this.userId = const Value.absent(),
     this.scheduledAt = const Value.absent(),
+    this.hasScheduledDate = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     this.isTimed = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -2348,6 +2453,7 @@ class OneTimeReminderRecordsCompanion
     required String taskId,
     required String userId,
     required DateTime scheduledAt,
+    this.hasScheduledDate = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     this.isTimed = const Value.absent(),
     this.completedAt = const Value.absent(),
@@ -2363,6 +2469,7 @@ class OneTimeReminderRecordsCompanion
     Expression<String>? taskId,
     Expression<String>? userId,
     Expression<DateTime>? scheduledAt,
+    Expression<bool>? hasScheduledDate,
     Expression<int>? remindBeforeMinutes,
     Expression<bool>? isTimed,
     Expression<DateTime>? completedAt,
@@ -2374,6 +2481,7 @@ class OneTimeReminderRecordsCompanion
       if (taskId != null) 'task_id': taskId,
       if (userId != null) 'user_id': userId,
       if (scheduledAt != null) 'scheduled_at': scheduledAt,
+      if (hasScheduledDate != null) 'has_scheduled_date': hasScheduledDate,
       if (remindBeforeMinutes != null)
         'remind_before_minutes': remindBeforeMinutes,
       if (isTimed != null) 'is_timed': isTimed,
@@ -2388,6 +2496,7 @@ class OneTimeReminderRecordsCompanion
     Value<String>? taskId,
     Value<String>? userId,
     Value<DateTime>? scheduledAt,
+    Value<bool>? hasScheduledDate,
     Value<int?>? remindBeforeMinutes,
     Value<bool>? isTimed,
     Value<DateTime?>? completedAt,
@@ -2399,6 +2508,7 @@ class OneTimeReminderRecordsCompanion
       taskId: taskId ?? this.taskId,
       userId: userId ?? this.userId,
       scheduledAt: scheduledAt ?? this.scheduledAt,
+      hasScheduledDate: hasScheduledDate ?? this.hasScheduledDate,
       remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
       isTimed: isTimed ?? this.isTimed,
       completedAt: completedAt ?? this.completedAt,
@@ -2419,6 +2529,9 @@ class OneTimeReminderRecordsCompanion
     }
     if (scheduledAt.present) {
       map['scheduled_at'] = Variable<DateTime>(scheduledAt.value);
+    }
+    if (hasScheduledDate.present) {
+      map['has_scheduled_date'] = Variable<bool>(hasScheduledDate.value);
     }
     if (remindBeforeMinutes.present) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes.value);
@@ -2447,6 +2560,7 @@ class OneTimeReminderRecordsCompanion
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
+          ..write('hasScheduledDate: $hasScheduledDate, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('isTimed: $isTimed, ')
           ..write('completedAt: $completedAt, ')
@@ -8787,7 +8901,7 @@ class $$LocalTasksTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$LocalTasksTable, LocalTask>(table),
                   $$LocalTasksTableReferences(db, table, e),
                 ),
               )
@@ -9001,6 +9115,7 @@ typedef $$LongTermTaskRecordsTableCreateCompanionBuilder =
       Value<int?> targetDurationSeconds,
       Value<int?> targetDays,
       Value<bool> holidayPause,
+      Value<int?> scheduledMinuteOfDay,
       Value<int?> reminderMinuteOfDay,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -9014,6 +9129,7 @@ typedef $$LongTermTaskRecordsTableUpdateCompanionBuilder =
       Value<int?> targetDurationSeconds,
       Value<int?> targetDays,
       Value<bool> holidayPause,
+      Value<int?> scheduledMinuteOfDay,
       Value<int?> reminderMinuteOfDay,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -9082,6 +9198,11 @@ class $$LongTermTaskRecordsTableFilterComposer
 
   ColumnFilters<bool> get holidayPause => $composableBuilder(
     column: $table.holidayPause,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9158,6 +9279,11 @@ class $$LongTermTaskRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get reminderMinuteOfDay => $composableBuilder(
     column: $table.reminderMinuteOfDay,
     builder: (column) => ColumnOrderings(column),
@@ -9224,6 +9350,11 @@ class $$LongTermTaskRecordsTableAnnotationComposer
 
   GeneratedColumn<bool> get holidayPause => $composableBuilder(
     column: $table.holidayPause,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
     builder: (column) => column,
   );
 
@@ -9304,6 +9435,7 @@ class $$LongTermTaskRecordsTableTableManager
                 Value<int?> targetDurationSeconds = const Value.absent(),
                 Value<int?> targetDays = const Value.absent(),
                 Value<bool> holidayPause = const Value.absent(),
+                Value<int?> scheduledMinuteOfDay = const Value.absent(),
                 Value<int?> reminderMinuteOfDay = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -9315,6 +9447,7 @@ class $$LongTermTaskRecordsTableTableManager
                 targetDurationSeconds: targetDurationSeconds,
                 targetDays: targetDays,
                 holidayPause: holidayPause,
+                scheduledMinuteOfDay: scheduledMinuteOfDay,
                 reminderMinuteOfDay: reminderMinuteOfDay,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -9328,6 +9461,7 @@ class $$LongTermTaskRecordsTableTableManager
                 Value<int?> targetDurationSeconds = const Value.absent(),
                 Value<int?> targetDays = const Value.absent(),
                 Value<bool> holidayPause = const Value.absent(),
+                Value<int?> scheduledMinuteOfDay = const Value.absent(),
                 Value<int?> reminderMinuteOfDay = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -9339,6 +9473,7 @@ class $$LongTermTaskRecordsTableTableManager
                 targetDurationSeconds: targetDurationSeconds,
                 targetDays: targetDays,
                 holidayPause: holidayPause,
+                scheduledMinuteOfDay: scheduledMinuteOfDay,
                 reminderMinuteOfDay: reminderMinuteOfDay,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -9347,7 +9482,9 @@ class $$LongTermTaskRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$LongTermTaskRecordsTable, LongTermTaskRecord>(
+                    table,
+                  ),
                   $$LongTermTaskRecordsTableReferences(db, table, e),
                 ),
               )
@@ -9763,7 +9900,9 @@ class $$TaskScheduleRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TaskScheduleRecordsTable, TaskScheduleRecord>(
+                    table,
+                  ),
                   $$TaskScheduleRecordsTableReferences(db, table, e),
                 ),
               )
@@ -9834,6 +9973,7 @@ typedef $$OneTimeReminderRecordsTableCreateCompanionBuilder =
       required String taskId,
       required String userId,
       required DateTime scheduledAt,
+      Value<bool> hasScheduledDate,
       Value<int?> remindBeforeMinutes,
       Value<bool> isTimed,
       Value<DateTime?> completedAt,
@@ -9846,6 +9986,7 @@ typedef $$OneTimeReminderRecordsTableUpdateCompanionBuilder =
       Value<String> taskId,
       Value<String> userId,
       Value<DateTime> scheduledAt,
+      Value<bool> hasScheduledDate,
       Value<int?> remindBeforeMinutes,
       Value<bool> isTimed,
       Value<DateTime?> completedAt,
@@ -9901,6 +10042,11 @@ class $$OneTimeReminderRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get scheduledAt => $composableBuilder(
     column: $table.scheduledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasScheduledDate => $composableBuilder(
+    column: $table.hasScheduledDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9972,6 +10118,11 @@ class $$OneTimeReminderRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get hasScheduledDate => $composableBuilder(
+    column: $table.hasScheduledDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get remindBeforeMinutes => $composableBuilder(
     column: $table.remindBeforeMinutes,
     builder: (column) => ColumnOrderings(column),
@@ -10035,6 +10186,11 @@ class $$OneTimeReminderRecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get scheduledAt => $composableBuilder(
     column: $table.scheduledAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hasScheduledDate => $composableBuilder(
+    column: $table.hasScheduledDate,
     builder: (column) => column,
   );
 
@@ -10123,6 +10279,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 Value<String> taskId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<DateTime> scheduledAt = const Value.absent(),
+                Value<bool> hasScheduledDate = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 Value<bool> isTimed = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
@@ -10133,6 +10290,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 taskId: taskId,
                 userId: userId,
                 scheduledAt: scheduledAt,
+                hasScheduledDate: hasScheduledDate,
                 remindBeforeMinutes: remindBeforeMinutes,
                 isTimed: isTimed,
                 completedAt: completedAt,
@@ -10145,6 +10303,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 required String taskId,
                 required String userId,
                 required DateTime scheduledAt,
+                Value<bool> hasScheduledDate = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 Value<bool> isTimed = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
@@ -10155,6 +10314,7 @@ class $$OneTimeReminderRecordsTableTableManager
                 taskId: taskId,
                 userId: userId,
                 scheduledAt: scheduledAt,
+                hasScheduledDate: hasScheduledDate,
                 remindBeforeMinutes: remindBeforeMinutes,
                 isTimed: isTimed,
                 completedAt: completedAt,
@@ -10165,7 +10325,10 @@ class $$OneTimeReminderRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $OneTimeReminderRecordsTable,
+                    OneTimeReminderRecord
+                  >(table),
                   $$OneTimeReminderRecordsTableReferences(db, table, e),
                 ),
               )
@@ -10647,7 +10810,10 @@ class $$TaskCompletionRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<
+                    $TaskCompletionRecordsTable,
+                    TaskCompletionRecord
+                  >(table),
                   $$TaskCompletionRecordsTableReferences(db, table, e),
                 ),
               )
@@ -11080,7 +11246,9 @@ class $$TimerSessionRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TimerSessionRecordsTable, TimerSessionRecord>(
+                    table,
+                  ),
                   $$TimerSessionRecordsTableReferences(db, table, e),
                 ),
               )
@@ -11437,7 +11605,9 @@ class $$TaskRevisionRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TaskRevisionRecordsTable, TaskRevisionRecord>(
+                    table,
+                  ),
                   $$TaskRevisionRecordsTableReferences(db, table, e),
                 ),
               )
@@ -11801,7 +11971,16 @@ class $$SyncOperationsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$SyncOperationsTable, SyncOperation>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncOperationsTable,
+                    SyncOperation
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -11963,7 +12142,16 @@ class $$AppSettingsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AppSettingsTable, AppSetting>(table),
+                  BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -12279,7 +12467,7 @@ class $$TagRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TagRecordsTable, TagRecord>(table),
                   $$TagRecordsTableReferences(db, table, e),
                 ),
               )
@@ -12603,7 +12791,9 @@ class $$TagRevisionRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$TagRevisionRecordsTable, TagRevisionRecord>(
+                    table,
+                  ),
                   $$TagRevisionRecordsTableReferences(db, table, e),
                 ),
               )
@@ -13035,7 +13225,7 @@ class $$PlanRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$PlanRecordsTable, PlanRecord>(table),
                   $$PlanRecordsTableReferences(db, table, e),
                 ),
               )
@@ -13442,7 +13632,7 @@ class $$PlanTaskRecordsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable(table),
+                  e.readTable<$PlanTaskRecordsTable, PlanTaskRecord>(table),
                   $$PlanTaskRecordsTableReferences(db, table, e),
                 ),
               )
@@ -13863,7 +14053,16 @@ class $$ReviewRecordsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ReviewRecordsTable, ReviewRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ReviewRecordsTable,
+                    ReviewRecord
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),

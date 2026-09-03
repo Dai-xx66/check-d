@@ -25,7 +25,7 @@ class _OneTimeReminderFormPageState
   final _nameFocusNode = FocusNode();
   late final TextEditingController _nameController;
   late final TextEditingController _notesController;
-  late DateTime _scheduledAt;
+  DateTime? _scheduledAt;
   late int _colorValue;
   late String _iconName;
   String? _tagId;
@@ -41,8 +41,7 @@ class _OneTimeReminderFormPageState
     _tagId = _initial?.tagId;
     _nameController = TextEditingController(text: _initial?.name ?? '');
     _notesController = TextEditingController(text: _initial?.notes ?? '');
-    _scheduledAt =
-        _initial?.scheduledAt ?? DateTime.now().add(const Duration(hours: 1));
+    _scheduledAt = _initial?.scheduledAt;
     _colorValue = _initial?.colorValue ?? taskColorValues[2];
     _iconName = _initial?.iconName ?? TaskIconKey.event;
     _remindBeforeMinutes = _initial?.remindBeforeMinutes;
@@ -150,42 +149,60 @@ class _OneTimeReminderFormPageState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final dateButton = OutlinedButton.icon(
-                                onPressed: _pickDate,
-                                icon: const Icon(Icons.calendar_today_rounded),
-                                label: Text(
-                                  DateFormat('yyyy年M月d日').format(_scheduledAt),
-                                ),
-                              );
-                              final timeButton = OutlinedButton.icon(
-                                onPressed: _pickTime,
-                                icon: const Icon(Icons.schedule_rounded),
-                                label: Text(
-                                  DateFormat('HH:mm').format(_scheduledAt),
-                                ),
-                              );
-                              if (constraints.maxWidth < 420) {
-                                return Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('设置日期与时间'),
+                            subtitle: const Text('可选；设置后可进入今日安排和倒计时'),
+                            value: _scheduledAt != null,
+                            onChanged: (enabled) => setState(() {
+                              _scheduledAt = enabled
+                                  ? DateTime.now().add(const Duration(hours: 1))
+                                  : null;
+                            }),
+                          ),
+                          if (_scheduledAt != null) ...[
+                            const SizedBox(height: 10),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final dateButton = OutlinedButton.icon(
+                                  onPressed: _pickDate,
+                                  icon: const Icon(
+                                    Icons.calendar_today_rounded,
+                                  ),
+                                  label: Text(
+                                    DateFormat(
+                                      'yyyy年M月d日',
+                                    ).format(_scheduledAt!),
+                                  ),
+                                );
+                                final timeButton = OutlinedButton.icon(
+                                  onPressed: _pickTime,
+                                  icon: const Icon(Icons.schedule_rounded),
+                                  label: Text(
+                                    DateFormat('HH:mm').format(_scheduledAt!),
+                                  ),
+                                );
+                                if (constraints.maxWidth < 420) {
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      dateButton,
+                                      const SizedBox(height: 10),
+                                      timeButton,
+                                    ],
+                                  );
+                                }
+                                return Row(
                                   children: [
-                                    dateButton,
-                                    const SizedBox(height: 10),
-                                    timeButton,
+                                    Expanded(child: dateButton),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: timeButton),
                                   ],
                                 );
-                              }
-                              return Row(
-                                children: [
-                                  Expanded(child: dateButton),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: timeButton),
-                                ],
-                              );
-                            },
-                          ),
+                              },
+                            ),
+                          ],
                           const SizedBox(height: 14),
                           DropdownButtonFormField<int>(
                             key: ValueKey(_remindBeforeMinutes),
@@ -267,7 +284,7 @@ class _OneTimeReminderFormPageState
   Future<void> _pickDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _scheduledAt,
+      initialDate: _scheduledAt ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
@@ -277,8 +294,8 @@ class _OneTimeReminderFormPageState
         date.year,
         date.month,
         date.day,
-        _scheduledAt.hour,
-        _scheduledAt.minute,
+        _scheduledAt?.hour ?? 9,
+        _scheduledAt?.minute ?? 0,
       );
     });
   }
@@ -286,14 +303,14 @@ class _OneTimeReminderFormPageState
   Future<void> _pickTime() async {
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_scheduledAt),
+      initialTime: TimeOfDay.fromDateTime(_scheduledAt ?? DateTime.now()),
     );
     if (time == null) return;
     setState(() {
       _scheduledAt = DateTime(
-        _scheduledAt.year,
-        _scheduledAt.month,
-        _scheduledAt.day,
+        _scheduledAt?.year ?? DateTime.now().year,
+        _scheduledAt?.month ?? DateTime.now().month,
+        _scheduledAt?.day ?? DateTime.now().day,
         time.hour,
         time.minute,
       );

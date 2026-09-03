@@ -334,7 +334,8 @@ class _DailyTaskCard extends StatelessWidget {
                             fontSize: 12,
                           ),
                         ),
-                      ] else if (task.kind == TaskKind.oneTime) ...[
+                      ] else if (task.kind == TaskKind.oneTime &&
+                          task.scheduledAt != null) ...[
                         const SizedBox(height: 7),
                         Text(
                           DateFormat('HH:mm').format(task.scheduledAt!),

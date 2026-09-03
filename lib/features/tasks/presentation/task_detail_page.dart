@@ -220,7 +220,9 @@ class _TaskDetailContent extends ConsumerWidget {
   }
 
   String _oneTimeSubtitle(TaskDetails task) {
-    return DateFormat('yyyy年M月d日 HH:mm').format(task.scheduledAt!);
+    return task.scheduledAt == null
+        ? '未设置日期与提醒'
+        : DateFormat('yyyy年M月d日 HH:mm').format(task.scheduledAt!);
   }
 }
 
@@ -556,14 +558,17 @@ class _OneTimeStatusCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final days = dateOnly(
-      task.scheduledAt!,
-    ).difference(dateOnly(DateTime.now())).inDays;
-    final countdown = days > 0
+    final scheduledAt = task.scheduledAt;
+    final days = scheduledAt == null
+        ? null
+        : dateOnly(scheduledAt).difference(dateOnly(DateTime.now())).inDays;
+    final countdown = days != null && days > 0
         ? '还有 $days 天'
         : days == 0
         ? '就是今天'
-        : '已过去 ${-days} 天';
+        : days == null
+        ? '未设置日期'
+        : '已过去 ${-(days ?? 0)} 天';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),

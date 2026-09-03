@@ -74,6 +74,7 @@ class RecurringTaskDraft {
     this.targetDurationSeconds,
     this.targetDays,
     this.endsOn,
+    this.scheduledMinuteOfDay,
     this.reminderMinuteOfDay,
   });
 
@@ -88,6 +89,7 @@ class RecurringTaskDraft {
   final Set<int> weekdays;
   final DateTime startsOn;
   final DateTime? endsOn;
+  final int? scheduledMinuteOfDay;
   final int? reminderMinuteOfDay;
   final bool holidayPause;
 }
@@ -99,7 +101,7 @@ class OneTimeReminderDraft {
     required this.name,
     required this.colorValue,
     this.iconName = 'event',
-    required this.scheduledAt,
+    this.scheduledAt,
     this.executionMode = OneTimeExecutionMode.untimed,
     this.remindBeforeMinutes,
     this.notes,
@@ -108,7 +110,7 @@ class OneTimeReminderDraft {
   final String name;
   final int colorValue;
   final String iconName;
-  final DateTime scheduledAt;
+  final DateTime? scheduledAt;
   final OneTimeExecutionMode executionMode;
   final int? remindBeforeMinutes;
   final String? notes;
@@ -131,6 +133,7 @@ class TaskDetails {
     this.targetDurationSeconds,
     this.targetDays,
     this.holidayPause = false,
+    this.scheduledMinuteOfDay,
     this.reminderMinuteOfDay,
     this.schedule,
     this.scheduledAt,
@@ -156,6 +159,7 @@ class TaskDetails {
   final int? targetDurationSeconds;
   final int? targetDays;
   final bool holidayPause;
+  final int? scheduledMinuteOfDay;
   final int? reminderMinuteOfDay;
   final TaskScheduleRule? schedule;
   final DateTime? scheduledAt;

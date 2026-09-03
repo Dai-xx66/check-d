@@ -47,7 +47,7 @@ class TaskRepository {
       final visible = await Future.wait(
         details.map((task) async {
           if (task.kind == TaskKind.oneTime) {
-            return task.scheduledAt != null &&
+            return task.scheduledAt == null ||
                 localDateKey(task.scheduledAt!.toLocal()) == localDateKey(date);
           }
           return task.schedule != null &&
@@ -247,6 +247,7 @@ class TaskRepository {
         if (kind == TaskKind.oneTime) {
           final reminder = reminderByTask[task.id];
           if (reminder == null ||
+              !reminder.hasScheduledDate ||
               localDateKey(reminder.scheduledAt.toLocal()) !=
                   localDateKey(day)) {
             continue;
@@ -331,6 +332,7 @@ class TaskRepository {
             targetDurationSeconds: snapshot['target_duration_seconds'] as int?,
             targetDays: longTerm.targetDays,
             holidayPause: holidayPause,
+            scheduledMinuteOfDay: longTerm.scheduledMinuteOfDay,
             reminderMinuteOfDay: longTerm.reminderMinuteOfDay,
             schedule: schedule,
             todayProgressPercent: progress,
@@ -421,6 +423,7 @@ class TaskRepository {
               targetDurationSeconds: Value(draft.targetDurationSeconds),
               targetDays: Value(draft.targetDays),
               holidayPause: Value(draft.holidayPause),
+              scheduledMinuteOfDay: Value(draft.scheduledMinuteOfDay),
               reminderMinuteOfDay: Value(draft.reminderMinuteOfDay),
               createdAt: existing?.createdAt ?? now,
               updatedAt: now,
@@ -523,7 +526,8 @@ class TaskRepository {
             OneTimeReminderRecordsCompanion.insert(
               taskId: id,
               userId: _userId,
-              scheduledAt: draft.scheduledAt.toUtc(),
+              scheduledAt: (draft.scheduledAt ?? DateTime.now()).toUtc(),
+              hasScheduledDate: Value(draft.scheduledAt != null),
               remindBeforeMinutes: Value(draft.remindBeforeMinutes),
               isTimed: Value(draft.executionMode == OneTimeExecutionMode.timed),
               completedAt: Value(existing?.oneTimeCompletedAt),
@@ -912,12 +916,16 @@ class TaskRepository {
     OneTimeReminderDraft draft,
   ) async {
     await _cancelReminder(taskId);
-    if (_notifications == null || draft.remindBeforeMinutes == null) return;
+    if (_notifications == null ||
+        draft.remindBeforeMinutes == null ||
+        draft.scheduledAt == null) {
+      return;
+    }
     try {
       await _notifications.requestPermissions();
       await _notifications.scheduleAt(
         id: _notificationId(taskId),
-        when: draft.scheduledAt.subtract(
+        when: draft.scheduledAt!.subtract(
           Duration(minutes: draft.remindBeforeMinutes!),
         ),
         title: '事项提醒',
@@ -995,6 +1003,7 @@ class TaskRepository {
         targetDurationSeconds: longTerm.targetDurationSeconds,
         targetDays: longTerm.targetDays,
         holidayPause: longTerm.holidayPause,
+        scheduledMinuteOfDay: longTerm.scheduledMinuteOfDay,
         reminderMinuteOfDay: longTerm.reminderMinuteOfDay,
         schedule: TaskScheduleRule(
           preset: SchedulePreset.values.byName(schedule.scheduleType),
@@ -1031,7 +1040,9 @@ class TaskRepository {
       notes: task.notes,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
-      scheduledAt: reminder.scheduledAt.toLocal(),
+      scheduledAt: reminder.hasScheduledDate
+          ? reminder.scheduledAt.toLocal()
+          : null,
       remindBeforeMinutes: reminder.remindBeforeMinutes,
       oneTimeExecutionMode: reminder.isTimed
           ? OneTimeExecutionMode.timed
@@ -1310,6 +1321,7 @@ class TaskRepository {
       'target_duration_seconds': draft.targetDurationSeconds,
       'target_days': draft.targetDays,
       'holiday_pause': draft.holidayPause,
+      'scheduled_minute_of_day': draft.scheduledMinuteOfDay,
       'reminder_minute_of_day': draft.reminderMinuteOfDay,
       'schedule_type': draft.schedulePreset.name,
       'weekdays': _sortedWeekdays(draft.weekdays),
@@ -1333,7 +1345,8 @@ class TaskRepository {
       'icon_name': draft.iconName,
       'tag_id': draft.tagId,
       'notes': _normalizedNotes(draft.notes),
-      'scheduled_at': draft.scheduledAt.toUtc().toIso8601String(),
+      'scheduled_at': draft.scheduledAt?.toUtc().toIso8601String(),
+      'has_scheduled_date': draft.scheduledAt != null,
       'remind_before_minutes': draft.remindBeforeMinutes,
       'is_timed': draft.executionMode == OneTimeExecutionMode.timed,
       'updated_at': updatedAt.toIso8601String(),
@@ -1356,6 +1369,7 @@ class TaskRepository {
       'target_duration_seconds': task.targetDurationSeconds,
       'target_days': task.targetDays,
       'holiday_pause': task.holidayPause,
+      'scheduled_minute_of_day': task.scheduledMinuteOfDay,
       'reminder_minute_of_day': task.reminderMinuteOfDay,
       'schedule_type': task.schedule?.preset.name,
       'weekdays': task.schedule == null
