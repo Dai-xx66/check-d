@@ -139,6 +139,55 @@ class StatisticsReport {
   double get rate => expected == 0 ? 0 : completed / expected;
   int secondsForTag(String? id) =>
       buckets.fold(0, (sum, b) => sum + (b.secondsByTag[id] ?? 0));
+
+  SmartSummary get smartSummary {
+    if (expected == 0) {
+      return const SmartSummary(
+        title: '本期暂无应执行任务',
+        message: '可以先建立一个周期任务，再从统计中观察自己的节奏。',
+        tone: SmartSummaryTone.neutral,
+      );
+    }
+    if (rate < 0.3) {
+      return const SmartSummary(
+        title: '先把目标调得更可持续',
+        message: '最近完成率较低，可以考虑降低每日目标时长，使坚持更容易发生。',
+        tone: SmartSummaryTone.attention,
+      );
+    }
+    if (rate < 0.5) {
+      return const SmartSummary(
+        title: '目标可能偏高',
+        message: '当前目标可以根据实际情况适当减少，给稳定执行留出空间。',
+        tone: SmartSummaryTone.attention,
+      );
+    }
+    if (rate < 0.7) {
+      return const SmartSummary(
+        title: '正在形成节奏',
+        message: '完成情况不错，继续保持，稳定的重复会逐渐形成习惯。',
+        tone: SmartSummaryTone.positive,
+      );
+    }
+    return const SmartSummary(
+      title: '保持得很好',
+      message: '本阶段完成情况非常好，继续保持这份节奏。',
+      tone: SmartSummaryTone.positive,
+    );
+  }
+}
+
+enum SmartSummaryTone { neutral, attention, positive }
+
+class SmartSummary {
+  const SmartSummary({
+    required this.title,
+    required this.message,
+    required this.tone,
+  });
+  final String title;
+  final String message;
+  final SmartSummaryTone tone;
 }
 
 class StatisticsData {

@@ -196,6 +196,8 @@ class _ReportContent extends StatelessWidget {
         '单次事项已完成：${report.remindersCompleted}',
         style: const TextStyle(color: AppColors.muted),
       ),
+      const SizedBox(height: 16),
+      _SmartSummaryCard(summary: report.smartSummary),
       const SizedBox(height: 30),
       const _Heading('时间分布'),
       const SizedBox(height: 16),
@@ -285,6 +287,48 @@ class _ReportContent extends StatelessWidget {
         ),
     ],
   );
+}
+
+class _SmartSummaryCard extends StatelessWidget {
+  const _SmartSummaryCard({required this.summary});
+  final SmartSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (summary.tone) {
+      SmartSummaryTone.positive => AppColors.green,
+      SmartSummaryTone.attention => AppColors.orange,
+      SmartSummaryTone.neutral => AppColors.primary,
+    };
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.auto_awesome_outlined, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    summary.title,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    summary.message,
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Heading extends StatelessWidget {
