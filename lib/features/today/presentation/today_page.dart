@@ -143,40 +143,62 @@ class _TodaySummary extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Row(
+            Positioned(
+              right: -6,
+              top: -24,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.9,
+                  child: Image.asset(
+                    'assets/images/pink_lamb_piano.png',
+                    width: 150,
+                  ),
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _Metric(
-                    label: '今日完成度',
-                    value: '${(progress * 100).round()}%',
+                Text('今日进度', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.only(right: 82),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _Metric(
+                          label: '今日完成度',
+                          value: '${(progress * 100).round()}%',
+                        ),
+                      ),
+                      Expanded(
+                        child: _Metric(
+                          label: '已完成',
+                          value: '$completedCount/$totalCount',
+                        ),
+                      ),
+                      Expanded(
+                        child: _Metric(
+                          label: '计时时长',
+                          value: formatDuration(timedSeconds),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Expanded(
-                  child: _Metric(
-                    label: '已完成',
-                    value: '$completedCount/$totalCount',
-                  ),
-                ),
-                Expanded(
-                  child: _Metric(
-                    label: '计时时长',
-                    value: formatDuration(timedSeconds),
+                const SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.blush,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 18),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-                color: AppColors.primary,
-                backgroundColor: const Color(0xFFE9EBEF),
-              ),
             ),
           ],
         ),

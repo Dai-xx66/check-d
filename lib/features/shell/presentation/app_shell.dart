@@ -141,7 +141,7 @@ class _MobileShell extends StatelessWidget {
         : selectedIndex + 1;
 
     return Scaffold(
-      body: page,
+      body: _SweetBackdrop(child: page),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationIndex,
         onDestinationSelected: (index) {
@@ -203,56 +203,103 @@ class _DesktopShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: selectedIndex,
-            extended: MediaQuery.sizeOf(context).width >= 1180,
-            leading: Padding(
-              padding: const EdgeInsets.only(top: 14, bottom: 18),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.task_alt_rounded,
-                    size: 32,
-                    color: AppColors.primary,
+      body: _SweetBackdrop(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xCFFFFFFF),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: Colors.white),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x120F0010),
+                      blurRadius: 28,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: NavigationRail(
+                  selectedIndex: selectedIndex,
+                  extended: MediaQuery.sizeOf(context).width >= 1180,
+                  leading: Padding(
+                    padding: const EdgeInsets.only(top: 14, bottom: 18),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.task_alt_rounded,
+                          size: 32,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: onAdd,
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('添加'),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: onAdd,
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('添加'),
+                  trailing: Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: IconButton(
+                          tooltip: '退出当前模式',
+                          onPressed: onSignOut,
+                          icon: const Icon(Icons.logout_rounded),
+                        ),
+                      ),
+                    ),
                   ),
-                ],
+                  destinations: [
+                    for (final destination in destinations)
+                      NavigationRailDestination(
+                        icon: Icon(destination.icon),
+                        selectedIcon: Icon(destination.selectedIcon),
+                        label: Text(destination.label),
+                      ),
+                  ],
+                  onDestinationSelected: onDestinationSelected,
+                ),
               ),
-            ),
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: IconButton(
-                    tooltip: '退出当前模式',
-                    onPressed: onSignOut,
-                    icon: const Icon(Icons.logout_rounded),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: ColoredBox(
+                    color: const Color(0x54FFFFFF),
+                    child: page,
                   ),
                 ),
               ),
-            ),
-            destinations: [
-              for (final destination in destinations)
-                NavigationRailDestination(
-                  icon: Icon(destination.icon),
-                  selectedIcon: Icon(destination.selectedIcon),
-                  label: Text(destination.label),
-                ),
             ],
-            onDestinationSelected: onDestinationSelected,
           ),
-          const VerticalDivider(width: 1, color: AppColors.border),
-          Expanded(child: page),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _SweetBackdrop extends StatelessWidget {
+  const _SweetBackdrop({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF8FA), Color(0xFFF8F1FF), Color(0xFFFFF4F0)],
+        ),
+      ),
+      child: child,
     );
   }
 }
