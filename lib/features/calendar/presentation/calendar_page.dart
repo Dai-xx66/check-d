@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/page_header.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
+import '../../plans/presentation/plans_page.dart';
 import 'daily_detail_page.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
@@ -36,7 +37,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const PageHeader(title: '日历', subtitle: '每天的安排、进度与时间记录'),
+            PageHeader(
+              title: '日历',
+              subtitle: '每天的安排、进度与时间记录',
+              trailing: IconButton(
+                tooltip: '计划',
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (context) => const PlansPage()),
+                ),
+                icon: const Icon(Icons.flag_outlined),
+              ),
+            ),
             const SizedBox(height: 20),
             Expanded(
               child: monthValue.when(

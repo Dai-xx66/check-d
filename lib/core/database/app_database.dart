@@ -175,6 +175,37 @@ class TagRevisionRecords extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class PlanRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()();
+  IntColumn get colorValue => integer()();
+  TextColumn get goal => text().nullable()();
+  TextColumn get startsOn => text()();
+  TextColumn get endsOn => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class PlanTaskRecords extends Table {
+  TextColumn get planId =>
+      text().references(PlanRecords, #id, onDelete: KeyAction.cascade)();
+  TextColumn get taskId =>
+      text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  RealColumn get weight => real().withDefault(const Constant(1))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {planId, taskId};
+}
+
 @DriftDatabase(
   tables: [
     LocalTasks,
@@ -188,6 +219,8 @@ class TagRevisionRecords extends Table {
     AppSettings,
     TagRecords,
     TagRevisionRecords,
+    PlanRecords,
+    PlanTaskRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -196,7 +229,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -280,6 +313,10 @@ class AppDatabase extends _$AppDatabase {
             "WHERE check_mode = 'simple'",
           );
         }
+      }
+      if (from < 8) {
+        await migrator.createTable(planRecords);
+        await migrator.createTable(planTaskRecords);
       }
     },
     beforeOpen: (details) async {
