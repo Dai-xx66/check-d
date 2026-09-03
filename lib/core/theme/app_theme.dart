@@ -14,6 +14,24 @@ abstract final class AppColors {
   static const cyan = Color(0xFF78B9C7);
   static const blush = Color(0xFFFFE7ED);
   static const lavender = Color(0xFFF0EBFF);
+  static const blueMist = Color(0xFFE6F2FF);
+  static const cream = Color(0xFFFFF4E8);
+  static const creamYellow = Color(0xFFF5C96B);
+  static const mint = Color(0xFFE5F6EC);
+}
+
+abstract final class AppRadius {
+  static const card = Radius.circular(24);
+  static const section = Radius.circular(20);
+  static const control = Radius.circular(14);
+}
+
+abstract final class AppShadows {
+  static const soft = BoxShadow(
+    color: Color(0x100F0010),
+    blurRadius: 18,
+    offset: Offset(0, 7),
+  );
 }
 
 abstract final class AppTheme {

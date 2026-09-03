@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
+import '../../plans/presentation/plans_page.dart';
 import '../../reviews/presentation/reviews_page.dart';
 import '../../statistics/presentation/statistics_page.dart';
 import '../../tasks/presentation/long_term_task_form_page.dart';
@@ -25,6 +26,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   static const _destinations = [
     _Destination('今日', Icons.today_outlined, Icons.today_rounded),
     _Destination('日历', Icons.calendar_month_outlined, Icons.calendar_month),
+    _Destination('计划', Icons.flag_outlined, Icons.flag_rounded),
     _Destination('复盘', Icons.edit_note_outlined, Icons.edit_note_rounded),
     _Destination('统计', Icons.bar_chart_outlined, Icons.bar_chart_rounded),
   ];
@@ -32,6 +34,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   static const _pages = [
     TodayPage(),
     CalendarPage(),
+    PlansPage(),
     ReviewsPage(),
     StatisticsPage(),
   ];
@@ -40,7 +43,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 900) {
+        if (constraints.maxWidth >= 1024) {
           return _DesktopShell(
             selectedIndex: _selectedIndex,
             destinations: _destinations,
@@ -51,8 +54,8 @@ class _AppShellState extends ConsumerState<AppShell> {
           );
         }
         return _MobileShell(
-          selectedIndex: _selectedIndex,
-          page: _pages[_selectedIndex],
+          selectedIndex: _mobileIndexFor(_selectedIndex),
+          page: _pages[_mobilePageFor(_selectedIndex)],
           onDestinationSelected: _selectDestination,
           onAdd: _showCreateSheet,
         );
@@ -63,6 +66,19 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _selectDestination(int index) {
     setState(() => _selectedIndex = index);
   }
+
+  int _mobilePageFor(int desktopIndex) => switch (desktopIndex) {
+    0 || 1 || 3 || 4 => desktopIndex,
+    _ => 0,
+  };
+
+  int _mobileIndexFor(int desktopIndex) => switch (desktopIndex) {
+    0 => 0,
+    1 => 1,
+    3 => 2,
+    4 => 3,
+    _ => 0,
+  };
 
   Future<void> _showCreateSheet() async {
     await showModalBottomSheet<void>(
@@ -144,45 +160,161 @@ class _MobileShell extends StatelessWidget {
 
     return Scaffold(
       body: _SweetBackdrop(child: page),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _MobileBottomBar(
         selectedIndex: navigationIndex,
-        onDestinationSelected: (index) {
+        onSelected: (index) {
           if (index == 2) {
             onAdd();
           } else {
-            onDestinationSelected(index < 2 ? index : index - 1);
+            onDestinationSelected(switch (index) {
+              0 => 0,
+              1 => 1,
+              3 => 3,
+              _ => 4,
+            });
           }
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            selectedIcon: Icon(Icons.today_rounded),
-            label: '今日',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: '日历',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline_rounded),
-            selectedIcon: Icon(Icons.add_circle_rounded),
-            label: '添加',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.edit_note_outlined),
-            selectedIcon: Icon(Icons.edit_note_rounded),
-            label: '复盘',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart_rounded),
-            label: '统计',
-          ),
-        ],
       ),
     );
   }
+}
+
+class _MobileBottomBar extends StatelessWidget {
+  const _MobileBottomBar({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    child: Container(
+      height: 76,
+      decoration: const BoxDecoration(
+        color: Color(0xF9FFF9FA),
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          _MobileNavItem(
+            label: '今日',
+            icon: Icons.today_outlined,
+            activeIcon: Icons.today_rounded,
+            selected: selectedIndex == 0,
+            onTap: () => onSelected(0),
+          ),
+          _MobileNavItem(
+            label: '日历',
+            icon: Icons.calendar_month_outlined,
+            activeIcon: Icons.calendar_month,
+            selected: selectedIndex == 1,
+            onTap: () => onSelected(1),
+          ),
+          Expanded(
+            child: Transform.translate(
+              offset: const Offset(0, -14),
+              child: Center(
+                child: Semantics(
+                  button: true,
+                  label: '添加',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(38),
+                    onTap: () => onSelected(2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 54,
+                          height: 54,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [AppShadows.soft],
+                          ),
+                          child: const Icon(
+                            Icons.add_rounded,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        const Text(
+                          '添加',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 10,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _MobileNavItem(
+            label: '复盘',
+            icon: Icons.edit_note_outlined,
+            activeIcon: Icons.edit_note_rounded,
+            selected: selectedIndex == 3,
+            onTap: () => onSelected(3),
+          ),
+          _MobileNavItem(
+            label: '统计',
+            icon: Icons.bar_chart_outlined,
+            activeIcon: Icons.bar_chart_rounded,
+            selected: selectedIndex == 4,
+            onTap: () => onSelected(4),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _MobileNavItem extends StatelessWidget {
+  const _MobileNavItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            selected ? activeIcon : icon,
+            color: selected ? AppColors.primary : AppColors.muted,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? AppColors.primary : AppColors.muted,
+              fontSize: 11,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _DesktopShell extends StatelessWidget {
@@ -226,34 +358,33 @@ class _DesktopShell extends StatelessWidget {
                 child: NavigationRail(
                   selectedIndex: selectedIndex,
                   extended: MediaQuery.sizeOf(context).width >= 1180,
-                  leading: Padding(
-                    padding: const EdgeInsets.only(top: 14, bottom: 18),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.task_alt_rounded,
-                          size: 32,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton.icon(
-                          onPressed: onAdd,
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('添加'),
-                        ),
-                      ],
+                  leading: const Padding(
+                    padding: EdgeInsets.only(top: 18, bottom: 18),
+                    child: Icon(
+                      Icons.task_alt_rounded,
+                      size: 32,
+                      color: AppColors.primary,
                     ),
                   ),
                   trailing: Expanded(
                     child: Align(
                       alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: IconButton(
-                          tooltip: '退出当前模式',
-                          onPressed: onSignOut,
-                          icon: const Icon(Icons.logout_rounded),
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: onAdd,
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('添加'),
+                          ),
+                          const SizedBox(height: 16),
+                          IconButton(
+                            tooltip: '退出当前模式',
+                            onPressed: onSignOut,
+                            icon: const Icon(Icons.logout_rounded),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                       ),
                     ),
                   ),
