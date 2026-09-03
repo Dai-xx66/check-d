@@ -35,6 +35,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
   late Set<int> _weekdays;
   late bool _holidayPause;
   late bool _hasDurationTarget;
+  int? _reminderMinuteOfDay;
   bool _isSaving = false;
 
   TaskDetails? get _initial => widget.initialTask;
@@ -67,6 +68,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
         ? WeekdayMask.toDays(WeekdayMask.everyDay)
         : WeekdayMask.toDays(_initial!.schedule!.weekdaysMask);
     _holidayPause = _initial?.holidayPause ?? false;
+    _reminderMinuteOfDay = _initial?.reminderMinuteOfDay;
   }
 
   @override
@@ -252,6 +254,26 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
                             onChanged: (value) =>
                                 setState(() => _holidayPause = value),
                           ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.notifications_outlined),
+                            title: const Text('每日提醒（可选）'),
+                            subtitle: Text(
+                              _reminderMinuteOfDay == null
+                                  ? '未设置'
+                                  : _reminderLabel(_reminderMinuteOfDay!),
+                            ),
+                            trailing: _reminderMinuteOfDay == null
+                                ? const Icon(Icons.chevron_right_rounded)
+                                : IconButton(
+                                    tooltip: '清除提醒',
+                                    onPressed: () => setState(
+                                      () => _reminderMinuteOfDay = null,
+                                    ),
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                            onTap: _pickReminderTime,
+                          ),
                         ],
                       ),
                     ),
@@ -365,6 +387,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
         startsOn: _initial?.schedule?.startsOn ?? DateTime.now(),
         endsOn: _initial?.schedule?.endsOn,
         holidayPause: _holidayPause,
+        reminderMinuteOfDay: _reminderMinuteOfDay,
       );
       await ref
           .read(taskRepositoryProvider)
@@ -393,6 +416,22 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
     }
     return hours * 3600 + minutes * 60 + seconds;
   }
+
+  Future<void> _pickReminderTime() async {
+    final initial = _reminderMinuteOfDay == null
+        ? const TimeOfDay(hour: 20, minute: 0)
+        : TimeOfDay(
+            hour: _reminderMinuteOfDay! ~/ 60,
+            minute: _reminderMinuteOfDay! % 60,
+          );
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null && mounted) {
+      setState(() => _reminderMinuteOfDay = picked.hour * 60 + picked.minute);
+    }
+  }
+
+  String _reminderLabel(int minutes) =>
+      '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
 
   String _scheduleLabel(SchedulePreset preset) {
     return switch (preset) {

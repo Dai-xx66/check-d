@@ -74,6 +74,7 @@ class RecurringTaskDraft {
     this.targetDurationSeconds,
     this.targetDays,
     this.endsOn,
+    this.reminderMinuteOfDay,
   });
 
   final String name;
@@ -87,6 +88,7 @@ class RecurringTaskDraft {
   final Set<int> weekdays;
   final DateTime startsOn;
   final DateTime? endsOn;
+  final int? reminderMinuteOfDay;
   final bool holidayPause;
 }
 
@@ -129,6 +131,7 @@ class TaskDetails {
     this.targetDurationSeconds,
     this.targetDays,
     this.holidayPause = false,
+    this.reminderMinuteOfDay,
     this.schedule,
     this.scheduledAt,
     this.remindBeforeMinutes,
@@ -153,6 +156,7 @@ class TaskDetails {
   final int? targetDurationSeconds;
   final int? targetDays;
   final bool holidayPause;
+  final int? reminderMinuteOfDay;
   final TaskScheduleRule? schedule;
   final DateTime? scheduledAt;
   final int? remindBeforeMinutes;

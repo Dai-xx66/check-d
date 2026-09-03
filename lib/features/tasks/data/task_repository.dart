@@ -315,6 +315,7 @@ class TaskRepository {
             targetDurationSeconds: snapshot['target_duration_seconds'] as int?,
             targetDays: longTerm.targetDays,
             holidayPause: longTerm.holidayPause,
+            reminderMinuteOfDay: longTerm.reminderMinuteOfDay,
             schedule: schedule,
             todayProgressPercent: progress,
             todayActualDurationSeconds: actualDuration,
@@ -404,6 +405,7 @@ class TaskRepository {
               targetDurationSeconds: Value(draft.targetDurationSeconds),
               targetDays: Value(draft.targetDays),
               holidayPause: Value(draft.holidayPause),
+              reminderMinuteOfDay: Value(draft.reminderMinuteOfDay),
               createdAt: existing?.createdAt ?? now,
               updatedAt: now,
             ),
@@ -886,6 +888,7 @@ class TaskRepository {
         targetDurationSeconds: longTerm.targetDurationSeconds,
         targetDays: longTerm.targetDays,
         holidayPause: longTerm.holidayPause,
+        reminderMinuteOfDay: longTerm.reminderMinuteOfDay,
         schedule: TaskScheduleRule(
           preset: SchedulePreset.values.byName(schedule.scheduleType),
           weekdaysMask: schedule.weekdaysMask,
@@ -1200,6 +1203,7 @@ class TaskRepository {
       'target_duration_seconds': draft.targetDurationSeconds,
       'target_days': draft.targetDays,
       'holiday_pause': draft.holidayPause,
+      'reminder_minute_of_day': draft.reminderMinuteOfDay,
       'schedule_type': draft.schedulePreset.name,
       'weekdays': _sortedWeekdays(draft.weekdays),
       'starts_on': localDateKey(draft.startsOn),
@@ -1245,6 +1249,7 @@ class TaskRepository {
       'target_duration_seconds': task.targetDurationSeconds,
       'target_days': task.targetDays,
       'holiday_pause': task.holidayPause,
+      'reminder_minute_of_day': task.reminderMinuteOfDay,
       'schedule_type': task.schedule?.preset.name,
       'weekdays': task.schedule == null
           ? null

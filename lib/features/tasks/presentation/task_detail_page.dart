@@ -304,6 +304,13 @@ class _RecurringTaskStatusCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             _InfoRow(label: '节假日暂停', value: task.holidayPause ? '已开启' : '未开启'),
+            if (task.reminderMinuteOfDay != null) ...[
+              const SizedBox(height: 10),
+              _InfoRow(
+                label: '每日提醒',
+                value: _reminderLabel(task.reminderMinuteOfDay!),
+              ),
+            ],
           ],
         ),
       ),
@@ -319,6 +326,9 @@ class _RecurringTaskStatusCard extends ConsumerWidget {
         .read(taskRepositoryProvider)
         .toggleRecurringCompletion(task.id, DateTime.now());
   }
+
+  String _reminderLabel(int minutes) =>
+      '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
 }
 
 class _TimerControl extends ConsumerStatefulWidget {
