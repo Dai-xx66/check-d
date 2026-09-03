@@ -7024,6 +7024,792 @@ class PlanTaskRecordsCompanion extends UpdateCompanion<PlanTaskRecord> {
   }
 }
 
+class $ReviewRecordsTable extends ReviewRecords
+    with TableInfo<$ReviewRecordsTable, ReviewRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reviewTypeMeta = const VerificationMeta(
+    'reviewType',
+  );
+  @override
+  late final GeneratedColumn<String> reviewType = GeneratedColumn<String>(
+    'review_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _periodStartMeta = const VerificationMeta(
+    'periodStart',
+  );
+  @override
+  late final GeneratedColumn<String> periodStart = GeneratedColumn<String>(
+    'period_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _periodEndMeta = const VerificationMeta(
+    'periodEnd',
+  );
+  @override
+  late final GeneratedColumn<String> periodEnd = GeneratedColumn<String>(
+    'period_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _happenedTextMeta = const VerificationMeta(
+    'happenedText',
+  );
+  @override
+  late final GeneratedColumn<String> happenedText = GeneratedColumn<String>(
+    'happened_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _learnedTextMeta = const VerificationMeta(
+    'learnedText',
+  );
+  @override
+  late final GeneratedColumn<String> learnedText = GeneratedColumn<String>(
+    'learned_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _improveTextMeta = const VerificationMeta(
+    'improveText',
+  );
+  @override
+  late final GeneratedColumn<String> improveText = GeneratedColumn<String>(
+    'improve_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _moodMeta = const VerificationMeta('mood');
+  @override
+  late final GeneratedColumn<int> mood = GeneratedColumn<int>(
+    'mood',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _objectiveSnapshotJsonMeta =
+      const VerificationMeta('objectiveSnapshotJson');
+  @override
+  late final GeneratedColumn<String> objectiveSnapshotJson =
+      GeneratedColumn<String>(
+        'objective_snapshot_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('{}'),
+      );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    reviewType,
+    periodStart,
+    periodEnd,
+    happenedText,
+    learnedText,
+    improveText,
+    mood,
+    objectiveSnapshotJson,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('review_type')) {
+      context.handle(
+        _reviewTypeMeta,
+        reviewType.isAcceptableOrUnknown(data['review_type']!, _reviewTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reviewTypeMeta);
+    }
+    if (data.containsKey('period_start')) {
+      context.handle(
+        _periodStartMeta,
+        periodStart.isAcceptableOrUnknown(
+          data['period_start']!,
+          _periodStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_periodStartMeta);
+    }
+    if (data.containsKey('period_end')) {
+      context.handle(
+        _periodEndMeta,
+        periodEnd.isAcceptableOrUnknown(data['period_end']!, _periodEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_periodEndMeta);
+    }
+    if (data.containsKey('happened_text')) {
+      context.handle(
+        _happenedTextMeta,
+        happenedText.isAcceptableOrUnknown(
+          data['happened_text']!,
+          _happenedTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('learned_text')) {
+      context.handle(
+        _learnedTextMeta,
+        learnedText.isAcceptableOrUnknown(
+          data['learned_text']!,
+          _learnedTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('improve_text')) {
+      context.handle(
+        _improveTextMeta,
+        improveText.isAcceptableOrUnknown(
+          data['improve_text']!,
+          _improveTextMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mood')) {
+      context.handle(
+        _moodMeta,
+        mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
+      );
+    }
+    if (data.containsKey('objective_snapshot_json')) {
+      context.handle(
+        _objectiveSnapshotJsonMeta,
+        objectiveSnapshotJson.isAcceptableOrUnknown(
+          data['objective_snapshot_json']!,
+          _objectiveSnapshotJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, reviewType, periodStart},
+  ];
+  @override
+  ReviewRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      reviewType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}review_type'],
+      )!,
+      periodStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_start'],
+      )!,
+      periodEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_end'],
+      )!,
+      happenedText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}happened_text'],
+      ),
+      learnedText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}learned_text'],
+      ),
+      improveText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}improve_text'],
+      ),
+      mood: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mood'],
+      ),
+      objectiveSnapshotJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}objective_snapshot_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ReviewRecordsTable createAlias(String alias) {
+    return $ReviewRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewRecord extends DataClass implements Insertable<ReviewRecord> {
+  final String id;
+  final String userId;
+  final String reviewType;
+  final String periodStart;
+  final String periodEnd;
+  final String? happenedText;
+  final String? learnedText;
+  final String? improveText;
+  final int? mood;
+  final String objectiveSnapshotJson;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const ReviewRecord({
+    required this.id,
+    required this.userId,
+    required this.reviewType,
+    required this.periodStart,
+    required this.periodEnd,
+    this.happenedText,
+    this.learnedText,
+    this.improveText,
+    this.mood,
+    required this.objectiveSnapshotJson,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['review_type'] = Variable<String>(reviewType);
+    map['period_start'] = Variable<String>(periodStart);
+    map['period_end'] = Variable<String>(periodEnd);
+    if (!nullToAbsent || happenedText != null) {
+      map['happened_text'] = Variable<String>(happenedText);
+    }
+    if (!nullToAbsent || learnedText != null) {
+      map['learned_text'] = Variable<String>(learnedText);
+    }
+    if (!nullToAbsent || improveText != null) {
+      map['improve_text'] = Variable<String>(improveText);
+    }
+    if (!nullToAbsent || mood != null) {
+      map['mood'] = Variable<int>(mood);
+    }
+    map['objective_snapshot_json'] = Variable<String>(objectiveSnapshotJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  ReviewRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      reviewType: Value(reviewType),
+      periodStart: Value(periodStart),
+      periodEnd: Value(periodEnd),
+      happenedText: happenedText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(happenedText),
+      learnedText: learnedText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(learnedText),
+      improveText: improveText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(improveText),
+      mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
+      objectiveSnapshotJson: Value(objectiveSnapshotJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ReviewRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      reviewType: serializer.fromJson<String>(json['reviewType']),
+      periodStart: serializer.fromJson<String>(json['periodStart']),
+      periodEnd: serializer.fromJson<String>(json['periodEnd']),
+      happenedText: serializer.fromJson<String?>(json['happenedText']),
+      learnedText: serializer.fromJson<String?>(json['learnedText']),
+      improveText: serializer.fromJson<String?>(json['improveText']),
+      mood: serializer.fromJson<int?>(json['mood']),
+      objectiveSnapshotJson: serializer.fromJson<String>(
+        json['objectiveSnapshotJson'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'reviewType': serializer.toJson<String>(reviewType),
+      'periodStart': serializer.toJson<String>(periodStart),
+      'periodEnd': serializer.toJson<String>(periodEnd),
+      'happenedText': serializer.toJson<String?>(happenedText),
+      'learnedText': serializer.toJson<String?>(learnedText),
+      'improveText': serializer.toJson<String?>(improveText),
+      'mood': serializer.toJson<int?>(mood),
+      'objectiveSnapshotJson': serializer.toJson<String>(objectiveSnapshotJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  ReviewRecord copyWith({
+    String? id,
+    String? userId,
+    String? reviewType,
+    String? periodStart,
+    String? periodEnd,
+    Value<String?> happenedText = const Value.absent(),
+    Value<String?> learnedText = const Value.absent(),
+    Value<String?> improveText = const Value.absent(),
+    Value<int?> mood = const Value.absent(),
+    String? objectiveSnapshotJson,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => ReviewRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    reviewType: reviewType ?? this.reviewType,
+    periodStart: periodStart ?? this.periodStart,
+    periodEnd: periodEnd ?? this.periodEnd,
+    happenedText: happenedText.present ? happenedText.value : this.happenedText,
+    learnedText: learnedText.present ? learnedText.value : this.learnedText,
+    improveText: improveText.present ? improveText.value : this.improveText,
+    mood: mood.present ? mood.value : this.mood,
+    objectiveSnapshotJson: objectiveSnapshotJson ?? this.objectiveSnapshotJson,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ReviewRecord copyWithCompanion(ReviewRecordsCompanion data) {
+    return ReviewRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      reviewType: data.reviewType.present
+          ? data.reviewType.value
+          : this.reviewType,
+      periodStart: data.periodStart.present
+          ? data.periodStart.value
+          : this.periodStart,
+      periodEnd: data.periodEnd.present ? data.periodEnd.value : this.periodEnd,
+      happenedText: data.happenedText.present
+          ? data.happenedText.value
+          : this.happenedText,
+      learnedText: data.learnedText.present
+          ? data.learnedText.value
+          : this.learnedText,
+      improveText: data.improveText.present
+          ? data.improveText.value
+          : this.improveText,
+      mood: data.mood.present ? data.mood.value : this.mood,
+      objectiveSnapshotJson: data.objectiveSnapshotJson.present
+          ? data.objectiveSnapshotJson.value
+          : this.objectiveSnapshotJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('reviewType: $reviewType, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('happenedText: $happenedText, ')
+          ..write('learnedText: $learnedText, ')
+          ..write('improveText: $improveText, ')
+          ..write('mood: $mood, ')
+          ..write('objectiveSnapshotJson: $objectiveSnapshotJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    reviewType,
+    periodStart,
+    periodEnd,
+    happenedText,
+    learnedText,
+    improveText,
+    mood,
+    objectiveSnapshotJson,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.reviewType == this.reviewType &&
+          other.periodStart == this.periodStart &&
+          other.periodEnd == this.periodEnd &&
+          other.happenedText == this.happenedText &&
+          other.learnedText == this.learnedText &&
+          other.improveText == this.improveText &&
+          other.mood == this.mood &&
+          other.objectiveSnapshotJson == this.objectiveSnapshotJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ReviewRecordsCompanion extends UpdateCompanion<ReviewRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> reviewType;
+  final Value<String> periodStart;
+  final Value<String> periodEnd;
+  final Value<String?> happenedText;
+  final Value<String?> learnedText;
+  final Value<String?> improveText;
+  final Value<int?> mood;
+  final Value<String> objectiveSnapshotJson;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const ReviewRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.reviewType = const Value.absent(),
+    this.periodStart = const Value.absent(),
+    this.periodEnd = const Value.absent(),
+    this.happenedText = const Value.absent(),
+    this.learnedText = const Value.absent(),
+    this.improveText = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.objectiveSnapshotJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String reviewType,
+    required String periodStart,
+    required String periodEnd,
+    this.happenedText = const Value.absent(),
+    this.learnedText = const Value.absent(),
+    this.improveText = const Value.absent(),
+    this.mood = const Value.absent(),
+    this.objectiveSnapshotJson = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       reviewType = Value(reviewType),
+       periodStart = Value(periodStart),
+       periodEnd = Value(periodEnd),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ReviewRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? reviewType,
+    Expression<String>? periodStart,
+    Expression<String>? periodEnd,
+    Expression<String>? happenedText,
+    Expression<String>? learnedText,
+    Expression<String>? improveText,
+    Expression<int>? mood,
+    Expression<String>? objectiveSnapshotJson,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (reviewType != null) 'review_type': reviewType,
+      if (periodStart != null) 'period_start': periodStart,
+      if (periodEnd != null) 'period_end': periodEnd,
+      if (happenedText != null) 'happened_text': happenedText,
+      if (learnedText != null) 'learned_text': learnedText,
+      if (improveText != null) 'improve_text': improveText,
+      if (mood != null) 'mood': mood,
+      if (objectiveSnapshotJson != null)
+        'objective_snapshot_json': objectiveSnapshotJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? reviewType,
+    Value<String>? periodStart,
+    Value<String>? periodEnd,
+    Value<String?>? happenedText,
+    Value<String?>? learnedText,
+    Value<String?>? improveText,
+    Value<int?>? mood,
+    Value<String>? objectiveSnapshotJson,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ReviewRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      reviewType: reviewType ?? this.reviewType,
+      periodStart: periodStart ?? this.periodStart,
+      periodEnd: periodEnd ?? this.periodEnd,
+      happenedText: happenedText ?? this.happenedText,
+      learnedText: learnedText ?? this.learnedText,
+      improveText: improveText ?? this.improveText,
+      mood: mood ?? this.mood,
+      objectiveSnapshotJson:
+          objectiveSnapshotJson ?? this.objectiveSnapshotJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (reviewType.present) {
+      map['review_type'] = Variable<String>(reviewType.value);
+    }
+    if (periodStart.present) {
+      map['period_start'] = Variable<String>(periodStart.value);
+    }
+    if (periodEnd.present) {
+      map['period_end'] = Variable<String>(periodEnd.value);
+    }
+    if (happenedText.present) {
+      map['happened_text'] = Variable<String>(happenedText.value);
+    }
+    if (learnedText.present) {
+      map['learned_text'] = Variable<String>(learnedText.value);
+    }
+    if (improveText.present) {
+      map['improve_text'] = Variable<String>(improveText.value);
+    }
+    if (mood.present) {
+      map['mood'] = Variable<int>(mood.value);
+    }
+    if (objectiveSnapshotJson.present) {
+      map['objective_snapshot_json'] = Variable<String>(
+        objectiveSnapshotJson.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('reviewType: $reviewType, ')
+          ..write('periodStart: $periodStart, ')
+          ..write('periodEnd: $periodEnd, ')
+          ..write('happenedText: $happenedText, ')
+          ..write('learnedText: $learnedText, ')
+          ..write('improveText: $improveText, ')
+          ..write('mood: $mood, ')
+          ..write('objectiveSnapshotJson: $objectiveSnapshotJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7049,6 +7835,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PlanTaskRecordsTable planTaskRecords = $PlanTaskRecordsTable(
     this,
   );
+  late final $ReviewRecordsTable reviewRecords = $ReviewRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7067,6 +7854,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     tagRevisionRecords,
     planRecords,
     planTaskRecords,
+    reviewRecords,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -12735,6 +13523,370 @@ typedef $$PlanTaskRecordsTableProcessedTableManager =
       PlanTaskRecord,
       PrefetchHooks Function({bool planId, bool taskId})
     >;
+typedef $$ReviewRecordsTableCreateCompanionBuilder =
+    ReviewRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String reviewType,
+      required String periodStart,
+      required String periodEnd,
+      Value<String?> happenedText,
+      Value<String?> learnedText,
+      Value<String?> improveText,
+      Value<int?> mood,
+      Value<String> objectiveSnapshotJson,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ReviewRecordsTableUpdateCompanionBuilder =
+    ReviewRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> reviewType,
+      Value<String> periodStart,
+      Value<String> periodEnd,
+      Value<String?> happenedText,
+      Value<String?> learnedText,
+      Value<String?> improveText,
+      Value<int?> mood,
+      Value<String> objectiveSnapshotJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$ReviewRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewRecordsTable> {
+  $$ReviewRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reviewType => $composableBuilder(
+    column: $table.reviewType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodEnd => $composableBuilder(
+    column: $table.periodEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get happenedText => $composableBuilder(
+    column: $table.happenedText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get learnedText => $composableBuilder(
+    column: $table.learnedText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get improveText => $composableBuilder(
+    column: $table.improveText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get objectiveSnapshotJson => $composableBuilder(
+    column: $table.objectiveSnapshotJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReviewRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewRecordsTable> {
+  $$ReviewRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reviewType => $composableBuilder(
+    column: $table.reviewType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodEnd => $composableBuilder(
+    column: $table.periodEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get happenedText => $composableBuilder(
+    column: $table.happenedText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get learnedText => $composableBuilder(
+    column: $table.learnedText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get improveText => $composableBuilder(
+    column: $table.improveText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get objectiveSnapshotJson => $composableBuilder(
+    column: $table.objectiveSnapshotJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReviewRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewRecordsTable> {
+  $$ReviewRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get reviewType => $composableBuilder(
+    column: $table.reviewType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get periodStart => $composableBuilder(
+    column: $table.periodStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get periodEnd =>
+      $composableBuilder(column: $table.periodEnd, builder: (column) => column);
+
+  GeneratedColumn<String> get happenedText => $composableBuilder(
+    column: $table.happenedText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get learnedText => $composableBuilder(
+    column: $table.learnedText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get improveText => $composableBuilder(
+    column: $table.improveText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mood =>
+      $composableBuilder(column: $table.mood, builder: (column) => column);
+
+  GeneratedColumn<String> get objectiveSnapshotJson => $composableBuilder(
+    column: $table.objectiveSnapshotJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$ReviewRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewRecordsTable,
+          ReviewRecord,
+          $$ReviewRecordsTableFilterComposer,
+          $$ReviewRecordsTableOrderingComposer,
+          $$ReviewRecordsTableAnnotationComposer,
+          $$ReviewRecordsTableCreateCompanionBuilder,
+          $$ReviewRecordsTableUpdateCompanionBuilder,
+          (
+            ReviewRecord,
+            BaseReferences<_$AppDatabase, $ReviewRecordsTable, ReviewRecord>,
+          ),
+          ReviewRecord,
+          PrefetchHooks Function()
+        > {
+  $$ReviewRecordsTableTableManager(_$AppDatabase db, $ReviewRecordsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> reviewType = const Value.absent(),
+                Value<String> periodStart = const Value.absent(),
+                Value<String> periodEnd = const Value.absent(),
+                Value<String?> happenedText = const Value.absent(),
+                Value<String?> learnedText = const Value.absent(),
+                Value<String?> improveText = const Value.absent(),
+                Value<int?> mood = const Value.absent(),
+                Value<String> objectiveSnapshotJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewRecordsCompanion(
+                id: id,
+                userId: userId,
+                reviewType: reviewType,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                happenedText: happenedText,
+                learnedText: learnedText,
+                improveText: improveText,
+                mood: mood,
+                objectiveSnapshotJson: objectiveSnapshotJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String reviewType,
+                required String periodStart,
+                required String periodEnd,
+                Value<String?> happenedText = const Value.absent(),
+                Value<String?> learnedText = const Value.absent(),
+                Value<String?> improveText = const Value.absent(),
+                Value<int?> mood = const Value.absent(),
+                Value<String> objectiveSnapshotJson = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                reviewType: reviewType,
+                periodStart: periodStart,
+                periodEnd: periodEnd,
+                happenedText: happenedText,
+                learnedText: learnedText,
+                improveText: improveText,
+                mood: mood,
+                objectiveSnapshotJson: objectiveSnapshotJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReviewRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewRecordsTable,
+      ReviewRecord,
+      $$ReviewRecordsTableFilterComposer,
+      $$ReviewRecordsTableOrderingComposer,
+      $$ReviewRecordsTableAnnotationComposer,
+      $$ReviewRecordsTableCreateCompanionBuilder,
+      $$ReviewRecordsTableUpdateCompanionBuilder,
+      (
+        ReviewRecord,
+        BaseReferences<_$AppDatabase, $ReviewRecordsTable, ReviewRecord>,
+      ),
+      ReviewRecord,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12768,4 +13920,6 @@ class $AppDatabaseManager {
       $$PlanRecordsTableTableManager(_db, _db.planRecords);
   $$PlanTaskRecordsTableTableManager get planTaskRecords =>
       $$PlanTaskRecordsTableTableManager(_db, _db.planTaskRecords);
+  $$ReviewRecordsTableTableManager get reviewRecords =>
+      $$ReviewRecordsTableTableManager(_db, _db.reviewRecords);
 }

@@ -206,6 +206,31 @@ class PlanTaskRecords extends Table {
   Set<Column<Object>> get primaryKey => {planId, taskId};
 }
 
+class ReviewRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get reviewType => text()();
+  TextColumn get periodStart => text()();
+  TextColumn get periodEnd => text()();
+  TextColumn get happenedText => text().nullable()();
+  TextColumn get learnedText => text().nullable()();
+  TextColumn get improveText => text().nullable()();
+  IntColumn get mood => integer().nullable()();
+  TextColumn get objectiveSnapshotJson =>
+      text().withDefault(const Constant('{}'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, reviewType, periodStart},
+  ];
+}
+
 @DriftDatabase(
   tables: [
     LocalTasks,
@@ -221,6 +246,7 @@ class PlanTaskRecords extends Table {
     TagRevisionRecords,
     PlanRecords,
     PlanTaskRecords,
+    ReviewRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -229,7 +255,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -317,6 +343,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 8) {
         await migrator.createTable(planRecords);
         await migrator.createTable(planTaskRecords);
+      }
+      if (from < 9) {
+        await migrator.createTable(reviewRecords);
       }
     },
     beforeOpen: (details) async {

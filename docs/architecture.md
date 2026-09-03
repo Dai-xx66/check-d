@@ -67,3 +67,9 @@ Phase 4 已加入从任务周期、TaskCompletion 和 TimerSession 动态生成�
 - Drift v8 新增 PlanRecords 与 PlanTaskRecords；它们映射既有 Supabase `plans` 和 `plan_tasks` 结构，并通过同步队列记录本地变更。
 - 计划可为月度或年度，保存名称、颜色、说明、起止日期与关联周期任务。计划归档使用 `deleted_at`，不删除关联任务或历史完成记录。
 - 计划进度只统计计划日期内、截至今天的关联周期任务应执行日；TaskCompletion 的 `isSuccess` 为真才计入完成数。计时投入和目标达成不会绕过手动完成规则。
+
+## Phase 7 复盘
+
+- Drift v9 新增 ReviewRecords，对应既有 Supabase `reviews` 表；同一用户、复盘类型和开始日期只能保留一份复盘，后续保存更新该记录。
+- 复盘快照在保存时冻结应执行次数、手动完成数和 Session 计时时长；它不会修改任务完成记录，也不会让计时自动变为完成。
+- 复盘页可浏览日、周、月、年周期，编辑自由文本字段与五级情绪。页面预览使用当前原始数据，保存后的历史条目展示冻结快照。
