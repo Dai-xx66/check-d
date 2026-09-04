@@ -41,6 +41,7 @@ void main() {
           weekRuleType: CourseWeekRuleType.oddWeeks,
           startsAtMinute: 8 * 60,
           endsAtMinute: 9 * 60 + 40,
+          remindBeforeMinutes: 10,
         ),
       );
       await courses.saveScheduleRule(
@@ -56,6 +57,7 @@ void main() {
       final saved = (await courses.watchCourses().first).single;
       expect(saved.name, '高等数学');
       expect(saved.rules, hasLength(2));
+      expect(saved.rules.first.remindBeforeMinutes, 10);
       expect(saved.rules.first.isDueInWeek(1), isTrue);
       expect(saved.rules.first.isDueInWeek(2), isFalse);
       expect(await database.select(database.localTasks).get(), isEmpty);

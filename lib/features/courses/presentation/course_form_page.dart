@@ -27,6 +27,7 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
   CourseWeekRuleType _weekRule = CourseWeekRuleType.everyWeek;
   TimeOfDay _startsAt = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _endsAt = const TimeOfDay(hour: 9, minute: 40);
+  int? _remindBeforeMinutes;
   bool _saving = false;
 
   @override
@@ -53,6 +54,7 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
       );
       _startWeekController.text = rule.startWeek?.toString() ?? '';
       _endWeekController.text = rule.endWeek?.toString() ?? '';
+      _remindBeforeMinutes = rule.remindBeforeMinutes;
     }
   }
 
@@ -188,6 +190,20 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
                 ],
               ),
             ],
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              value: _remindBeforeMinutes,
+              decoration: const InputDecoration(labelText: '课程提醒（可选）'),
+              items: const [
+                DropdownMenuItem<int?>(value: null, child: Text('不提醒')),
+                DropdownMenuItem(value: 5, child: Text('提前 5 分钟')),
+                DropdownMenuItem(value: 10, child: Text('提前 10 分钟')),
+                DropdownMenuItem(value: 15, child: Text('提前 15 分钟')),
+                DropdownMenuItem(value: 30, child: Text('提前 30 分钟')),
+              ],
+              onChanged: (value) =>
+                  setState(() => _remindBeforeMinutes = value),
+            ),
             const SizedBox(height: 20),
             if (widget.initialCourse != null &&
                 widget.initialCourse!.rules.length > 1)
@@ -308,6 +324,7 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
           startWeek: startWeek,
           endWeek: endWeek,
           intervalWeeks: _weekRule == CourseWeekRuleType.everyNWeeks ? 2 : null,
+          remindBeforeMinutes: _remindBeforeMinutes,
         ),
         ruleId: widget.initialCourse?.rules.isNotEmpty == true
             ? widget.initialCourse!.rules.first.id
@@ -368,6 +385,7 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
   CourseWeekRuleType _weekRule = CourseWeekRuleType.everyWeek;
   TimeOfDay _startsAt = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _endsAt = const TimeOfDay(hour: 9, minute: 40);
+  int? _remindBeforeMinutes;
   final _startWeek = TextEditingController();
   final _endWeek = TextEditingController();
   bool _saving = false;
@@ -389,6 +407,7 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
     );
     _startWeek.text = rule.startWeek?.toString() ?? '';
     _endWeek.text = rule.endWeek?.toString() ?? '';
+    _remindBeforeMinutes = rule.remindBeforeMinutes;
   }
 
   @override
@@ -484,6 +503,19 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
             ],
           ),
         ],
+        const SizedBox(height: 12),
+        DropdownButtonFormField<int?>(
+          value: _remindBeforeMinutes,
+          decoration: const InputDecoration(labelText: '课程提醒（可选）'),
+          items: const [
+            DropdownMenuItem<int?>(value: null, child: Text('不提醒')),
+            DropdownMenuItem(value: 5, child: Text('提前 5 分钟')),
+            DropdownMenuItem(value: 10, child: Text('提前 10 分钟')),
+            DropdownMenuItem(value: 15, child: Text('提前 15 分钟')),
+            DropdownMenuItem(value: 30, child: Text('提前 30 分钟')),
+          ],
+          onChanged: (value) => setState(() => _remindBeforeMinutes = value),
+        ),
         const SizedBox(height: 24),
         if (widget.initialRule != null)
           OutlinedButton.icon(
@@ -557,6 +589,7 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
               intervalWeeks: _weekRule == CourseWeekRuleType.everyNWeeks
                   ? 2
                   : null,
+              remindBeforeMinutes: _remindBeforeMinutes,
             ),
             ruleId: widget.initialRule?.id,
           );

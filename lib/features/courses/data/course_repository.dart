@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../domain/course_models.dart';
 
@@ -12,13 +13,16 @@ class CourseRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required String userId,
+    NotificationService? notifications,
   }) : _database = database,
        _syncQueue = syncQueue,
-       _userId = userId;
+       _userId = userId,
+       _notifications = notifications;
 
   final AppDatabase _database;
   final SyncQueueService _syncQueue;
   final String _userId;
+  final NotificationService? _notifications;
   final Uuid _uuid = const Uuid();
 
   Stream<List<CourseDetails>> watchCourses() {
@@ -108,6 +112,7 @@ class CourseRepository {
     _validateScheduleRule(draft);
     final now = DateTime.now().toUtc();
     final id = ruleId ?? _uuid.v4();
+    await _cancelReminder(id);
     await _database
         .into(_database.courseScheduleRuleRecords)
         .insertOnConflictUpdate(
@@ -152,6 +157,7 @@ class CourseRepository {
       },
       userId: _userId,
     );
+    await _syncReminder(id, draft);
     return id;
   }
 
@@ -254,6 +260,7 @@ class CourseRepository {
 
   Future<void> archiveScheduleRule(String ruleId) async {
     final now = DateTime.now().toUtc();
+    await _cancelReminder(ruleId);
     await (_database.update(_database.courseScheduleRuleRecords)
           ..where((row) => row.id.equals(ruleId) & row.userId.equals(_userId)))
         .write(
@@ -269,6 +276,44 @@ class CourseRepository {
       payload: {'id': ruleId, 'deleted_at': now.toIso8601String()},
       userId: _userId,
     );
+  }
+
+  Future<void> _syncReminder(
+    String ruleId,
+    CourseScheduleRuleDraft draft,
+  ) async {
+    final minutes = draft.remindBeforeMinutes;
+    if (_notifications == null || minutes == null) return;
+    final reminderMinute = draft.startsAtMinute - minutes;
+    if (reminderMinute < 0) return;
+    try {
+      await _notifications!.requestPermissions();
+      await _notifications!.scheduleWeekly(
+        id: _notificationId(ruleId),
+        weekday: draft.weekday,
+        minuteOfDay: reminderMinute,
+        title: '课程提醒：${draft.courseId}',
+        body: '课程将在 $minutes 分钟后开始',
+      );
+    } catch (_) {
+      // Notification permission or platform scheduling failures must not block saving.
+    }
+  }
+
+  Future<void> _cancelReminder(String ruleId) async {
+    if (_notifications == null) return;
+    try {
+      await _notifications!.cancel(_notificationId(ruleId));
+    } catch (_) {}
+  }
+
+  int _notificationId(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash == 0 ? 1 : hash;
   }
 
   Future<CourseDetails> _toDetails(CourseRecord row) async {
