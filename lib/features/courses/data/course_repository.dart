@@ -304,10 +304,26 @@ class CourseRepository {
       await _notifications!.requestPermissions();
       final title = '课程提醒：${course?.name ?? '课程'}';
       final body = '课程将在 $minutes 分钟后开始';
+      final semesterStart = course?.semesterStartsOn == null
+          ? null
+          : DateTime(
+              course!.semesterStartsOn!.toLocal().year,
+              course.semesterStartsOn!.toLocal().month,
+              course.semesterStartsOn!.toLocal().day,
+            );
+      final semesterEnd = course?.semesterEndsOn == null
+          ? null
+          : DateTime(
+              course!.semesterEndsOn!.toLocal().year,
+              course.semesterEndsOn!.toLocal().month,
+              course.semesterEndsOn!.toLocal().day,
+            );
       final isUnboundedEveryWeek =
           draft.weekRuleType == CourseWeekRuleType.everyWeek &&
           draft.startWeek == null &&
-          draft.endWeek == null;
+          draft.endWeek == null &&
+          semesterStart == null &&
+          semesterEnd == null;
       if (isUnboundedEveryWeek) {
         await _notifications!.scheduleWeekly(
           id: _notificationId(ruleId),
@@ -324,6 +340,11 @@ class CourseRepository {
         var scheduledCount = 0;
         for (var offset = 0; offset < 366; offset++) {
           final date = occurrence.add(Duration(days: offset));
+          final dateOnly = DateTime(date.year, date.month, date.day);
+          if ((semesterStart != null && dateOnly.isBefore(semesterStart)) ||
+              (semesterEnd != null && dateOnly.isAfter(semesterEnd))) {
+            continue;
+          }
           if (date.weekday != draft.weekday ||
               !_isDueInWeek(draft, _isoWeekNumber(date))) {
             continue;
