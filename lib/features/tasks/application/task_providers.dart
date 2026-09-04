@@ -62,6 +62,10 @@ final dailyTimerStateProvider = StreamProvider.autoDispose
       return ref.watch(taskRepositoryProvider).watchTimerState(null, date);
     });
 
+final runningTimerTaskIdProvider = FutureProvider.autoDispose<String?>((ref) {
+  return ref.watch(taskRepositoryProvider).runningTimerTaskId();
+});
+
 final calendarMonthProvider = StreamProvider.autoDispose
     .family<CalendarMonthData, DateTime>((ref, month) {
       return ref.watch(taskRepositoryProvider).watchCalendarMonth(month);

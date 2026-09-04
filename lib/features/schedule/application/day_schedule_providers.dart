@@ -21,6 +21,13 @@ final dailyOverridesProvider = StreamProvider.autoDispose
           .watchOverridesForDate(date);
     });
 
+final dailyOverridesSnapshotProvider = FutureProvider.autoDispose
+    .family<List<DailyItemOverride>, DateTime>((ref, date) {
+      return ref
+          .watch(dayScheduleRepositoryProvider)
+          .loadOverridesForDate(date);
+    });
+
 final reminderRulesProvider = StreamProvider.autoDispose
     .family<List<ReminderRule>, ReminderRuleFilter>((ref, filter) {
       return ref

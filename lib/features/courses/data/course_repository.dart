@@ -33,6 +33,20 @@ class CourseRepository {
     return query.watch().asyncMap((rows) => Future.wait(rows.map(_toDetails)));
   }
 
+  Future<List<CourseDetails>> loadCourses() async {
+    final rows =
+        await (_database.select(_database.courseRecords)
+              ..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    row.deletedAt.isNull() &
+                    row.status.equals(CourseStatus.active.name),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.name)]))
+            .get();
+    return Future.wait(rows.map(_toDetails));
+  }
+
   Stream<CourseDetails?> watchCourse(String courseId) {
     final query = _database.select(_database.courseRecords)
       ..where(

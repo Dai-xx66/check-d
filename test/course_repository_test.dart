@@ -2,6 +2,8 @@ import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
+import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
+import 'package:check_d/features/today/data/today_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -87,5 +89,68 @@ void main() {
     expect(templateId, isNotEmpty);
     expect(rows, hasLength(2));
     expect(rows.last.segmentType, ScheduleSegmentType.breakTime.name);
+  });
+
+  test('today course projection applies week rules and one-day overrides', () {
+    final date = DateTime(2026, 9, 3); // ISO week 36, Thursday.
+    final course = CourseDetails(
+      id: 'course-1',
+      name: '数据结构',
+      colorValue: 0xFFF47BA2,
+      status: CourseStatus.active,
+      createdAt: date,
+      updatedAt: date,
+      classroom: 'B201',
+      rules: [
+        CourseScheduleRule(
+          id: 'rule-1',
+          courseId: 'course-1',
+          weekday: DateTime.thursday,
+          weekRuleType: CourseWeekRuleType.evenWeeks,
+          startsAtMinute: 10 * 60,
+          endsAtMinute: 11 * 60 + 40,
+          createdAt: date,
+          updatedAt: date,
+        ),
+      ],
+    );
+
+    final moved = buildCourseItemsForDate(
+      date,
+      [course],
+      [
+        DailyItemOverride(
+          id: 'override-1',
+          itemType: DayItemType.course,
+          itemId: 'rule-1',
+          localDate: date,
+          action: DayOverrideAction.reschedule,
+          plannedStartMinute: 14 * 60,
+          plannedEndMinute: 15 * 60 + 40,
+          createdAt: date,
+          updatedAt: date,
+        ),
+      ],
+    );
+    expect(moved.single.startMinute, 14 * 60);
+    expect(moved.single.endMinute, 15 * 60 + 40);
+    expect(moved.single.classroom, 'B201');
+
+    final skipped = buildCourseItemsForDate(
+      date,
+      [course],
+      [
+        DailyItemOverride(
+          id: 'override-2',
+          itemType: DayItemType.course,
+          itemId: 'rule-1',
+          localDate: date,
+          action: DayOverrideAction.skip,
+          createdAt: date,
+          updatedAt: date,
+        ),
+      ],
+    );
+    expect(skipped, isEmpty);
   });
 }

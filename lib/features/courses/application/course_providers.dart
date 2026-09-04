@@ -18,6 +18,12 @@ final coursesProvider = StreamProvider.autoDispose<List<CourseDetails>>((ref) {
   return ref.watch(courseRepositoryProvider).watchCourses();
 });
 
+final coursesSnapshotProvider = FutureProvider.autoDispose<List<CourseDetails>>(
+  (ref) {
+    return ref.watch(courseRepositoryProvider).loadCourses();
+  },
+);
+
 final courseDetailsProvider = StreamProvider.autoDispose
     .family<CourseDetails?, String>((ref, courseId) {
       return ref.watch(courseRepositoryProvider).watchCourse(courseId);

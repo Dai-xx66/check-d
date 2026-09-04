@@ -10,6 +10,13 @@ import '../../../core/sync/sync_queue_service.dart';
 import '../domain/task_models.dart';
 import 'task_history.dart';
 
+class TimerConflictException extends StateError {
+  TimerConflictException({required this.taskId})
+    : super('Another timer is already running for task $taskId.');
+
+  final String taskId;
+}
+
 class TaskRepository {
   TaskRepository({
     required AppDatabase database,
@@ -29,6 +36,11 @@ class TaskRepository {
   final HolidayCalendar? _holidayCalendar;
   final NotificationService? _notifications;
   final Uuid _uuid = const Uuid();
+
+  Future<String?> runningTimerTaskId() async {
+    final session = await _runningTimerSession();
+    return session?.taskId;
+  }
 
   Stream<List<TaskDetails>> watchTasksForDate(DateTime date) {
     final query = _database.select(_database.localTasks)
@@ -678,8 +690,9 @@ class TaskRepository {
       if (latest != null && latest.state != TimerSessionStatus.finished.name) {
         throw StateError('Timer is already active.');
       }
-      if (await _runningTimerSession() != null) {
-        throw StateError('Another timer is already running.');
+      final running = await _runningTimerSession();
+      if (running != null) {
+        throw TimerConflictException(taskId: running.taskId);
       }
       await _database
           .into(_database.timerSessionRecords)
@@ -730,8 +743,9 @@ class TaskRepository {
       if (paused == null || paused.state != TimerSessionStatus.paused.name) {
         throw StateError('Only a paused timer can be resumed.');
       }
-      if (await _runningTimerSession() != null) {
-        throw StateError('Another timer is already running.');
+      final running = await _runningTimerSession();
+      if (running != null) {
+        throw TimerConflictException(taskId: running.taskId);
       }
       await (_database.update(
         _database.timerSessionRecords,

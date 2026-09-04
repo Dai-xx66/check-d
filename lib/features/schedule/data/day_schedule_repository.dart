@@ -32,6 +32,20 @@ class DayScheduleRepository {
     return query.watch().map((rows) => rows.map(_toOverride).toList());
   }
 
+  Future<List<DailyItemOverride>> loadOverridesForDate(DateTime date) async {
+    final rows =
+        await (_database.select(_database.dailyItemOverrideRecords)
+              ..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    row.localDate.equals(localDateKey(date)) &
+                    row.deletedAt.isNull(),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.updatedAt)]))
+            .get();
+    return rows.map(_toOverride).toList();
+  }
+
   Future<String> saveDailyOverride(
     DailyItemOverrideDraft draft, {
     String? overrideId,

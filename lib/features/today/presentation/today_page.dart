@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +13,12 @@ import '../../tasks/domain/task_models.dart';
 import '../../tasks/presentation/task_detail_page.dart';
 import '../../tasks/presentation/task_icon_picker.dart';
 import '../../tasks/presentation/task_list_page.dart';
+import '../../courses/application/course_providers.dart';
+import '../../courses/domain/course_models.dart';
+import '../../schedule/application/day_schedule_providers.dart';
+import '../../schedule/domain/day_schedule_models.dart';
+import '../data/today_repository.dart';
+import '../domain/today_models.dart';
 
 class TodayPage extends ConsumerStatefulWidget {
   const TodayPage({super.key});
@@ -36,6 +40,13 @@ class _TodayPageState extends ConsumerState<TodayPage> {
   Widget build(BuildContext context) {
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
     final tasks = ref.watch(tasksForDateProvider(_selectedDate));
+    final courses = ref.watch(coursesSnapshotProvider);
+    final overrides = ref.watch(dailyOverridesSnapshotProvider(_selectedDate));
+    final todayCourses =
+        courses is AsyncData<List<CourseDetails>> &&
+            overrides is AsyncData<List<DailyItemOverride>>
+        ? buildCourseItemsForDate(_selectedDate, courses.value, overrides.value)
+        : const <TodayCourseItem>[];
     return SafeArea(
       child: tasks.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -45,6 +56,7 @@ class _TodayPageState extends ConsumerState<TodayPage> {
             date: _selectedDate,
             now: now,
             tasks: items,
+            courses: todayCourses,
             focusedSeconds:
                 ref
                     .watch(dailyTimerStateProvider(_selectedDate))
@@ -65,12 +77,14 @@ class _TodayData {
     required this.date,
     required this.now,
     required this.tasks,
+    this.courses = const [],
     required this.focusedSeconds,
   });
 
   final DateTime date;
   final DateTime now;
   final List<TaskDetails> tasks;
+  final List<TodayCourseItem> courses;
   final int focusedSeconds;
 
   List<TaskDetails> get recurring =>
@@ -131,7 +145,13 @@ class _DesktopLayout extends StatelessWidget {
           children: [
             Expanded(flex: 55, child: _TaskLists(data: data)),
             const SizedBox(width: 18),
-            Expanded(flex: 45, child: _TodayArrangement(tasks: data.tasks)),
+            Expanded(
+              flex: 45,
+              child: _TodayArrangement(
+                tasks: data.tasks,
+                courses: data.courses,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 18),
@@ -165,7 +185,7 @@ class _TabletLayout extends StatelessWidget {
         const SizedBox(height: 18),
         _TaskLists(data: data),
         const SizedBox(height: 18),
-        _TodayArrangement(tasks: data.tasks),
+        _TodayArrangement(tasks: data.tasks, courses: data.courses),
         const SizedBox(height: 18),
         DailyTagTime(date: data.date, now: data.now),
         const SizedBox(height: 18),
@@ -852,12 +872,15 @@ class _InlineTimerControlsState extends ConsumerState<_InlineTimerControls> {
 }
 
 class _TodayArrangement extends StatelessWidget {
-  const _TodayArrangement({required this.tasks});
+  const _TodayArrangement({required this.tasks, this.courses = const []});
   final List<TaskDetails> tasks;
+  final List<TodayCourseItem> courses;
   @override
   Widget build(BuildContext context) {
     final arranged = tasks.where(_isArranged).toList()
       ..sort((a, b) => _minuteOf(a).compareTo(_minuteOf(b)));
+    final timeline = [...arranged.map(TodayTaskItem.new), ...courses]
+      ..sort((a, b) => a.startMinute.compareTo(b.startMinute));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -872,17 +895,23 @@ class _TodayArrangement extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            if (arranged.isEmpty)
+            if (timeline.isEmpty)
               const MascotEmptyState(
                 title: '今天还没有安排～',
                 message: '配置日期与提醒后会显示在这里。',
               )
             else
-              for (var i = 0; i < arranged.length; i++)
-                _TimelineItem(
-                  task: arranged[i],
-                  last: i == arranged.length - 1,
-                ),
+              for (var i = 0; i < timeline.length; i++)
+                switch (timeline[i]) {
+                  TodayTaskItem item => _TimelineItem(
+                    task: item.task,
+                    last: i == timeline.length - 1,
+                  ),
+                  TodayCourseItem item => _CourseTimelineItem(
+                    item: item,
+                    last: i == timeline.length - 1,
+                  ),
+                },
           ],
         ),
       ),
@@ -896,6 +925,76 @@ class _TodayArrangement extends StatelessWidget {
       ? task.scheduledMinuteOfDay!
       : task.scheduledAt!.hour * 60 + task.scheduledAt!.minute;
 }
+
+class _CourseTimelineItem extends StatelessWidget {
+  const _CourseTimelineItem({required this.item, required this.last});
+
+  final TodayCourseItem item;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = _formatMinute(item.startMinute);
+    final end = _formatMinute(item.endMinute);
+    final color = Color(item.course.colorValue);
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 52,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 11),
+              child: Text(
+                start,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          Column(
+            children: [
+              Container(
+                width: 9,
+                height: 9,
+                margin: const EdgeInsets.only(top: 14),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              if (!last)
+                Expanded(child: Container(width: 1, color: AppColors.border)),
+            ],
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7, bottom: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.course.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '课程 · $start–$end${item.classroom == null ? '' : ' · ${item.classroom}'}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Icon(Icons.school_outlined, size: 18, color: AppColors.muted),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatMinute(int minute) =>
+    '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
 
 class _TimelineItem extends StatelessWidget {
   const _TimelineItem({required this.task, required this.last});
