@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
+import '../../courses/presentation/course_form_page.dart';
 import '../../plans/presentation/plans_page.dart';
 import '../../reviews/presentation/reviews_page.dart';
 import '../../statistics/presentation/statistics_page.dart';
@@ -99,6 +100,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
               const SizedBox(height: 16),
               _CreateOption(
+                icon: Icons.school_outlined,
+                color: AppColors.blueMist,
+                title: '添加课程',
+                subtitle: '课程会出现在今日时间轴，不参与打卡和专注统计',
+                onTap: () => _openCourseForm(context),
+              ),
+              const SizedBox(height: 10),
+              _CreateOption(
                 icon: Icons.loop_rounded,
                 color: AppColors.primary,
                 title: '周期任务',
@@ -124,6 +133,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (context) => const RecurringTaskFormPage()),
+    );
+  }
+
+  void _openCourseForm(BuildContext sheetContext) {
+    Navigator.of(sheetContext).pop();
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const CourseFormPage()),
     );
   }
 
