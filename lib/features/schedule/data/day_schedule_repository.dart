@@ -255,6 +255,36 @@ class DayScheduleRepository {
     return id;
   }
 
+  Stream<List<AdHocTimerDetails>> watchAdHocTimersForDate(DateTime date) {
+    final dayStart = DateTime(date.year, date.month, date.day).toUtc();
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final query = _database.select(_database.adHocTimerRecords)
+      ..where(
+        (row) =>
+            row.userId.equals(_userId) &
+            row.deletedAt.isNull() &
+            row.startedAt.isSmallerThanValue(dayEnd) &
+            (row.endedAt.isNull() | row.endedAt.isBiggerThanValue(dayStart)),
+      )
+      ..orderBy([(row) => OrderingTerm.asc(row.startedAt)]);
+    return query.watch().map((rows) => rows.map(_toAdHocTimer).toList());
+  }
+
+  AdHocTimerDetails _toAdHocTimer(AdHocTimerRecord row) {
+    return AdHocTimerDetails(
+      id: row.id,
+      title: row.title,
+      colorValue: row.colorValue,
+      startedAt: row.startedAt.toLocal(),
+      tagId: row.tagId,
+      notes: row.notes,
+      endedAt: row.endedAt?.toLocal(),
+      completedAt: row.completedAt?.toLocal(),
+      createdAt: row.createdAt.toLocal(),
+      updatedAt: row.updatedAt.toLocal(),
+    );
+  }
+
   DailyItemOverride _toOverride(DailyItemOverrideRecord row) {
     return DailyItemOverride(
       id: row.id,

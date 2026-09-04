@@ -103,4 +103,22 @@ void main() {
     });
     expect(alarms.single.behavior, AlarmBehavior.snooze.name);
   });
+
+  test('ad hoc timer is queryable by date and splits cross-day duration', () async {
+    final started = DateTime(2026, 9, 3, 23, 30);
+    final ended = DateTime(2026, 9, 4, 0, 30);
+    await schedule.saveAdHocTimer(
+      AdHocTimerDraft(
+        title: '临时专注',
+        colorValue: 0xFFF17F9D,
+        startedAt: started,
+        endedAt: ended,
+      ),
+    );
+
+    final firstDay = await schedule.watchAdHocTimersForDate(started).first;
+    final secondDay = await schedule.watchAdHocTimersForDate(ended).first;
+    expect(firstDay.single.durationSecondsForDate(started), 30 * 60);
+    expect(secondDay.single.durationSecondsForDate(ended), 30 * 60);
+  });
 }

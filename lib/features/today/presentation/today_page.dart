@@ -42,6 +42,7 @@ class _TodayPageState extends ConsumerState<TodayPage> {
     final tasks = ref.watch(tasksForDateProvider(_selectedDate));
     final courses = ref.watch(coursesSnapshotProvider);
     final overrides = ref.watch(dailyOverridesSnapshotProvider(_selectedDate));
+    final adHocTimers = ref.watch(adHocTimersForDateProvider(_selectedDate));
     final todayCourses =
         courses is AsyncData<List<CourseDetails>> &&
             overrides is AsyncData<List<DailyItemOverride>>
@@ -58,11 +59,17 @@ class _TodayPageState extends ConsumerState<TodayPage> {
             tasks: items,
             courses: todayCourses,
             focusedSeconds:
-                ref
-                    .watch(dailyTimerStateProvider(_selectedDate))
-                    .value
-                    ?.elapsedSecondsAt(now) ??
-                0,
+                (ref
+                        .watch(dailyTimerStateProvider(_selectedDate))
+                        .value
+                        ?.elapsedSecondsAt(now) ??
+                    0) +
+                (adHocTimers.value ?? const <AdHocTimerDetails>[]).fold<int>(
+                  0,
+                  (sum, timer) =>
+                      sum +
+                      timer.durationSecondsForDate(_selectedDate, now: now),
+                ),
           ),
           onDateSelected: (value) =>
               setState(() => _selectedDate = dateOnly(value)),

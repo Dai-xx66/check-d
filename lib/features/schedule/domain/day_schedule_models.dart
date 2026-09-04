@@ -215,4 +215,13 @@ class AdHocTimerDetails {
   final String? notes;
   final DateTime? endedAt;
   final DateTime? completedAt;
+
+  int durationSecondsForDate(DateTime date, {DateTime? now}) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final start = startedAt.isAfter(dayStart) ? startedAt : dayStart;
+    final endValue = endedAt ?? now ?? DateTime.now();
+    final end = endValue.isBefore(dayEnd) ? endValue : dayEnd;
+    return end.isAfter(start) ? end.difference(start).inSeconds : 0;
+  }
 }

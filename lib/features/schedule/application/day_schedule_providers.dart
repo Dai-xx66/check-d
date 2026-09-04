@@ -28,6 +28,13 @@ final dailyOverridesSnapshotProvider = FutureProvider.autoDispose
           .loadOverridesForDate(date);
     });
 
+final adHocTimersForDateProvider = StreamProvider.autoDispose
+    .family<List<AdHocTimerDetails>, DateTime>((ref, date) {
+      return ref
+          .watch(dayScheduleRepositoryProvider)
+          .watchAdHocTimersForDate(date);
+    });
+
 final reminderRulesProvider = StreamProvider.autoDispose
     .family<List<ReminderRule>, ReminderRuleFilter>((ref, filter) {
       return ref
