@@ -211,6 +211,10 @@ class _MobileLayout extends StatelessWidget {
         _WeekDateStrip(selectedDate: data.date, onSelected: onDateSelected),
         const SizedBox(height: 14),
         _MobileSummary(data: data),
+        if (data.courses.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _MobileCourseSection(courses: data.courses),
+        ],
         const SizedBox(height: 18),
         _TaskSection(
           title: '周期任务',
@@ -232,6 +236,110 @@ class _MobileLayout extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _MobileCourseSection extends StatelessWidget {
+  const _MobileCourseSection({required this.courses});
+
+  final List<TodayCourseItem> courses;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = [...courses]
+      ..sort((a, b) => a.startMinute.compareTo(b.startMinute));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.school_outlined,
+              size: 19,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 7),
+            Text('今日课程', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(width: 7),
+            Text(
+              '${sorted.length}',
+              style: const TextStyle(color: AppColors.muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: Column(
+            children: [
+              for (var index = 0; index < sorted.length; index++) ...[
+                _MobileCourseRow(item: sorted[index]),
+                if (index != sorted.length - 1)
+                  const Divider(height: 1, indent: 18, endIndent: 18),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MobileCourseRow extends StatelessWidget {
+  const _MobileCourseRow({required this.item});
+
+  final TodayCourseItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(item.course.colorValue);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 58,
+            child: Text(
+              _timeRange(item),
+              style: TextStyle(fontWeight: FontWeight.w700, color: color),
+            ),
+          ),
+          Container(
+            width: 4,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.course.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.classroom == null ? '课程' : '课程 · ${item.classroom}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: color, size: 20),
+        ],
+      ),
+    );
+  }
+
+  String _timeRange(TodayCourseItem item) =>
+      '${_minute(item.startMinute)}\n${_minute(item.endMinute)}';
+
+  String _minute(int value) =>
+      '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';
 }
 
 class _TodayScroll extends StatelessWidget {
