@@ -240,87 +240,92 @@ class _MobileBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
     top: false,
-    child: Container(
-      height: 76,
-      decoration: const BoxDecoration(
-        color: Color(0xF9FFF9FA),
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          _MobileNavItem(
-            label: '今日',
-            icon: Icons.today_outlined,
-            activeIcon: Icons.today_rounded,
-            selected: selectedIndex == 0,
-            onTap: () => onSelected(0),
+    child: ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          height: 76,
+          decoration: const BoxDecoration(
+            color: AppColors.glassStrong,
+            border: Border(top: BorderSide(color: AppColors.border)),
           ),
-          _MobileNavItem(
-            label: '日历',
-            icon: Icons.calendar_month_outlined,
-            activeIcon: Icons.calendar_month,
-            selected: selectedIndex == 1,
-            onTap: () => onSelected(1),
-          ),
-          Expanded(
-            child: Transform.translate(
-              offset: const Offset(0, -14),
-              child: Center(
-                child: Semantics(
-                  button: true,
-                  label: '添加',
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(38),
-                    onTap: () => onSelected(2),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 54,
-                          height: 54,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [AppShadows.soft],
-                          ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            size: 30,
-                            color: Colors.white,
-                          ),
+          child: Row(
+            children: [
+              _MobileNavItem(
+                label: '今日',
+                icon: Icons.today_outlined,
+                activeIcon: Icons.today_rounded,
+                selected: selectedIndex == 0,
+                onTap: () => onSelected(0),
+              ),
+              _MobileNavItem(
+                label: '日历',
+                icon: Icons.calendar_month_outlined,
+                activeIcon: Icons.calendar_month,
+                selected: selectedIndex == 1,
+                onTap: () => onSelected(1),
+              ),
+              Expanded(
+                child: Transform.translate(
+                  offset: const Offset(0, -14),
+                  child: Center(
+                    child: Semantics(
+                      button: true,
+                      label: '添加',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(38),
+                        onTap: () => onSelected(2),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 54,
+                              height: 54,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                boxShadow: [AppShadows.soft],
+                              ),
+                              child: const Icon(
+                                Icons.add_rounded,
+                                size: 30,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            const Text(
+                              '添加',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 10,
+                                height: 1,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 1),
-                        const Text(
-                          '添加',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            height: 1,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+              _MobileNavItem(
+                label: '复盘',
+                icon: Icons.edit_note_outlined,
+                activeIcon: Icons.edit_note_rounded,
+                selected: selectedIndex == 3,
+                onTap: () => onSelected(3),
+              ),
+              _MobileNavItem(
+                label: '统计',
+                icon: Icons.bar_chart_outlined,
+                activeIcon: Icons.bar_chart_rounded,
+                selected: selectedIndex == 4,
+                onTap: () => onSelected(4),
+              ),
+            ],
           ),
-          _MobileNavItem(
-            label: '复盘',
-            icon: Icons.edit_note_outlined,
-            activeIcon: Icons.edit_note_rounded,
-            selected: selectedIndex == 3,
-            onTap: () => onSelected(3),
-          ),
-          _MobileNavItem(
-            label: '统计',
-            icon: Icons.bar_chart_outlined,
-            activeIcon: Icons.bar_chart_rounded,
-            selected: selectedIndex == 4,
-            onTap: () => onSelected(4),
-          ),
-        ],
+        ),
       ),
     ),
   );
