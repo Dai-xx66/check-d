@@ -10,6 +10,18 @@ class ReviewPeriod {
   final ReviewType type;
   final DateTime startsOn;
   final DateTime endsOn;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is ReviewPeriod &&
+            other.type == type &&
+            other.startsOn == startsOn &&
+            other.endsOn == endsOn;
+  }
+
+  @override
+  int get hashCode => Object.hash(type, startsOn, endsOn);
 }
 
 class ReviewSnapshot {

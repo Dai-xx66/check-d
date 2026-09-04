@@ -25,6 +25,23 @@ void main() {
 
   tearDown(() => database.close());
 
+  test('review period uses value equality for provider family caching', () {
+    final today = dateOnly(DateTime.now());
+    final first = ReviewPeriod(
+      type: ReviewType.day,
+      startsOn: today,
+      endsOn: today,
+    );
+    final second = ReviewPeriod(
+      type: ReviewType.day,
+      startsOn: today,
+      endsOn: today,
+    );
+
+    expect(first, second);
+    expect(first.hashCode, second.hashCode);
+  });
+
   test('review snapshot combines completed tasks and timed sessions', () async {
     final today = dateOnly(DateTime.now());
     final taskId = await tasks.saveRecurringTask(

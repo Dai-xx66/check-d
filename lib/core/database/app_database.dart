@@ -234,6 +234,168 @@ class ReviewRecords extends Table {
   ];
 }
 
+class CourseRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  IntColumn get colorValue => integer()();
+  TextColumn get teacher => text().nullable()();
+  TextColumn get classroom => text().nullable()();
+  TextColumn get semester => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class CourseScheduleRuleRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get courseId =>
+      text().references(CourseRecords, #id, onDelete: KeyAction.cascade)();
+  TextColumn get userId => text()();
+  IntColumn get weekday => integer()();
+  TextColumn get weekRuleType => text()();
+  IntColumn get startWeek => integer().nullable()();
+  IntColumn get endWeek => integer().nullable()();
+  IntColumn get intervalWeeks => integer().nullable()();
+  TextColumn get weekNumbersJson => text().withDefault(const Constant('[]'))();
+  TextColumn get scheduleTemplateId => text().nullable()();
+  TextColumn get sectionIdsJson => text().withDefault(const Constant('[]'))();
+  IntColumn get startsAtMinute => integer()();
+  IntColumn get endsAtMinute => integer()();
+  IntColumn get remindBeforeMinutes => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class ScheduleTemplateRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  TextColumn get timezone =>
+      text().withDefault(const Constant('Asia/Shanghai'))();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class ScheduleTemplateSegmentRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get templateId => text().references(
+    ScheduleTemplateRecords,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  IntColumn get startsAtMinute => integer()();
+  IntColumn get endsAtMinute => integer()();
+  TextColumn get segmentType =>
+      text().withDefault(const Constant('classTime'))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class DailyItemOverrideRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get itemType => text()();
+  TextColumn get itemId => text()();
+  TextColumn get localDate => text()();
+  TextColumn get action => text()();
+  IntColumn get plannedStartMinute => integer().nullable()();
+  IntColumn get plannedEndMinute => integer().nullable()();
+  IntColumn get reminderMinuteOfDay => integer().nullable()();
+  IntColumn get targetDurationSeconds => integer().nullable()();
+  TextColumn get temporaryClassroom => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, itemType, itemId, localDate},
+  ];
+}
+
+class ReminderRuleRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get ownerType => text()();
+  TextColumn get ownerId => text()();
+  TextColumn get reminderKind => text()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  IntColumn get scheduledMinuteOfDay => integer().nullable()();
+  IntColumn get remindBeforeMinutes => integer().nullable()();
+  TextColumn get localDate => text().nullable()();
+  TextColumn get timezone =>
+      text().withDefault(const Constant('Asia/Shanghai'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class AlarmRuleRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get ownerType => text()();
+  TextColumn get ownerId => text()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(false))();
+  TextColumn get behavior => text().withDefault(const Constant('once'))();
+  TextColumn get soundName => text().nullable()();
+  IntColumn get snoozeMinutes => integer().nullable()();
+  IntColumn get repeatIntervalMinutes => integer().nullable()();
+  IntColumn get maxRingSeconds => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class AdHocTimerRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get title => text()();
+  TextColumn get tagId => text().nullable()();
+  IntColumn get colorValue => integer()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get startedAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalTasks,
@@ -250,6 +412,14 @@ class ReviewRecords extends Table {
     PlanRecords,
     PlanTaskRecords,
     ReviewRecords,
+    CourseRecords,
+    CourseScheduleRuleRecords,
+    ScheduleTemplateRecords,
+    ScheduleTemplateSegmentRecords,
+    DailyItemOverrideRecords,
+    ReminderRuleRecords,
+    AlarmRuleRecords,
+    AdHocTimerRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -258,7 +428,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -367,6 +537,16 @@ class AppDatabase extends _$AppDatabase {
             oneTimeReminderRecords.hasScheduledDate,
           );
         }
+      }
+      if (from < 11) {
+        await migrator.createTable(courseRecords);
+        await migrator.createTable(courseScheduleRuleRecords);
+        await migrator.createTable(scheduleTemplateRecords);
+        await migrator.createTable(scheduleTemplateSegmentRecords);
+        await migrator.createTable(dailyItemOverrideRecords);
+        await migrator.createTable(reminderRuleRecords);
+        await migrator.createTable(alarmRuleRecords);
+        await migrator.createTable(adHocTimerRecords);
       }
     },
     beforeOpen: (details) async {

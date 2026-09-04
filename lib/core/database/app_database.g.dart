@@ -7924,6 +7924,6075 @@ class ReviewRecordsCompanion extends UpdateCompanion<ReviewRecord> {
   }
 }
 
+class $CourseRecordsTable extends CourseRecords
+    with TableInfo<$CourseRecordsTable, CourseRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CourseRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _teacherMeta = const VerificationMeta(
+    'teacher',
+  );
+  @override
+  late final GeneratedColumn<String> teacher = GeneratedColumn<String>(
+    'teacher',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _classroomMeta = const VerificationMeta(
+    'classroom',
+  );
+  @override
+  late final GeneratedColumn<String> classroom = GeneratedColumn<String>(
+    'classroom',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _semesterMeta = const VerificationMeta(
+    'semester',
+  );
+  @override
+  late final GeneratedColumn<String> semester = GeneratedColumn<String>(
+    'semester',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    name,
+    colorValue,
+    teacher,
+    classroom,
+    semester,
+    notes,
+    status,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'course_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CourseRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('teacher')) {
+      context.handle(
+        _teacherMeta,
+        teacher.isAcceptableOrUnknown(data['teacher']!, _teacherMeta),
+      );
+    }
+    if (data.containsKey('classroom')) {
+      context.handle(
+        _classroomMeta,
+        classroom.isAcceptableOrUnknown(data['classroom']!, _classroomMeta),
+      );
+    }
+    if (data.containsKey('semester')) {
+      context.handle(
+        _semesterMeta,
+        semester.isAcceptableOrUnknown(data['semester']!, _semesterMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CourseRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CourseRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
+      teacher: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}teacher'],
+      ),
+      classroom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}classroom'],
+      ),
+      semester: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}semester'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $CourseRecordsTable createAlias(String alias) {
+    return $CourseRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class CourseRecord extends DataClass implements Insertable<CourseRecord> {
+  final String id;
+  final String userId;
+  final String name;
+  final int colorValue;
+  final String? teacher;
+  final String? classroom;
+  final String? semester;
+  final String? notes;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const CourseRecord({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.colorValue,
+    this.teacher,
+    this.classroom,
+    this.semester,
+    this.notes,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    map['color_value'] = Variable<int>(colorValue);
+    if (!nullToAbsent || teacher != null) {
+      map['teacher'] = Variable<String>(teacher);
+    }
+    if (!nullToAbsent || classroom != null) {
+      map['classroom'] = Variable<String>(classroom);
+    }
+    if (!nullToAbsent || semester != null) {
+      map['semester'] = Variable<String>(semester);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  CourseRecordsCompanion toCompanion(bool nullToAbsent) {
+    return CourseRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      name: Value(name),
+      colorValue: Value(colorValue),
+      teacher: teacher == null && nullToAbsent
+          ? const Value.absent()
+          : Value(teacher),
+      classroom: classroom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(classroom),
+      semester: semester == null && nullToAbsent
+          ? const Value.absent()
+          : Value(semester),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory CourseRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CourseRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
+      teacher: serializer.fromJson<String?>(json['teacher']),
+      classroom: serializer.fromJson<String?>(json['classroom']),
+      semester: serializer.fromJson<String?>(json['semester']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int>(colorValue),
+      'teacher': serializer.toJson<String?>(teacher),
+      'classroom': serializer.toJson<String?>(classroom),
+      'semester': serializer.toJson<String?>(semester),
+      'notes': serializer.toJson<String?>(notes),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  CourseRecord copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    int? colorValue,
+    Value<String?> teacher = const Value.absent(),
+    Value<String?> classroom = const Value.absent(),
+    Value<String?> semester = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => CourseRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    name: name ?? this.name,
+    colorValue: colorValue ?? this.colorValue,
+    teacher: teacher.present ? teacher.value : this.teacher,
+    classroom: classroom.present ? classroom.value : this.classroom,
+    semester: semester.present ? semester.value : this.semester,
+    notes: notes.present ? notes.value : this.notes,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  CourseRecord copyWithCompanion(CourseRecordsCompanion data) {
+    return CourseRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      teacher: data.teacher.present ? data.teacher.value : this.teacher,
+      classroom: data.classroom.present ? data.classroom.value : this.classroom,
+      semester: data.semester.present ? data.semester.value : this.semester,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('teacher: $teacher, ')
+          ..write('classroom: $classroom, ')
+          ..write('semester: $semester, ')
+          ..write('notes: $notes, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    name,
+    colorValue,
+    teacher,
+    classroom,
+    semester,
+    notes,
+    status,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CourseRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue &&
+          other.teacher == this.teacher &&
+          other.classroom == this.classroom &&
+          other.semester == this.semester &&
+          other.notes == this.notes &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<int> colorValue;
+  final Value<String?> teacher;
+  final Value<String?> classroom;
+  final Value<String?> semester;
+  final Value<String?> notes;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const CourseRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.teacher = const Value.absent(),
+    this.classroom = const Value.absent(),
+    this.semester = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CourseRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String name,
+    required int colorValue,
+    this.teacher = const Value.absent(),
+    this.classroom = const Value.absent(),
+    this.semester = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       name = Value(name),
+       colorValue = Value(colorValue),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CourseRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<int>? colorValue,
+    Expression<String>? teacher,
+    Expression<String>? classroom,
+    Expression<String>? semester,
+    Expression<String>? notes,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
+      if (teacher != null) 'teacher': teacher,
+      if (classroom != null) 'classroom': classroom,
+      if (semester != null) 'semester': semester,
+      if (notes != null) 'notes': notes,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CourseRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? name,
+    Value<int>? colorValue,
+    Value<String?>? teacher,
+    Value<String?>? classroom,
+    Value<String?>? semester,
+    Value<String?>? notes,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return CourseRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+      teacher: teacher ?? this.teacher,
+      classroom: classroom ?? this.classroom,
+      semester: semester ?? this.semester,
+      notes: notes ?? this.notes,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (teacher.present) {
+      map['teacher'] = Variable<String>(teacher.value);
+    }
+    if (classroom.present) {
+      map['classroom'] = Variable<String>(classroom.value);
+    }
+    if (semester.present) {
+      map['semester'] = Variable<String>(semester.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('teacher: $teacher, ')
+          ..write('classroom: $classroom, ')
+          ..write('semester: $semester, ')
+          ..write('notes: $notes, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
+    with TableInfo<$CourseScheduleRuleRecordsTable, CourseScheduleRuleRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CourseScheduleRuleRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _courseIdMeta = const VerificationMeta(
+    'courseId',
+  );
+  @override
+  late final GeneratedColumn<String> courseId = GeneratedColumn<String>(
+    'course_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES course_records (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weekdayMeta = const VerificationMeta(
+    'weekday',
+  );
+  @override
+  late final GeneratedColumn<int> weekday = GeneratedColumn<int>(
+    'weekday',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _weekRuleTypeMeta = const VerificationMeta(
+    'weekRuleType',
+  );
+  @override
+  late final GeneratedColumn<String> weekRuleType = GeneratedColumn<String>(
+    'week_rule_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startWeekMeta = const VerificationMeta(
+    'startWeek',
+  );
+  @override
+  late final GeneratedColumn<int> startWeek = GeneratedColumn<int>(
+    'start_week',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endWeekMeta = const VerificationMeta(
+    'endWeek',
+  );
+  @override
+  late final GeneratedColumn<int> endWeek = GeneratedColumn<int>(
+    'end_week',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _intervalWeeksMeta = const VerificationMeta(
+    'intervalWeeks',
+  );
+  @override
+  late final GeneratedColumn<int> intervalWeeks = GeneratedColumn<int>(
+    'interval_weeks',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weekNumbersJsonMeta = const VerificationMeta(
+    'weekNumbersJson',
+  );
+  @override
+  late final GeneratedColumn<String> weekNumbersJson = GeneratedColumn<String>(
+    'week_numbers_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _scheduleTemplateIdMeta =
+      const VerificationMeta('scheduleTemplateId');
+  @override
+  late final GeneratedColumn<String> scheduleTemplateId =
+      GeneratedColumn<String>(
+        'schedule_template_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _sectionIdsJsonMeta = const VerificationMeta(
+    'sectionIdsJson',
+  );
+  @override
+  late final GeneratedColumn<String> sectionIdsJson = GeneratedColumn<String>(
+    'section_ids_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _startsAtMinuteMeta = const VerificationMeta(
+    'startsAtMinute',
+  );
+  @override
+  late final GeneratedColumn<int> startsAtMinute = GeneratedColumn<int>(
+    'starts_at_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endsAtMinuteMeta = const VerificationMeta(
+    'endsAtMinute',
+  );
+  @override
+  late final GeneratedColumn<int> endsAtMinute = GeneratedColumn<int>(
+    'ends_at_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remindBeforeMinutesMeta =
+      const VerificationMeta('remindBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> remindBeforeMinutes = GeneratedColumn<int>(
+    'remind_before_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    courseId,
+    userId,
+    weekday,
+    weekRuleType,
+    startWeek,
+    endWeek,
+    intervalWeeks,
+    weekNumbersJson,
+    scheduleTemplateId,
+    sectionIdsJson,
+    startsAtMinute,
+    endsAtMinute,
+    remindBeforeMinutes,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'course_schedule_rule_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CourseScheduleRuleRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('course_id')) {
+      context.handle(
+        _courseIdMeta,
+        courseId.isAcceptableOrUnknown(data['course_id']!, _courseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_courseIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('weekday')) {
+      context.handle(
+        _weekdayMeta,
+        weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weekdayMeta);
+    }
+    if (data.containsKey('week_rule_type')) {
+      context.handle(
+        _weekRuleTypeMeta,
+        weekRuleType.isAcceptableOrUnknown(
+          data['week_rule_type']!,
+          _weekRuleTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_weekRuleTypeMeta);
+    }
+    if (data.containsKey('start_week')) {
+      context.handle(
+        _startWeekMeta,
+        startWeek.isAcceptableOrUnknown(data['start_week']!, _startWeekMeta),
+      );
+    }
+    if (data.containsKey('end_week')) {
+      context.handle(
+        _endWeekMeta,
+        endWeek.isAcceptableOrUnknown(data['end_week']!, _endWeekMeta),
+      );
+    }
+    if (data.containsKey('interval_weeks')) {
+      context.handle(
+        _intervalWeeksMeta,
+        intervalWeeks.isAcceptableOrUnknown(
+          data['interval_weeks']!,
+          _intervalWeeksMeta,
+        ),
+      );
+    }
+    if (data.containsKey('week_numbers_json')) {
+      context.handle(
+        _weekNumbersJsonMeta,
+        weekNumbersJson.isAcceptableOrUnknown(
+          data['week_numbers_json']!,
+          _weekNumbersJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('schedule_template_id')) {
+      context.handle(
+        _scheduleTemplateIdMeta,
+        scheduleTemplateId.isAcceptableOrUnknown(
+          data['schedule_template_id']!,
+          _scheduleTemplateIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('section_ids_json')) {
+      context.handle(
+        _sectionIdsJsonMeta,
+        sectionIdsJson.isAcceptableOrUnknown(
+          data['section_ids_json']!,
+          _sectionIdsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('starts_at_minute')) {
+      context.handle(
+        _startsAtMinuteMeta,
+        startsAtMinute.isAcceptableOrUnknown(
+          data['starts_at_minute']!,
+          _startsAtMinuteMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startsAtMinuteMeta);
+    }
+    if (data.containsKey('ends_at_minute')) {
+      context.handle(
+        _endsAtMinuteMeta,
+        endsAtMinute.isAcceptableOrUnknown(
+          data['ends_at_minute']!,
+          _endsAtMinuteMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_endsAtMinuteMeta);
+    }
+    if (data.containsKey('remind_before_minutes')) {
+      context.handle(
+        _remindBeforeMinutesMeta,
+        remindBeforeMinutes.isAcceptableOrUnknown(
+          data['remind_before_minutes']!,
+          _remindBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CourseScheduleRuleRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CourseScheduleRuleRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      courseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}course_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      weekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}weekday'],
+      )!,
+      weekRuleType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}week_rule_type'],
+      )!,
+      startWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_week'],
+      ),
+      endWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_week'],
+      ),
+      intervalWeeks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval_weeks'],
+      ),
+      weekNumbersJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}week_numbers_json'],
+      )!,
+      scheduleTemplateId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_template_id'],
+      ),
+      sectionIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}section_ids_json'],
+      )!,
+      startsAtMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}starts_at_minute'],
+      )!,
+      endsAtMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ends_at_minute'],
+      )!,
+      remindBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remind_before_minutes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $CourseScheduleRuleRecordsTable createAlias(String alias) {
+    return $CourseScheduleRuleRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class CourseScheduleRuleRecord extends DataClass
+    implements Insertable<CourseScheduleRuleRecord> {
+  final String id;
+  final String courseId;
+  final String userId;
+  final int weekday;
+  final String weekRuleType;
+  final int? startWeek;
+  final int? endWeek;
+  final int? intervalWeeks;
+  final String weekNumbersJson;
+  final String? scheduleTemplateId;
+  final String sectionIdsJson;
+  final int startsAtMinute;
+  final int endsAtMinute;
+  final int? remindBeforeMinutes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const CourseScheduleRuleRecord({
+    required this.id,
+    required this.courseId,
+    required this.userId,
+    required this.weekday,
+    required this.weekRuleType,
+    this.startWeek,
+    this.endWeek,
+    this.intervalWeeks,
+    required this.weekNumbersJson,
+    this.scheduleTemplateId,
+    required this.sectionIdsJson,
+    required this.startsAtMinute,
+    required this.endsAtMinute,
+    this.remindBeforeMinutes,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['course_id'] = Variable<String>(courseId);
+    map['user_id'] = Variable<String>(userId);
+    map['weekday'] = Variable<int>(weekday);
+    map['week_rule_type'] = Variable<String>(weekRuleType);
+    if (!nullToAbsent || startWeek != null) {
+      map['start_week'] = Variable<int>(startWeek);
+    }
+    if (!nullToAbsent || endWeek != null) {
+      map['end_week'] = Variable<int>(endWeek);
+    }
+    if (!nullToAbsent || intervalWeeks != null) {
+      map['interval_weeks'] = Variable<int>(intervalWeeks);
+    }
+    map['week_numbers_json'] = Variable<String>(weekNumbersJson);
+    if (!nullToAbsent || scheduleTemplateId != null) {
+      map['schedule_template_id'] = Variable<String>(scheduleTemplateId);
+    }
+    map['section_ids_json'] = Variable<String>(sectionIdsJson);
+    map['starts_at_minute'] = Variable<int>(startsAtMinute);
+    map['ends_at_minute'] = Variable<int>(endsAtMinute);
+    if (!nullToAbsent || remindBeforeMinutes != null) {
+      map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  CourseScheduleRuleRecordsCompanion toCompanion(bool nullToAbsent) {
+    return CourseScheduleRuleRecordsCompanion(
+      id: Value(id),
+      courseId: Value(courseId),
+      userId: Value(userId),
+      weekday: Value(weekday),
+      weekRuleType: Value(weekRuleType),
+      startWeek: startWeek == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startWeek),
+      endWeek: endWeek == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endWeek),
+      intervalWeeks: intervalWeeks == null && nullToAbsent
+          ? const Value.absent()
+          : Value(intervalWeeks),
+      weekNumbersJson: Value(weekNumbersJson),
+      scheduleTemplateId: scheduleTemplateId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduleTemplateId),
+      sectionIdsJson: Value(sectionIdsJson),
+      startsAtMinute: Value(startsAtMinute),
+      endsAtMinute: Value(endsAtMinute),
+      remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remindBeforeMinutes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory CourseScheduleRuleRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CourseScheduleRuleRecord(
+      id: serializer.fromJson<String>(json['id']),
+      courseId: serializer.fromJson<String>(json['courseId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      weekday: serializer.fromJson<int>(json['weekday']),
+      weekRuleType: serializer.fromJson<String>(json['weekRuleType']),
+      startWeek: serializer.fromJson<int?>(json['startWeek']),
+      endWeek: serializer.fromJson<int?>(json['endWeek']),
+      intervalWeeks: serializer.fromJson<int?>(json['intervalWeeks']),
+      weekNumbersJson: serializer.fromJson<String>(json['weekNumbersJson']),
+      scheduleTemplateId: serializer.fromJson<String?>(
+        json['scheduleTemplateId'],
+      ),
+      sectionIdsJson: serializer.fromJson<String>(json['sectionIdsJson']),
+      startsAtMinute: serializer.fromJson<int>(json['startsAtMinute']),
+      endsAtMinute: serializer.fromJson<int>(json['endsAtMinute']),
+      remindBeforeMinutes: serializer.fromJson<int?>(
+        json['remindBeforeMinutes'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'courseId': serializer.toJson<String>(courseId),
+      'userId': serializer.toJson<String>(userId),
+      'weekday': serializer.toJson<int>(weekday),
+      'weekRuleType': serializer.toJson<String>(weekRuleType),
+      'startWeek': serializer.toJson<int?>(startWeek),
+      'endWeek': serializer.toJson<int?>(endWeek),
+      'intervalWeeks': serializer.toJson<int?>(intervalWeeks),
+      'weekNumbersJson': serializer.toJson<String>(weekNumbersJson),
+      'scheduleTemplateId': serializer.toJson<String?>(scheduleTemplateId),
+      'sectionIdsJson': serializer.toJson<String>(sectionIdsJson),
+      'startsAtMinute': serializer.toJson<int>(startsAtMinute),
+      'endsAtMinute': serializer.toJson<int>(endsAtMinute),
+      'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  CourseScheduleRuleRecord copyWith({
+    String? id,
+    String? courseId,
+    String? userId,
+    int? weekday,
+    String? weekRuleType,
+    Value<int?> startWeek = const Value.absent(),
+    Value<int?> endWeek = const Value.absent(),
+    Value<int?> intervalWeeks = const Value.absent(),
+    String? weekNumbersJson,
+    Value<String?> scheduleTemplateId = const Value.absent(),
+    String? sectionIdsJson,
+    int? startsAtMinute,
+    int? endsAtMinute,
+    Value<int?> remindBeforeMinutes = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => CourseScheduleRuleRecord(
+    id: id ?? this.id,
+    courseId: courseId ?? this.courseId,
+    userId: userId ?? this.userId,
+    weekday: weekday ?? this.weekday,
+    weekRuleType: weekRuleType ?? this.weekRuleType,
+    startWeek: startWeek.present ? startWeek.value : this.startWeek,
+    endWeek: endWeek.present ? endWeek.value : this.endWeek,
+    intervalWeeks: intervalWeeks.present
+        ? intervalWeeks.value
+        : this.intervalWeeks,
+    weekNumbersJson: weekNumbersJson ?? this.weekNumbersJson,
+    scheduleTemplateId: scheduleTemplateId.present
+        ? scheduleTemplateId.value
+        : this.scheduleTemplateId,
+    sectionIdsJson: sectionIdsJson ?? this.sectionIdsJson,
+    startsAtMinute: startsAtMinute ?? this.startsAtMinute,
+    endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+    remindBeforeMinutes: remindBeforeMinutes.present
+        ? remindBeforeMinutes.value
+        : this.remindBeforeMinutes,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  CourseScheduleRuleRecord copyWithCompanion(
+    CourseScheduleRuleRecordsCompanion data,
+  ) {
+    return CourseScheduleRuleRecord(
+      id: data.id.present ? data.id.value : this.id,
+      courseId: data.courseId.present ? data.courseId.value : this.courseId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
+      weekRuleType: data.weekRuleType.present
+          ? data.weekRuleType.value
+          : this.weekRuleType,
+      startWeek: data.startWeek.present ? data.startWeek.value : this.startWeek,
+      endWeek: data.endWeek.present ? data.endWeek.value : this.endWeek,
+      intervalWeeks: data.intervalWeeks.present
+          ? data.intervalWeeks.value
+          : this.intervalWeeks,
+      weekNumbersJson: data.weekNumbersJson.present
+          ? data.weekNumbersJson.value
+          : this.weekNumbersJson,
+      scheduleTemplateId: data.scheduleTemplateId.present
+          ? data.scheduleTemplateId.value
+          : this.scheduleTemplateId,
+      sectionIdsJson: data.sectionIdsJson.present
+          ? data.sectionIdsJson.value
+          : this.sectionIdsJson,
+      startsAtMinute: data.startsAtMinute.present
+          ? data.startsAtMinute.value
+          : this.startsAtMinute,
+      endsAtMinute: data.endsAtMinute.present
+          ? data.endsAtMinute.value
+          : this.endsAtMinute,
+      remindBeforeMinutes: data.remindBeforeMinutes.present
+          ? data.remindBeforeMinutes.value
+          : this.remindBeforeMinutes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseScheduleRuleRecord(')
+          ..write('id: $id, ')
+          ..write('courseId: $courseId, ')
+          ..write('userId: $userId, ')
+          ..write('weekday: $weekday, ')
+          ..write('weekRuleType: $weekRuleType, ')
+          ..write('startWeek: $startWeek, ')
+          ..write('endWeek: $endWeek, ')
+          ..write('intervalWeeks: $intervalWeeks, ')
+          ..write('weekNumbersJson: $weekNumbersJson, ')
+          ..write('scheduleTemplateId: $scheduleTemplateId, ')
+          ..write('sectionIdsJson: $sectionIdsJson, ')
+          ..write('startsAtMinute: $startsAtMinute, ')
+          ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    courseId,
+    userId,
+    weekday,
+    weekRuleType,
+    startWeek,
+    endWeek,
+    intervalWeeks,
+    weekNumbersJson,
+    scheduleTemplateId,
+    sectionIdsJson,
+    startsAtMinute,
+    endsAtMinute,
+    remindBeforeMinutes,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CourseScheduleRuleRecord &&
+          other.id == this.id &&
+          other.courseId == this.courseId &&
+          other.userId == this.userId &&
+          other.weekday == this.weekday &&
+          other.weekRuleType == this.weekRuleType &&
+          other.startWeek == this.startWeek &&
+          other.endWeek == this.endWeek &&
+          other.intervalWeeks == this.intervalWeeks &&
+          other.weekNumbersJson == this.weekNumbersJson &&
+          other.scheduleTemplateId == this.scheduleTemplateId &&
+          other.sectionIdsJson == this.sectionIdsJson &&
+          other.startsAtMinute == this.startsAtMinute &&
+          other.endsAtMinute == this.endsAtMinute &&
+          other.remindBeforeMinutes == this.remindBeforeMinutes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class CourseScheduleRuleRecordsCompanion
+    extends UpdateCompanion<CourseScheduleRuleRecord> {
+  final Value<String> id;
+  final Value<String> courseId;
+  final Value<String> userId;
+  final Value<int> weekday;
+  final Value<String> weekRuleType;
+  final Value<int?> startWeek;
+  final Value<int?> endWeek;
+  final Value<int?> intervalWeeks;
+  final Value<String> weekNumbersJson;
+  final Value<String?> scheduleTemplateId;
+  final Value<String> sectionIdsJson;
+  final Value<int> startsAtMinute;
+  final Value<int> endsAtMinute;
+  final Value<int?> remindBeforeMinutes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const CourseScheduleRuleRecordsCompanion({
+    this.id = const Value.absent(),
+    this.courseId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.weekday = const Value.absent(),
+    this.weekRuleType = const Value.absent(),
+    this.startWeek = const Value.absent(),
+    this.endWeek = const Value.absent(),
+    this.intervalWeeks = const Value.absent(),
+    this.weekNumbersJson = const Value.absent(),
+    this.scheduleTemplateId = const Value.absent(),
+    this.sectionIdsJson = const Value.absent(),
+    this.startsAtMinute = const Value.absent(),
+    this.endsAtMinute = const Value.absent(),
+    this.remindBeforeMinutes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CourseScheduleRuleRecordsCompanion.insert({
+    required String id,
+    required String courseId,
+    required String userId,
+    required int weekday,
+    required String weekRuleType,
+    this.startWeek = const Value.absent(),
+    this.endWeek = const Value.absent(),
+    this.intervalWeeks = const Value.absent(),
+    this.weekNumbersJson = const Value.absent(),
+    this.scheduleTemplateId = const Value.absent(),
+    this.sectionIdsJson = const Value.absent(),
+    required int startsAtMinute,
+    required int endsAtMinute,
+    this.remindBeforeMinutes = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       courseId = Value(courseId),
+       userId = Value(userId),
+       weekday = Value(weekday),
+       weekRuleType = Value(weekRuleType),
+       startsAtMinute = Value(startsAtMinute),
+       endsAtMinute = Value(endsAtMinute),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CourseScheduleRuleRecord> custom({
+    Expression<String>? id,
+    Expression<String>? courseId,
+    Expression<String>? userId,
+    Expression<int>? weekday,
+    Expression<String>? weekRuleType,
+    Expression<int>? startWeek,
+    Expression<int>? endWeek,
+    Expression<int>? intervalWeeks,
+    Expression<String>? weekNumbersJson,
+    Expression<String>? scheduleTemplateId,
+    Expression<String>? sectionIdsJson,
+    Expression<int>? startsAtMinute,
+    Expression<int>? endsAtMinute,
+    Expression<int>? remindBeforeMinutes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (courseId != null) 'course_id': courseId,
+      if (userId != null) 'user_id': userId,
+      if (weekday != null) 'weekday': weekday,
+      if (weekRuleType != null) 'week_rule_type': weekRuleType,
+      if (startWeek != null) 'start_week': startWeek,
+      if (endWeek != null) 'end_week': endWeek,
+      if (intervalWeeks != null) 'interval_weeks': intervalWeeks,
+      if (weekNumbersJson != null) 'week_numbers_json': weekNumbersJson,
+      if (scheduleTemplateId != null)
+        'schedule_template_id': scheduleTemplateId,
+      if (sectionIdsJson != null) 'section_ids_json': sectionIdsJson,
+      if (startsAtMinute != null) 'starts_at_minute': startsAtMinute,
+      if (endsAtMinute != null) 'ends_at_minute': endsAtMinute,
+      if (remindBeforeMinutes != null)
+        'remind_before_minutes': remindBeforeMinutes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CourseScheduleRuleRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? courseId,
+    Value<String>? userId,
+    Value<int>? weekday,
+    Value<String>? weekRuleType,
+    Value<int?>? startWeek,
+    Value<int?>? endWeek,
+    Value<int?>? intervalWeeks,
+    Value<String>? weekNumbersJson,
+    Value<String?>? scheduleTemplateId,
+    Value<String>? sectionIdsJson,
+    Value<int>? startsAtMinute,
+    Value<int>? endsAtMinute,
+    Value<int?>? remindBeforeMinutes,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return CourseScheduleRuleRecordsCompanion(
+      id: id ?? this.id,
+      courseId: courseId ?? this.courseId,
+      userId: userId ?? this.userId,
+      weekday: weekday ?? this.weekday,
+      weekRuleType: weekRuleType ?? this.weekRuleType,
+      startWeek: startWeek ?? this.startWeek,
+      endWeek: endWeek ?? this.endWeek,
+      intervalWeeks: intervalWeeks ?? this.intervalWeeks,
+      weekNumbersJson: weekNumbersJson ?? this.weekNumbersJson,
+      scheduleTemplateId: scheduleTemplateId ?? this.scheduleTemplateId,
+      sectionIdsJson: sectionIdsJson ?? this.sectionIdsJson,
+      startsAtMinute: startsAtMinute ?? this.startsAtMinute,
+      endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+      remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (courseId.present) {
+      map['course_id'] = Variable<String>(courseId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (weekday.present) {
+      map['weekday'] = Variable<int>(weekday.value);
+    }
+    if (weekRuleType.present) {
+      map['week_rule_type'] = Variable<String>(weekRuleType.value);
+    }
+    if (startWeek.present) {
+      map['start_week'] = Variable<int>(startWeek.value);
+    }
+    if (endWeek.present) {
+      map['end_week'] = Variable<int>(endWeek.value);
+    }
+    if (intervalWeeks.present) {
+      map['interval_weeks'] = Variable<int>(intervalWeeks.value);
+    }
+    if (weekNumbersJson.present) {
+      map['week_numbers_json'] = Variable<String>(weekNumbersJson.value);
+    }
+    if (scheduleTemplateId.present) {
+      map['schedule_template_id'] = Variable<String>(scheduleTemplateId.value);
+    }
+    if (sectionIdsJson.present) {
+      map['section_ids_json'] = Variable<String>(sectionIdsJson.value);
+    }
+    if (startsAtMinute.present) {
+      map['starts_at_minute'] = Variable<int>(startsAtMinute.value);
+    }
+    if (endsAtMinute.present) {
+      map['ends_at_minute'] = Variable<int>(endsAtMinute.value);
+    }
+    if (remindBeforeMinutes.present) {
+      map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseScheduleRuleRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('courseId: $courseId, ')
+          ..write('userId: $userId, ')
+          ..write('weekday: $weekday, ')
+          ..write('weekRuleType: $weekRuleType, ')
+          ..write('startWeek: $startWeek, ')
+          ..write('endWeek: $endWeek, ')
+          ..write('intervalWeeks: $intervalWeeks, ')
+          ..write('weekNumbersJson: $weekNumbersJson, ')
+          ..write('scheduleTemplateId: $scheduleTemplateId, ')
+          ..write('sectionIdsJson: $sectionIdsJson, ')
+          ..write('startsAtMinute: $startsAtMinute, ')
+          ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ScheduleTemplateRecordsTable extends ScheduleTemplateRecords
+    with TableInfo<$ScheduleTemplateRecordsTable, ScheduleTemplateRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ScheduleTemplateRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timezoneMeta = const VerificationMeta(
+    'timezone',
+  );
+  @override
+  late final GeneratedColumn<String> timezone = GeneratedColumn<String>(
+    'timezone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Asia/Shanghai'),
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    name,
+    timezone,
+    isDefault,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'schedule_template_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ScheduleTemplateRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('timezone')) {
+      context.handle(
+        _timezoneMeta,
+        timezone.isAcceptableOrUnknown(data['timezone']!, _timezoneMeta),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ScheduleTemplateRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ScheduleTemplateRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      timezone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timezone'],
+      )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ScheduleTemplateRecordsTable createAlias(String alias) {
+    return $ScheduleTemplateRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ScheduleTemplateRecord extends DataClass
+    implements Insertable<ScheduleTemplateRecord> {
+  final String id;
+  final String userId;
+  final String name;
+  final String timezone;
+  final bool isDefault;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const ScheduleTemplateRecord({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.timezone,
+    required this.isDefault,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    map['timezone'] = Variable<String>(timezone);
+    map['is_default'] = Variable<bool>(isDefault);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  ScheduleTemplateRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ScheduleTemplateRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      name: Value(name),
+      timezone: Value(timezone),
+      isDefault: Value(isDefault),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ScheduleTemplateRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ScheduleTemplateRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      timezone: serializer.fromJson<String>(json['timezone']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'timezone': serializer.toJson<String>(timezone),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  ScheduleTemplateRecord copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    String? timezone,
+    bool? isDefault,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => ScheduleTemplateRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    name: name ?? this.name,
+    timezone: timezone ?? this.timezone,
+    isDefault: isDefault ?? this.isDefault,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ScheduleTemplateRecord copyWithCompanion(
+    ScheduleTemplateRecordsCompanion data,
+  ) {
+    return ScheduleTemplateRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      timezone: data.timezone.present ? data.timezone.value : this.timezone,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduleTemplateRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('timezone: $timezone, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    name,
+    timezone,
+    isDefault,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ScheduleTemplateRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.timezone == this.timezone &&
+          other.isDefault == this.isDefault &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ScheduleTemplateRecordsCompanion
+    extends UpdateCompanion<ScheduleTemplateRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<String> timezone;
+  final Value<bool> isDefault;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const ScheduleTemplateRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.timezone = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ScheduleTemplateRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String name,
+    this.timezone = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ScheduleTemplateRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<String>? timezone,
+    Expression<bool>? isDefault,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (timezone != null) 'timezone': timezone,
+      if (isDefault != null) 'is_default': isDefault,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ScheduleTemplateRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? name,
+    Value<String>? timezone,
+    Value<bool>? isDefault,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ScheduleTemplateRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      timezone: timezone ?? this.timezone,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (timezone.present) {
+      map['timezone'] = Variable<String>(timezone.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduleTemplateRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('timezone: $timezone, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ScheduleTemplateSegmentRecordsTable
+    extends ScheduleTemplateSegmentRecords
+    with
+        TableInfo<
+          $ScheduleTemplateSegmentRecordsTable,
+          ScheduleTemplateSegmentRecord
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ScheduleTemplateSegmentRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _templateIdMeta = const VerificationMeta(
+    'templateId',
+  );
+  @override
+  late final GeneratedColumn<String> templateId = GeneratedColumn<String>(
+    'template_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES schedule_template_records (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startsAtMinuteMeta = const VerificationMeta(
+    'startsAtMinute',
+  );
+  @override
+  late final GeneratedColumn<int> startsAtMinute = GeneratedColumn<int>(
+    'starts_at_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endsAtMinuteMeta = const VerificationMeta(
+    'endsAtMinute',
+  );
+  @override
+  late final GeneratedColumn<int> endsAtMinute = GeneratedColumn<int>(
+    'ends_at_minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _segmentTypeMeta = const VerificationMeta(
+    'segmentType',
+  );
+  @override
+  late final GeneratedColumn<String> segmentType = GeneratedColumn<String>(
+    'segment_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('classTime'),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    templateId,
+    userId,
+    name,
+    startsAtMinute,
+    endsAtMinute,
+    segmentType,
+    sortOrder,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'schedule_template_segment_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ScheduleTemplateSegmentRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('template_id')) {
+      context.handle(
+        _templateIdMeta,
+        templateId.isAcceptableOrUnknown(data['template_id']!, _templateIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_templateIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('starts_at_minute')) {
+      context.handle(
+        _startsAtMinuteMeta,
+        startsAtMinute.isAcceptableOrUnknown(
+          data['starts_at_minute']!,
+          _startsAtMinuteMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startsAtMinuteMeta);
+    }
+    if (data.containsKey('ends_at_minute')) {
+      context.handle(
+        _endsAtMinuteMeta,
+        endsAtMinute.isAcceptableOrUnknown(
+          data['ends_at_minute']!,
+          _endsAtMinuteMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_endsAtMinuteMeta);
+    }
+    if (data.containsKey('segment_type')) {
+      context.handle(
+        _segmentTypeMeta,
+        segmentType.isAcceptableOrUnknown(
+          data['segment_type']!,
+          _segmentTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ScheduleTemplateSegmentRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ScheduleTemplateSegmentRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      templateId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      startsAtMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}starts_at_minute'],
+      )!,
+      endsAtMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ends_at_minute'],
+      )!,
+      segmentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}segment_type'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ScheduleTemplateSegmentRecordsTable createAlias(String alias) {
+    return $ScheduleTemplateSegmentRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ScheduleTemplateSegmentRecord extends DataClass
+    implements Insertable<ScheduleTemplateSegmentRecord> {
+  final String id;
+  final String templateId;
+  final String userId;
+  final String name;
+  final int startsAtMinute;
+  final int endsAtMinute;
+  final String segmentType;
+  final int sortOrder;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const ScheduleTemplateSegmentRecord({
+    required this.id,
+    required this.templateId,
+    required this.userId,
+    required this.name,
+    required this.startsAtMinute,
+    required this.endsAtMinute,
+    required this.segmentType,
+    required this.sortOrder,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['template_id'] = Variable<String>(templateId);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    map['starts_at_minute'] = Variable<int>(startsAtMinute);
+    map['ends_at_minute'] = Variable<int>(endsAtMinute);
+    map['segment_type'] = Variable<String>(segmentType);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  ScheduleTemplateSegmentRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ScheduleTemplateSegmentRecordsCompanion(
+      id: Value(id),
+      templateId: Value(templateId),
+      userId: Value(userId),
+      name: Value(name),
+      startsAtMinute: Value(startsAtMinute),
+      endsAtMinute: Value(endsAtMinute),
+      segmentType: Value(segmentType),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ScheduleTemplateSegmentRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ScheduleTemplateSegmentRecord(
+      id: serializer.fromJson<String>(json['id']),
+      templateId: serializer.fromJson<String>(json['templateId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      startsAtMinute: serializer.fromJson<int>(json['startsAtMinute']),
+      endsAtMinute: serializer.fromJson<int>(json['endsAtMinute']),
+      segmentType: serializer.fromJson<String>(json['segmentType']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'templateId': serializer.toJson<String>(templateId),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'startsAtMinute': serializer.toJson<int>(startsAtMinute),
+      'endsAtMinute': serializer.toJson<int>(endsAtMinute),
+      'segmentType': serializer.toJson<String>(segmentType),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  ScheduleTemplateSegmentRecord copyWith({
+    String? id,
+    String? templateId,
+    String? userId,
+    String? name,
+    int? startsAtMinute,
+    int? endsAtMinute,
+    String? segmentType,
+    int? sortOrder,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => ScheduleTemplateSegmentRecord(
+    id: id ?? this.id,
+    templateId: templateId ?? this.templateId,
+    userId: userId ?? this.userId,
+    name: name ?? this.name,
+    startsAtMinute: startsAtMinute ?? this.startsAtMinute,
+    endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+    segmentType: segmentType ?? this.segmentType,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ScheduleTemplateSegmentRecord copyWithCompanion(
+    ScheduleTemplateSegmentRecordsCompanion data,
+  ) {
+    return ScheduleTemplateSegmentRecord(
+      id: data.id.present ? data.id.value : this.id,
+      templateId: data.templateId.present
+          ? data.templateId.value
+          : this.templateId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      startsAtMinute: data.startsAtMinute.present
+          ? data.startsAtMinute.value
+          : this.startsAtMinute,
+      endsAtMinute: data.endsAtMinute.present
+          ? data.endsAtMinute.value
+          : this.endsAtMinute,
+      segmentType: data.segmentType.present
+          ? data.segmentType.value
+          : this.segmentType,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduleTemplateSegmentRecord(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('startsAtMinute: $startsAtMinute, ')
+          ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('segmentType: $segmentType, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    templateId,
+    userId,
+    name,
+    startsAtMinute,
+    endsAtMinute,
+    segmentType,
+    sortOrder,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ScheduleTemplateSegmentRecord &&
+          other.id == this.id &&
+          other.templateId == this.templateId &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.startsAtMinute == this.startsAtMinute &&
+          other.endsAtMinute == this.endsAtMinute &&
+          other.segmentType == this.segmentType &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ScheduleTemplateSegmentRecordsCompanion
+    extends UpdateCompanion<ScheduleTemplateSegmentRecord> {
+  final Value<String> id;
+  final Value<String> templateId;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<int> startsAtMinute;
+  final Value<int> endsAtMinute;
+  final Value<String> segmentType;
+  final Value<int> sortOrder;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const ScheduleTemplateSegmentRecordsCompanion({
+    this.id = const Value.absent(),
+    this.templateId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.startsAtMinute = const Value.absent(),
+    this.endsAtMinute = const Value.absent(),
+    this.segmentType = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ScheduleTemplateSegmentRecordsCompanion.insert({
+    required String id,
+    required String templateId,
+    required String userId,
+    required String name,
+    required int startsAtMinute,
+    required int endsAtMinute,
+    this.segmentType = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       templateId = Value(templateId),
+       userId = Value(userId),
+       name = Value(name),
+       startsAtMinute = Value(startsAtMinute),
+       endsAtMinute = Value(endsAtMinute),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ScheduleTemplateSegmentRecord> custom({
+    Expression<String>? id,
+    Expression<String>? templateId,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<int>? startsAtMinute,
+    Expression<int>? endsAtMinute,
+    Expression<String>? segmentType,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (templateId != null) 'template_id': templateId,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (startsAtMinute != null) 'starts_at_minute': startsAtMinute,
+      if (endsAtMinute != null) 'ends_at_minute': endsAtMinute,
+      if (segmentType != null) 'segment_type': segmentType,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ScheduleTemplateSegmentRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? templateId,
+    Value<String>? userId,
+    Value<String>? name,
+    Value<int>? startsAtMinute,
+    Value<int>? endsAtMinute,
+    Value<String>? segmentType,
+    Value<int>? sortOrder,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ScheduleTemplateSegmentRecordsCompanion(
+      id: id ?? this.id,
+      templateId: templateId ?? this.templateId,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      startsAtMinute: startsAtMinute ?? this.startsAtMinute,
+      endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+      segmentType: segmentType ?? this.segmentType,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (templateId.present) {
+      map['template_id'] = Variable<String>(templateId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (startsAtMinute.present) {
+      map['starts_at_minute'] = Variable<int>(startsAtMinute.value);
+    }
+    if (endsAtMinute.present) {
+      map['ends_at_minute'] = Variable<int>(endsAtMinute.value);
+    }
+    if (segmentType.present) {
+      map['segment_type'] = Variable<String>(segmentType.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ScheduleTemplateSegmentRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('templateId: $templateId, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('startsAtMinute: $startsAtMinute, ')
+          ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('segmentType: $segmentType, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DailyItemOverrideRecordsTable extends DailyItemOverrideRecords
+    with TableInfo<$DailyItemOverrideRecordsTable, DailyItemOverrideRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyItemOverrideRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemTypeMeta = const VerificationMeta(
+    'itemType',
+  );
+  @override
+  late final GeneratedColumn<String> itemType = GeneratedColumn<String>(
+    'item_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localDateMeta = const VerificationMeta(
+    'localDate',
+  );
+  @override
+  late final GeneratedColumn<String> localDate = GeneratedColumn<String>(
+    'local_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _plannedStartMinuteMeta =
+      const VerificationMeta('plannedStartMinute');
+  @override
+  late final GeneratedColumn<int> plannedStartMinute = GeneratedColumn<int>(
+    'planned_start_minute',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _plannedEndMinuteMeta = const VerificationMeta(
+    'plannedEndMinute',
+  );
+  @override
+  late final GeneratedColumn<int> plannedEndMinute = GeneratedColumn<int>(
+    'planned_end_minute',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reminderMinuteOfDayMeta =
+      const VerificationMeta('reminderMinuteOfDay');
+  @override
+  late final GeneratedColumn<int> reminderMinuteOfDay = GeneratedColumn<int>(
+    'reminder_minute_of_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetDurationSecondsMeta =
+      const VerificationMeta('targetDurationSeconds');
+  @override
+  late final GeneratedColumn<int> targetDurationSeconds = GeneratedColumn<int>(
+    'target_duration_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _temporaryClassroomMeta =
+      const VerificationMeta('temporaryClassroom');
+  @override
+  late final GeneratedColumn<String> temporaryClassroom =
+      GeneratedColumn<String>(
+        'temporary_classroom',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    itemType,
+    itemId,
+    localDate,
+    action,
+    plannedStartMinute,
+    plannedEndMinute,
+    reminderMinuteOfDay,
+    targetDurationSeconds,
+    temporaryClassroom,
+    notes,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_item_override_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyItemOverrideRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('item_type')) {
+      context.handle(
+        _itemTypeMeta,
+        itemType.isAcceptableOrUnknown(data['item_type']!, _itemTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemTypeMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('local_date')) {
+      context.handle(
+        _localDateMeta,
+        localDate.isAcceptableOrUnknown(data['local_date']!, _localDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localDateMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('planned_start_minute')) {
+      context.handle(
+        _plannedStartMinuteMeta,
+        plannedStartMinute.isAcceptableOrUnknown(
+          data['planned_start_minute']!,
+          _plannedStartMinuteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('planned_end_minute')) {
+      context.handle(
+        _plannedEndMinuteMeta,
+        plannedEndMinute.isAcceptableOrUnknown(
+          data['planned_end_minute']!,
+          _plannedEndMinuteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reminder_minute_of_day')) {
+      context.handle(
+        _reminderMinuteOfDayMeta,
+        reminderMinuteOfDay.isAcceptableOrUnknown(
+          data['reminder_minute_of_day']!,
+          _reminderMinuteOfDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('target_duration_seconds')) {
+      context.handle(
+        _targetDurationSecondsMeta,
+        targetDurationSeconds.isAcceptableOrUnknown(
+          data['target_duration_seconds']!,
+          _targetDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('temporary_classroom')) {
+      context.handle(
+        _temporaryClassroomMeta,
+        temporaryClassroom.isAcceptableOrUnknown(
+          data['temporary_classroom']!,
+          _temporaryClassroomMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, itemType, itemId, localDate},
+  ];
+  @override
+  DailyItemOverrideRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyItemOverrideRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      itemType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_type'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      localDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_date'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      )!,
+      plannedStartMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}planned_start_minute'],
+      ),
+      plannedEndMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}planned_end_minute'],
+      ),
+      reminderMinuteOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_minute_of_day'],
+      ),
+      targetDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}target_duration_seconds'],
+      ),
+      temporaryClassroom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}temporary_classroom'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $DailyItemOverrideRecordsTable createAlias(String alias) {
+    return $DailyItemOverrideRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class DailyItemOverrideRecord extends DataClass
+    implements Insertable<DailyItemOverrideRecord> {
+  final String id;
+  final String userId;
+  final String itemType;
+  final String itemId;
+  final String localDate;
+  final String action;
+  final int? plannedStartMinute;
+  final int? plannedEndMinute;
+  final int? reminderMinuteOfDay;
+  final int? targetDurationSeconds;
+  final String? temporaryClassroom;
+  final String? notes;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const DailyItemOverrideRecord({
+    required this.id,
+    required this.userId,
+    required this.itemType,
+    required this.itemId,
+    required this.localDate,
+    required this.action,
+    this.plannedStartMinute,
+    this.plannedEndMinute,
+    this.reminderMinuteOfDay,
+    this.targetDurationSeconds,
+    this.temporaryClassroom,
+    this.notes,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['item_type'] = Variable<String>(itemType);
+    map['item_id'] = Variable<String>(itemId);
+    map['local_date'] = Variable<String>(localDate);
+    map['action'] = Variable<String>(action);
+    if (!nullToAbsent || plannedStartMinute != null) {
+      map['planned_start_minute'] = Variable<int>(plannedStartMinute);
+    }
+    if (!nullToAbsent || plannedEndMinute != null) {
+      map['planned_end_minute'] = Variable<int>(plannedEndMinute);
+    }
+    if (!nullToAbsent || reminderMinuteOfDay != null) {
+      map['reminder_minute_of_day'] = Variable<int>(reminderMinuteOfDay);
+    }
+    if (!nullToAbsent || targetDurationSeconds != null) {
+      map['target_duration_seconds'] = Variable<int>(targetDurationSeconds);
+    }
+    if (!nullToAbsent || temporaryClassroom != null) {
+      map['temporary_classroom'] = Variable<String>(temporaryClassroom);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  DailyItemOverrideRecordsCompanion toCompanion(bool nullToAbsent) {
+    return DailyItemOverrideRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      itemType: Value(itemType),
+      itemId: Value(itemId),
+      localDate: Value(localDate),
+      action: Value(action),
+      plannedStartMinute: plannedStartMinute == null && nullToAbsent
+          ? const Value.absent()
+          : Value(plannedStartMinute),
+      plannedEndMinute: plannedEndMinute == null && nullToAbsent
+          ? const Value.absent()
+          : Value(plannedEndMinute),
+      reminderMinuteOfDay: reminderMinuteOfDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderMinuteOfDay),
+      targetDurationSeconds: targetDurationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetDurationSeconds),
+      temporaryClassroom: temporaryClassroom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(temporaryClassroom),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory DailyItemOverrideRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyItemOverrideRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      itemType: serializer.fromJson<String>(json['itemType']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      localDate: serializer.fromJson<String>(json['localDate']),
+      action: serializer.fromJson<String>(json['action']),
+      plannedStartMinute: serializer.fromJson<int?>(json['plannedStartMinute']),
+      plannedEndMinute: serializer.fromJson<int?>(json['plannedEndMinute']),
+      reminderMinuteOfDay: serializer.fromJson<int?>(
+        json['reminderMinuteOfDay'],
+      ),
+      targetDurationSeconds: serializer.fromJson<int?>(
+        json['targetDurationSeconds'],
+      ),
+      temporaryClassroom: serializer.fromJson<String?>(
+        json['temporaryClassroom'],
+      ),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'itemType': serializer.toJson<String>(itemType),
+      'itemId': serializer.toJson<String>(itemId),
+      'localDate': serializer.toJson<String>(localDate),
+      'action': serializer.toJson<String>(action),
+      'plannedStartMinute': serializer.toJson<int?>(plannedStartMinute),
+      'plannedEndMinute': serializer.toJson<int?>(plannedEndMinute),
+      'reminderMinuteOfDay': serializer.toJson<int?>(reminderMinuteOfDay),
+      'targetDurationSeconds': serializer.toJson<int?>(targetDurationSeconds),
+      'temporaryClassroom': serializer.toJson<String?>(temporaryClassroom),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  DailyItemOverrideRecord copyWith({
+    String? id,
+    String? userId,
+    String? itemType,
+    String? itemId,
+    String? localDate,
+    String? action,
+    Value<int?> plannedStartMinute = const Value.absent(),
+    Value<int?> plannedEndMinute = const Value.absent(),
+    Value<int?> reminderMinuteOfDay = const Value.absent(),
+    Value<int?> targetDurationSeconds = const Value.absent(),
+    Value<String?> temporaryClassroom = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => DailyItemOverrideRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    itemType: itemType ?? this.itemType,
+    itemId: itemId ?? this.itemId,
+    localDate: localDate ?? this.localDate,
+    action: action ?? this.action,
+    plannedStartMinute: plannedStartMinute.present
+        ? plannedStartMinute.value
+        : this.plannedStartMinute,
+    plannedEndMinute: plannedEndMinute.present
+        ? plannedEndMinute.value
+        : this.plannedEndMinute,
+    reminderMinuteOfDay: reminderMinuteOfDay.present
+        ? reminderMinuteOfDay.value
+        : this.reminderMinuteOfDay,
+    targetDurationSeconds: targetDurationSeconds.present
+        ? targetDurationSeconds.value
+        : this.targetDurationSeconds,
+    temporaryClassroom: temporaryClassroom.present
+        ? temporaryClassroom.value
+        : this.temporaryClassroom,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  DailyItemOverrideRecord copyWithCompanion(
+    DailyItemOverrideRecordsCompanion data,
+  ) {
+    return DailyItemOverrideRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      itemType: data.itemType.present ? data.itemType.value : this.itemType,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      localDate: data.localDate.present ? data.localDate.value : this.localDate,
+      action: data.action.present ? data.action.value : this.action,
+      plannedStartMinute: data.plannedStartMinute.present
+          ? data.plannedStartMinute.value
+          : this.plannedStartMinute,
+      plannedEndMinute: data.plannedEndMinute.present
+          ? data.plannedEndMinute.value
+          : this.plannedEndMinute,
+      reminderMinuteOfDay: data.reminderMinuteOfDay.present
+          ? data.reminderMinuteOfDay.value
+          : this.reminderMinuteOfDay,
+      targetDurationSeconds: data.targetDurationSeconds.present
+          ? data.targetDurationSeconds.value
+          : this.targetDurationSeconds,
+      temporaryClassroom: data.temporaryClassroom.present
+          ? data.temporaryClassroom.value
+          : this.temporaryClassroom,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyItemOverrideRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('itemType: $itemType, ')
+          ..write('itemId: $itemId, ')
+          ..write('localDate: $localDate, ')
+          ..write('action: $action, ')
+          ..write('plannedStartMinute: $plannedStartMinute, ')
+          ..write('plannedEndMinute: $plannedEndMinute, ')
+          ..write('reminderMinuteOfDay: $reminderMinuteOfDay, ')
+          ..write('targetDurationSeconds: $targetDurationSeconds, ')
+          ..write('temporaryClassroom: $temporaryClassroom, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    itemType,
+    itemId,
+    localDate,
+    action,
+    plannedStartMinute,
+    plannedEndMinute,
+    reminderMinuteOfDay,
+    targetDurationSeconds,
+    temporaryClassroom,
+    notes,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyItemOverrideRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.itemType == this.itemType &&
+          other.itemId == this.itemId &&
+          other.localDate == this.localDate &&
+          other.action == this.action &&
+          other.plannedStartMinute == this.plannedStartMinute &&
+          other.plannedEndMinute == this.plannedEndMinute &&
+          other.reminderMinuteOfDay == this.reminderMinuteOfDay &&
+          other.targetDurationSeconds == this.targetDurationSeconds &&
+          other.temporaryClassroom == this.temporaryClassroom &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DailyItemOverrideRecordsCompanion
+    extends UpdateCompanion<DailyItemOverrideRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> itemType;
+  final Value<String> itemId;
+  final Value<String> localDate;
+  final Value<String> action;
+  final Value<int?> plannedStartMinute;
+  final Value<int?> plannedEndMinute;
+  final Value<int?> reminderMinuteOfDay;
+  final Value<int?> targetDurationSeconds;
+  final Value<String?> temporaryClassroom;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const DailyItemOverrideRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.itemType = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.localDate = const Value.absent(),
+    this.action = const Value.absent(),
+    this.plannedStartMinute = const Value.absent(),
+    this.plannedEndMinute = const Value.absent(),
+    this.reminderMinuteOfDay = const Value.absent(),
+    this.targetDurationSeconds = const Value.absent(),
+    this.temporaryClassroom = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyItemOverrideRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String itemType,
+    required String itemId,
+    required String localDate,
+    required String action,
+    this.plannedStartMinute = const Value.absent(),
+    this.plannedEndMinute = const Value.absent(),
+    this.reminderMinuteOfDay = const Value.absent(),
+    this.targetDurationSeconds = const Value.absent(),
+    this.temporaryClassroom = const Value.absent(),
+    this.notes = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       itemType = Value(itemType),
+       itemId = Value(itemId),
+       localDate = Value(localDate),
+       action = Value(action),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<DailyItemOverrideRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? itemType,
+    Expression<String>? itemId,
+    Expression<String>? localDate,
+    Expression<String>? action,
+    Expression<int>? plannedStartMinute,
+    Expression<int>? plannedEndMinute,
+    Expression<int>? reminderMinuteOfDay,
+    Expression<int>? targetDurationSeconds,
+    Expression<String>? temporaryClassroom,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (itemType != null) 'item_type': itemType,
+      if (itemId != null) 'item_id': itemId,
+      if (localDate != null) 'local_date': localDate,
+      if (action != null) 'action': action,
+      if (plannedStartMinute != null)
+        'planned_start_minute': plannedStartMinute,
+      if (plannedEndMinute != null) 'planned_end_minute': plannedEndMinute,
+      if (reminderMinuteOfDay != null)
+        'reminder_minute_of_day': reminderMinuteOfDay,
+      if (targetDurationSeconds != null)
+        'target_duration_seconds': targetDurationSeconds,
+      if (temporaryClassroom != null) 'temporary_classroom': temporaryClassroom,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyItemOverrideRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? itemType,
+    Value<String>? itemId,
+    Value<String>? localDate,
+    Value<String>? action,
+    Value<int?>? plannedStartMinute,
+    Value<int?>? plannedEndMinute,
+    Value<int?>? reminderMinuteOfDay,
+    Value<int?>? targetDurationSeconds,
+    Value<String?>? temporaryClassroom,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DailyItemOverrideRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      itemType: itemType ?? this.itemType,
+      itemId: itemId ?? this.itemId,
+      localDate: localDate ?? this.localDate,
+      action: action ?? this.action,
+      plannedStartMinute: plannedStartMinute ?? this.plannedStartMinute,
+      plannedEndMinute: plannedEndMinute ?? this.plannedEndMinute,
+      reminderMinuteOfDay: reminderMinuteOfDay ?? this.reminderMinuteOfDay,
+      targetDurationSeconds:
+          targetDurationSeconds ?? this.targetDurationSeconds,
+      temporaryClassroom: temporaryClassroom ?? this.temporaryClassroom,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (itemType.present) {
+      map['item_type'] = Variable<String>(itemType.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (localDate.present) {
+      map['local_date'] = Variable<String>(localDate.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (plannedStartMinute.present) {
+      map['planned_start_minute'] = Variable<int>(plannedStartMinute.value);
+    }
+    if (plannedEndMinute.present) {
+      map['planned_end_minute'] = Variable<int>(plannedEndMinute.value);
+    }
+    if (reminderMinuteOfDay.present) {
+      map['reminder_minute_of_day'] = Variable<int>(reminderMinuteOfDay.value);
+    }
+    if (targetDurationSeconds.present) {
+      map['target_duration_seconds'] = Variable<int>(
+        targetDurationSeconds.value,
+      );
+    }
+    if (temporaryClassroom.present) {
+      map['temporary_classroom'] = Variable<String>(temporaryClassroom.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyItemOverrideRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('itemType: $itemType, ')
+          ..write('itemId: $itemId, ')
+          ..write('localDate: $localDate, ')
+          ..write('action: $action, ')
+          ..write('plannedStartMinute: $plannedStartMinute, ')
+          ..write('plannedEndMinute: $plannedEndMinute, ')
+          ..write('reminderMinuteOfDay: $reminderMinuteOfDay, ')
+          ..write('targetDurationSeconds: $targetDurationSeconds, ')
+          ..write('temporaryClassroom: $temporaryClassroom, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReminderRuleRecordsTable extends ReminderRuleRecords
+    with TableInfo<$ReminderRuleRecordsTable, ReminderRuleRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReminderRuleRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerTypeMeta = const VerificationMeta(
+    'ownerType',
+  );
+  @override
+  late final GeneratedColumn<String> ownerType = GeneratedColumn<String>(
+    'owner_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reminderKindMeta = const VerificationMeta(
+    'reminderKind',
+  );
+  @override
+  late final GeneratedColumn<String> reminderKind = GeneratedColumn<String>(
+    'reminder_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _enabledMeta = const VerificationMeta(
+    'enabled',
+  );
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _scheduledMinuteOfDayMeta =
+      const VerificationMeta('scheduledMinuteOfDay');
+  @override
+  late final GeneratedColumn<int> scheduledMinuteOfDay = GeneratedColumn<int>(
+    'scheduled_minute_of_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remindBeforeMinutesMeta =
+      const VerificationMeta('remindBeforeMinutes');
+  @override
+  late final GeneratedColumn<int> remindBeforeMinutes = GeneratedColumn<int>(
+    'remind_before_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _localDateMeta = const VerificationMeta(
+    'localDate',
+  );
+  @override
+  late final GeneratedColumn<String> localDate = GeneratedColumn<String>(
+    'local_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _timezoneMeta = const VerificationMeta(
+    'timezone',
+  );
+  @override
+  late final GeneratedColumn<String> timezone = GeneratedColumn<String>(
+    'timezone',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Asia/Shanghai'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    ownerType,
+    ownerId,
+    reminderKind,
+    enabled,
+    scheduledMinuteOfDay,
+    remindBeforeMinutes,
+    localDate,
+    timezone,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminder_rule_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReminderRuleRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('owner_type')) {
+      context.handle(
+        _ownerTypeMeta,
+        ownerType.isAcceptableOrUnknown(data['owner_type']!, _ownerTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerTypeMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('reminder_kind')) {
+      context.handle(
+        _reminderKindMeta,
+        reminderKind.isAcceptableOrUnknown(
+          data['reminder_kind']!,
+          _reminderKindMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_reminderKindMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(
+        _enabledMeta,
+        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
+      );
+    }
+    if (data.containsKey('scheduled_minute_of_day')) {
+      context.handle(
+        _scheduledMinuteOfDayMeta,
+        scheduledMinuteOfDay.isAcceptableOrUnknown(
+          data['scheduled_minute_of_day']!,
+          _scheduledMinuteOfDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remind_before_minutes')) {
+      context.handle(
+        _remindBeforeMinutesMeta,
+        remindBeforeMinutes.isAcceptableOrUnknown(
+          data['remind_before_minutes']!,
+          _remindBeforeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('local_date')) {
+      context.handle(
+        _localDateMeta,
+        localDate.isAcceptableOrUnknown(data['local_date']!, _localDateMeta),
+      );
+    }
+    if (data.containsKey('timezone')) {
+      context.handle(
+        _timezoneMeta,
+        timezone.isAcceptableOrUnknown(data['timezone']!, _timezoneMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReminderRuleRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReminderRuleRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      ownerType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_type'],
+      )!,
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      )!,
+      reminderKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_kind'],
+      )!,
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enabled'],
+      )!,
+      scheduledMinuteOfDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}scheduled_minute_of_day'],
+      ),
+      remindBeforeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remind_before_minutes'],
+      ),
+      localDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_date'],
+      ),
+      timezone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timezone'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $ReminderRuleRecordsTable createAlias(String alias) {
+    return $ReminderRuleRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class ReminderRuleRecord extends DataClass
+    implements Insertable<ReminderRuleRecord> {
+  final String id;
+  final String userId;
+  final String ownerType;
+  final String ownerId;
+  final String reminderKind;
+  final bool enabled;
+  final int? scheduledMinuteOfDay;
+  final int? remindBeforeMinutes;
+  final String? localDate;
+  final String timezone;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const ReminderRuleRecord({
+    required this.id,
+    required this.userId,
+    required this.ownerType,
+    required this.ownerId,
+    required this.reminderKind,
+    required this.enabled,
+    this.scheduledMinuteOfDay,
+    this.remindBeforeMinutes,
+    this.localDate,
+    required this.timezone,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['owner_type'] = Variable<String>(ownerType);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['reminder_kind'] = Variable<String>(reminderKind);
+    map['enabled'] = Variable<bool>(enabled);
+    if (!nullToAbsent || scheduledMinuteOfDay != null) {
+      map['scheduled_minute_of_day'] = Variable<int>(scheduledMinuteOfDay);
+    }
+    if (!nullToAbsent || remindBeforeMinutes != null) {
+      map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
+    }
+    if (!nullToAbsent || localDate != null) {
+      map['local_date'] = Variable<String>(localDate);
+    }
+    map['timezone'] = Variable<String>(timezone);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  ReminderRuleRecordsCompanion toCompanion(bool nullToAbsent) {
+    return ReminderRuleRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      ownerType: Value(ownerType),
+      ownerId: Value(ownerId),
+      reminderKind: Value(reminderKind),
+      enabled: Value(enabled),
+      scheduledMinuteOfDay: scheduledMinuteOfDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledMinuteOfDay),
+      remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remindBeforeMinutes),
+      localDate: localDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localDate),
+      timezone: Value(timezone),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory ReminderRuleRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReminderRuleRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      ownerType: serializer.fromJson<String>(json['ownerType']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      reminderKind: serializer.fromJson<String>(json['reminderKind']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      scheduledMinuteOfDay: serializer.fromJson<int?>(
+        json['scheduledMinuteOfDay'],
+      ),
+      remindBeforeMinutes: serializer.fromJson<int?>(
+        json['remindBeforeMinutes'],
+      ),
+      localDate: serializer.fromJson<String?>(json['localDate']),
+      timezone: serializer.fromJson<String>(json['timezone']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'ownerType': serializer.toJson<String>(ownerType),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'reminderKind': serializer.toJson<String>(reminderKind),
+      'enabled': serializer.toJson<bool>(enabled),
+      'scheduledMinuteOfDay': serializer.toJson<int?>(scheduledMinuteOfDay),
+      'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
+      'localDate': serializer.toJson<String?>(localDate),
+      'timezone': serializer.toJson<String>(timezone),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  ReminderRuleRecord copyWith({
+    String? id,
+    String? userId,
+    String? ownerType,
+    String? ownerId,
+    String? reminderKind,
+    bool? enabled,
+    Value<int?> scheduledMinuteOfDay = const Value.absent(),
+    Value<int?> remindBeforeMinutes = const Value.absent(),
+    Value<String?> localDate = const Value.absent(),
+    String? timezone,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => ReminderRuleRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    ownerType: ownerType ?? this.ownerType,
+    ownerId: ownerId ?? this.ownerId,
+    reminderKind: reminderKind ?? this.reminderKind,
+    enabled: enabled ?? this.enabled,
+    scheduledMinuteOfDay: scheduledMinuteOfDay.present
+        ? scheduledMinuteOfDay.value
+        : this.scheduledMinuteOfDay,
+    remindBeforeMinutes: remindBeforeMinutes.present
+        ? remindBeforeMinutes.value
+        : this.remindBeforeMinutes,
+    localDate: localDate.present ? localDate.value : this.localDate,
+    timezone: timezone ?? this.timezone,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  ReminderRuleRecord copyWithCompanion(ReminderRuleRecordsCompanion data) {
+    return ReminderRuleRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      ownerType: data.ownerType.present ? data.ownerType.value : this.ownerType,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      reminderKind: data.reminderKind.present
+          ? data.reminderKind.value
+          : this.reminderKind,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      scheduledMinuteOfDay: data.scheduledMinuteOfDay.present
+          ? data.scheduledMinuteOfDay.value
+          : this.scheduledMinuteOfDay,
+      remindBeforeMinutes: data.remindBeforeMinutes.present
+          ? data.remindBeforeMinutes.value
+          : this.remindBeforeMinutes,
+      localDate: data.localDate.present ? data.localDate.value : this.localDate,
+      timezone: data.timezone.present ? data.timezone.value : this.timezone,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderRuleRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ownerType: $ownerType, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('reminderKind: $reminderKind, ')
+          ..write('enabled: $enabled, ')
+          ..write('scheduledMinuteOfDay: $scheduledMinuteOfDay, ')
+          ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('localDate: $localDate, ')
+          ..write('timezone: $timezone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    ownerType,
+    ownerId,
+    reminderKind,
+    enabled,
+    scheduledMinuteOfDay,
+    remindBeforeMinutes,
+    localDate,
+    timezone,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReminderRuleRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.ownerType == this.ownerType &&
+          other.ownerId == this.ownerId &&
+          other.reminderKind == this.reminderKind &&
+          other.enabled == this.enabled &&
+          other.scheduledMinuteOfDay == this.scheduledMinuteOfDay &&
+          other.remindBeforeMinutes == this.remindBeforeMinutes &&
+          other.localDate == this.localDate &&
+          other.timezone == this.timezone &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class ReminderRuleRecordsCompanion extends UpdateCompanion<ReminderRuleRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> ownerType;
+  final Value<String> ownerId;
+  final Value<String> reminderKind;
+  final Value<bool> enabled;
+  final Value<int?> scheduledMinuteOfDay;
+  final Value<int?> remindBeforeMinutes;
+  final Value<String?> localDate;
+  final Value<String> timezone;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const ReminderRuleRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.ownerType = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.reminderKind = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.scheduledMinuteOfDay = const Value.absent(),
+    this.remindBeforeMinutes = const Value.absent(),
+    this.localDate = const Value.absent(),
+    this.timezone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReminderRuleRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String ownerType,
+    required String ownerId,
+    required String reminderKind,
+    this.enabled = const Value.absent(),
+    this.scheduledMinuteOfDay = const Value.absent(),
+    this.remindBeforeMinutes = const Value.absent(),
+    this.localDate = const Value.absent(),
+    this.timezone = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       ownerType = Value(ownerType),
+       ownerId = Value(ownerId),
+       reminderKind = Value(reminderKind),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<ReminderRuleRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? ownerType,
+    Expression<String>? ownerId,
+    Expression<String>? reminderKind,
+    Expression<bool>? enabled,
+    Expression<int>? scheduledMinuteOfDay,
+    Expression<int>? remindBeforeMinutes,
+    Expression<String>? localDate,
+    Expression<String>? timezone,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (ownerType != null) 'owner_type': ownerType,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (reminderKind != null) 'reminder_kind': reminderKind,
+      if (enabled != null) 'enabled': enabled,
+      if (scheduledMinuteOfDay != null)
+        'scheduled_minute_of_day': scheduledMinuteOfDay,
+      if (remindBeforeMinutes != null)
+        'remind_before_minutes': remindBeforeMinutes,
+      if (localDate != null) 'local_date': localDate,
+      if (timezone != null) 'timezone': timezone,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReminderRuleRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? ownerType,
+    Value<String>? ownerId,
+    Value<String>? reminderKind,
+    Value<bool>? enabled,
+    Value<int?>? scheduledMinuteOfDay,
+    Value<int?>? remindBeforeMinutes,
+    Value<String?>? localDate,
+    Value<String>? timezone,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return ReminderRuleRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      ownerType: ownerType ?? this.ownerType,
+      ownerId: ownerId ?? this.ownerId,
+      reminderKind: reminderKind ?? this.reminderKind,
+      enabled: enabled ?? this.enabled,
+      scheduledMinuteOfDay: scheduledMinuteOfDay ?? this.scheduledMinuteOfDay,
+      remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
+      localDate: localDate ?? this.localDate,
+      timezone: timezone ?? this.timezone,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (ownerType.present) {
+      map['owner_type'] = Variable<String>(ownerType.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (reminderKind.present) {
+      map['reminder_kind'] = Variable<String>(reminderKind.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (scheduledMinuteOfDay.present) {
+      map['scheduled_minute_of_day'] = Variable<int>(
+        scheduledMinuteOfDay.value,
+      );
+    }
+    if (remindBeforeMinutes.present) {
+      map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes.value);
+    }
+    if (localDate.present) {
+      map['local_date'] = Variable<String>(localDate.value);
+    }
+    if (timezone.present) {
+      map['timezone'] = Variable<String>(timezone.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderRuleRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ownerType: $ownerType, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('reminderKind: $reminderKind, ')
+          ..write('enabled: $enabled, ')
+          ..write('scheduledMinuteOfDay: $scheduledMinuteOfDay, ')
+          ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
+          ..write('localDate: $localDate, ')
+          ..write('timezone: $timezone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AlarmRuleRecordsTable extends AlarmRuleRecords
+    with TableInfo<$AlarmRuleRecordsTable, AlarmRuleRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AlarmRuleRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerTypeMeta = const VerificationMeta(
+    'ownerType',
+  );
+  @override
+  late final GeneratedColumn<String> ownerType = GeneratedColumn<String>(
+    'owner_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _enabledMeta = const VerificationMeta(
+    'enabled',
+  );
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _behaviorMeta = const VerificationMeta(
+    'behavior',
+  );
+  @override
+  late final GeneratedColumn<String> behavior = GeneratedColumn<String>(
+    'behavior',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('once'),
+  );
+  static const VerificationMeta _soundNameMeta = const VerificationMeta(
+    'soundName',
+  );
+  @override
+  late final GeneratedColumn<String> soundName = GeneratedColumn<String>(
+    'sound_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _snoozeMinutesMeta = const VerificationMeta(
+    'snoozeMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> snoozeMinutes = GeneratedColumn<int>(
+    'snooze_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _repeatIntervalMinutesMeta =
+      const VerificationMeta('repeatIntervalMinutes');
+  @override
+  late final GeneratedColumn<int> repeatIntervalMinutes = GeneratedColumn<int>(
+    'repeat_interval_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _maxRingSecondsMeta = const VerificationMeta(
+    'maxRingSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> maxRingSeconds = GeneratedColumn<int>(
+    'max_ring_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    ownerType,
+    ownerId,
+    enabled,
+    behavior,
+    soundName,
+    snoozeMinutes,
+    repeatIntervalMinutes,
+    maxRingSeconds,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'alarm_rule_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AlarmRuleRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('owner_type')) {
+      context.handle(
+        _ownerTypeMeta,
+        ownerType.isAcceptableOrUnknown(data['owner_type']!, _ownerTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerTypeMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(
+        _enabledMeta,
+        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
+      );
+    }
+    if (data.containsKey('behavior')) {
+      context.handle(
+        _behaviorMeta,
+        behavior.isAcceptableOrUnknown(data['behavior']!, _behaviorMeta),
+      );
+    }
+    if (data.containsKey('sound_name')) {
+      context.handle(
+        _soundNameMeta,
+        soundName.isAcceptableOrUnknown(data['sound_name']!, _soundNameMeta),
+      );
+    }
+    if (data.containsKey('snooze_minutes')) {
+      context.handle(
+        _snoozeMinutesMeta,
+        snoozeMinutes.isAcceptableOrUnknown(
+          data['snooze_minutes']!,
+          _snoozeMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('repeat_interval_minutes')) {
+      context.handle(
+        _repeatIntervalMinutesMeta,
+        repeatIntervalMinutes.isAcceptableOrUnknown(
+          data['repeat_interval_minutes']!,
+          _repeatIntervalMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_ring_seconds')) {
+      context.handle(
+        _maxRingSecondsMeta,
+        maxRingSeconds.isAcceptableOrUnknown(
+          data['max_ring_seconds']!,
+          _maxRingSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AlarmRuleRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AlarmRuleRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      ownerType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_type'],
+      )!,
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      )!,
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enabled'],
+      )!,
+      behavior: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}behavior'],
+      )!,
+      soundName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_name'],
+      ),
+      snoozeMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}snooze_minutes'],
+      ),
+      repeatIntervalMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}repeat_interval_minutes'],
+      ),
+      maxRingSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_ring_seconds'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $AlarmRuleRecordsTable createAlias(String alias) {
+    return $AlarmRuleRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class AlarmRuleRecord extends DataClass implements Insertable<AlarmRuleRecord> {
+  final String id;
+  final String userId;
+  final String ownerType;
+  final String ownerId;
+  final bool enabled;
+  final String behavior;
+  final String? soundName;
+  final int? snoozeMinutes;
+  final int? repeatIntervalMinutes;
+  final int? maxRingSeconds;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const AlarmRuleRecord({
+    required this.id,
+    required this.userId,
+    required this.ownerType,
+    required this.ownerId,
+    required this.enabled,
+    required this.behavior,
+    this.soundName,
+    this.snoozeMinutes,
+    this.repeatIntervalMinutes,
+    this.maxRingSeconds,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['owner_type'] = Variable<String>(ownerType);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['enabled'] = Variable<bool>(enabled);
+    map['behavior'] = Variable<String>(behavior);
+    if (!nullToAbsent || soundName != null) {
+      map['sound_name'] = Variable<String>(soundName);
+    }
+    if (!nullToAbsent || snoozeMinutes != null) {
+      map['snooze_minutes'] = Variable<int>(snoozeMinutes);
+    }
+    if (!nullToAbsent || repeatIntervalMinutes != null) {
+      map['repeat_interval_minutes'] = Variable<int>(repeatIntervalMinutes);
+    }
+    if (!nullToAbsent || maxRingSeconds != null) {
+      map['max_ring_seconds'] = Variable<int>(maxRingSeconds);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  AlarmRuleRecordsCompanion toCompanion(bool nullToAbsent) {
+    return AlarmRuleRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      ownerType: Value(ownerType),
+      ownerId: Value(ownerId),
+      enabled: Value(enabled),
+      behavior: Value(behavior),
+      soundName: soundName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(soundName),
+      snoozeMinutes: snoozeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snoozeMinutes),
+      repeatIntervalMinutes: repeatIntervalMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeatIntervalMinutes),
+      maxRingSeconds: maxRingSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(maxRingSeconds),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory AlarmRuleRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AlarmRuleRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      ownerType: serializer.fromJson<String>(json['ownerType']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      behavior: serializer.fromJson<String>(json['behavior']),
+      soundName: serializer.fromJson<String?>(json['soundName']),
+      snoozeMinutes: serializer.fromJson<int?>(json['snoozeMinutes']),
+      repeatIntervalMinutes: serializer.fromJson<int?>(
+        json['repeatIntervalMinutes'],
+      ),
+      maxRingSeconds: serializer.fromJson<int?>(json['maxRingSeconds']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'ownerType': serializer.toJson<String>(ownerType),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'enabled': serializer.toJson<bool>(enabled),
+      'behavior': serializer.toJson<String>(behavior),
+      'soundName': serializer.toJson<String?>(soundName),
+      'snoozeMinutes': serializer.toJson<int?>(snoozeMinutes),
+      'repeatIntervalMinutes': serializer.toJson<int?>(repeatIntervalMinutes),
+      'maxRingSeconds': serializer.toJson<int?>(maxRingSeconds),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  AlarmRuleRecord copyWith({
+    String? id,
+    String? userId,
+    String? ownerType,
+    String? ownerId,
+    bool? enabled,
+    String? behavior,
+    Value<String?> soundName = const Value.absent(),
+    Value<int?> snoozeMinutes = const Value.absent(),
+    Value<int?> repeatIntervalMinutes = const Value.absent(),
+    Value<int?> maxRingSeconds = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => AlarmRuleRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    ownerType: ownerType ?? this.ownerType,
+    ownerId: ownerId ?? this.ownerId,
+    enabled: enabled ?? this.enabled,
+    behavior: behavior ?? this.behavior,
+    soundName: soundName.present ? soundName.value : this.soundName,
+    snoozeMinutes: snoozeMinutes.present
+        ? snoozeMinutes.value
+        : this.snoozeMinutes,
+    repeatIntervalMinutes: repeatIntervalMinutes.present
+        ? repeatIntervalMinutes.value
+        : this.repeatIntervalMinutes,
+    maxRingSeconds: maxRingSeconds.present
+        ? maxRingSeconds.value
+        : this.maxRingSeconds,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  AlarmRuleRecord copyWithCompanion(AlarmRuleRecordsCompanion data) {
+    return AlarmRuleRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      ownerType: data.ownerType.present ? data.ownerType.value : this.ownerType,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      behavior: data.behavior.present ? data.behavior.value : this.behavior,
+      soundName: data.soundName.present ? data.soundName.value : this.soundName,
+      snoozeMinutes: data.snoozeMinutes.present
+          ? data.snoozeMinutes.value
+          : this.snoozeMinutes,
+      repeatIntervalMinutes: data.repeatIntervalMinutes.present
+          ? data.repeatIntervalMinutes.value
+          : this.repeatIntervalMinutes,
+      maxRingSeconds: data.maxRingSeconds.present
+          ? data.maxRingSeconds.value
+          : this.maxRingSeconds,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AlarmRuleRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ownerType: $ownerType, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('enabled: $enabled, ')
+          ..write('behavior: $behavior, ')
+          ..write('soundName: $soundName, ')
+          ..write('snoozeMinutes: $snoozeMinutes, ')
+          ..write('repeatIntervalMinutes: $repeatIntervalMinutes, ')
+          ..write('maxRingSeconds: $maxRingSeconds, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    ownerType,
+    ownerId,
+    enabled,
+    behavior,
+    soundName,
+    snoozeMinutes,
+    repeatIntervalMinutes,
+    maxRingSeconds,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AlarmRuleRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.ownerType == this.ownerType &&
+          other.ownerId == this.ownerId &&
+          other.enabled == this.enabled &&
+          other.behavior == this.behavior &&
+          other.soundName == this.soundName &&
+          other.snoozeMinutes == this.snoozeMinutes &&
+          other.repeatIntervalMinutes == this.repeatIntervalMinutes &&
+          other.maxRingSeconds == this.maxRingSeconds &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class AlarmRuleRecordsCompanion extends UpdateCompanion<AlarmRuleRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> ownerType;
+  final Value<String> ownerId;
+  final Value<bool> enabled;
+  final Value<String> behavior;
+  final Value<String?> soundName;
+  final Value<int?> snoozeMinutes;
+  final Value<int?> repeatIntervalMinutes;
+  final Value<int?> maxRingSeconds;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const AlarmRuleRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.ownerType = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.behavior = const Value.absent(),
+    this.soundName = const Value.absent(),
+    this.snoozeMinutes = const Value.absent(),
+    this.repeatIntervalMinutes = const Value.absent(),
+    this.maxRingSeconds = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AlarmRuleRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String ownerType,
+    required String ownerId,
+    this.enabled = const Value.absent(),
+    this.behavior = const Value.absent(),
+    this.soundName = const Value.absent(),
+    this.snoozeMinutes = const Value.absent(),
+    this.repeatIntervalMinutes = const Value.absent(),
+    this.maxRingSeconds = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       ownerType = Value(ownerType),
+       ownerId = Value(ownerId),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<AlarmRuleRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? ownerType,
+    Expression<String>? ownerId,
+    Expression<bool>? enabled,
+    Expression<String>? behavior,
+    Expression<String>? soundName,
+    Expression<int>? snoozeMinutes,
+    Expression<int>? repeatIntervalMinutes,
+    Expression<int>? maxRingSeconds,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (ownerType != null) 'owner_type': ownerType,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (enabled != null) 'enabled': enabled,
+      if (behavior != null) 'behavior': behavior,
+      if (soundName != null) 'sound_name': soundName,
+      if (snoozeMinutes != null) 'snooze_minutes': snoozeMinutes,
+      if (repeatIntervalMinutes != null)
+        'repeat_interval_minutes': repeatIntervalMinutes,
+      if (maxRingSeconds != null) 'max_ring_seconds': maxRingSeconds,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AlarmRuleRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? ownerType,
+    Value<String>? ownerId,
+    Value<bool>? enabled,
+    Value<String>? behavior,
+    Value<String?>? soundName,
+    Value<int?>? snoozeMinutes,
+    Value<int?>? repeatIntervalMinutes,
+    Value<int?>? maxRingSeconds,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return AlarmRuleRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      ownerType: ownerType ?? this.ownerType,
+      ownerId: ownerId ?? this.ownerId,
+      enabled: enabled ?? this.enabled,
+      behavior: behavior ?? this.behavior,
+      soundName: soundName ?? this.soundName,
+      snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
+      repeatIntervalMinutes:
+          repeatIntervalMinutes ?? this.repeatIntervalMinutes,
+      maxRingSeconds: maxRingSeconds ?? this.maxRingSeconds,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (ownerType.present) {
+      map['owner_type'] = Variable<String>(ownerType.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (behavior.present) {
+      map['behavior'] = Variable<String>(behavior.value);
+    }
+    if (soundName.present) {
+      map['sound_name'] = Variable<String>(soundName.value);
+    }
+    if (snoozeMinutes.present) {
+      map['snooze_minutes'] = Variable<int>(snoozeMinutes.value);
+    }
+    if (repeatIntervalMinutes.present) {
+      map['repeat_interval_minutes'] = Variable<int>(
+        repeatIntervalMinutes.value,
+      );
+    }
+    if (maxRingSeconds.present) {
+      map['max_ring_seconds'] = Variable<int>(maxRingSeconds.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AlarmRuleRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('ownerType: $ownerType, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('enabled: $enabled, ')
+          ..write('behavior: $behavior, ')
+          ..write('soundName: $soundName, ')
+          ..write('snoozeMinutes: $snoozeMinutes, ')
+          ..write('repeatIntervalMinutes: $repeatIntervalMinutes, ')
+          ..write('maxRingSeconds: $maxRingSeconds, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AdHocTimerRecordsTable extends AdHocTimerRecords
+    with TableInfo<$AdHocTimerRecordsTable, AdHocTimerRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AdHocTimerRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
+  @override
+  late final GeneratedColumn<String> tagId = GeneratedColumn<String>(
+    'tag_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    title,
+    tagId,
+    colorValue,
+    notes,
+    startedAt,
+    endedAt,
+    completedAt,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ad_hoc_timer_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AdHocTimerRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('tag_id')) {
+      context.handle(
+        _tagIdMeta,
+        tagId.isAcceptableOrUnknown(data['tag_id']!, _tagIdMeta),
+      );
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AdHocTimerRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AdHocTimerRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      tagId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_id'],
+      ),
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $AdHocTimerRecordsTable createAlias(String alias) {
+    return $AdHocTimerRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class AdHocTimerRecord extends DataClass
+    implements Insertable<AdHocTimerRecord> {
+  final String id;
+  final String userId;
+  final String title;
+  final String? tagId;
+  final int colorValue;
+  final String? notes;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+  final DateTime? completedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const AdHocTimerRecord({
+    required this.id,
+    required this.userId,
+    required this.title,
+    this.tagId,
+    required this.colorValue,
+    this.notes,
+    required this.startedAt,
+    this.endedAt,
+    this.completedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || tagId != null) {
+      map['tag_id'] = Variable<String>(tagId);
+    }
+    map['color_value'] = Variable<int>(colorValue);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  AdHocTimerRecordsCompanion toCompanion(bool nullToAbsent) {
+    return AdHocTimerRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      title: Value(title),
+      tagId: tagId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagId),
+      colorValue: Value(colorValue),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      startedAt: Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory AdHocTimerRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AdHocTimerRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      title: serializer.fromJson<String>(json['title']),
+      tagId: serializer.fromJson<String?>(json['tagId']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'title': serializer.toJson<String>(title),
+      'tagId': serializer.toJson<String?>(tagId),
+      'colorValue': serializer.toJson<int>(colorValue),
+      'notes': serializer.toJson<String?>(notes),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  AdHocTimerRecord copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    Value<String?> tagId = const Value.absent(),
+    int? colorValue,
+    Value<String?> notes = const Value.absent(),
+    DateTime? startedAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+    Value<DateTime?> completedAt = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => AdHocTimerRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    title: title ?? this.title,
+    tagId: tagId.present ? tagId.value : this.tagId,
+    colorValue: colorValue ?? this.colorValue,
+    notes: notes.present ? notes.value : this.notes,
+    startedAt: startedAt ?? this.startedAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  AdHocTimerRecord copyWithCompanion(AdHocTimerRecordsCompanion data) {
+    return AdHocTimerRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      title: data.title.present ? data.title.value : this.title,
+      tagId: data.tagId.present ? data.tagId.value : this.tagId,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdHocTimerRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('tagId: $tagId, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('notes: $notes, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    title,
+    tagId,
+    colorValue,
+    notes,
+    startedAt,
+    endedAt,
+    completedAt,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AdHocTimerRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.title == this.title &&
+          other.tagId == this.tagId &&
+          other.colorValue == this.colorValue &&
+          other.notes == this.notes &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.completedAt == this.completedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> title;
+  final Value<String?> tagId;
+  final Value<int> colorValue;
+  final Value<String?> notes;
+  final Value<DateTime> startedAt;
+  final Value<DateTime?> endedAt;
+  final Value<DateTime?> completedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const AdHocTimerRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.tagId = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AdHocTimerRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String title,
+    this.tagId = const Value.absent(),
+    required int colorValue,
+    this.notes = const Value.absent(),
+    required DateTime startedAt,
+    this.endedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       title = Value(title),
+       colorValue = Value(colorValue),
+       startedAt = Value(startedAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<AdHocTimerRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? title,
+    Expression<String>? tagId,
+    Expression<int>? colorValue,
+    Expression<String>? notes,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<DateTime>? completedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (title != null) 'title': title,
+      if (tagId != null) 'tag_id': tagId,
+      if (colorValue != null) 'color_value': colorValue,
+      if (notes != null) 'notes': notes,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AdHocTimerRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? title,
+    Value<String?>? tagId,
+    Value<int>? colorValue,
+    Value<String?>? notes,
+    Value<DateTime>? startedAt,
+    Value<DateTime?>? endedAt,
+    Value<DateTime?>? completedAt,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return AdHocTimerRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      tagId: tagId ?? this.tagId,
+      colorValue: colorValue ?? this.colorValue,
+      notes: notes ?? this.notes,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (tagId.present) {
+      map['tag_id'] = Variable<String>(tagId.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdHocTimerRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('tagId: $tagId, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('notes: $notes, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7950,6 +14019,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $ReviewRecordsTable reviewRecords = $ReviewRecordsTable(this);
+  late final $CourseRecordsTable courseRecords = $CourseRecordsTable(this);
+  late final $CourseScheduleRuleRecordsTable courseScheduleRuleRecords =
+      $CourseScheduleRuleRecordsTable(this);
+  late final $ScheduleTemplateRecordsTable scheduleTemplateRecords =
+      $ScheduleTemplateRecordsTable(this);
+  late final $ScheduleTemplateSegmentRecordsTable
+  scheduleTemplateSegmentRecords = $ScheduleTemplateSegmentRecordsTable(this);
+  late final $DailyItemOverrideRecordsTable dailyItemOverrideRecords =
+      $DailyItemOverrideRecordsTable(this);
+  late final $ReminderRuleRecordsTable reminderRuleRecords =
+      $ReminderRuleRecordsTable(this);
+  late final $AlarmRuleRecordsTable alarmRuleRecords = $AlarmRuleRecordsTable(
+    this,
+  );
+  late final $AdHocTimerRecordsTable adHocTimerRecords =
+      $AdHocTimerRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7969,6 +14054,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     planRecords,
     planTaskRecords,
     reviewRecords,
+    courseRecords,
+    courseScheduleRuleRecords,
+    scheduleTemplateRecords,
+    scheduleTemplateSegmentRecords,
+    dailyItemOverrideRecords,
+    reminderRuleRecords,
+    alarmRuleRecords,
+    adHocTimerRecords,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8029,6 +14122,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('plan_task_records', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'course_records',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('course_schedule_rule_records', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'schedule_template_records',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate(
+          'schedule_template_segment_records',
+          kind: UpdateKind.delete,
+        ),
+      ],
     ),
   ]);
 }
@@ -14086,6 +20200,3478 @@ typedef $$ReviewRecordsTableProcessedTableManager =
       ReviewRecord,
       PrefetchHooks Function()
     >;
+typedef $$CourseRecordsTableCreateCompanionBuilder =
+    CourseRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String name,
+      required int colorValue,
+      Value<String?> teacher,
+      Value<String?> classroom,
+      Value<String?> semester,
+      Value<String?> notes,
+      Value<String> status,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$CourseRecordsTableUpdateCompanionBuilder =
+    CourseRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> name,
+      Value<int> colorValue,
+      Value<String?> teacher,
+      Value<String?> classroom,
+      Value<String?> semester,
+      Value<String?> notes,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$CourseRecordsTableReferences
+    extends BaseReferences<_$AppDatabase, $CourseRecordsTable, CourseRecord> {
+  $$CourseRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $CourseScheduleRuleRecordsTable,
+    List<CourseScheduleRuleRecord>
+  >
+  _courseScheduleRuleRecordsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.courseScheduleRuleRecords,
+        aliasName:
+            'course_records__id__course_schedule_rule_records__course_id',
+      );
+
+  $$CourseScheduleRuleRecordsTableProcessedTableManager
+  get courseScheduleRuleRecordsRefs {
+    final manager = $$CourseScheduleRuleRecordsTableTableManager(
+      $_db,
+      $_db.courseScheduleRuleRecords,
+    ).filter((f) => f.courseId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _courseScheduleRuleRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$CourseRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $CourseRecordsTable> {
+  $$CourseRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get teacher => $composableBuilder(
+    column: $table.teacher,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get classroom => $composableBuilder(
+    column: $table.classroom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get semester => $composableBuilder(
+    column: $table.semester,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> courseScheduleRuleRecordsRefs(
+    Expression<bool> Function($$CourseScheduleRuleRecordsTableFilterComposer f)
+    f,
+  ) {
+    final $$CourseScheduleRuleRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.courseScheduleRuleRecords,
+          getReferencedColumn: (t) => t.courseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$CourseScheduleRuleRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.courseScheduleRuleRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$CourseRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CourseRecordsTable> {
+  $$CourseRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get teacher => $composableBuilder(
+    column: $table.teacher,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get classroom => $composableBuilder(
+    column: $table.classroom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get semester => $composableBuilder(
+    column: $table.semester,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CourseRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CourseRecordsTable> {
+  $$CourseRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get teacher =>
+      $composableBuilder(column: $table.teacher, builder: (column) => column);
+
+  GeneratedColumn<String> get classroom =>
+      $composableBuilder(column: $table.classroom, builder: (column) => column);
+
+  GeneratedColumn<String> get semester =>
+      $composableBuilder(column: $table.semester, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> courseScheduleRuleRecordsRefs<T extends Object>(
+    Expression<T> Function($$CourseScheduleRuleRecordsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$CourseScheduleRuleRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.courseScheduleRuleRecords,
+          getReferencedColumn: (t) => t.courseId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$CourseScheduleRuleRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.courseScheduleRuleRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$CourseRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CourseRecordsTable,
+          CourseRecord,
+          $$CourseRecordsTableFilterComposer,
+          $$CourseRecordsTableOrderingComposer,
+          $$CourseRecordsTableAnnotationComposer,
+          $$CourseRecordsTableCreateCompanionBuilder,
+          $$CourseRecordsTableUpdateCompanionBuilder,
+          (CourseRecord, $$CourseRecordsTableReferences),
+          CourseRecord,
+          PrefetchHooks Function({bool courseScheduleRuleRecordsRefs})
+        > {
+  $$CourseRecordsTableTableManager(_$AppDatabase db, $CourseRecordsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CourseRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CourseRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CourseRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
+                Value<String?> teacher = const Value.absent(),
+                Value<String?> classroom = const Value.absent(),
+                Value<String?> semester = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CourseRecordsCompanion(
+                id: id,
+                userId: userId,
+                name: name,
+                colorValue: colorValue,
+                teacher: teacher,
+                classroom: classroom,
+                semester: semester,
+                notes: notes,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String name,
+                required int colorValue,
+                Value<String?> teacher = const Value.absent(),
+                Value<String?> classroom = const Value.absent(),
+                Value<String?> semester = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CourseRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                name: name,
+                colorValue: colorValue,
+                teacher: teacher,
+                classroom: classroom,
+                semester: semester,
+                notes: notes,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CourseRecordsTable, CourseRecord>(table),
+                  $$CourseRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({courseScheduleRuleRecordsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (courseScheduleRuleRecordsRefs) db.courseScheduleRuleRecords,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (courseScheduleRuleRecordsRefs)
+                    await $_getPrefetchedData<
+                      CourseRecord,
+                      $CourseRecordsTable,
+                      CourseScheduleRuleRecord
+                    >(
+                      currentTable: table,
+                      referencedTable: $$CourseRecordsTableReferences
+                          ._courseScheduleRuleRecordsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$CourseRecordsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).courseScheduleRuleRecordsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.courseId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CourseRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CourseRecordsTable,
+      CourseRecord,
+      $$CourseRecordsTableFilterComposer,
+      $$CourseRecordsTableOrderingComposer,
+      $$CourseRecordsTableAnnotationComposer,
+      $$CourseRecordsTableCreateCompanionBuilder,
+      $$CourseRecordsTableUpdateCompanionBuilder,
+      (CourseRecord, $$CourseRecordsTableReferences),
+      CourseRecord,
+      PrefetchHooks Function({bool courseScheduleRuleRecordsRefs})
+    >;
+typedef $$CourseScheduleRuleRecordsTableCreateCompanionBuilder =
+    CourseScheduleRuleRecordsCompanion Function({
+      required String id,
+      required String courseId,
+      required String userId,
+      required int weekday,
+      required String weekRuleType,
+      Value<int?> startWeek,
+      Value<int?> endWeek,
+      Value<int?> intervalWeeks,
+      Value<String> weekNumbersJson,
+      Value<String?> scheduleTemplateId,
+      Value<String> sectionIdsJson,
+      required int startsAtMinute,
+      required int endsAtMinute,
+      Value<int?> remindBeforeMinutes,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$CourseScheduleRuleRecordsTableUpdateCompanionBuilder =
+    CourseScheduleRuleRecordsCompanion Function({
+      Value<String> id,
+      Value<String> courseId,
+      Value<String> userId,
+      Value<int> weekday,
+      Value<String> weekRuleType,
+      Value<int?> startWeek,
+      Value<int?> endWeek,
+      Value<int?> intervalWeeks,
+      Value<String> weekNumbersJson,
+      Value<String?> scheduleTemplateId,
+      Value<String> sectionIdsJson,
+      Value<int> startsAtMinute,
+      Value<int> endsAtMinute,
+      Value<int?> remindBeforeMinutes,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$CourseScheduleRuleRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $CourseScheduleRuleRecordsTable,
+          CourseScheduleRuleRecord
+        > {
+  $$CourseScheduleRuleRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CourseRecordsTable _courseIdTable(_$AppDatabase db) =>
+      db.courseRecords.createAlias(
+        'course_schedule_rule_records__course_id__course_records__id',
+      );
+
+  $$CourseRecordsTableProcessedTableManager get courseId {
+    final $_column = $_itemColumn<String>('course_id')!;
+
+    final manager = $$CourseRecordsTableTableManager(
+      $_db,
+      $_db.courseRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_courseIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$CourseScheduleRuleRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $CourseScheduleRuleRecordsTable> {
+  $$CourseScheduleRuleRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get weekday => $composableBuilder(
+    column: $table.weekday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekRuleType => $composableBuilder(
+    column: $table.weekRuleType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startWeek => $composableBuilder(
+    column: $table.startWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endWeek => $composableBuilder(
+    column: $table.endWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intervalWeeks => $composableBuilder(
+    column: $table.intervalWeeks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekNumbersJson => $composableBuilder(
+    column: $table.weekNumbersJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sectionIdsJson => $composableBuilder(
+    column: $table.sectionIdsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CourseRecordsTableFilterComposer get courseId {
+    final $$CourseRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.courseId,
+      referencedTable: $db.courseRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CourseRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.courseRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CourseScheduleRuleRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CourseScheduleRuleRecordsTable> {
+  $$CourseScheduleRuleRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get weekday => $composableBuilder(
+    column: $table.weekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weekRuleType => $composableBuilder(
+    column: $table.weekRuleType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startWeek => $composableBuilder(
+    column: $table.startWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endWeek => $composableBuilder(
+    column: $table.endWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intervalWeeks => $composableBuilder(
+    column: $table.intervalWeeks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get weekNumbersJson => $composableBuilder(
+    column: $table.weekNumbersJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sectionIdsJson => $composableBuilder(
+    column: $table.sectionIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CourseRecordsTableOrderingComposer get courseId {
+    final $$CourseRecordsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.courseId,
+      referencedTable: $db.courseRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CourseRecordsTableOrderingComposer(
+            $db: $db,
+            $table: $db.courseRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CourseScheduleRuleRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CourseScheduleRuleRecordsTable> {
+  $$CourseScheduleRuleRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get weekday =>
+      $composableBuilder(column: $table.weekday, builder: (column) => column);
+
+  GeneratedColumn<String> get weekRuleType => $composableBuilder(
+    column: $table.weekRuleType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startWeek =>
+      $composableBuilder(column: $table.startWeek, builder: (column) => column);
+
+  GeneratedColumn<int> get endWeek =>
+      $composableBuilder(column: $table.endWeek, builder: (column) => column);
+
+  GeneratedColumn<int> get intervalWeeks => $composableBuilder(
+    column: $table.intervalWeeks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get weekNumbersJson => $composableBuilder(
+    column: $table.weekNumbersJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sectionIdsJson => $composableBuilder(
+    column: $table.sectionIdsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$CourseRecordsTableAnnotationComposer get courseId {
+    final $$CourseRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.courseId,
+      referencedTable: $db.courseRecords,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CourseRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.courseRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$CourseScheduleRuleRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CourseScheduleRuleRecordsTable,
+          CourseScheduleRuleRecord,
+          $$CourseScheduleRuleRecordsTableFilterComposer,
+          $$CourseScheduleRuleRecordsTableOrderingComposer,
+          $$CourseScheduleRuleRecordsTableAnnotationComposer,
+          $$CourseScheduleRuleRecordsTableCreateCompanionBuilder,
+          $$CourseScheduleRuleRecordsTableUpdateCompanionBuilder,
+          (
+            CourseScheduleRuleRecord,
+            $$CourseScheduleRuleRecordsTableReferences,
+          ),
+          CourseScheduleRuleRecord,
+          PrefetchHooks Function({bool courseId})
+        > {
+  $$CourseScheduleRuleRecordsTableTableManager(
+    _$AppDatabase db,
+    $CourseScheduleRuleRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CourseScheduleRuleRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CourseScheduleRuleRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CourseScheduleRuleRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> courseId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<int> weekday = const Value.absent(),
+                Value<String> weekRuleType = const Value.absent(),
+                Value<int?> startWeek = const Value.absent(),
+                Value<int?> endWeek = const Value.absent(),
+                Value<int?> intervalWeeks = const Value.absent(),
+                Value<String> weekNumbersJson = const Value.absent(),
+                Value<String?> scheduleTemplateId = const Value.absent(),
+                Value<String> sectionIdsJson = const Value.absent(),
+                Value<int> startsAtMinute = const Value.absent(),
+                Value<int> endsAtMinute = const Value.absent(),
+                Value<int?> remindBeforeMinutes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CourseScheduleRuleRecordsCompanion(
+                id: id,
+                courseId: courseId,
+                userId: userId,
+                weekday: weekday,
+                weekRuleType: weekRuleType,
+                startWeek: startWeek,
+                endWeek: endWeek,
+                intervalWeeks: intervalWeeks,
+                weekNumbersJson: weekNumbersJson,
+                scheduleTemplateId: scheduleTemplateId,
+                sectionIdsJson: sectionIdsJson,
+                startsAtMinute: startsAtMinute,
+                endsAtMinute: endsAtMinute,
+                remindBeforeMinutes: remindBeforeMinutes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String courseId,
+                required String userId,
+                required int weekday,
+                required String weekRuleType,
+                Value<int?> startWeek = const Value.absent(),
+                Value<int?> endWeek = const Value.absent(),
+                Value<int?> intervalWeeks = const Value.absent(),
+                Value<String> weekNumbersJson = const Value.absent(),
+                Value<String?> scheduleTemplateId = const Value.absent(),
+                Value<String> sectionIdsJson = const Value.absent(),
+                required int startsAtMinute,
+                required int endsAtMinute,
+                Value<int?> remindBeforeMinutes = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CourseScheduleRuleRecordsCompanion.insert(
+                id: id,
+                courseId: courseId,
+                userId: userId,
+                weekday: weekday,
+                weekRuleType: weekRuleType,
+                startWeek: startWeek,
+                endWeek: endWeek,
+                intervalWeeks: intervalWeeks,
+                weekNumbersJson: weekNumbersJson,
+                scheduleTemplateId: scheduleTemplateId,
+                sectionIdsJson: sectionIdsJson,
+                startsAtMinute: startsAtMinute,
+                endsAtMinute: endsAtMinute,
+                remindBeforeMinutes: remindBeforeMinutes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $CourseScheduleRuleRecordsTable,
+                    CourseScheduleRuleRecord
+                  >(table),
+                  $$CourseScheduleRuleRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({courseId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (courseId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.courseId,
+                                referencedTable:
+                                    $$CourseScheduleRuleRecordsTableReferences
+                                        ._courseIdTable(db),
+                                referencedColumn:
+                                    $$CourseScheduleRuleRecordsTableReferences
+                                        ._courseIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$CourseScheduleRuleRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CourseScheduleRuleRecordsTable,
+      CourseScheduleRuleRecord,
+      $$CourseScheduleRuleRecordsTableFilterComposer,
+      $$CourseScheduleRuleRecordsTableOrderingComposer,
+      $$CourseScheduleRuleRecordsTableAnnotationComposer,
+      $$CourseScheduleRuleRecordsTableCreateCompanionBuilder,
+      $$CourseScheduleRuleRecordsTableUpdateCompanionBuilder,
+      (CourseScheduleRuleRecord, $$CourseScheduleRuleRecordsTableReferences),
+      CourseScheduleRuleRecord,
+      PrefetchHooks Function({bool courseId})
+    >;
+typedef $$ScheduleTemplateRecordsTableCreateCompanionBuilder =
+    ScheduleTemplateRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String name,
+      Value<String> timezone,
+      Value<bool> isDefault,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ScheduleTemplateRecordsTableUpdateCompanionBuilder =
+    ScheduleTemplateRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> name,
+      Value<String> timezone,
+      Value<bool> isDefault,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$ScheduleTemplateRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ScheduleTemplateRecordsTable,
+          ScheduleTemplateRecord
+        > {
+  $$ScheduleTemplateRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $ScheduleTemplateSegmentRecordsTable,
+    List<ScheduleTemplateSegmentRecord>
+  >
+  _scheduleTemplateSegmentRecordsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.scheduleTemplateSegmentRecords,
+    aliasName:
+        'schedule_template_records__id__schedule_template_segment_records__template_id',
+  );
+
+  $$ScheduleTemplateSegmentRecordsTableProcessedTableManager
+  get scheduleTemplateSegmentRecordsRefs {
+    final manager = $$ScheduleTemplateSegmentRecordsTableTableManager(
+      $_db,
+      $_db.scheduleTemplateSegmentRecords,
+    ).filter((f) => f.templateId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _scheduleTemplateSegmentRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ScheduleTemplateRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateRecordsTable> {
+  $$ScheduleTemplateRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> scheduleTemplateSegmentRecordsRefs(
+    Expression<bool> Function(
+      $$ScheduleTemplateSegmentRecordsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$ScheduleTemplateSegmentRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.scheduleTemplateSegmentRecords,
+          getReferencedColumn: (t) => t.templateId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ScheduleTemplateSegmentRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.scheduleTemplateSegmentRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ScheduleTemplateRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateRecordsTable> {
+  $$ScheduleTemplateRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ScheduleTemplateRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateRecordsTable> {
+  $$ScheduleTemplateRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get timezone =>
+      $composableBuilder(column: $table.timezone, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> scheduleTemplateSegmentRecordsRefs<T extends Object>(
+    Expression<T> Function(
+      $$ScheduleTemplateSegmentRecordsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$ScheduleTemplateSegmentRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.scheduleTemplateSegmentRecords,
+          getReferencedColumn: (t) => t.templateId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ScheduleTemplateSegmentRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.scheduleTemplateSegmentRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ScheduleTemplateRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ScheduleTemplateRecordsTable,
+          ScheduleTemplateRecord,
+          $$ScheduleTemplateRecordsTableFilterComposer,
+          $$ScheduleTemplateRecordsTableOrderingComposer,
+          $$ScheduleTemplateRecordsTableAnnotationComposer,
+          $$ScheduleTemplateRecordsTableCreateCompanionBuilder,
+          $$ScheduleTemplateRecordsTableUpdateCompanionBuilder,
+          (ScheduleTemplateRecord, $$ScheduleTemplateRecordsTableReferences),
+          ScheduleTemplateRecord,
+          PrefetchHooks Function({bool scheduleTemplateSegmentRecordsRefs})
+        > {
+  $$ScheduleTemplateRecordsTableTableManager(
+    _$AppDatabase db,
+    $ScheduleTemplateRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ScheduleTemplateRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ScheduleTemplateRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ScheduleTemplateRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> timezone = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ScheduleTemplateRecordsCompanion(
+                id: id,
+                userId: userId,
+                name: name,
+                timezone: timezone,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String name,
+                Value<String> timezone = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ScheduleTemplateRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                name: name,
+                timezone: timezone,
+                isDefault: isDefault,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $ScheduleTemplateRecordsTable,
+                    ScheduleTemplateRecord
+                  >(table),
+                  $$ScheduleTemplateRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({scheduleTemplateSegmentRecordsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (scheduleTemplateSegmentRecordsRefs)
+                      db.scheduleTemplateSegmentRecords,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (scheduleTemplateSegmentRecordsRefs)
+                        await $_getPrefetchedData<
+                          ScheduleTemplateRecord,
+                          $ScheduleTemplateRecordsTable,
+                          ScheduleTemplateSegmentRecord
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$ScheduleTemplateRecordsTableReferences
+                                  ._scheduleTemplateSegmentRecordsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ScheduleTemplateRecordsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).scheduleTemplateSegmentRecordsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.templateId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ScheduleTemplateRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ScheduleTemplateRecordsTable,
+      ScheduleTemplateRecord,
+      $$ScheduleTemplateRecordsTableFilterComposer,
+      $$ScheduleTemplateRecordsTableOrderingComposer,
+      $$ScheduleTemplateRecordsTableAnnotationComposer,
+      $$ScheduleTemplateRecordsTableCreateCompanionBuilder,
+      $$ScheduleTemplateRecordsTableUpdateCompanionBuilder,
+      (ScheduleTemplateRecord, $$ScheduleTemplateRecordsTableReferences),
+      ScheduleTemplateRecord,
+      PrefetchHooks Function({bool scheduleTemplateSegmentRecordsRefs})
+    >;
+typedef $$ScheduleTemplateSegmentRecordsTableCreateCompanionBuilder =
+    ScheduleTemplateSegmentRecordsCompanion Function({
+      required String id,
+      required String templateId,
+      required String userId,
+      required String name,
+      required int startsAtMinute,
+      required int endsAtMinute,
+      Value<String> segmentType,
+      Value<int> sortOrder,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ScheduleTemplateSegmentRecordsTableUpdateCompanionBuilder =
+    ScheduleTemplateSegmentRecordsCompanion Function({
+      Value<String> id,
+      Value<String> templateId,
+      Value<String> userId,
+      Value<String> name,
+      Value<int> startsAtMinute,
+      Value<int> endsAtMinute,
+      Value<String> segmentType,
+      Value<int> sortOrder,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+final class $$ScheduleTemplateSegmentRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ScheduleTemplateSegmentRecordsTable,
+          ScheduleTemplateSegmentRecord
+        > {
+  $$ScheduleTemplateSegmentRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ScheduleTemplateRecordsTable _templateIdTable(
+    _$AppDatabase db,
+  ) => db.scheduleTemplateRecords.createAlias(
+    'schedule_template_segment_records__template_id__schedule_template_records__id',
+  );
+
+  $$ScheduleTemplateRecordsTableProcessedTableManager get templateId {
+    final $_column = $_itemColumn<String>('template_id')!;
+
+    final manager = $$ScheduleTemplateRecordsTableTableManager(
+      $_db,
+      $_db.scheduleTemplateRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_templateIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ScheduleTemplateSegmentRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateSegmentRecordsTable> {
+  $$ScheduleTemplateSegmentRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get segmentType => $composableBuilder(
+    column: $table.segmentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ScheduleTemplateRecordsTableFilterComposer get templateId {
+    final $$ScheduleTemplateRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.templateId,
+          referencedTable: $db.scheduleTemplateRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ScheduleTemplateRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.scheduleTemplateRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ScheduleTemplateSegmentRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateSegmentRecordsTable> {
+  $$ScheduleTemplateSegmentRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get segmentType => $composableBuilder(
+    column: $table.segmentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ScheduleTemplateRecordsTableOrderingComposer get templateId {
+    final $$ScheduleTemplateRecordsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.templateId,
+          referencedTable: $db.scheduleTemplateRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ScheduleTemplateRecordsTableOrderingComposer(
+                $db: $db,
+                $table: $db.scheduleTemplateRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ScheduleTemplateSegmentRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ScheduleTemplateSegmentRecordsTable> {
+  $$ScheduleTemplateSegmentRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get startsAtMinute => $composableBuilder(
+    column: $table.startsAtMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endsAtMinute => $composableBuilder(
+    column: $table.endsAtMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get segmentType => $composableBuilder(
+    column: $table.segmentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$ScheduleTemplateRecordsTableAnnotationComposer get templateId {
+    final $$ScheduleTemplateRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.templateId,
+          referencedTable: $db.scheduleTemplateRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ScheduleTemplateRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.scheduleTemplateRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ScheduleTemplateSegmentRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ScheduleTemplateSegmentRecordsTable,
+          ScheduleTemplateSegmentRecord,
+          $$ScheduleTemplateSegmentRecordsTableFilterComposer,
+          $$ScheduleTemplateSegmentRecordsTableOrderingComposer,
+          $$ScheduleTemplateSegmentRecordsTableAnnotationComposer,
+          $$ScheduleTemplateSegmentRecordsTableCreateCompanionBuilder,
+          $$ScheduleTemplateSegmentRecordsTableUpdateCompanionBuilder,
+          (
+            ScheduleTemplateSegmentRecord,
+            $$ScheduleTemplateSegmentRecordsTableReferences,
+          ),
+          ScheduleTemplateSegmentRecord,
+          PrefetchHooks Function({bool templateId})
+        > {
+  $$ScheduleTemplateSegmentRecordsTableTableManager(
+    _$AppDatabase db,
+    $ScheduleTemplateSegmentRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ScheduleTemplateSegmentRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ScheduleTemplateSegmentRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ScheduleTemplateSegmentRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> templateId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> startsAtMinute = const Value.absent(),
+                Value<int> endsAtMinute = const Value.absent(),
+                Value<String> segmentType = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ScheduleTemplateSegmentRecordsCompanion(
+                id: id,
+                templateId: templateId,
+                userId: userId,
+                name: name,
+                startsAtMinute: startsAtMinute,
+                endsAtMinute: endsAtMinute,
+                segmentType: segmentType,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String templateId,
+                required String userId,
+                required String name,
+                required int startsAtMinute,
+                required int endsAtMinute,
+                Value<String> segmentType = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ScheduleTemplateSegmentRecordsCompanion.insert(
+                id: id,
+                templateId: templateId,
+                userId: userId,
+                name: name,
+                startsAtMinute: startsAtMinute,
+                endsAtMinute: endsAtMinute,
+                segmentType: segmentType,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $ScheduleTemplateSegmentRecordsTable,
+                    ScheduleTemplateSegmentRecord
+                  >(table),
+                  $$ScheduleTemplateSegmentRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({templateId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (templateId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.templateId,
+                                referencedTable:
+                                    $$ScheduleTemplateSegmentRecordsTableReferences
+                                        ._templateIdTable(db),
+                                referencedColumn:
+                                    $$ScheduleTemplateSegmentRecordsTableReferences
+                                        ._templateIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ScheduleTemplateSegmentRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ScheduleTemplateSegmentRecordsTable,
+      ScheduleTemplateSegmentRecord,
+      $$ScheduleTemplateSegmentRecordsTableFilterComposer,
+      $$ScheduleTemplateSegmentRecordsTableOrderingComposer,
+      $$ScheduleTemplateSegmentRecordsTableAnnotationComposer,
+      $$ScheduleTemplateSegmentRecordsTableCreateCompanionBuilder,
+      $$ScheduleTemplateSegmentRecordsTableUpdateCompanionBuilder,
+      (
+        ScheduleTemplateSegmentRecord,
+        $$ScheduleTemplateSegmentRecordsTableReferences,
+      ),
+      ScheduleTemplateSegmentRecord,
+      PrefetchHooks Function({bool templateId})
+    >;
+typedef $$DailyItemOverrideRecordsTableCreateCompanionBuilder =
+    DailyItemOverrideRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String itemType,
+      required String itemId,
+      required String localDate,
+      required String action,
+      Value<int?> plannedStartMinute,
+      Value<int?> plannedEndMinute,
+      Value<int?> reminderMinuteOfDay,
+      Value<int?> targetDurationSeconds,
+      Value<String?> temporaryClassroom,
+      Value<String?> notes,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DailyItemOverrideRecordsTableUpdateCompanionBuilder =
+    DailyItemOverrideRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> itemType,
+      Value<String> itemId,
+      Value<String> localDate,
+      Value<String> action,
+      Value<int?> plannedStartMinute,
+      Value<int?> plannedEndMinute,
+      Value<int?> reminderMinuteOfDay,
+      Value<int?> targetDurationSeconds,
+      Value<String?> temporaryClassroom,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DailyItemOverrideRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyItemOverrideRecordsTable> {
+  $$DailyItemOverrideRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localDate => $composableBuilder(
+    column: $table.localDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plannedStartMinute => $composableBuilder(
+    column: $table.plannedStartMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plannedEndMinute => $composableBuilder(
+    column: $table.plannedEndMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderMinuteOfDay => $composableBuilder(
+    column: $table.reminderMinuteOfDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get targetDurationSeconds => $composableBuilder(
+    column: $table.targetDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get temporaryClassroom => $composableBuilder(
+    column: $table.temporaryClassroom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyItemOverrideRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyItemOverrideRecordsTable> {
+  $$DailyItemOverrideRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localDate => $composableBuilder(
+    column: $table.localDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plannedStartMinute => $composableBuilder(
+    column: $table.plannedStartMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plannedEndMinute => $composableBuilder(
+    column: $table.plannedEndMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reminderMinuteOfDay => $composableBuilder(
+    column: $table.reminderMinuteOfDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get targetDurationSeconds => $composableBuilder(
+    column: $table.targetDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get temporaryClassroom => $composableBuilder(
+    column: $table.temporaryClassroom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyItemOverrideRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyItemOverrideRecordsTable> {
+  $$DailyItemOverrideRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get itemType =>
+      $composableBuilder(column: $table.itemType, builder: (column) => column);
+
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get localDate =>
+      $composableBuilder(column: $table.localDate, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<int> get plannedStartMinute => $composableBuilder(
+    column: $table.plannedStartMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get plannedEndMinute => $composableBuilder(
+    column: $table.plannedEndMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reminderMinuteOfDay => $composableBuilder(
+    column: $table.reminderMinuteOfDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get targetDurationSeconds => $composableBuilder(
+    column: $table.targetDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get temporaryClassroom => $composableBuilder(
+    column: $table.temporaryClassroom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DailyItemOverrideRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailyItemOverrideRecordsTable,
+          DailyItemOverrideRecord,
+          $$DailyItemOverrideRecordsTableFilterComposer,
+          $$DailyItemOverrideRecordsTableOrderingComposer,
+          $$DailyItemOverrideRecordsTableAnnotationComposer,
+          $$DailyItemOverrideRecordsTableCreateCompanionBuilder,
+          $$DailyItemOverrideRecordsTableUpdateCompanionBuilder,
+          (
+            DailyItemOverrideRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $DailyItemOverrideRecordsTable,
+              DailyItemOverrideRecord
+            >,
+          ),
+          DailyItemOverrideRecord,
+          PrefetchHooks Function()
+        > {
+  $$DailyItemOverrideRecordsTableTableManager(
+    _$AppDatabase db,
+    $DailyItemOverrideRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyItemOverrideRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DailyItemOverrideRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DailyItemOverrideRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> itemType = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> localDate = const Value.absent(),
+                Value<String> action = const Value.absent(),
+                Value<int?> plannedStartMinute = const Value.absent(),
+                Value<int?> plannedEndMinute = const Value.absent(),
+                Value<int?> reminderMinuteOfDay = const Value.absent(),
+                Value<int?> targetDurationSeconds = const Value.absent(),
+                Value<String?> temporaryClassroom = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyItemOverrideRecordsCompanion(
+                id: id,
+                userId: userId,
+                itemType: itemType,
+                itemId: itemId,
+                localDate: localDate,
+                action: action,
+                plannedStartMinute: plannedStartMinute,
+                plannedEndMinute: plannedEndMinute,
+                reminderMinuteOfDay: reminderMinuteOfDay,
+                targetDurationSeconds: targetDurationSeconds,
+                temporaryClassroom: temporaryClassroom,
+                notes: notes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String itemType,
+                required String itemId,
+                required String localDate,
+                required String action,
+                Value<int?> plannedStartMinute = const Value.absent(),
+                Value<int?> plannedEndMinute = const Value.absent(),
+                Value<int?> reminderMinuteOfDay = const Value.absent(),
+                Value<int?> targetDurationSeconds = const Value.absent(),
+                Value<String?> temporaryClassroom = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyItemOverrideRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                itemType: itemType,
+                itemId: itemId,
+                localDate: localDate,
+                action: action,
+                plannedStartMinute: plannedStartMinute,
+                plannedEndMinute: plannedEndMinute,
+                reminderMinuteOfDay: reminderMinuteOfDay,
+                targetDurationSeconds: targetDurationSeconds,
+                temporaryClassroom: temporaryClassroom,
+                notes: notes,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DailyItemOverrideRecordsTable,
+                    DailyItemOverrideRecord
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DailyItemOverrideRecordsTable,
+                    DailyItemOverrideRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyItemOverrideRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailyItemOverrideRecordsTable,
+      DailyItemOverrideRecord,
+      $$DailyItemOverrideRecordsTableFilterComposer,
+      $$DailyItemOverrideRecordsTableOrderingComposer,
+      $$DailyItemOverrideRecordsTableAnnotationComposer,
+      $$DailyItemOverrideRecordsTableCreateCompanionBuilder,
+      $$DailyItemOverrideRecordsTableUpdateCompanionBuilder,
+      (
+        DailyItemOverrideRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $DailyItemOverrideRecordsTable,
+          DailyItemOverrideRecord
+        >,
+      ),
+      DailyItemOverrideRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$ReminderRuleRecordsTableCreateCompanionBuilder =
+    ReminderRuleRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String ownerType,
+      required String ownerId,
+      required String reminderKind,
+      Value<bool> enabled,
+      Value<int?> scheduledMinuteOfDay,
+      Value<int?> remindBeforeMinutes,
+      Value<String?> localDate,
+      Value<String> timezone,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$ReminderRuleRecordsTableUpdateCompanionBuilder =
+    ReminderRuleRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> ownerType,
+      Value<String> ownerId,
+      Value<String> reminderKind,
+      Value<bool> enabled,
+      Value<int?> scheduledMinuteOfDay,
+      Value<int?> remindBeforeMinutes,
+      Value<String?> localDate,
+      Value<String> timezone,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$ReminderRuleRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReminderRuleRecordsTable> {
+  $$ReminderRuleRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerType => $composableBuilder(
+    column: $table.ownerType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderKind => $composableBuilder(
+    column: $table.reminderKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localDate => $composableBuilder(
+    column: $table.localDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReminderRuleRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReminderRuleRecordsTable> {
+  $$ReminderRuleRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerType => $composableBuilder(
+    column: $table.ownerType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderKind => $composableBuilder(
+    column: $table.reminderKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localDate => $composableBuilder(
+    column: $table.localDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timezone => $composableBuilder(
+    column: $table.timezone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReminderRuleRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReminderRuleRecordsTable> {
+  $$ReminderRuleRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerType =>
+      $composableBuilder(column: $table.ownerType, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get reminderKind => $composableBuilder(
+    column: $table.reminderKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<int> get scheduledMinuteOfDay => $composableBuilder(
+    column: $table.scheduledMinuteOfDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remindBeforeMinutes => $composableBuilder(
+    column: $table.remindBeforeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localDate =>
+      $composableBuilder(column: $table.localDate, builder: (column) => column);
+
+  GeneratedColumn<String> get timezone =>
+      $composableBuilder(column: $table.timezone, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$ReminderRuleRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReminderRuleRecordsTable,
+          ReminderRuleRecord,
+          $$ReminderRuleRecordsTableFilterComposer,
+          $$ReminderRuleRecordsTableOrderingComposer,
+          $$ReminderRuleRecordsTableAnnotationComposer,
+          $$ReminderRuleRecordsTableCreateCompanionBuilder,
+          $$ReminderRuleRecordsTableUpdateCompanionBuilder,
+          (
+            ReminderRuleRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $ReminderRuleRecordsTable,
+              ReminderRuleRecord
+            >,
+          ),
+          ReminderRuleRecord,
+          PrefetchHooks Function()
+        > {
+  $$ReminderRuleRecordsTableTableManager(
+    _$AppDatabase db,
+    $ReminderRuleRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReminderRuleRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReminderRuleRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ReminderRuleRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> ownerType = const Value.absent(),
+                Value<String> ownerId = const Value.absent(),
+                Value<String> reminderKind = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<int?> scheduledMinuteOfDay = const Value.absent(),
+                Value<int?> remindBeforeMinutes = const Value.absent(),
+                Value<String?> localDate = const Value.absent(),
+                Value<String> timezone = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderRuleRecordsCompanion(
+                id: id,
+                userId: userId,
+                ownerType: ownerType,
+                ownerId: ownerId,
+                reminderKind: reminderKind,
+                enabled: enabled,
+                scheduledMinuteOfDay: scheduledMinuteOfDay,
+                remindBeforeMinutes: remindBeforeMinutes,
+                localDate: localDate,
+                timezone: timezone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String ownerType,
+                required String ownerId,
+                required String reminderKind,
+                Value<bool> enabled = const Value.absent(),
+                Value<int?> scheduledMinuteOfDay = const Value.absent(),
+                Value<int?> remindBeforeMinutes = const Value.absent(),
+                Value<String?> localDate = const Value.absent(),
+                Value<String> timezone = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderRuleRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                ownerType: ownerType,
+                ownerId: ownerId,
+                reminderKind: reminderKind,
+                enabled: enabled,
+                scheduledMinuteOfDay: scheduledMinuteOfDay,
+                remindBeforeMinutes: remindBeforeMinutes,
+                localDate: localDate,
+                timezone: timezone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReminderRuleRecordsTable, ReminderRuleRecord>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ReminderRuleRecordsTable,
+                    ReminderRuleRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReminderRuleRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReminderRuleRecordsTable,
+      ReminderRuleRecord,
+      $$ReminderRuleRecordsTableFilterComposer,
+      $$ReminderRuleRecordsTableOrderingComposer,
+      $$ReminderRuleRecordsTableAnnotationComposer,
+      $$ReminderRuleRecordsTableCreateCompanionBuilder,
+      $$ReminderRuleRecordsTableUpdateCompanionBuilder,
+      (
+        ReminderRuleRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $ReminderRuleRecordsTable,
+          ReminderRuleRecord
+        >,
+      ),
+      ReminderRuleRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$AlarmRuleRecordsTableCreateCompanionBuilder =
+    AlarmRuleRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String ownerType,
+      required String ownerId,
+      Value<bool> enabled,
+      Value<String> behavior,
+      Value<String?> soundName,
+      Value<int?> snoozeMinutes,
+      Value<int?> repeatIntervalMinutes,
+      Value<int?> maxRingSeconds,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$AlarmRuleRecordsTableUpdateCompanionBuilder =
+    AlarmRuleRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> ownerType,
+      Value<String> ownerId,
+      Value<bool> enabled,
+      Value<String> behavior,
+      Value<String?> soundName,
+      Value<int?> snoozeMinutes,
+      Value<int?> repeatIntervalMinutes,
+      Value<int?> maxRingSeconds,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$AlarmRuleRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $AlarmRuleRecordsTable> {
+  $$AlarmRuleRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerType => $composableBuilder(
+    column: $table.ownerType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get behavior => $composableBuilder(
+    column: $table.behavior,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundName => $composableBuilder(
+    column: $table.soundName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get snoozeMinutes => $composableBuilder(
+    column: $table.snoozeMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get repeatIntervalMinutes => $composableBuilder(
+    column: $table.repeatIntervalMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxRingSeconds => $composableBuilder(
+    column: $table.maxRingSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AlarmRuleRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AlarmRuleRecordsTable> {
+  $$AlarmRuleRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerType => $composableBuilder(
+    column: $table.ownerType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get behavior => $composableBuilder(
+    column: $table.behavior,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundName => $composableBuilder(
+    column: $table.soundName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get snoozeMinutes => $composableBuilder(
+    column: $table.snoozeMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get repeatIntervalMinutes => $composableBuilder(
+    column: $table.repeatIntervalMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxRingSeconds => $composableBuilder(
+    column: $table.maxRingSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AlarmRuleRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AlarmRuleRecordsTable> {
+  $$AlarmRuleRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerType =>
+      $composableBuilder(column: $table.ownerType, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<String> get behavior =>
+      $composableBuilder(column: $table.behavior, builder: (column) => column);
+
+  GeneratedColumn<String> get soundName =>
+      $composableBuilder(column: $table.soundName, builder: (column) => column);
+
+  GeneratedColumn<int> get snoozeMinutes => $composableBuilder(
+    column: $table.snoozeMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get repeatIntervalMinutes => $composableBuilder(
+    column: $table.repeatIntervalMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get maxRingSeconds => $composableBuilder(
+    column: $table.maxRingSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$AlarmRuleRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AlarmRuleRecordsTable,
+          AlarmRuleRecord,
+          $$AlarmRuleRecordsTableFilterComposer,
+          $$AlarmRuleRecordsTableOrderingComposer,
+          $$AlarmRuleRecordsTableAnnotationComposer,
+          $$AlarmRuleRecordsTableCreateCompanionBuilder,
+          $$AlarmRuleRecordsTableUpdateCompanionBuilder,
+          (
+            AlarmRuleRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $AlarmRuleRecordsTable,
+              AlarmRuleRecord
+            >,
+          ),
+          AlarmRuleRecord,
+          PrefetchHooks Function()
+        > {
+  $$AlarmRuleRecordsTableTableManager(
+    _$AppDatabase db,
+    $AlarmRuleRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AlarmRuleRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AlarmRuleRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AlarmRuleRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> ownerType = const Value.absent(),
+                Value<String> ownerId = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<String> behavior = const Value.absent(),
+                Value<String?> soundName = const Value.absent(),
+                Value<int?> snoozeMinutes = const Value.absent(),
+                Value<int?> repeatIntervalMinutes = const Value.absent(),
+                Value<int?> maxRingSeconds = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AlarmRuleRecordsCompanion(
+                id: id,
+                userId: userId,
+                ownerType: ownerType,
+                ownerId: ownerId,
+                enabled: enabled,
+                behavior: behavior,
+                soundName: soundName,
+                snoozeMinutes: snoozeMinutes,
+                repeatIntervalMinutes: repeatIntervalMinutes,
+                maxRingSeconds: maxRingSeconds,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String ownerType,
+                required String ownerId,
+                Value<bool> enabled = const Value.absent(),
+                Value<String> behavior = const Value.absent(),
+                Value<String?> soundName = const Value.absent(),
+                Value<int?> snoozeMinutes = const Value.absent(),
+                Value<int?> repeatIntervalMinutes = const Value.absent(),
+                Value<int?> maxRingSeconds = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AlarmRuleRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                ownerType: ownerType,
+                ownerId: ownerId,
+                enabled: enabled,
+                behavior: behavior,
+                soundName: soundName,
+                snoozeMinutes: snoozeMinutes,
+                repeatIntervalMinutes: repeatIntervalMinutes,
+                maxRingSeconds: maxRingSeconds,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AlarmRuleRecordsTable, AlarmRuleRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AlarmRuleRecordsTable,
+                    AlarmRuleRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AlarmRuleRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AlarmRuleRecordsTable,
+      AlarmRuleRecord,
+      $$AlarmRuleRecordsTableFilterComposer,
+      $$AlarmRuleRecordsTableOrderingComposer,
+      $$AlarmRuleRecordsTableAnnotationComposer,
+      $$AlarmRuleRecordsTableCreateCompanionBuilder,
+      $$AlarmRuleRecordsTableUpdateCompanionBuilder,
+      (
+        AlarmRuleRecord,
+        BaseReferences<_$AppDatabase, $AlarmRuleRecordsTable, AlarmRuleRecord>,
+      ),
+      AlarmRuleRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$AdHocTimerRecordsTableCreateCompanionBuilder =
+    AdHocTimerRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String title,
+      Value<String?> tagId,
+      required int colorValue,
+      Value<String?> notes,
+      required DateTime startedAt,
+      Value<DateTime?> endedAt,
+      Value<DateTime?> completedAt,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$AdHocTimerRecordsTableUpdateCompanionBuilder =
+    AdHocTimerRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> title,
+      Value<String?> tagId,
+      Value<int> colorValue,
+      Value<String?> notes,
+      Value<DateTime> startedAt,
+      Value<DateTime?> endedAt,
+      Value<DateTime?> completedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$AdHocTimerRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $AdHocTimerRecordsTable> {
+  $$AdHocTimerRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AdHocTimerRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AdHocTimerRecordsTable> {
+  $$AdHocTimerRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tagId => $composableBuilder(
+    column: $table.tagId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AdHocTimerRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AdHocTimerRecordsTable> {
+  $$AdHocTimerRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get tagId =>
+      $composableBuilder(column: $table.tagId, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$AdHocTimerRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AdHocTimerRecordsTable,
+          AdHocTimerRecord,
+          $$AdHocTimerRecordsTableFilterComposer,
+          $$AdHocTimerRecordsTableOrderingComposer,
+          $$AdHocTimerRecordsTableAnnotationComposer,
+          $$AdHocTimerRecordsTableCreateCompanionBuilder,
+          $$AdHocTimerRecordsTableUpdateCompanionBuilder,
+          (
+            AdHocTimerRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $AdHocTimerRecordsTable,
+              AdHocTimerRecord
+            >,
+          ),
+          AdHocTimerRecord,
+          PrefetchHooks Function()
+        > {
+  $$AdHocTimerRecordsTableTableManager(
+    _$AppDatabase db,
+    $AdHocTimerRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AdHocTimerRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AdHocTimerRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AdHocTimerRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> tagId = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AdHocTimerRecordsCompanion(
+                id: id,
+                userId: userId,
+                title: title,
+                tagId: tagId,
+                colorValue: colorValue,
+                notes: notes,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                completedAt: completedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String title,
+                Value<String?> tagId = const Value.absent(),
+                required int colorValue,
+                Value<String?> notes = const Value.absent(),
+                required DateTime startedAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AdHocTimerRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                title: title,
+                tagId: tagId,
+                colorValue: colorValue,
+                notes: notes,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                completedAt: completedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AdHocTimerRecordsTable, AdHocTimerRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AdHocTimerRecordsTable,
+                    AdHocTimerRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AdHocTimerRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AdHocTimerRecordsTable,
+      AdHocTimerRecord,
+      $$AdHocTimerRecordsTableFilterComposer,
+      $$AdHocTimerRecordsTableOrderingComposer,
+      $$AdHocTimerRecordsTableAnnotationComposer,
+      $$AdHocTimerRecordsTableCreateCompanionBuilder,
+      $$AdHocTimerRecordsTableUpdateCompanionBuilder,
+      (
+        AdHocTimerRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $AdHocTimerRecordsTable,
+          AdHocTimerRecord
+        >,
+      ),
+      AdHocTimerRecord,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -14121,4 +23707,33 @@ class $AppDatabaseManager {
       $$PlanTaskRecordsTableTableManager(_db, _db.planTaskRecords);
   $$ReviewRecordsTableTableManager get reviewRecords =>
       $$ReviewRecordsTableTableManager(_db, _db.reviewRecords);
+  $$CourseRecordsTableTableManager get courseRecords =>
+      $$CourseRecordsTableTableManager(_db, _db.courseRecords);
+  $$CourseScheduleRuleRecordsTableTableManager get courseScheduleRuleRecords =>
+      $$CourseScheduleRuleRecordsTableTableManager(
+        _db,
+        _db.courseScheduleRuleRecords,
+      );
+  $$ScheduleTemplateRecordsTableTableManager get scheduleTemplateRecords =>
+      $$ScheduleTemplateRecordsTableTableManager(
+        _db,
+        _db.scheduleTemplateRecords,
+      );
+  $$ScheduleTemplateSegmentRecordsTableTableManager
+  get scheduleTemplateSegmentRecords =>
+      $$ScheduleTemplateSegmentRecordsTableTableManager(
+        _db,
+        _db.scheduleTemplateSegmentRecords,
+      );
+  $$DailyItemOverrideRecordsTableTableManager get dailyItemOverrideRecords =>
+      $$DailyItemOverrideRecordsTableTableManager(
+        _db,
+        _db.dailyItemOverrideRecords,
+      );
+  $$ReminderRuleRecordsTableTableManager get reminderRuleRecords =>
+      $$ReminderRuleRecordsTableTableManager(_db, _db.reminderRuleRecords);
+  $$AlarmRuleRecordsTableTableManager get alarmRuleRecords =>
+      $$AlarmRuleRecordsTableTableManager(_db, _db.alarmRuleRecords);
+  $$AdHocTimerRecordsTableTableManager get adHocTimerRecords =>
+      $$AdHocTimerRecordsTableTableManager(_db, _db.adHocTimerRecords);
 }
