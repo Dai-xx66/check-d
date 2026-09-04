@@ -287,12 +287,18 @@ class CourseRepository {
     final reminderMinute = draft.startsAtMinute - minutes;
     if (reminderMinute < 0) return;
     try {
+      final course =
+          await (_database.select(_database.courseRecords)..where(
+                (row) =>
+                    row.id.equals(draft.courseId) & row.userId.equals(_userId),
+              ))
+              .getSingleOrNull();
       await _notifications!.requestPermissions();
       await _notifications!.scheduleWeekly(
         id: _notificationId(ruleId),
         weekday: draft.weekday,
         minuteOfDay: reminderMinute,
-        title: '课程提醒：${draft.courseId}',
+        title: '课程提醒：${course?.name ?? '课程'}',
         body: '课程将在 $minutes 分钟后开始',
       );
     } catch (_) {
