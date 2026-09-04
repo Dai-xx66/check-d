@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/sync/sync_queue_service.dart';
 import '../../tasks/domain/task_models.dart';
 import '../domain/day_schedule_models.dart';
@@ -11,14 +12,17 @@ class DayScheduleRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required String userId,
+    NotificationService? notifications,
     this.runningTaskId,
   }) : _database = database,
        _syncQueue = syncQueue,
-       _userId = userId;
+       _userId = userId,
+       _notifications = notifications;
 
   final AppDatabase _database;
   final SyncQueueService _syncQueue;
   final String _userId;
+  final NotificationService? _notifications;
   final Uuid _uuid = const Uuid();
   final Future<String?> Function()? runningTaskId;
 
@@ -96,6 +100,7 @@ class DayScheduleRepository {
       },
       userId: _userId,
     );
+    await _syncOverrideReminder(id, draft);
     return id;
   }
 
@@ -165,6 +170,7 @@ class DayScheduleRepository {
       },
       userId: _userId,
     );
+    await _syncLocalDateReminder(id, draft);
     return id;
   }
 
@@ -439,6 +445,73 @@ class DayScheduleRepository {
       createdAt: row.createdAt.toLocal(),
       updatedAt: row.updatedAt.toLocal(),
     );
+  }
+
+  Future<void> _syncOverrideReminder(
+    String overrideId,
+    DailyItemOverrideDraft draft,
+  ) async {
+    if (_notifications == null) return;
+    try {
+      await _notifications!.cancel(_notificationId('override:$overrideId'));
+      if (draft.reminderMinuteOfDay == null) return;
+      await _notifications!.requestPermissions();
+      final date = DateTime(
+        draft.localDate.year,
+        draft.localDate.month,
+        draft.localDate.day,
+        draft.reminderMinuteOfDay! ~/ 60,
+        draft.reminderMinuteOfDay! % 60,
+      );
+      await _notifications!.scheduleAt(
+        id: _notificationId('override:$overrideId'),
+        when: date,
+        title: '事项提醒',
+        body: '今天有一项安排需要留意。',
+      );
+    } on Object {
+      // Notification failure must not prevent saving the day override.
+    }
+  }
+
+  Future<void> _syncLocalDateReminder(
+    String ruleId,
+    ReminderRuleDraft draft,
+  ) async {
+    if (_notifications == null) return;
+    try {
+      await _notifications!.cancel(_notificationId('rule:$ruleId'));
+      if (!draft.enabled ||
+          draft.localDate == null ||
+          draft.scheduledMinuteOfDay == null) {
+        return;
+      }
+      await _notifications!.requestPermissions();
+      final date = DateTime(
+        draft.localDate!.year,
+        draft.localDate!.month,
+        draft.localDate!.day,
+        draft.scheduledMinuteOfDay! ~/ 60,
+        draft.scheduledMinuteOfDay! % 60,
+      );
+      await _notifications!.scheduleAt(
+        id: _notificationId('rule:$ruleId'),
+        when: date,
+        title: '提醒',
+        body: '你有一项安排即将开始。',
+      );
+    } on Object {
+      // The database remains the source of truth when OS scheduling fails.
+    }
+  }
+
+  int _notificationId(String value) {
+    var hash = 0x811c9dc5;
+    for (final codeUnit in value.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * 0x01000193) & 0x7fffffff;
+    }
+    return hash == 0 ? 1 : hash;
   }
 
   void _validateOverride(DailyItemOverrideDraft draft) {
