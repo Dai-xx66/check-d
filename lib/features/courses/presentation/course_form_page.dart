@@ -351,8 +351,13 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
 }
 
 class CourseRuleFormPage extends ConsumerStatefulWidget {
-  const CourseRuleFormPage({required this.courseId, super.key});
+  const CourseRuleFormPage({
+    required this.courseId,
+    this.initialRule,
+    super.key,
+  });
   final String courseId;
+  final CourseScheduleRule? initialRule;
 
   @override
   ConsumerState<CourseRuleFormPage> createState() => _CourseRuleFormPageState();
@@ -368,6 +373,25 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    final rule = widget.initialRule;
+    if (rule == null) return;
+    _weekday = rule.weekday;
+    _weekRule = rule.weekRuleType;
+    _startsAt = TimeOfDay(
+      hour: rule.startsAtMinute ~/ 60,
+      minute: rule.startsAtMinute % 60,
+    );
+    _endsAt = TimeOfDay(
+      hour: rule.endsAtMinute ~/ 60,
+      minute: rule.endsAtMinute % 60,
+    );
+    _startWeek.text = rule.startWeek?.toString() ?? '';
+    _endWeek.text = rule.endWeek?.toString() ?? '';
+  }
+
+  @override
   void dispose() {
     _startWeek.dispose();
     _endWeek.dispose();
@@ -376,7 +400,9 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('新增课程安排')),
+    appBar: AppBar(
+      title: Text(widget.initialRule == null ? '新增课程安排' : '编辑课程安排'),
+    ),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -459,6 +485,13 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
           ),
         ],
         const SizedBox(height: 24),
+        if (widget.initialRule != null)
+          OutlinedButton.icon(
+            onPressed: _delete,
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('删除这条安排'),
+          ),
+        if (widget.initialRule != null) const SizedBox(height: 10),
         FilledButton.icon(
           onPressed: _saving ? null : _save,
           icon: _saving
@@ -525,6 +558,7 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
                   ? 2
                   : null,
             ),
+            ruleId: widget.initialRule?.id,
           );
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
@@ -532,6 +566,36 @@ class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('课程安排保存失败')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除这条课程安排？'),
+        content: const Text('课程本身和其他安排会保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(courseRepositoryProvider)
+          .archiveScheduleRule(widget.initialRule!.id);
+      if (mounted) Navigator.pop(context, true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
