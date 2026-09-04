@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 abstract final class AppColors {
   static const background = Color(0xFFFFF7F8);
   static const surface = Color(0xEFFFFBFC);
+  static const glass = Color(0xCFFFFFFF);
+  static const glassStrong = Color(0xE8FFFFFF);
   static const ink = Color(0xFF533B3D);
   static const muted = Color(0xFF9C7D82);
   static const border = Color(0xFFFFE2E8);
@@ -18,6 +20,12 @@ abstract final class AppColors {
   static const cream = Color(0xFFFFF4E8);
   static const creamYellow = Color(0xFFF5C96B);
   static const mint = Color(0xFFE5F6EC);
+
+  // Shared functional accents: pink, lavender, blue, and mint.
+  static const accentPink = Color(0xFFF17F9D);
+  static const accentLavender = Color(0xFFA58AE2);
+  static const accentBlue = Color(0xFF8FAFEA);
+  static const accentMint = Color(0xFF7CBFA2);
 }
 
 abstract final class AppRadius {
@@ -31,6 +39,20 @@ abstract final class AppShadows {
     color: Color(0x100F0010),
     blurRadius: 18,
     offset: Offset(0, 7),
+  );
+
+  static const glass = BoxShadow(
+    color: Color(0x140F0010),
+    blurRadius: 14,
+    offset: Offset(0, 5),
+  );
+}
+
+abstract final class AppGradients {
+  static const primary = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.primary, AppColors.purple],
   );
 }
 

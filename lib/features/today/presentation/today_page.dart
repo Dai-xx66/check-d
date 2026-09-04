@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/mascot.dart';
+import '../../../shared/widgets/glass_button.dart';
 import '../../reviews/application/review_providers.dart';
 import '../../reviews/domain/review_models.dart';
 import '../../reviews/presentation/reviews_page.dart';
@@ -1107,24 +1108,18 @@ class _InlineTimerControlsState extends ConsumerState<_InlineTimerControls> {
     Future<void> Function() action, {
     bool filled = false,
   }) => filled
-      ? FilledButton.icon(
+      ? GlassButton(
           onPressed: () => _run(action),
-          icon: Icon(icon, size: 16),
-          label: Text(label),
-          style: FilledButton.styleFrom(
-            backgroundColor: widget.color,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-            visualDensity: VisualDensity.compact,
-          ),
+          icon: icon,
+          label: label,
+          color: widget.color,
+          filled: true,
         )
-      : OutlinedButton.icon(
+      : GlassButton(
           onPressed: () => _run(action),
-          icon: Icon(icon, size: 16),
-          label: Text(label),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            visualDensity: VisualDensity.compact,
-          ),
+          icon: icon,
+          label: label,
+          color: widget.color,
         );
 
   Future<void> _run(Future<void> Function() action) async {
