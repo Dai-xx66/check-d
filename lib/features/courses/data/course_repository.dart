@@ -252,6 +252,25 @@ class CourseRepository {
     );
   }
 
+  Future<void> archiveScheduleRule(String ruleId) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(_database.courseScheduleRuleRecords)
+          ..where((row) => row.id.equals(ruleId) & row.userId.equals(_userId)))
+        .write(
+          CourseScheduleRuleRecordsCompanion(
+            updatedAt: Value(now),
+            deletedAt: Value(now),
+          ),
+        );
+    await _syncQueue.enqueue(
+      entityType: 'course_schedule_rules',
+      entityId: ruleId,
+      operation: SyncOperationType.archive,
+      payload: {'id': ruleId, 'deleted_at': now.toIso8601String()},
+      userId: _userId,
+    );
+  }
+
   Future<CourseDetails> _toDetails(CourseRecord row) async {
     final rules =
         await (_database.select(_database.courseScheduleRuleRecords)

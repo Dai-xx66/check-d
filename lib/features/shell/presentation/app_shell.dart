@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
+import '../../courses/presentation/course_list_page.dart';
 import '../../plans/presentation/plans_page.dart';
 import '../../reviews/presentation/reviews_page.dart';
 import '../../statistics/presentation/statistics_page.dart';
@@ -108,6 +109,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
               const SizedBox(height: 10),
               _CreateOption(
+                icon: Icons.view_list_rounded,
+                color: AppColors.lavender,
+                title: '课程管理',
+                subtitle: '编辑课程安排或归档旧课程',
+                onTap: () => _openCourseList(context),
+              ),
+              const SizedBox(height: 10),
+              _CreateOption(
                 icon: Icons.loop_rounded,
                 color: AppColors.primary,
                 title: '周期任务',
@@ -140,6 +149,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (context) => const CourseFormPage()),
+    );
+  }
+
+  void _openCourseList(BuildContext sheetContext) {
+    Navigator.of(sheetContext).pop();
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const CourseListPage()),
     );
   }
 
