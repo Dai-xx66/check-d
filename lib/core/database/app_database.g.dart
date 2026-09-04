@@ -8001,6 +8001,30 @@ class $CourseRecordsTable extends CourseRecords
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _semesterStartsOnMeta = const VerificationMeta(
+    'semesterStartsOn',
+  );
+  @override
+  late final GeneratedColumn<DateTime> semesterStartsOn =
+      GeneratedColumn<DateTime>(
+        'semester_starts_on',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _semesterEndsOnMeta = const VerificationMeta(
+    'semesterEndsOn',
+  );
+  @override
+  late final GeneratedColumn<DateTime> semesterEndsOn =
+      GeneratedColumn<DateTime>(
+        'semester_ends_on',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -8062,6 +8086,8 @@ class $CourseRecordsTable extends CourseRecords
     teacher,
     classroom,
     semester,
+    semesterStartsOn,
+    semesterEndsOn,
     notes,
     status,
     createdAt,
@@ -8125,6 +8151,24 @@ class $CourseRecordsTable extends CourseRecords
       context.handle(
         _semesterMeta,
         semester.isAcceptableOrUnknown(data['semester']!, _semesterMeta),
+      );
+    }
+    if (data.containsKey('semester_starts_on')) {
+      context.handle(
+        _semesterStartsOnMeta,
+        semesterStartsOn.isAcceptableOrUnknown(
+          data['semester_starts_on']!,
+          _semesterStartsOnMeta,
+        ),
+      );
+    }
+    if (data.containsKey('semester_ends_on')) {
+      context.handle(
+        _semesterEndsOnMeta,
+        semesterEndsOn.isAcceptableOrUnknown(
+          data['semester_ends_on']!,
+          _semesterEndsOnMeta,
+        ),
       );
     }
     if (data.containsKey('notes')) {
@@ -8198,6 +8242,14 @@ class $CourseRecordsTable extends CourseRecords
         DriftSqlType.string,
         data['${effectivePrefix}semester'],
       ),
+      semesterStartsOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}semester_starts_on'],
+      ),
+      semesterEndsOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}semester_ends_on'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -8235,6 +8287,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final DateTime? semesterStartsOn;
+  final DateTime? semesterEndsOn;
   final String? notes;
   final String status;
   final DateTime createdAt;
@@ -8248,6 +8302,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterStartsOn,
+    this.semesterEndsOn,
     this.notes,
     required this.status,
     required this.createdAt,
@@ -8269,6 +8325,12 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     }
     if (!nullToAbsent || semester != null) {
       map['semester'] = Variable<String>(semester);
+    }
+    if (!nullToAbsent || semesterStartsOn != null) {
+      map['semester_starts_on'] = Variable<DateTime>(semesterStartsOn);
+    }
+    if (!nullToAbsent || semesterEndsOn != null) {
+      map['semester_ends_on'] = Variable<DateTime>(semesterEndsOn);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -8297,6 +8359,12 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       semester: semester == null && nullToAbsent
           ? const Value.absent()
           : Value(semester),
+      semesterStartsOn: semesterStartsOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(semesterStartsOn),
+      semesterEndsOn: semesterEndsOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(semesterEndsOn),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -8322,6 +8390,10 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       teacher: serializer.fromJson<String?>(json['teacher']),
       classroom: serializer.fromJson<String?>(json['classroom']),
       semester: serializer.fromJson<String?>(json['semester']),
+      semesterStartsOn: serializer.fromJson<DateTime?>(
+        json['semesterStartsOn'],
+      ),
+      semesterEndsOn: serializer.fromJson<DateTime?>(json['semesterEndsOn']),
       notes: serializer.fromJson<String?>(json['notes']),
       status: serializer.fromJson<String>(json['status']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -8340,6 +8412,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       'teacher': serializer.toJson<String?>(teacher),
       'classroom': serializer.toJson<String?>(classroom),
       'semester': serializer.toJson<String?>(semester),
+      'semesterStartsOn': serializer.toJson<DateTime?>(semesterStartsOn),
+      'semesterEndsOn': serializer.toJson<DateTime?>(semesterEndsOn),
       'notes': serializer.toJson<String?>(notes),
       'status': serializer.toJson<String>(status),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -8356,6 +8430,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     Value<String?> teacher = const Value.absent(),
     Value<String?> classroom = const Value.absent(),
     Value<String?> semester = const Value.absent(),
+    Value<DateTime?> semesterStartsOn = const Value.absent(),
+    Value<DateTime?> semesterEndsOn = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     String? status,
     DateTime? createdAt,
@@ -8369,6 +8445,12 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     teacher: teacher.present ? teacher.value : this.teacher,
     classroom: classroom.present ? classroom.value : this.classroom,
     semester: semester.present ? semester.value : this.semester,
+    semesterStartsOn: semesterStartsOn.present
+        ? semesterStartsOn.value
+        : this.semesterStartsOn,
+    semesterEndsOn: semesterEndsOn.present
+        ? semesterEndsOn.value
+        : this.semesterEndsOn,
     notes: notes.present ? notes.value : this.notes,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
@@ -8386,6 +8468,12 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       teacher: data.teacher.present ? data.teacher.value : this.teacher,
       classroom: data.classroom.present ? data.classroom.value : this.classroom,
       semester: data.semester.present ? data.semester.value : this.semester,
+      semesterStartsOn: data.semesterStartsOn.present
+          ? data.semesterStartsOn.value
+          : this.semesterStartsOn,
+      semesterEndsOn: data.semesterEndsOn.present
+          ? data.semesterEndsOn.value
+          : this.semesterEndsOn,
       notes: data.notes.present ? data.notes.value : this.notes,
       status: data.status.present ? data.status.value : this.status,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -8404,6 +8492,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
           ..write('teacher: $teacher, ')
           ..write('classroom: $classroom, ')
           ..write('semester: $semester, ')
+          ..write('semesterStartsOn: $semesterStartsOn, ')
+          ..write('semesterEndsOn: $semesterEndsOn, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -8422,6 +8512,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     teacher,
     classroom,
     semester,
+    semesterStartsOn,
+    semesterEndsOn,
     notes,
     status,
     createdAt,
@@ -8439,6 +8531,8 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
           other.teacher == this.teacher &&
           other.classroom == this.classroom &&
           other.semester == this.semester &&
+          other.semesterStartsOn == this.semesterStartsOn &&
+          other.semesterEndsOn == this.semesterEndsOn &&
           other.notes == this.notes &&
           other.status == this.status &&
           other.createdAt == this.createdAt &&
@@ -8454,6 +8548,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
   final Value<String?> teacher;
   final Value<String?> classroom;
   final Value<String?> semester;
+  final Value<DateTime?> semesterStartsOn;
+  final Value<DateTime?> semesterEndsOn;
   final Value<String?> notes;
   final Value<String> status;
   final Value<DateTime> createdAt;
@@ -8468,6 +8564,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     this.teacher = const Value.absent(),
     this.classroom = const Value.absent(),
     this.semester = const Value.absent(),
+    this.semesterStartsOn = const Value.absent(),
+    this.semesterEndsOn = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -8483,6 +8581,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     this.teacher = const Value.absent(),
     this.classroom = const Value.absent(),
     this.semester = const Value.absent(),
+    this.semesterStartsOn = const Value.absent(),
+    this.semesterEndsOn = const Value.absent(),
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     required DateTime createdAt,
@@ -8503,6 +8603,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     Expression<String>? teacher,
     Expression<String>? classroom,
     Expression<String>? semester,
+    Expression<DateTime>? semesterStartsOn,
+    Expression<DateTime>? semesterEndsOn,
     Expression<String>? notes,
     Expression<String>? status,
     Expression<DateTime>? createdAt,
@@ -8518,6 +8620,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
       if (teacher != null) 'teacher': teacher,
       if (classroom != null) 'classroom': classroom,
       if (semester != null) 'semester': semester,
+      if (semesterStartsOn != null) 'semester_starts_on': semesterStartsOn,
+      if (semesterEndsOn != null) 'semester_ends_on': semesterEndsOn,
       if (notes != null) 'notes': notes,
       if (status != null) 'status': status,
       if (createdAt != null) 'created_at': createdAt,
@@ -8535,6 +8639,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     Value<String?>? teacher,
     Value<String?>? classroom,
     Value<String?>? semester,
+    Value<DateTime?>? semesterStartsOn,
+    Value<DateTime?>? semesterEndsOn,
     Value<String?>? notes,
     Value<String>? status,
     Value<DateTime>? createdAt,
@@ -8550,6 +8656,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
       teacher: teacher ?? this.teacher,
       classroom: classroom ?? this.classroom,
       semester: semester ?? this.semester,
+      semesterStartsOn: semesterStartsOn ?? this.semesterStartsOn,
+      semesterEndsOn: semesterEndsOn ?? this.semesterEndsOn,
       notes: notes ?? this.notes,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -8583,6 +8691,12 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     if (semester.present) {
       map['semester'] = Variable<String>(semester.value);
     }
+    if (semesterStartsOn.present) {
+      map['semester_starts_on'] = Variable<DateTime>(semesterStartsOn.value);
+    }
+    if (semesterEndsOn.present) {
+      map['semester_ends_on'] = Variable<DateTime>(semesterEndsOn.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -8614,6 +8728,8 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
           ..write('teacher: $teacher, ')
           ..write('classroom: $classroom, ')
           ..write('semester: $semester, ')
+          ..write('semesterStartsOn: $semesterStartsOn, ')
+          ..write('semesterEndsOn: $semesterEndsOn, ')
           ..write('notes: $notes, ')
           ..write('status: $status, ')
           ..write('createdAt: $createdAt, ')
@@ -20209,6 +20325,8 @@ typedef $$CourseRecordsTableCreateCompanionBuilder =
       Value<String?> teacher,
       Value<String?> classroom,
       Value<String?> semester,
+      Value<DateTime?> semesterStartsOn,
+      Value<DateTime?> semesterEndsOn,
       Value<String?> notes,
       Value<String> status,
       required DateTime createdAt,
@@ -20225,6 +20343,8 @@ typedef $$CourseRecordsTableUpdateCompanionBuilder =
       Value<String?> teacher,
       Value<String?> classroom,
       Value<String?> semester,
+      Value<DateTime?> semesterStartsOn,
+      Value<DateTime?> semesterEndsOn,
       Value<String?> notes,
       Value<String> status,
       Value<DateTime> createdAt,
@@ -20309,6 +20429,16 @@ class $$CourseRecordsTableFilterComposer
 
   ColumnFilters<String> get semester => $composableBuilder(
     column: $table.semester,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get semesterStartsOn => $composableBuilder(
+    column: $table.semesterStartsOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get semesterEndsOn => $composableBuilder(
+    column: $table.semesterEndsOn,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20409,6 +20539,16 @@ class $$CourseRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get semesterStartsOn => $composableBuilder(
+    column: $table.semesterStartsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get semesterEndsOn => $composableBuilder(
+    column: $table.semesterEndsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -20466,6 +20606,16 @@ class $$CourseRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get semester =>
       $composableBuilder(column: $table.semester, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get semesterStartsOn => $composableBuilder(
+    column: $table.semesterStartsOn,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get semesterEndsOn => $composableBuilder(
+    column: $table.semesterEndsOn,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -20545,6 +20695,8 @@ class $$CourseRecordsTableTableManager
                 Value<String?> teacher = const Value.absent(),
                 Value<String?> classroom = const Value.absent(),
                 Value<String?> semester = const Value.absent(),
+                Value<DateTime?> semesterStartsOn = const Value.absent(),
+                Value<DateTime?> semesterEndsOn = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -20559,6 +20711,8 @@ class $$CourseRecordsTableTableManager
                 teacher: teacher,
                 classroom: classroom,
                 semester: semester,
+                semesterStartsOn: semesterStartsOn,
+                semesterEndsOn: semesterEndsOn,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,
@@ -20575,6 +20729,8 @@ class $$CourseRecordsTableTableManager
                 Value<String?> teacher = const Value.absent(),
                 Value<String?> classroom = const Value.absent(),
                 Value<String?> semester = const Value.absent(),
+                Value<DateTime?> semesterStartsOn = const Value.absent(),
+                Value<DateTime?> semesterEndsOn = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 required DateTime createdAt,
@@ -20589,6 +20745,8 @@ class $$CourseRecordsTableTableManager
                 teacher: teacher,
                 classroom: classroom,
                 semester: semester,
+                semesterStartsOn: semesterStartsOn,
+                semesterEndsOn: semesterEndsOn,
                 notes: notes,
                 status: status,
                 createdAt: createdAt,

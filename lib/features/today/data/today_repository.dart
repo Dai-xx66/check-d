@@ -77,6 +77,15 @@ List<TodayCourseItem> buildCourseItemsForDate(
   final weekNumber = _isoWeekNumber(date);
   final items = <TodayCourseItem>[];
   for (final course in courses) {
+    final day = dateOnly(date);
+    if (course.semesterStartsOn != null &&
+        day.isBefore(dateOnly(course.semesterStartsOn!))) {
+      continue;
+    }
+    if (course.semesterEndsOn != null &&
+        day.isAfter(dateOnly(course.semesterEndsOn!))) {
+      continue;
+    }
     for (final rule in course.rules) {
       if (rule.weekday != date.weekday || !rule.isDueInWeek(weekNumber)) {
         continue;

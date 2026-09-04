@@ -173,6 +173,12 @@ class _CourseCard extends StatelessWidget {
                               .join(' · '),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
+                      if (course.semesterStartsOn != null ||
+                          course.semesterEndsOn != null)
+                        Text(
+                          '学期：${_dateLabel(course.semesterStartsOn)} 至 ${_dateLabel(course.semesterEndsOn)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                     ],
                   ),
                 ),
@@ -233,6 +239,10 @@ class _CourseCard extends StatelessWidget {
 
   String _weekday(int day) =>
       const ['一', '二', '三', '四', '五', '六', '日'][day - 1];
+
+  String _dateLabel(DateTime? date) => date == null
+      ? '未设置'
+      : '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   String _formatMinute(int minute) =>
       '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';

@@ -81,6 +81,8 @@ class CourseRepository {
             teacher: Value(_clean(draft.teacher)),
             classroom: Value(_clean(draft.classroom)),
             semester: Value(_clean(draft.semester)),
+            semesterStartsOn: Value(_dateOnlyUtc(draft.semesterStartsOn)),
+            semesterEndsOn: Value(_dateOnlyUtc(draft.semesterEndsOn)),
             notes: Value(_clean(draft.notes)),
             createdAt: now,
             updatedAt: now,
@@ -97,6 +99,12 @@ class CourseRepository {
         'teacher': _clean(draft.teacher),
         'classroom': _clean(draft.classroom),
         'semester': _clean(draft.semester),
+        'semester_starts_on': _dateOnlyUtc(
+          draft.semesterStartsOn,
+        )?.toIso8601String(),
+        'semester_ends_on': _dateOnlyUtc(
+          draft.semesterEndsOn,
+        )?.toIso8601String(),
         'notes': _clean(draft.notes),
         'updated_at': now.toIso8601String(),
       },
@@ -419,6 +427,8 @@ class CourseRepository {
       teacher: row.teacher,
       classroom: row.classroom,
       semester: row.semester,
+      semesterStartsOn: row.semesterStartsOn?.toLocal(),
+      semesterEndsOn: row.semesterEndsOn?.toLocal(),
       notes: row.notes,
       createdAt: row.createdAt.toLocal(),
       updatedAt: row.updatedAt.toLocal(),
@@ -479,5 +489,10 @@ class CourseRepository {
   String? _clean(String? value) {
     final clean = value?.trim();
     return clean == null || clean.isEmpty ? null : clean;
+  }
+
+  DateTime? _dateOnlyUtc(DateTime? value) {
+    if (value == null) return null;
+    return DateTime.utc(value.year, value.month, value.day);
   }
 }

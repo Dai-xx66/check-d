@@ -242,6 +242,8 @@ class CourseRecords extends Table {
   TextColumn get teacher => text().nullable()();
   TextColumn get classroom => text().nullable()();
   TextColumn get semester => text().nullable()();
+  DateTimeColumn get semesterStartsOn => dateTime().nullable()();
+  DateTimeColumn get semesterEndsOn => dateTime().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   DateTimeColumn get createdAt => dateTime()();
@@ -428,7 +430,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -547,6 +549,10 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(reminderRuleRecords);
         await migrator.createTable(alarmRuleRecords);
         await migrator.createTable(adHocTimerRecords);
+      }
+      if (from < 12) {
+        await migrator.addColumn(courseRecords, courseRecords.semesterStartsOn);
+        await migrator.addColumn(courseRecords, courseRecords.semesterEndsOn);
       }
     },
     beforeOpen: (details) async {

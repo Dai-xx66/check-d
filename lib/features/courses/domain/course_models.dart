@@ -11,6 +11,8 @@ class CourseDraft {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterStartsOn,
+    this.semesterEndsOn,
     this.notes,
   });
 
@@ -19,6 +21,8 @@ class CourseDraft {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final DateTime? semesterStartsOn;
+  final DateTime? semesterEndsOn;
   final String? notes;
 }
 
@@ -33,6 +37,8 @@ class CourseDetails {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterStartsOn,
+    this.semesterEndsOn,
     this.notes,
     this.rules = const [],
   });
@@ -46,6 +52,8 @@ class CourseDetails {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final DateTime? semesterStartsOn;
+  final DateTime? semesterEndsOn;
   final String? notes;
   final List<CourseScheduleRule> rules;
 }

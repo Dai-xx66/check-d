@@ -28,6 +28,8 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
   TimeOfDay _startsAt = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _endsAt = const TimeOfDay(hour: 9, minute: 40);
   int? _remindBeforeMinutes;
+  DateTime? _semesterStartsOn;
+  DateTime? _semesterEndsOn;
   bool _saving = false;
 
   @override
@@ -40,6 +42,8 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
     _classroomController.text = course.classroom ?? '';
     _semesterController.text = course.semester ?? '';
     _colorValue = course.colorValue;
+    _semesterStartsOn = course.semesterStartsOn;
+    _semesterEndsOn = course.semesterEndsOn;
     final rule = course.rules.isEmpty ? null : course.rules.first;
     if (rule != null) {
       _weekday = rule.weekday;
@@ -109,6 +113,26 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
             TextField(
               controller: _semesterController,
               decoration: const InputDecoration(labelText: '学期'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _dateButton(
+                    '学期开始',
+                    _semesterStartsOn,
+                    (value) => setState(() => _semesterStartsOn = value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _dateButton(
+                    '学期结束',
+                    _semesterEndsOn,
+                    (value) => setState(() => _semesterEndsOn = value),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             Text('课程安排', style: Theme.of(context).textTheme.titleMedium),
@@ -286,12 +310,43 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
     );
   }
 
+  Widget _dateButton(
+    String label,
+    DateTime? value,
+    ValueChanged<DateTime?> onChanged,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: () async {
+        final picked = await showDatePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          initialDate: value ?? DateTime.now(),
+        );
+        if (picked != null) onChanged(picked);
+      },
+      icon: const Icon(Icons.calendar_today_outlined),
+      label: Text(
+        value == null ? '$label\n未设置' : '$label\n${_dateLabel(value)}',
+      ),
+    );
+  }
+
+  String _dateLabel(DateTime value) =>
+      '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final starts = _startsAt.hour * 60 + _startsAt.minute;
     final ends = _endsAt.hour * 60 + _endsAt.minute;
     if (ends <= starts) {
       _showError('结束时间必须晚于开始时间');
+      return;
+    }
+    if (_semesterStartsOn != null &&
+        _semesterEndsOn != null &&
+        _semesterEndsOn!.isBefore(_semesterStartsOn!)) {
+      _showError('学期结束日期不能早于开始日期');
       return;
     }
     final startWeek = int.tryParse(_startWeekController.text.trim());
@@ -311,6 +366,8 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
           teacher: _teacherController.text,
           classroom: _classroomController.text,
           semester: _semesterController.text,
+          semesterStartsOn: _semesterStartsOn,
+          semesterEndsOn: _semesterEndsOn,
         ),
         courseId: widget.initialCourse?.id,
       );

@@ -155,4 +155,35 @@ void main() {
     );
     expect(skipped, isEmpty);
   });
+
+  test('today course projection respects semester date boundaries', () {
+    final date = DateTime(2026, 9, 3);
+    final course = CourseDetails(
+      id: 'course-semester',
+      name: '线性代数',
+      colorValue: 0xFF8FA7F5,
+      status: CourseStatus.active,
+      createdAt: date,
+      updatedAt: date,
+      semesterStartsOn: DateTime(2026, 9, 7),
+      semesterEndsOn: DateTime(2027, 1, 10),
+      rules: [
+        CourseScheduleRule(
+          id: 'rule-semester',
+          courseId: 'course-semester',
+          weekday: DateTime.thursday,
+          weekRuleType: CourseWeekRuleType.everyWeek,
+          startsAtMinute: 8 * 60,
+          endsAtMinute: 9 * 60,
+          createdAt: date,
+          updatedAt: date,
+        ),
+      ],
+    );
+    expect(buildCourseItemsForDate(date, [course], []), isEmpty);
+    expect(
+      buildCourseItemsForDate(DateTime(2027, 1, 14), [course], []),
+      isEmpty,
+    );
+  });
 }
