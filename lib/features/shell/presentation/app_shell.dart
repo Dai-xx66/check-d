@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/glass_button.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
@@ -420,10 +421,11 @@ class _DesktopShell extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          FilledButton.icon(
+                          GlassButton(
                             onPressed: onAdd,
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('添加'),
+                            icon: Icons.add_rounded,
+                            label: '添加',
+                            filled: true,
                           ),
                           const SizedBox(height: 16),
                           IconButton(

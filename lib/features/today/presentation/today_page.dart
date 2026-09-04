@@ -145,39 +145,44 @@ class _DesktopLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _TodayScroll(
-    child: Column(
-      children: [
-        _DesktopHeader(data: data),
-        const SizedBox(height: 18),
-        _DesktopSummary(data: data),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1440),
+        child: Column(
           children: [
-            Expanded(flex: 55, child: _TaskLists(data: data)),
-            const SizedBox(width: 18),
-            Expanded(
-              flex: 45,
-              child: _TodayArrangement(
-                tasks: data.tasks,
-                courses: data.courses,
-              ),
+            _DesktopHeader(data: data),
+            const SizedBox(height: 18),
+            _DesktopSummary(data: data),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 55, child: _TaskLists(data: data)),
+                const SizedBox(width: 18),
+                Expanded(
+                  flex: 45,
+                  child: _TodayArrangement(
+                    tasks: data.tasks,
+                    courses: data.courses,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 55,
+                  child: DailyTagTime(date: data.date, now: data.now),
+                ),
+                const SizedBox(width: 18),
+                Expanded(flex: 45, child: _ReviewSummary(date: data.date)),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 55,
-              child: DailyTagTime(date: data.date, now: data.now),
-            ),
-            const SizedBox(width: 18),
-            Expanded(flex: 45, child: _ReviewSummary(date: data.date)),
-          ],
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -586,47 +591,57 @@ class _DesktopSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      child: Row(
-        children: [
-          _ProgressRing(progress: data.progress, size: 82),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.encouragement,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '已完成 ${data.completed} 项，还有 ${data.remaining} 项待完成',
-                  style: const TextStyle(color: AppColors.muted),
-                ),
-              ],
+    clipBehavior: Clip.antiAlias,
+    child: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xF9FFFFFF), Color(0xDFFFF5F8)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            _ProgressRing(progress: data.progress, size: 82),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data.encouragement,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '已完成 ${data.completed} 项，还有 ${data.remaining} 项待完成',
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const _MetricDivider(),
-          _Metric(
-            icon: Icons.check_circle_outline_rounded,
-            label: '已完成',
-            value: '${data.completed} / ${data.tasks.length}',
-          ),
-          const _MetricDivider(),
-          _Metric(
-            icon: Icons.schedule_rounded,
-            label: '待完成',
-            value: '${data.remaining} 项',
-          ),
-          const _MetricDivider(),
-          _Metric(
-            icon: Icons.hourglass_bottom_rounded,
-            label: '专注时长',
-            value: formatDuration(data.focusedSeconds),
-          ),
-        ],
+            const _MetricDivider(),
+            _Metric(
+              icon: Icons.check_circle_outline_rounded,
+              label: '已完成',
+              value: '${data.completed} / ${data.tasks.length}',
+            ),
+            const _MetricDivider(),
+            _Metric(
+              icon: Icons.schedule_rounded,
+              label: '待完成',
+              value: '${data.remaining} 项',
+            ),
+            const _MetricDivider(),
+            _Metric(
+              icon: Icons.hourglass_bottom_rounded,
+              label: '专注时长',
+              value: formatDuration(data.focusedSeconds),
+            ),
+          ],
+        ),
       ),
     ),
   );
