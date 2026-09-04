@@ -8,6 +8,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
 import '../../courses/presentation/course_list_page.dart';
+import '../../schedule/presentation/ad_hoc_timer_form_page.dart';
 import '../../plans/presentation/plans_page.dart';
 import '../../reviews/presentation/reviews_page.dart';
 import '../../statistics/presentation/statistics_page.dart';
@@ -125,6 +126,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
               const SizedBox(height: 10),
               _CreateOption(
+                icon: Icons.bolt_rounded,
+                color: AppColors.orange,
+                title: '临时计时',
+                subtitle: '记录一段不属于任务的专注时间',
+                onTap: () => _openAdHocTimer(context),
+              ),
+              const SizedBox(height: 10),
+              _CreateOption(
                 icon: Icons.event_note_rounded,
                 color: AppColors.orange,
                 title: '单次事项',
@@ -163,6 +172,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (context) => const OneTimeReminderFormPage()),
+    );
+  }
+
+  void _openAdHocTimer(BuildContext sheetContext) {
+    Navigator.of(sheetContext).pop();
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (context) => const AdHocTimerFormPage()),
     );
   }
 

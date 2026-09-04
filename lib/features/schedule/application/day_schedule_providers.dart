@@ -11,6 +11,7 @@ final dayScheduleRepositoryProvider = Provider<DayScheduleRepository>((ref) {
     database: ref.watch(appDatabaseProvider),
     syncQueue: ref.watch(syncQueueServiceProvider),
     userId: ref.watch(currentDataOwnerProvider),
+    runningTaskId: () => ref.read(taskRepositoryProvider).runningTimerTaskId(),
   );
 });
 

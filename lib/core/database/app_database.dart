@@ -388,6 +388,10 @@ class AdHocTimerRecords extends Table {
   IntColumn get colorValue => integer()();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get startedAt => dateTime()();
+  TextColumn get timerStatus => text().withDefault(const Constant('idle'))();
+  IntColumn get accumulatedDurationSeconds =>
+      integer().withDefault(const Constant(0))();
+  DateTimeColumn get currentStartedAt => dateTime().nullable()();
   DateTimeColumn get endedAt => dateTime().nullable()();
   DateTimeColumn get completedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -430,7 +434,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -553,6 +557,20 @@ class AppDatabase extends _$AppDatabase {
       if (from < 12) {
         await migrator.addColumn(courseRecords, courseRecords.semesterStartsOn);
         await migrator.addColumn(courseRecords, courseRecords.semesterEndsOn);
+      }
+      if (from < 13) {
+        await migrator.addColumn(
+          adHocTimerRecords,
+          adHocTimerRecords.timerStatus,
+        );
+        await migrator.addColumn(
+          adHocTimerRecords,
+          adHocTimerRecords.accumulatedDurationSeconds,
+        );
+        await migrator.addColumn(
+          adHocTimerRecords,
+          adHocTimerRecords.currentStartedAt,
+        );
       }
     },
     beforeOpen: (details) async {

@@ -11,6 +11,7 @@ class DayScheduleRepository {
     required AppDatabase database,
     required SyncQueueService syncQueue,
     required String userId,
+    this.runningTaskId,
   }) : _database = database,
        _syncQueue = syncQueue,
        _userId = userId;
@@ -19,6 +20,7 @@ class DayScheduleRepository {
   final SyncQueueService _syncQueue;
   final String _userId;
   final Uuid _uuid = const Uuid();
+  final Future<String?> Function()? runningTaskId;
 
   Stream<List<DailyItemOverride>> watchOverridesForDate(DateTime date) {
     final query = _database.select(_database.dailyItemOverrideRecords)
@@ -229,6 +231,9 @@ class DayScheduleRepository {
             colorValue: draft.colorValue,
             notes: Value(_clean(draft.notes)),
             startedAt: draft.startedAt.toUtc(),
+            timerStatus: Value(draft.timerStatus.name),
+            accumulatedDurationSeconds: Value(draft.accumulatedDurationSeconds),
+            currentStartedAt: Value(draft.currentStartedAt?.toUtc()),
             endedAt: Value(draft.endedAt?.toUtc()),
             completedAt: Value(draft.completedAt?.toUtc()),
             createdAt: now,
@@ -246,6 +251,9 @@ class DayScheduleRepository {
         'color': draft.colorValue,
         'notes': _clean(draft.notes),
         'started_at': draft.startedAt.toUtc().toIso8601String(),
+        'timer_status': draft.timerStatus.name,
+        'accumulated_duration_seconds': draft.accumulatedDurationSeconds,
+        'current_started_at': draft.currentStartedAt?.toUtc().toIso8601String(),
         'ended_at': draft.endedAt?.toUtc().toIso8601String(),
         'completed_at': draft.completedAt?.toUtc().toIso8601String(),
         'updated_at': now.toIso8601String(),
@@ -253,6 +261,117 @@ class DayScheduleRepository {
       userId: _userId,
     );
     return id;
+  }
+
+  Stream<AdHocTimerDetails?> watchAdHocTimer(String timerId) {
+    final query = _database.select(_database.adHocTimerRecords)
+      ..where((row) => row.id.equals(timerId) & row.userId.equals(_userId));
+    return query.watchSingleOrNull().map(
+      (row) => row == null ? null : _toAdHocTimer(row),
+    );
+  }
+
+  Future<String> createAdHocTimer({
+    required String title,
+    int colorValue = 0xFFF17F9D,
+    String? tagId,
+    String? notes,
+  }) {
+    final now = DateTime.now();
+    return saveAdHocTimer(
+      AdHocTimerDraft(
+        title: title,
+        colorValue: colorValue,
+        tagId: tagId,
+        notes: notes,
+        startedAt: now,
+      ),
+    );
+  }
+
+  Future<void> startAdHocTimer(String timerId) async {
+    final current = await watchAdHocTimer(timerId).first;
+    if (current == null || current.timerStatus == AdHocTimerStatus.ended) {
+      throw StateError('临时计时不存在或已结束');
+    }
+    if (await runningTaskId?.call() != null) {
+      throw StateError('已有任务正在计时');
+    }
+    final running =
+        await (_database.select(_database.adHocTimerRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.timerStatus.equals(AdHocTimerStatus.running.name),
+            ))
+            .getSingleOrNull();
+    if (running != null && running.id != timerId) {
+      throw StateError('已有临时计时正在运行');
+    }
+    final now = DateTime.now().toUtc();
+    await _updateAdHocTimer(
+      timerId,
+      AdHocTimerStatus.running,
+      current.accumulatedDurationSeconds,
+      now,
+    );
+  }
+
+  Future<void> pauseAdHocTimer(String timerId) async {
+    final current = await watchAdHocTimer(timerId).first;
+    if (current == null || current.timerStatus != AdHocTimerStatus.running)
+      return;
+    final now = DateTime.now();
+    final accumulated =
+        current.accumulatedDurationSeconds +
+        now.difference(current.currentStartedAt ?? now).inSeconds;
+    await _updateAdHocTimer(
+      timerId,
+      AdHocTimerStatus.paused,
+      accumulated,
+      null,
+    );
+  }
+
+  Future<void> resumeAdHocTimer(String timerId) => startAdHocTimer(timerId);
+
+  Future<void> endAdHocTimer(String timerId) async {
+    final current = await watchAdHocTimer(timerId).first;
+    if (current == null || current.timerStatus == AdHocTimerStatus.ended)
+      return;
+    var accumulated = current.accumulatedDurationSeconds;
+    if (current.timerStatus == AdHocTimerStatus.running) {
+      accumulated += DateTime.now()
+          .difference(current.currentStartedAt ?? DateTime.now())
+          .inSeconds;
+    }
+    await _updateAdHocTimer(
+      timerId,
+      AdHocTimerStatus.ended,
+      accumulated,
+      null,
+      endedAt: DateTime.now().toUtc(),
+    );
+  }
+
+  Future<void> _updateAdHocTimer(
+    String timerId,
+    AdHocTimerStatus status,
+    int accumulated,
+    DateTime? currentStartedAt, {
+    DateTime? endedAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(_database.adHocTimerRecords)
+          ..where((row) => row.id.equals(timerId) & row.userId.equals(_userId)))
+        .write(
+          AdHocTimerRecordsCompanion(
+            timerStatus: Value(status.name),
+            accumulatedDurationSeconds: Value(accumulated),
+            currentStartedAt: Value(currentStartedAt),
+            endedAt: Value(endedAt),
+            updatedAt: Value(now),
+          ),
+        );
   }
 
   Stream<List<AdHocTimerDetails>> watchAdHocTimersForDate(DateTime date) {
@@ -276,6 +395,9 @@ class DayScheduleRepository {
       title: row.title,
       colorValue: row.colorValue,
       startedAt: row.startedAt.toLocal(),
+      timerStatus: AdHocTimerStatus.values.byName(row.timerStatus),
+      accumulatedDurationSeconds: row.accumulatedDurationSeconds,
+      currentStartedAt: row.currentStartedAt?.toLocal(),
       tagId: row.tagId,
       notes: row.notes,
       endedAt: row.endedAt?.toLocal(),

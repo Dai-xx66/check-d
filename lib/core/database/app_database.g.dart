@@ -13473,6 +13473,42 @@ class $AdHocTimerRecordsTable extends AdHocTimerRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _timerStatusMeta = const VerificationMeta(
+    'timerStatus',
+  );
+  @override
+  late final GeneratedColumn<String> timerStatus = GeneratedColumn<String>(
+    'timer_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('idle'),
+  );
+  static const VerificationMeta _accumulatedDurationSecondsMeta =
+      const VerificationMeta('accumulatedDurationSeconds');
+  @override
+  late final GeneratedColumn<int> accumulatedDurationSeconds =
+      GeneratedColumn<int>(
+        'accumulated_duration_seconds',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _currentStartedAtMeta = const VerificationMeta(
+    'currentStartedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> currentStartedAt =
+      GeneratedColumn<DateTime>(
+        'current_started_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _endedAtMeta = const VerificationMeta(
     'endedAt',
   );
@@ -13537,6 +13573,9 @@ class $AdHocTimerRecordsTable extends AdHocTimerRecords
     colorValue,
     notes,
     startedAt,
+    timerStatus,
+    accumulatedDurationSeconds,
+    currentStartedAt,
     endedAt,
     completedAt,
     createdAt,
@@ -13603,6 +13642,33 @@ class $AdHocTimerRecordsTable extends AdHocTimerRecords
       );
     } else if (isInserting) {
       context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('timer_status')) {
+      context.handle(
+        _timerStatusMeta,
+        timerStatus.isAcceptableOrUnknown(
+          data['timer_status']!,
+          _timerStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('accumulated_duration_seconds')) {
+      context.handle(
+        _accumulatedDurationSecondsMeta,
+        accumulatedDurationSeconds.isAcceptableOrUnknown(
+          data['accumulated_duration_seconds']!,
+          _accumulatedDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('current_started_at')) {
+      context.handle(
+        _currentStartedAtMeta,
+        currentStartedAt.isAcceptableOrUnknown(
+          data['current_started_at']!,
+          _currentStartedAtMeta,
+        ),
+      );
     }
     if (data.containsKey('ended_at')) {
       context.handle(
@@ -13678,6 +13744,18 @@ class $AdHocTimerRecordsTable extends AdHocTimerRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}started_at'],
       )!,
+      timerStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timer_status'],
+      )!,
+      accumulatedDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}accumulated_duration_seconds'],
+      )!,
+      currentStartedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}current_started_at'],
+      ),
       endedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}ended_at'],
@@ -13716,6 +13794,9 @@ class AdHocTimerRecord extends DataClass
   final int colorValue;
   final String? notes;
   final DateTime startedAt;
+  final String timerStatus;
+  final int accumulatedDurationSeconds;
+  final DateTime? currentStartedAt;
   final DateTime? endedAt;
   final DateTime? completedAt;
   final DateTime createdAt;
@@ -13729,6 +13810,9 @@ class AdHocTimerRecord extends DataClass
     required this.colorValue,
     this.notes,
     required this.startedAt,
+    required this.timerStatus,
+    required this.accumulatedDurationSeconds,
+    this.currentStartedAt,
     this.endedAt,
     this.completedAt,
     required this.createdAt,
@@ -13749,6 +13833,13 @@ class AdHocTimerRecord extends DataClass
       map['notes'] = Variable<String>(notes);
     }
     map['started_at'] = Variable<DateTime>(startedAt);
+    map['timer_status'] = Variable<String>(timerStatus);
+    map['accumulated_duration_seconds'] = Variable<int>(
+      accumulatedDurationSeconds,
+    );
+    if (!nullToAbsent || currentStartedAt != null) {
+      map['current_started_at'] = Variable<DateTime>(currentStartedAt);
+    }
     if (!nullToAbsent || endedAt != null) {
       map['ended_at'] = Variable<DateTime>(endedAt);
     }
@@ -13776,6 +13867,11 @@ class AdHocTimerRecord extends DataClass
           ? const Value.absent()
           : Value(notes),
       startedAt: Value(startedAt),
+      timerStatus: Value(timerStatus),
+      accumulatedDurationSeconds: Value(accumulatedDurationSeconds),
+      currentStartedAt: currentStartedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentStartedAt),
       endedAt: endedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(endedAt),
@@ -13803,6 +13899,13 @@ class AdHocTimerRecord extends DataClass
       colorValue: serializer.fromJson<int>(json['colorValue']),
       notes: serializer.fromJson<String?>(json['notes']),
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      timerStatus: serializer.fromJson<String>(json['timerStatus']),
+      accumulatedDurationSeconds: serializer.fromJson<int>(
+        json['accumulatedDurationSeconds'],
+      ),
+      currentStartedAt: serializer.fromJson<DateTime?>(
+        json['currentStartedAt'],
+      ),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -13821,6 +13924,11 @@ class AdHocTimerRecord extends DataClass
       'colorValue': serializer.toJson<int>(colorValue),
       'notes': serializer.toJson<String?>(notes),
       'startedAt': serializer.toJson<DateTime>(startedAt),
+      'timerStatus': serializer.toJson<String>(timerStatus),
+      'accumulatedDurationSeconds': serializer.toJson<int>(
+        accumulatedDurationSeconds,
+      ),
+      'currentStartedAt': serializer.toJson<DateTime?>(currentStartedAt),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -13837,6 +13945,9 @@ class AdHocTimerRecord extends DataClass
     int? colorValue,
     Value<String?> notes = const Value.absent(),
     DateTime? startedAt,
+    String? timerStatus,
+    int? accumulatedDurationSeconds,
+    Value<DateTime?> currentStartedAt = const Value.absent(),
     Value<DateTime?> endedAt = const Value.absent(),
     Value<DateTime?> completedAt = const Value.absent(),
     DateTime? createdAt,
@@ -13850,6 +13961,12 @@ class AdHocTimerRecord extends DataClass
     colorValue: colorValue ?? this.colorValue,
     notes: notes.present ? notes.value : this.notes,
     startedAt: startedAt ?? this.startedAt,
+    timerStatus: timerStatus ?? this.timerStatus,
+    accumulatedDurationSeconds:
+        accumulatedDurationSeconds ?? this.accumulatedDurationSeconds,
+    currentStartedAt: currentStartedAt.present
+        ? currentStartedAt.value
+        : this.currentStartedAt,
     endedAt: endedAt.present ? endedAt.value : this.endedAt,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     createdAt: createdAt ?? this.createdAt,
@@ -13867,6 +13984,15 @@ class AdHocTimerRecord extends DataClass
           : this.colorValue,
       notes: data.notes.present ? data.notes.value : this.notes,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      timerStatus: data.timerStatus.present
+          ? data.timerStatus.value
+          : this.timerStatus,
+      accumulatedDurationSeconds: data.accumulatedDurationSeconds.present
+          ? data.accumulatedDurationSeconds.value
+          : this.accumulatedDurationSeconds,
+      currentStartedAt: data.currentStartedAt.present
+          ? data.currentStartedAt.value
+          : this.currentStartedAt,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
       completedAt: data.completedAt.present
           ? data.completedAt.value
@@ -13887,6 +14013,9 @@ class AdHocTimerRecord extends DataClass
           ..write('colorValue: $colorValue, ')
           ..write('notes: $notes, ')
           ..write('startedAt: $startedAt, ')
+          ..write('timerStatus: $timerStatus, ')
+          ..write('accumulatedDurationSeconds: $accumulatedDurationSeconds, ')
+          ..write('currentStartedAt: $currentStartedAt, ')
           ..write('endedAt: $endedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -13905,6 +14034,9 @@ class AdHocTimerRecord extends DataClass
     colorValue,
     notes,
     startedAt,
+    timerStatus,
+    accumulatedDurationSeconds,
+    currentStartedAt,
     endedAt,
     completedAt,
     createdAt,
@@ -13922,6 +14054,9 @@ class AdHocTimerRecord extends DataClass
           other.colorValue == this.colorValue &&
           other.notes == this.notes &&
           other.startedAt == this.startedAt &&
+          other.timerStatus == this.timerStatus &&
+          other.accumulatedDurationSeconds == this.accumulatedDurationSeconds &&
+          other.currentStartedAt == this.currentStartedAt &&
           other.endedAt == this.endedAt &&
           other.completedAt == this.completedAt &&
           other.createdAt == this.createdAt &&
@@ -13937,6 +14072,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
   final Value<int> colorValue;
   final Value<String?> notes;
   final Value<DateTime> startedAt;
+  final Value<String> timerStatus;
+  final Value<int> accumulatedDurationSeconds;
+  final Value<DateTime?> currentStartedAt;
   final Value<DateTime?> endedAt;
   final Value<DateTime?> completedAt;
   final Value<DateTime> createdAt;
@@ -13951,6 +14089,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
     this.colorValue = const Value.absent(),
     this.notes = const Value.absent(),
     this.startedAt = const Value.absent(),
+    this.timerStatus = const Value.absent(),
+    this.accumulatedDurationSeconds = const Value.absent(),
+    this.currentStartedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -13966,6 +14107,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
     required int colorValue,
     this.notes = const Value.absent(),
     required DateTime startedAt,
+    this.timerStatus = const Value.absent(),
+    this.accumulatedDurationSeconds = const Value.absent(),
+    this.currentStartedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
     this.completedAt = const Value.absent(),
     required DateTime createdAt,
@@ -13987,6 +14131,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
     Expression<int>? colorValue,
     Expression<String>? notes,
     Expression<DateTime>? startedAt,
+    Expression<String>? timerStatus,
+    Expression<int>? accumulatedDurationSeconds,
+    Expression<DateTime>? currentStartedAt,
     Expression<DateTime>? endedAt,
     Expression<DateTime>? completedAt,
     Expression<DateTime>? createdAt,
@@ -14002,6 +14149,10 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
       if (colorValue != null) 'color_value': colorValue,
       if (notes != null) 'notes': notes,
       if (startedAt != null) 'started_at': startedAt,
+      if (timerStatus != null) 'timer_status': timerStatus,
+      if (accumulatedDurationSeconds != null)
+        'accumulated_duration_seconds': accumulatedDurationSeconds,
+      if (currentStartedAt != null) 'current_started_at': currentStartedAt,
       if (endedAt != null) 'ended_at': endedAt,
       if (completedAt != null) 'completed_at': completedAt,
       if (createdAt != null) 'created_at': createdAt,
@@ -14019,6 +14170,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
     Value<int>? colorValue,
     Value<String?>? notes,
     Value<DateTime>? startedAt,
+    Value<String>? timerStatus,
+    Value<int>? accumulatedDurationSeconds,
+    Value<DateTime?>? currentStartedAt,
     Value<DateTime?>? endedAt,
     Value<DateTime?>? completedAt,
     Value<DateTime>? createdAt,
@@ -14034,6 +14188,10 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
       colorValue: colorValue ?? this.colorValue,
       notes: notes ?? this.notes,
       startedAt: startedAt ?? this.startedAt,
+      timerStatus: timerStatus ?? this.timerStatus,
+      accumulatedDurationSeconds:
+          accumulatedDurationSeconds ?? this.accumulatedDurationSeconds,
+      currentStartedAt: currentStartedAt ?? this.currentStartedAt,
       endedAt: endedAt ?? this.endedAt,
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -14067,6 +14225,17 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
     if (startedAt.present) {
       map['started_at'] = Variable<DateTime>(startedAt.value);
     }
+    if (timerStatus.present) {
+      map['timer_status'] = Variable<String>(timerStatus.value);
+    }
+    if (accumulatedDurationSeconds.present) {
+      map['accumulated_duration_seconds'] = Variable<int>(
+        accumulatedDurationSeconds.value,
+      );
+    }
+    if (currentStartedAt.present) {
+      map['current_started_at'] = Variable<DateTime>(currentStartedAt.value);
+    }
     if (endedAt.present) {
       map['ended_at'] = Variable<DateTime>(endedAt.value);
     }
@@ -14098,6 +14267,9 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
           ..write('colorValue: $colorValue, ')
           ..write('notes: $notes, ')
           ..write('startedAt: $startedAt, ')
+          ..write('timerStatus: $timerStatus, ')
+          ..write('accumulatedDurationSeconds: $accumulatedDurationSeconds, ')
+          ..write('currentStartedAt: $currentStartedAt, ')
           ..write('endedAt: $endedAt, ')
           ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt, ')
@@ -23480,6 +23652,9 @@ typedef $$AdHocTimerRecordsTableCreateCompanionBuilder =
       required int colorValue,
       Value<String?> notes,
       required DateTime startedAt,
+      Value<String> timerStatus,
+      Value<int> accumulatedDurationSeconds,
+      Value<DateTime?> currentStartedAt,
       Value<DateTime?> endedAt,
       Value<DateTime?> completedAt,
       required DateTime createdAt,
@@ -23496,6 +23671,9 @@ typedef $$AdHocTimerRecordsTableUpdateCompanionBuilder =
       Value<int> colorValue,
       Value<String?> notes,
       Value<DateTime> startedAt,
+      Value<String> timerStatus,
+      Value<int> accumulatedDurationSeconds,
+      Value<DateTime?> currentStartedAt,
       Value<DateTime?> endedAt,
       Value<DateTime?> completedAt,
       Value<DateTime> createdAt,
@@ -23545,6 +23723,21 @@ class $$AdHocTimerRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get startedAt => $composableBuilder(
     column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timerStatus => $composableBuilder(
+    column: $table.timerStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get accumulatedDurationSeconds => $composableBuilder(
+    column: $table.accumulatedDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get currentStartedAt => $composableBuilder(
+    column: $table.currentStartedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -23618,6 +23811,21 @@ class $$AdHocTimerRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get timerStatus => $composableBuilder(
+    column: $table.timerStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get accumulatedDurationSeconds => $composableBuilder(
+    column: $table.accumulatedDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get currentStartedAt => $composableBuilder(
+    column: $table.currentStartedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get endedAt => $composableBuilder(
     column: $table.endedAt,
     builder: (column) => ColumnOrderings(column),
@@ -23675,6 +23883,21 @@ class $$AdHocTimerRecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get startedAt =>
       $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get timerStatus => $composableBuilder(
+    column: $table.timerStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get accumulatedDurationSeconds => $composableBuilder(
+    column: $table.accumulatedDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get currentStartedAt => $composableBuilder(
+    column: $table.currentStartedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get endedAt =>
       $composableBuilder(column: $table.endedAt, builder: (column) => column);
@@ -23741,6 +23964,9 @@ class $$AdHocTimerRecordsTableTableManager
                 Value<int> colorValue = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
+                Value<String> timerStatus = const Value.absent(),
+                Value<int> accumulatedDurationSeconds = const Value.absent(),
+                Value<DateTime?> currentStartedAt = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -23755,6 +23981,9 @@ class $$AdHocTimerRecordsTableTableManager
                 colorValue: colorValue,
                 notes: notes,
                 startedAt: startedAt,
+                timerStatus: timerStatus,
+                accumulatedDurationSeconds: accumulatedDurationSeconds,
+                currentStartedAt: currentStartedAt,
                 endedAt: endedAt,
                 completedAt: completedAt,
                 createdAt: createdAt,
@@ -23771,6 +24000,9 @@ class $$AdHocTimerRecordsTableTableManager
                 required int colorValue,
                 Value<String?> notes = const Value.absent(),
                 required DateTime startedAt,
+                Value<String> timerStatus = const Value.absent(),
+                Value<int> accumulatedDurationSeconds = const Value.absent(),
+                Value<DateTime?> currentStartedAt = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 required DateTime createdAt,
@@ -23785,6 +24017,9 @@ class $$AdHocTimerRecordsTableTableManager
                 colorValue: colorValue,
                 notes: notes,
                 startedAt: startedAt,
+                timerStatus: timerStatus,
+                accumulatedDurationSeconds: accumulatedDurationSeconds,
+                currentStartedAt: currentStartedAt,
                 endedAt: endedAt,
                 completedAt: completedAt,
                 createdAt: createdAt,

@@ -58,6 +58,7 @@ class _TodayPageState extends ConsumerState<TodayPage> {
             now: now,
             tasks: items,
             courses: todayCourses,
+            adHocTimers: adHocTimers.value ?? const <AdHocTimerDetails>[],
             focusedSeconds:
                 (ref
                         .watch(dailyTimerStateProvider(_selectedDate))
@@ -85,6 +86,7 @@ class _TodayData {
     required this.now,
     required this.tasks,
     this.courses = const [],
+    this.adHocTimers = const [],
     required this.focusedSeconds,
   });
 
@@ -92,6 +94,7 @@ class _TodayData {
   final DateTime now;
   final List<TaskDetails> tasks;
   final List<TodayCourseItem> courses;
+  final List<AdHocTimerDetails> adHocTimers;
   final int focusedSeconds;
 
   List<TaskDetails> get recurring =>
@@ -218,6 +221,10 @@ class _MobileLayout extends StatelessWidget {
         _WeekDateStrip(selectedDate: data.date, onSelected: onDateSelected),
         const SizedBox(height: 14),
         _MobileSummary(data: data),
+        if (data.adHocTimers.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _AdHocSection(timers: data.adHocTimers, isToday: data.isToday),
+        ],
         if (data.courses.isNotEmpty) ...[
           const SizedBox(height: 18),
           _MobileCourseSection(courses: data.courses),
@@ -347,6 +354,150 @@ class _MobileCourseRow extends StatelessWidget {
 
   String _minute(int value) =>
       '${(value ~/ 60).toString().padLeft(2, '0')}:${(value % 60).toString().padLeft(2, '0')}';
+}
+
+class _AdHocSection extends StatelessWidget {
+  const _AdHocSection({required this.timers, required this.isToday});
+
+  final List<AdHocTimerDetails> timers;
+  final bool isToday;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        children: [
+          const Icon(Icons.bolt_rounded, size: 19, color: AppColors.primary),
+          const SizedBox(width: 7),
+          Text('临时计时', style: Theme.of(context).textTheme.titleLarge),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Card(
+        child: Column(
+          children: [
+            for (var index = 0; index < timers.length; index++) ...[
+              _AdHocRow(timer: timers[index], enabled: isToday),
+              if (index != timers.length - 1)
+                const Divider(height: 1, indent: 18, endIndent: 18),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _AdHocRow extends ConsumerStatefulWidget {
+  const _AdHocRow({required this.timer, required this.enabled});
+
+  final AdHocTimerDetails timer;
+  final bool enabled;
+
+  @override
+  ConsumerState<_AdHocRow> createState() => _AdHocRowState();
+}
+
+class _AdHocRowState extends ConsumerState<_AdHocRow> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final timer = widget.timer;
+    final color = Color(timer.colorValue);
+    final action = switch (timer.timerStatus) {
+      AdHocTimerStatus.idle => ('开始', Icons.play_arrow_rounded),
+      AdHocTimerStatus.running => ('暂停', Icons.pause_rounded),
+      AdHocTimerStatus.paused => ('继续', Icons.play_arrow_rounded),
+      AdHocTimerStatus.ended => ('已结束', Icons.check_rounded),
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
+      child: Row(
+        children: [
+          _TaskIcon(color: color, icon: Icons.bolt_rounded),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(timer.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  formatDuration(timer.accumulatedDurationSeconds),
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          if (timer.timerStatus != AdHocTimerStatus.ended)
+            FilledButton.icon(
+              onPressed: widget.enabled && !_busy ? _runAction : null,
+              icon: _busy
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(action.$2, size: 16),
+              label: Text(action.$1),
+              style: FilledButton.styleFrom(
+                backgroundColor: color,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            )
+          else
+            const Icon(Icons.check_circle_rounded, color: AppColors.green),
+          if (timer.timerStatus != AdHocTimerStatus.ended && widget.enabled)
+            IconButton(
+              tooltip: '结束',
+              onPressed: _busy ? null : _end,
+              icon: const Icon(Icons.stop_rounded),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runAction() async {
+    setState(() => _busy = true);
+    final repository = ref.read(dayScheduleRepositoryProvider);
+    try {
+      switch (widget.timer.timerStatus) {
+        case AdHocTimerStatus.idle:
+          await repository.startAdHocTimer(widget.timer.id);
+        case AdHocTimerStatus.running:
+          await repository.pauseAdHocTimer(widget.timer.id);
+        case AdHocTimerStatus.paused:
+          await repository.resumeAdHocTimer(widget.timer.id);
+        case AdHocTimerStatus.ended:
+          break;
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _end() async {
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(dayScheduleRepositoryProvider)
+          .endAdHocTimer(widget.timer.id);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 }
 
 class _TodayScroll extends StatelessWidget {

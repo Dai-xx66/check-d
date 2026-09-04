@@ -13,6 +13,8 @@ enum ReminderKind { due, advance }
 
 enum AlarmBehavior { once, duration, snooze, repeat }
 
+enum AdHocTimerStatus { idle, running, paused, ended }
+
 class DailyItemOverrideDraft {
   const DailyItemOverrideDraft({
     required this.itemType,
@@ -180,6 +182,9 @@ class AdHocTimerDraft {
     this.notes,
     this.endedAt,
     this.completedAt,
+    this.timerStatus = AdHocTimerStatus.idle,
+    this.accumulatedDurationSeconds = 0,
+    this.currentStartedAt,
   });
 
   final String title;
@@ -189,6 +194,9 @@ class AdHocTimerDraft {
   final String? notes;
   final DateTime? endedAt;
   final DateTime? completedAt;
+  final AdHocTimerStatus timerStatus;
+  final int accumulatedDurationSeconds;
+  final DateTime? currentStartedAt;
 }
 
 class AdHocTimerDetails {
@@ -203,6 +211,9 @@ class AdHocTimerDetails {
     this.notes,
     this.endedAt,
     this.completedAt,
+    this.timerStatus = AdHocTimerStatus.idle,
+    this.accumulatedDurationSeconds = 0,
+    this.currentStartedAt,
   });
 
   final String id;
@@ -215,13 +226,30 @@ class AdHocTimerDetails {
   final String? notes;
   final DateTime? endedAt;
   final DateTime? completedAt;
+  final AdHocTimerStatus timerStatus;
+  final int accumulatedDurationSeconds;
+  final DateTime? currentStartedAt;
 
   int durationSecondsForDate(DateTime date, {DateTime? now}) {
     final dayStart = DateTime(date.year, date.month, date.day);
     final dayEnd = dayStart.add(const Duration(days: 1));
-    final start = startedAt.isAfter(dayStart) ? startedAt : dayStart;
-    final endValue = endedAt ?? now ?? DateTime.now();
-    final end = endValue.isBefore(dayEnd) ? endValue : dayEnd;
-    return end.isAfter(start) ? end.difference(start).inSeconds : 0;
+    var seconds = 0;
+    if (accumulatedDurationSeconds > 0 &&
+        DateTime(startedAt.year, startedAt.month, startedAt.day) == dayStart) {
+      seconds += accumulatedDurationSeconds;
+    }
+    if (timerStatus == AdHocTimerStatus.running && currentStartedAt != null) {
+      final start = currentStartedAt!.isAfter(dayStart)
+          ? currentStartedAt!
+          : dayStart;
+      final endValue = now ?? DateTime.now();
+      final end = endValue.isBefore(dayEnd) ? endValue : dayEnd;
+      if (end.isAfter(start)) seconds += end.difference(start).inSeconds;
+    } else if (accumulatedDurationSeconds == 0 && endedAt != null) {
+      final start = startedAt.isAfter(dayStart) ? startedAt : dayStart;
+      final end = endedAt!.isBefore(dayEnd) ? endedAt! : dayEnd;
+      if (end.isAfter(start)) seconds += end.difference(start).inSeconds;
+    }
+    return seconds;
   }
 }

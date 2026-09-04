@@ -104,21 +104,48 @@ void main() {
     expect(alarms.single.behavior, AlarmBehavior.snooze.name);
   });
 
-  test('ad hoc timer is queryable by date and splits cross-day duration', () async {
-    final started = DateTime(2026, 9, 3, 23, 30);
-    final ended = DateTime(2026, 9, 4, 0, 30);
-    await schedule.saveAdHocTimer(
-      AdHocTimerDraft(
-        title: '临时专注',
-        colorValue: 0xFFF17F9D,
-        startedAt: started,
-        endedAt: ended,
-      ),
+  test(
+    'ad hoc timer is queryable by date and splits cross-day duration',
+    () async {
+      final started = DateTime(2026, 9, 3, 23, 30);
+      final ended = DateTime(2026, 9, 4, 0, 30);
+      await schedule.saveAdHocTimer(
+        AdHocTimerDraft(
+          title: '临时专注',
+          colorValue: 0xFFF17F9D,
+          startedAt: started,
+          endedAt: ended,
+        ),
+      );
+
+      final firstDay = await schedule.watchAdHocTimersForDate(started).first;
+      final secondDay = await schedule.watchAdHocTimersForDate(ended).first;
+      expect(firstDay.single.durationSecondsForDate(started), 30 * 60);
+      expect(secondDay.single.durationSecondsForDate(ended), 30 * 60);
+    },
+  );
+
+  test('ad hoc timer lifecycle keeps timer state independent', () async {
+    final id = await schedule.createAdHocTimer(title: '状态机测试');
+    expect(
+      (await schedule.watchAdHocTimer(id).first)!.timerStatus,
+      AdHocTimerStatus.idle,
     );
 
-    final firstDay = await schedule.watchAdHocTimersForDate(started).first;
-    final secondDay = await schedule.watchAdHocTimersForDate(ended).first;
-    expect(firstDay.single.durationSecondsForDate(started), 30 * 60);
-    expect(secondDay.single.durationSecondsForDate(ended), 30 * 60);
+    await schedule.startAdHocTimer(id);
+    expect(
+      (await schedule.watchAdHocTimer(id).first)!.timerStatus,
+      AdHocTimerStatus.running,
+    );
+    await schedule.pauseAdHocTimer(id);
+    expect(
+      (await schedule.watchAdHocTimer(id).first)!.timerStatus,
+      AdHocTimerStatus.paused,
+    );
+    await schedule.resumeAdHocTimer(id);
+    await schedule.endAdHocTimer(id);
+    final ended = await schedule.watchAdHocTimer(id).first;
+    expect(ended!.timerStatus, AdHocTimerStatus.ended);
+    expect(ended.completedAt, isNull);
   });
 }
