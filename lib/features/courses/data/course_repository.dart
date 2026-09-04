@@ -294,13 +294,49 @@ class CourseRepository {
               ))
               .getSingleOrNull();
       await _notifications!.requestPermissions();
-      await _notifications!.scheduleWeekly(
-        id: _notificationId(ruleId),
-        weekday: draft.weekday,
-        minuteOfDay: reminderMinute,
-        title: '课程提醒：${course?.name ?? '课程'}',
-        body: '课程将在 $minutes 分钟后开始',
-      );
+      final title = '课程提醒：${course?.name ?? '课程'}';
+      final body = '课程将在 $minutes 分钟后开始';
+      final isUnboundedEveryWeek =
+          draft.weekRuleType == CourseWeekRuleType.everyWeek &&
+          draft.startWeek == null &&
+          draft.endWeek == null;
+      if (isUnboundedEveryWeek) {
+        await _notifications!.scheduleWeekly(
+          id: _notificationId(ruleId),
+          weekday: draft.weekday,
+          minuteOfDay: reminderMinute,
+          title: title,
+          body: body,
+        );
+      } else {
+        // The notification plugin cannot express odd/even or bounded weeks.
+        // Schedule the next year of matching occurrences instead.
+        final today = DateTime.now();
+        var occurrence = DateTime(today.year, today.month, today.day);
+        var scheduledCount = 0;
+        for (var offset = 0; offset < 366; offset++) {
+          final date = occurrence.add(Duration(days: offset));
+          if (date.weekday != draft.weekday ||
+              !_isDueInWeek(draft, _isoWeekNumber(date))) {
+            continue;
+          }
+          final when = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            reminderMinute ~/ 60,
+            reminderMinute % 60,
+          );
+          if (!when.isAfter(DateTime.now())) continue;
+          await _notifications!.scheduleAt(
+            id: _notificationId(ruleId, scheduledCount + 1),
+            when: when,
+            title: title,
+            body: body,
+          );
+          scheduledCount++;
+        }
+      }
     } catch (_) {
       // Notification permission or platform scheduling failures must not block saving.
     }
@@ -309,17 +345,56 @@ class CourseRepository {
   Future<void> _cancelReminder(String ruleId) async {
     if (_notifications == null) return;
     try {
-      await _notifications!.cancel(_notificationId(ruleId));
+      for (var variant = 0; variant <= 366; variant++) {
+        await _notifications!.cancel(_notificationId(ruleId, variant));
+      }
     } catch (_) {}
   }
 
-  int _notificationId(String value) {
+  int _notificationId(String value, [int variant = 0]) {
     var hash = 0x811c9dc5;
-    for (final codeUnit in value.codeUnits) {
+    for (final codeUnit in '$value:$variant'.codeUnits) {
       hash ^= codeUnit;
       hash = (hash * 0x01000193) & 0x7fffffff;
     }
     return hash == 0 ? 1 : hash;
+  }
+
+  bool _isDueInWeek(CourseScheduleRuleDraft draft, int weekNumber) {
+    if (weekNumber <= 0) return false;
+    if (draft.startWeek != null && weekNumber < draft.startWeek!) return false;
+    if (draft.endWeek != null && weekNumber > draft.endWeek!) return false;
+    return switch (draft.weekRuleType) {
+      CourseWeekRuleType.everyWeek => true,
+      CourseWeekRuleType.oddWeeks => weekNumber.isOdd,
+      CourseWeekRuleType.evenWeeks => weekNumber.isEven,
+      CourseWeekRuleType.everyNWeeks =>
+        (weekNumber - (draft.startWeek ?? 1)) % (draft.intervalWeeks ?? 1) == 0,
+      CourseWeekRuleType.custom => draft.weekNumbers.contains(weekNumber),
+    };
+  }
+
+  int _isoWeekNumber(DateTime date) {
+    final thursday = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    ).add(Duration(days: 4 - date.weekday));
+    final firstThursday = DateTime(thursday.year, 1, 4);
+    final firstMonday = firstThursday.subtract(
+      Duration(days: firstThursday.weekday - 1),
+    );
+    return (DateTime(thursday.year, thursday.month, thursday.day)
+                .difference(
+                  DateTime(
+                    firstMonday.year,
+                    firstMonday.month,
+                    firstMonday.day,
+                  ),
+                )
+                .inDays ~/
+            7) +
+        1;
   }
 
   Future<CourseDetails> _toDetails(CourseRecord row) async {
