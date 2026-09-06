@@ -75,15 +75,17 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('投入时间'), findsOneWidget);
+      expect(find.text('本周主动专注'), findsOneWidget);
       expect(find.text('0 / 1'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('年', skipOffstage: false));
       await tester.pumpAndSettle();
+      expect(find.text('年度主动专注'), findsOneWidget);
       expect(find.text('12月'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('月', skipOffstage: false));
       await tester.pumpAndSettle();
+      expect(find.text('本月主动专注'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('日', skipOffstage: false));
       await tester.pumpAndSettle();
