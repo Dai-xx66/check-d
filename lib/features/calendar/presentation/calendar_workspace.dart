@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/app_time.dart';
 import '../../courses/application/course_providers.dart';
 import '../../courses/domain/course_models.dart';
 import '../../courses/presentation/course_form_page.dart';
@@ -922,6 +923,62 @@ class _CourseOccurrenceOverrideSheetState
   );
   final _notes = TextEditingController();
   bool _cancel = false;
+  bool _reminderSettingsLoaded = false;
+  late bool _advanceReminderEnabled =
+      widget.item.courseRule?.remindBeforeMinutes != null;
+  late int _advanceMinutes = widget.item.courseRule?.remindBeforeMinutes ?? 10;
+  bool _atTimeReminderEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderSettings();
+  }
+
+  Future<void> _loadReminderSettings() async {
+    if (_reminderSettingsLoaded) return;
+    final ownerId = widget.item.courseRule?.id;
+    if (ownerId == null) return;
+    final rules = await ref
+        .read(dayScheduleRepositoryProvider)
+        .loadReminderRules();
+    if (!mounted) return;
+    final date = calendarDateOnly(widget.item.date);
+    final matching = rules
+        .where(
+          (rule) =>
+              rule.ownerType == DayItemType.course &&
+              rule.ownerId == ownerId &&
+              calendarDateOnly(rule.localDate ?? DateTime(1)) == date,
+        )
+        .toList();
+    final defaults = rules
+        .where(
+          (rule) =>
+              rule.ownerType == DayItemType.course &&
+              rule.ownerId == ownerId &&
+              rule.localDate == null,
+        )
+        .toList();
+    final selected = matching.isNotEmpty ? matching : defaults;
+    if (selected.isNotEmpty) {
+      setState(() {
+        final advance = selected.where(
+          (rule) => rule.reminderKind == ReminderKind.advance,
+        );
+        final due = selected.where(
+          (rule) => rule.reminderKind == ReminderKind.due,
+        );
+        _advanceReminderEnabled = advance.firstOrNull?.enabled ?? false;
+        _advanceMinutes = advance.firstOrNull?.remindBeforeMinutes ?? 10;
+        _atTimeReminderEnabled = due.firstOrNull?.enabled ?? false;
+        _reminderSettingsLoaded = true;
+      });
+    } else {
+      _reminderSettingsLoaded = true;
+    }
+  }
+
   @override
   void dispose() {
     _classroom.dispose();
@@ -975,6 +1032,44 @@ class _CourseOccurrenceOverrideSheetState
               decoration: const InputDecoration(labelText: '备注（可选）'),
               maxLines: 2,
             ),
+            const SizedBox(height: 12),
+            Text('提醒', style: Theme.of(context).textTheme.titleMedium),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('提前提醒'),
+              value: _advanceReminderEnabled,
+              onChanged: _cancel
+                  ? null
+                  : (value) => setState(() => _advanceReminderEnabled = value),
+            ),
+            if (_advanceReminderEnabled)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<int>(
+                  value: _advanceMinutes,
+                  decoration: const InputDecoration(labelText: '提前时间'),
+                  items: const [5, 10, 15, 30, 60]
+                      .map(
+                        (minutes) => DropdownMenuItem(
+                          value: minutes,
+                          child: Text('提前 $minutes 分钟'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _cancel
+                      ? null
+                      : (value) =>
+                            setState(() => _advanceMinutes = value ?? 10),
+                ),
+              ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('到点提醒'),
+              value: _atTimeReminderEnabled,
+              onChanged: _cancel
+                  ? null
+                  : (value) => setState(() => _atTimeReminderEnabled = value),
+            ),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               title: const Text('取消本次课程'),
@@ -990,7 +1085,7 @@ class _CourseOccurrenceOverrideSheetState
   Widget _timeButton(String label, int value, ValueChanged<int> onChanged) =>
       OutlinedButton(
         onPressed: () async {
-          final result = await showTimePicker(
+          final result = await showAppTimePicker(
             context: context,
             initialTime: TimeOfDay(hour: value ~/ 60, minute: value % 60),
           );
@@ -1007,22 +1102,31 @@ class _CourseOccurrenceOverrideSheetState
     }
     final rule = widget.item.courseRule;
     if (rule == null) return;
-    await ref
-        .read(dayScheduleRepositoryProvider)
-        .saveDailyOverride(
-          DailyItemOverrideDraft(
-            itemType: DayItemType.course,
-            itemId: rule.id,
-            localDate: widget.item.date,
-            action: _cancel
-                ? DayOverrideAction.skip
-                : DayOverrideAction.courseChange,
-            plannedStartMinute: _cancel ? null : _start,
-            plannedEndMinute: _cancel ? null : _end,
-            temporaryClassroom: _classroom.text,
-            notes: _notes.text,
-          ),
-        );
+    final schedule = ref.read(dayScheduleRepositoryProvider);
+    await schedule.saveDailyOverride(
+      DailyItemOverrideDraft(
+        itemType: DayItemType.course,
+        itemId: rule.id,
+        localDate: widget.item.date,
+        action: _cancel
+            ? DayOverrideAction.skip
+            : DayOverrideAction.courseChange,
+        plannedStartMinute: _cancel ? null : _start,
+        plannedEndMinute: _cancel ? null : _end,
+        temporaryClassroom: _classroom.text,
+        notes: _notes.text,
+      ),
+    );
+    if (!_cancel) {
+      await schedule.replaceReminderConfiguration(
+        ownerType: DayItemType.course,
+        ownerId: rule.id,
+        localDate: widget.item.date,
+        advanceEnabled: _advanceReminderEnabled,
+        advanceMinutes: _advanceReminderEnabled ? _advanceMinutes : null,
+        atTimeEnabled: _atTimeReminderEnabled,
+      );
+    }
     if (mounted) Navigator.pop(context);
   }
 }

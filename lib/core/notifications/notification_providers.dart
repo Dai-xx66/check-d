@@ -7,3 +7,8 @@ final notificationService = NotificationService();
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return notificationService;
 });
+
+final notificationPermissionStateProvider =
+    FutureProvider.autoDispose<NotificationPermissionState>((ref) {
+      return ref.watch(notificationServiceProvider).permissionState();
+    });

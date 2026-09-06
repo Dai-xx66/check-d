@@ -2,13 +2,29 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-class NotificationService {
+enum NotificationPermissionState { unknown, granted, denied, unsupported }
+
+abstract interface class NotificationPlatformService {
+  Future<void> initialize();
+  Future<bool> requestPermissions();
+  Future<NotificationPermissionState> permissionState();
+  Future<void> scheduleAt({
+    required int id,
+    required DateTime when,
+    required String title,
+    required String body,
+  });
+  Future<void> cancelAllPending();
+}
+
+class NotificationService implements NotificationPlatformService {
   NotificationService({FlutterLocalNotificationsPlugin? plugin})
     : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
   bool _initialized = false;
 
+  @override
   Future<void> initialize() async {
     if (_initialized) return;
     tz.initializeTimeZones();
@@ -27,6 +43,7 @@ class NotificationService {
     _initialized = true;
   }
 
+  @override
   Future<bool> requestPermissions() async {
     await initialize();
     final android = _plugin
@@ -45,6 +62,37 @@ class NotificationService {
     await ios?.requestPermissions(alert: true, badge: true, sound: true);
     await macos?.requestPermissions(alert: true, badge: true, sound: true);
     return granted ?? true;
+  }
+
+  @override
+  Future<NotificationPermissionState> permissionState() async {
+    await initialize();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      final enabled = await android.areNotificationsEnabled();
+      return enabled == true
+          ? NotificationPermissionState.granted
+          : NotificationPermissionState.denied;
+    }
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    final macos = _plugin
+        .resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin
+        >();
+    final settings =
+        await ios?.checkPermissions() ?? await macos?.checkPermissions();
+    if (settings != null) {
+      return settings.isEnabled
+          ? NotificationPermissionState.granted
+          : NotificationPermissionState.denied;
+    }
+    return NotificationPermissionState.unsupported;
   }
 
   Future<void> showNow({
@@ -101,6 +149,7 @@ class NotificationService {
     );
   }
 
+  @override
   Future<void> scheduleAt({
     required int id,
     required DateTime when,
@@ -117,6 +166,15 @@ class NotificationService {
       notificationDetails: _details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
+  }
+
+  /// All scheduled notifications in this app are occurrence-based. Clearing
+  /// them before a horizon rebuild guarantees a moved or cancelled occurrence
+  /// cannot leave its previous notification behind.
+  @override
+  Future<void> cancelAllPending() async {
+    await initialize();
+    await _plugin.cancelAllPendingNotifications();
   }
 
   Future<void> scheduleWeekly({

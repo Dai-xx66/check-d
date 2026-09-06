@@ -504,7 +504,6 @@ class TaskRepository {
         userId: _userId,
       );
     });
-    await _syncRecurringReminder(id, draft);
     return id;
   }
 
@@ -592,7 +591,6 @@ class TaskRepository {
         userId: _userId,
       );
     });
-    await _syncOneTimeReminder(id, draft);
     return id;
   }
 
@@ -913,7 +911,6 @@ class TaskRepository {
         userId: _userId,
       );
     });
-    await _cancelReminder(taskId);
   }
 
   Future<bool> _isDueOn(

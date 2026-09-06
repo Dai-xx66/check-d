@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/app_time.dart';
+import '../../profile/application/reminder_defaults_providers.dart';
+import '../../schedule/application/day_schedule_providers.dart';
+import '../../schedule/domain/day_schedule_models.dart';
 import '../../tags/presentation/tag_picker.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
@@ -30,6 +34,8 @@ class _OneTimeReminderFormPageState
   late String _iconName;
   String? _tagId;
   late int? _remindBeforeMinutes;
+  late bool _advanceReminderEnabled;
+  bool _atTimeReminderEnabled = false;
   late OneTimeExecutionMode _executionMode;
   bool _isSaving = false;
 
@@ -45,8 +51,47 @@ class _OneTimeReminderFormPageState
     _colorValue = _initial?.colorValue ?? taskColorValues[2];
     _iconName = _initial?.iconName ?? TaskIconKey.event;
     _remindBeforeMinutes = _initial?.remindBeforeMinutes;
+    _advanceReminderEnabled = _remindBeforeMinutes != null;
     _executionMode =
         _initial?.oneTimeExecutionMode ?? OneTimeExecutionMode.untimed;
+    _loadInitialReminderSettings();
+  }
+
+  Future<void> _loadInitialReminderSettings() async {
+    if (_initial == null) {
+      final defaults = await ref
+          .read(reminderDefaultsRepositoryProvider)
+          .load();
+      if (!mounted) return;
+      setState(() {
+        _advanceReminderEnabled = defaults.advanceEnabled;
+        _remindBeforeMinutes = defaults.advanceMinutes;
+        _atTimeReminderEnabled = defaults.atTimeEnabled;
+      });
+      return;
+    }
+    final rules = await ref
+        .read(dayScheduleRepositoryProvider)
+        .loadReminderRules();
+    if (!mounted) return;
+    final ownRules = rules
+        .where(
+          (rule) =>
+              rule.ownerType == DayItemType.oneTime &&
+              rule.ownerId == _initial!.id &&
+              rule.localDate == null,
+        )
+        .toList();
+    if (ownRules.isEmpty) return;
+    final advance = ownRules.where(
+      (rule) => rule.reminderKind == ReminderKind.advance,
+    );
+    final due = ownRules.where((rule) => rule.reminderKind == ReminderKind.due);
+    setState(() {
+      _advanceReminderEnabled = advance.firstOrNull?.enabled ?? false;
+      _remindBeforeMinutes = advance.firstOrNull?.remindBeforeMinutes ?? 10;
+      _atTimeReminderEnabled = due.firstOrNull?.enabled ?? false;
+    });
   }
 
   @override
@@ -204,44 +249,63 @@ class _OneTimeReminderFormPageState
                             ),
                           ],
                           const SizedBox(height: 14),
-                          DropdownButtonFormField<int>(
-                            key: ValueKey(_remindBeforeMinutes),
-                            initialValue: _remindBeforeMinutes,
-                            decoration: const InputDecoration(
-                              labelText: '提前提醒（可选）',
-                              prefixIcon: Icon(Icons.notifications_outlined),
+                          if (_scheduledAt == null)
+                            const Text(
+                              '设置具体日期与时间后可开启提前提醒和到点提醒。',
+                              style: TextStyle(color: AppColors.muted),
+                            )
+                          else ...[
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('提前提醒'),
+                              subtitle: const Text('在事项开始前发送通知'),
+                              value: _advanceReminderEnabled,
+                              onChanged: (value) => setState(() {
+                                _advanceReminderEnabled = value;
+                                _remindBeforeMinutes ??= 10;
+                              }),
                             ),
-                            items: const [
-                              DropdownMenuItem(value: 0, child: Text('事项开始时')),
-                              DropdownMenuItem(
-                                value: 10,
-                                child: Text('提前 10 分钟'),
+                            if (_advanceReminderEnabled)
+                              DropdownButtonFormField<int>(
+                                initialValue: _remindBeforeMinutes ?? 10,
+                                decoration: const InputDecoration(
+                                  labelText: '提前多久',
+                                  prefixIcon: Icon(
+                                    Icons.notifications_outlined,
+                                  ),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 5,
+                                    child: Text('提前 5 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 10,
+                                    child: Text('提前 10 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 30,
+                                    child: Text('提前 30 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 60,
+                                    child: Text('提前 1 小时'),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(
+                                  () => _remindBeforeMinutes = value,
+                                ),
                               ),
-                              DropdownMenuItem(
-                                value: 30,
-                                child: Text('提前 30 分钟'),
-                              ),
-                              DropdownMenuItem(
-                                value: 60,
-                                child: Text('提前 1 小时'),
-                              ),
-                              DropdownMenuItem(
-                                value: 1440,
-                                child: Text('提前 1 天'),
-                              ),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _remindBeforeMinutes = value),
-                          ),
-                          if (_remindBeforeMinutes != null)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () =>
-                                    setState(() => _remindBeforeMinutes = null),
-                                child: const Text('清除提醒'),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('到点提醒'),
+                              subtitle: const Text('在事项开始时发送通知'),
+                              value: _atTimeReminderEnabled,
+                              onChanged: (value) => setState(
+                                () => _atTimeReminderEnabled = value,
                               ),
                             ),
+                          ],
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _notesController,
@@ -301,7 +365,7 @@ class _OneTimeReminderFormPageState
   }
 
   Future<void> _pickTime() async {
-    final time = await showTimePicker(
+    final time = await showAppTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_scheduledAt ?? DateTime.now()),
     );
@@ -324,7 +388,7 @@ class _OneTimeReminderFormPageState
     }
     setState(() => _isSaving = true);
     try {
-      await ref
+      final taskId = await ref
           .read(taskRepositoryProvider)
           .saveOneTimeReminder(
             OneTimeReminderDraft(
@@ -340,6 +404,17 @@ class _OneTimeReminderFormPageState
               notes: _notesController.text,
             ),
             taskId: _initial?.id,
+          );
+      await ref
+          .read(dayScheduleRepositoryProvider)
+          .replaceReminderConfiguration(
+            ownerType: DayItemType.oneTime,
+            ownerId: taskId,
+            advanceEnabled: _scheduledAt != null && _advanceReminderEnabled,
+            advanceMinutes: _advanceReminderEnabled
+                ? (_remindBeforeMinutes ?? 10)
+                : null,
+            atTimeEnabled: _scheduledAt != null && _atTimeReminderEnabled,
           );
       if (mounted) Navigator.of(context).pop();
     } on Object {

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/app_time.dart';
+import '../../profile/application/reminder_defaults_providers.dart';
+import '../../schedule/application/day_schedule_providers.dart';
+import '../../schedule/domain/day_schedule_models.dart';
 import '../../tags/presentation/tag_picker.dart';
 import '../application/task_providers.dart';
 import '../domain/task_models.dart';
@@ -37,6 +41,9 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
   late bool _hasDurationTarget;
   int? _scheduledMinuteOfDay;
   int? _reminderMinuteOfDay;
+  bool _advanceReminderEnabled = false;
+  bool _atTimeReminderEnabled = false;
+  int _advanceMinutes = 10;
   bool _isSaving = false;
 
   TaskDetails? get _initial => widget.initialTask;
@@ -71,6 +78,52 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
     _holidayPause = _initial?.holidayPause ?? false;
     _scheduledMinuteOfDay = _initial?.scheduledMinuteOfDay;
     _reminderMinuteOfDay = _initial?.reminderMinuteOfDay;
+    final initialReminder = _reminderMinuteOfDay;
+    if (_scheduledMinuteOfDay != null && initialReminder != null) {
+      _atTimeReminderEnabled = initialReminder == _scheduledMinuteOfDay;
+      _advanceReminderEnabled = initialReminder < _scheduledMinuteOfDay!;
+      if (_advanceReminderEnabled) {
+        _advanceMinutes = _scheduledMinuteOfDay! - initialReminder;
+      }
+    }
+    _loadInitialReminderSettings();
+  }
+
+  Future<void> _loadInitialReminderSettings() async {
+    if (_initial == null) {
+      final defaults = await ref
+          .read(reminderDefaultsRepositoryProvider)
+          .load();
+      if (!mounted) return;
+      setState(() {
+        _advanceReminderEnabled = defaults.advanceEnabled;
+        _advanceMinutes = defaults.advanceMinutes;
+        _atTimeReminderEnabled = defaults.atTimeEnabled;
+      });
+      return;
+    }
+    final rules = await ref
+        .read(dayScheduleRepositoryProvider)
+        .loadReminderRules();
+    if (!mounted) return;
+    final ownRules = rules
+        .where(
+          (rule) =>
+              rule.ownerType == DayItemType.recurring &&
+              rule.ownerId == _initial!.id &&
+              rule.localDate == null,
+        )
+        .toList();
+    if (ownRules.isEmpty) return;
+    final advance = ownRules.where(
+      (rule) => rule.reminderKind == ReminderKind.advance,
+    );
+    final due = ownRules.where((rule) => rule.reminderKind == ReminderKind.due);
+    setState(() {
+      _advanceReminderEnabled = advance.firstOrNull?.enabled ?? false;
+      _advanceMinutes = advance.firstOrNull?.remindBeforeMinutes ?? 10;
+      _atTimeReminderEnabled = due.firstOrNull?.enabled ?? false;
+    });
   }
 
   @override
@@ -276,26 +329,65 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
                                   ),
                             onTap: _pickScheduledTime,
                           ),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.notifications_outlined),
-                            title: const Text('提醒时间（可选）'),
-                            subtitle: Text(
-                              _reminderMinuteOfDay == null
-                                  ? '未设置'
-                                  : _reminderLabel(_reminderMinuteOfDay!),
+                          if (_scheduledMinuteOfDay == null)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                '设置安排时间后可开启提前提醒和到点提醒。',
+                                style: TextStyle(color: AppColors.muted),
+                              ),
+                            )
+                          else ...[
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('提前提醒'),
+                              subtitle: const Text('在事项开始前发送通知'),
+                              value: _advanceReminderEnabled,
+                              onChanged: (value) => setState(
+                                () => _advanceReminderEnabled = value,
+                              ),
                             ),
-                            trailing: _reminderMinuteOfDay == null
-                                ? const Icon(Icons.chevron_right_rounded)
-                                : IconButton(
-                                    tooltip: '清除提醒',
-                                    onPressed: () => setState(
-                                      () => _reminderMinuteOfDay = null,
-                                    ),
-                                    icon: const Icon(Icons.close_rounded),
+                            if (_advanceReminderEnabled)
+                              DropdownButtonFormField<int>(
+                                initialValue: _advanceMinutes,
+                                decoration: const InputDecoration(
+                                  labelText: '提前多久',
+                                  prefixIcon: Icon(
+                                    Icons.notifications_outlined,
                                   ),
-                            onTap: _pickReminderTime,
-                          ),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 5,
+                                    child: Text('提前 5 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 10,
+                                    child: Text('提前 10 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 30,
+                                    child: Text('提前 30 分钟'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 60,
+                                    child: Text('提前 1 小时'),
+                                  ),
+                                ],
+                                onChanged: (value) => setState(
+                                  () => _advanceMinutes = value ?? 10,
+                                ),
+                              ),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('到点提醒'),
+                              subtitle: const Text('在事项开始时发送通知'),
+                              value: _atTimeReminderEnabled,
+                              onChanged: (value) => setState(
+                                () => _atTimeReminderEnabled = value,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -412,9 +504,20 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
         scheduledMinuteOfDay: _scheduledMinuteOfDay,
         reminderMinuteOfDay: _reminderMinuteOfDay,
       );
-      await ref
+      final taskId = await ref
           .read(taskRepositoryProvider)
           .saveRecurringTask(draft, taskId: _initial?.id);
+      await ref
+          .read(dayScheduleRepositoryProvider)
+          .replaceReminderConfiguration(
+            ownerType: DayItemType.recurring,
+            ownerId: taskId,
+            advanceEnabled:
+                _scheduledMinuteOfDay != null && _advanceReminderEnabled,
+            advanceMinutes: _advanceReminderEnabled ? _advanceMinutes : null,
+            atTimeEnabled:
+                _scheduledMinuteOfDay != null && _atTimeReminderEnabled,
+          );
       if (mounted) Navigator.of(context).pop();
     } on Object {
       if (mounted) {
@@ -440,19 +543,6 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
     return hours * 3600 + minutes * 60 + seconds;
   }
 
-  Future<void> _pickReminderTime() async {
-    final initial = _reminderMinuteOfDay == null
-        ? const TimeOfDay(hour: 20, minute: 0)
-        : TimeOfDay(
-            hour: _reminderMinuteOfDay! ~/ 60,
-            minute: _reminderMinuteOfDay! % 60,
-          );
-    final picked = await showTimePicker(context: context, initialTime: initial);
-    if (picked != null && mounted) {
-      setState(() => _reminderMinuteOfDay = picked.hour * 60 + picked.minute);
-    }
-  }
-
   Future<void> _pickScheduledTime() async {
     final initial = _scheduledMinuteOfDay == null
         ? const TimeOfDay(hour: 9, minute: 0)
@@ -460,7 +550,10 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
             hour: _scheduledMinuteOfDay! ~/ 60,
             minute: _scheduledMinuteOfDay! % 60,
           );
-    final picked = await showTimePicker(context: context, initialTime: initial);
+    final picked = await showAppTimePicker(
+      context: context,
+      initialTime: initial,
+    );
     if (picked != null && mounted) {
       setState(() => _scheduledMinuteOfDay = picked.hour * 60 + picked.minute);
     }

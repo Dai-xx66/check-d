@@ -126,7 +126,6 @@ class CourseRepository {
     _validateScheduleRule(draft);
     final now = DateTime.now().toUtc();
     final id = ruleId ?? _uuid.v4();
-    await _cancelReminder(id);
     await _database
         .into(_database.courseScheduleRuleRecords)
         .insertOnConflictUpdate(
@@ -177,7 +176,6 @@ class CourseRepository {
       },
       userId: _userId,
     );
-    await _syncReminder(id, draft);
     return id;
   }
 
@@ -444,7 +442,6 @@ class CourseRepository {
 
   Future<void> archiveScheduleRule(String ruleId) async {
     final now = DateTime.now().toUtc();
-    await _cancelReminder(ruleId);
     await (_database.update(_database.courseScheduleRuleRecords)
           ..where((row) => row.id.equals(ruleId) & row.userId.equals(_userId)))
         .write(

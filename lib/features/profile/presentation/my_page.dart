@@ -5,6 +5,7 @@ import '../../../shared/widgets/mascot.dart';
 import '../../courses/presentation/schedule_template_page.dart';
 import '../../courses/presentation/semester_settings_page.dart';
 import '../../tags/presentation/tags_page.dart';
+import 'reminder_settings_page.dart';
 
 class MyPage extends StatelessWidget {
   const MyPage({super.key});
@@ -63,6 +64,7 @@ class MyPage extends StatelessWidget {
                 color: AppColors.primary,
                 title: '提醒设置',
                 subtitle: '管理事项与课程提醒',
+                onTap: () => _open(context, const ReminderSettingsPage()),
               ),
               _SettingsTile(
                 icon: Icons.alarm_rounded,
@@ -75,6 +77,7 @@ class MyPage extends StatelessWidget {
                 color: AppColors.primary,
                 title: '通知权限',
                 subtitle: '查看系统通知权限状态',
+                onTap: () => _open(context, const ReminderSettingsPage()),
               ),
             ],
           ),

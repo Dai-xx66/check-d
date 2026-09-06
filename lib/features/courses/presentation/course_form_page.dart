@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/utils/app_time.dart';
 import '../application/course_providers.dart';
 import '../domain/course_models.dart';
+import '../../profile/application/reminder_defaults_providers.dart';
+import '../../profile/data/reminder_defaults_repository.dart';
+import '../../schedule/application/day_schedule_providers.dart';
+import '../../schedule/domain/day_schedule_models.dart';
 import 'semester_settings_page.dart';
 
 class CourseFormPage extends ConsumerStatefulWidget {
@@ -24,6 +29,8 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
   late List<_EditableRule> _rules;
   bool _saving = false;
   bool _didPickDefault = false;
+  bool _reminderSettingsLoaded = false;
+  ReminderDefaults _reminderDefaults = const ReminderDefaults();
 
   @override
   void initState() {
@@ -39,6 +46,47 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
       for (final rule in course?.rules ?? const [])
         _EditableRule.fromRule(rule),
     ];
+    _loadReminderSettings();
+    _loadReminderDefaults();
+  }
+
+  Future<void> _loadReminderDefaults() async {
+    final value = await ref.read(reminderDefaultsRepositoryProvider).load();
+    if (mounted) setState(() => _reminderDefaults = value);
+  }
+
+  Future<void> _loadReminderSettings() async {
+    if (_reminderSettingsLoaded) return;
+    final rules = await ref
+        .read(dayScheduleRepositoryProvider)
+        .loadReminderRules();
+    if (!mounted) return;
+    final settingsByOwnerId = <String, _ReminderSettings>{};
+    for (final rule in rules.where(
+      (rule) => rule.ownerType == DayItemType.course && rule.localDate == null,
+    )) {
+      final current =
+          settingsByOwnerId[rule.ownerId] ?? const _ReminderSettings();
+      settingsByOwnerId[rule.ownerId] =
+          rule.reminderKind == ReminderKind.advance
+          ? current.copyWith(
+              hasConfiguration: true,
+              advanceEnabled: rule.enabled,
+              advanceMinutes: rule.remindBeforeMinutes ?? 10,
+            )
+          : current.copyWith(
+              hasConfiguration: true,
+              atTimeEnabled: rule.enabled,
+            );
+    }
+    setState(() {
+      for (final editable in _rules) {
+        final id = editable.id;
+        final settings = id == null ? null : settingsByOwnerId[id];
+        if (settings != null) editable.applyReminderSettings(settings);
+      }
+      _reminderSettingsLoaded = true;
+    });
   }
 
   @override
@@ -230,7 +278,9 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
         builder: (_) => _CourseRuleEditorPage(
           semester: semester,
           template: template,
-          initial: index == null ? null : _rules[index],
+          initial: index == null
+              ? _EditableRule.fromDefaults(_reminderDefaults)
+              : _rules[index],
         ),
       ),
     );
@@ -247,9 +297,11 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
   Future<void> _save(SemesterDetails? semester) async {
     if (!_formKey.currentState!.validate()) return;
     if (semester == null) return _error('请选择所属学期');
+    await _loadReminderSettings();
     setState(() => _saving = true);
     try {
       final repo = ref.read(courseRepositoryProvider);
+      final schedule = ref.read(dayScheduleRepositoryProvider);
       final courseId = await repo.saveCourse(
         CourseDraft(
           name: _name.text,
@@ -277,8 +329,10 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
           .clamp(1, semester.totalWeeks);
       for (final editable in _rules) {
         final old = editable.id == null ? null : oldById[editable.id];
+        late String appliedRuleId;
         if (old != null && editable.matches(old)) {
           retained.add(old.id);
+          appliedRuleId = old.id;
         } else if (old != null && currentWeek > (old.startWeek ?? 1)) {
           // Never rewrite already effective schedule time. Preserve the old
           // range then create the edited successor from the current week.
@@ -288,13 +342,24 @@ class _CourseFormPageState extends ConsumerState<CourseFormPage> {
             editable.futureDraft(courseId, currentWeek),
           );
           retained.add(id);
+          appliedRuleId = id;
         } else {
           final id = await repo.saveScheduleRule(
             editable.toDraft(courseId),
             ruleId: editable.id,
           );
           retained.add(id);
+          appliedRuleId = id;
         }
+        await schedule.replaceReminderConfiguration(
+          ownerType: DayItemType.course,
+          ownerId: appliedRuleId,
+          advanceEnabled: editable.advanceReminderEnabled,
+          advanceMinutes: editable.advanceReminderEnabled
+              ? editable.advanceMinutes
+              : null,
+          atTimeEnabled: editable.atTimeReminderEnabled,
+        );
       }
       for (final old
           in widget.initialCourse?.rules ?? const <CourseScheduleRule>[]) {
@@ -463,6 +528,40 @@ class _CourseRuleEditorPageState extends State<_CourseRuleEditorPage> {
               ],
             ),
           const SizedBox(height: 12),
+          Text('提醒', style: Theme.of(context).textTheme.titleMedium),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('提前提醒'),
+            value: _rule.advanceReminderEnabled,
+            onChanged: (value) =>
+                setState(() => _rule.advanceReminderEnabled = value),
+          ),
+          if (_rule.advanceReminderEnabled)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DropdownButtonFormField<int>(
+                value: _rule.advanceMinutes,
+                decoration: const InputDecoration(labelText: '提前时间'),
+                items: const [5, 10, 15, 30, 60]
+                    .map(
+                      (minutes) => DropdownMenuItem(
+                        value: minutes,
+                        child: Text('提前 $minutes 分钟'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _rule.advanceMinutes = value ?? 10),
+              ),
+            ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('到点提醒'),
+            value: _rule.atTimeReminderEnabled,
+            onChanged: (value) =>
+                setState(() => _rule.atTimeReminderEnabled = value),
+          ),
+          const SizedBox(height: 12),
           DropdownButtonFormField<CourseWeekRuleType>(
             value: _rule.weekRuleType,
             decoration: const InputDecoration(labelText: '周次规则'),
@@ -568,7 +667,7 @@ class _CourseRuleEditorPageState extends State<_CourseRuleEditorPage> {
   Widget _timeButton(String label, int minute, ValueChanged<int> onChanged) =>
       OutlinedButton.icon(
         onPressed: () async {
-          final picked = await showTimePicker(
+          final picked = await showAppTimePicker(
             context: context,
             initialTime: TimeOfDay(hour: minute ~/ 60, minute: minute % 60),
           );
@@ -627,6 +726,9 @@ class _EditableRule {
     this.endSegmentId,
     this.classroomOverride,
     this.notes,
+    this.advanceReminderEnabled = false,
+    this.advanceMinutes = 10,
+    this.atTimeReminderEnabled = false,
   }) : weekNumbers = weekNumbers ?? {},
        sectionIds = sectionIds ?? [];
   factory _EditableRule.fromRule(CourseScheduleRule rule) {
@@ -648,8 +750,18 @@ class _EditableRule {
       endSegmentId: ids.isEmpty ? null : ids.last,
       classroomOverride: rule.classroomOverride,
       notes: rule.notes,
+      // Legacy course data only represented an advance reminder. It must not
+      // silently become an at-time reminder during the Stage 8 migration.
+      advanceReminderEnabled: rule.remindBeforeMinutes != null,
+      advanceMinutes: rule.remindBeforeMinutes ?? 10,
     );
   }
+  factory _EditableRule.fromDefaults(ReminderDefaults defaults) =>
+      _EditableRule(
+        advanceReminderEnabled: defaults.advanceEnabled,
+        advanceMinutes: defaults.advanceMinutes,
+        atTimeReminderEnabled: defaults.atTimeEnabled,
+      );
   final String? id;
   int weekday;
   CourseWeekRuleType weekRuleType;
@@ -666,6 +778,9 @@ class _EditableRule {
   String? endSegmentId;
   String? classroomOverride;
   String? notes;
+  bool advanceReminderEnabled;
+  int advanceMinutes;
+  bool atTimeReminderEnabled;
   _EditableRule copy() => _EditableRule(
     id: id,
     weekday: weekday,
@@ -683,7 +798,17 @@ class _EditableRule {
     endSegmentId: endSegmentId,
     classroomOverride: classroomOverride,
     notes: notes,
+    advanceReminderEnabled: advanceReminderEnabled,
+    advanceMinutes: advanceMinutes,
+    atTimeReminderEnabled: atTimeReminderEnabled,
   );
+  void applyReminderSettings(_ReminderSettings settings) {
+    if (!settings.hasConfiguration) return;
+    advanceReminderEnabled = settings.advanceEnabled;
+    advanceMinutes = settings.advanceMinutes;
+    atTimeReminderEnabled = settings.atTimeEnabled;
+  }
+
   void clearPeriods() {
     sectionIds = [];
     scheduleTemplateId = null;
@@ -727,6 +852,7 @@ class _EditableRule {
     timeMode: timeMode,
     classroomOverride: classroomOverride,
     notes: notes,
+    remindBeforeMinutes: advanceReminderEnabled ? advanceMinutes : null,
   );
 
   CourseScheduleRuleDraft futureDraft(String courseId, int effectiveWeek) {
@@ -752,6 +878,7 @@ class _EditableRule {
       timeMode: timeMode,
       classroomOverride: classroomOverride,
       notes: notes,
+      remindBeforeMinutes: advanceReminderEnabled ? advanceMinutes : null,
     );
   }
 
@@ -776,6 +903,32 @@ bool _sameSet<T>(Set<T> a, Set<T> b) =>
 bool _sameList<T>(List<T> a, List<T> b) =>
     a.length == b.length &&
     [for (var i = 0; i < a.length; i++) a[i] == b[i]].every((value) => value);
+
+class _ReminderSettings {
+  const _ReminderSettings({
+    this.hasConfiguration = false,
+    this.advanceEnabled = false,
+    this.advanceMinutes = 10,
+    this.atTimeEnabled = false,
+  });
+
+  final bool hasConfiguration;
+  final bool advanceEnabled;
+  final int advanceMinutes;
+  final bool atTimeEnabled;
+
+  _ReminderSettings copyWith({
+    bool? hasConfiguration,
+    bool? advanceEnabled,
+    int? advanceMinutes,
+    bool? atTimeEnabled,
+  }) => _ReminderSettings(
+    hasConfiguration: hasConfiguration ?? this.hasConfiguration,
+    advanceEnabled: advanceEnabled ?? this.advanceEnabled,
+    advanceMinutes: advanceMinutes ?? this.advanceMinutes,
+    atTimeEnabled: atTimeEnabled ?? this.atTimeEnabled,
+  );
+}
 
 class _RuleTile extends StatelessWidget {
   const _RuleTile({

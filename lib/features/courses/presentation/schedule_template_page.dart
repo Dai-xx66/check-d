@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/app_time.dart';
 import '../application/course_providers.dart';
 import '../domain/course_models.dart';
 
@@ -426,10 +427,13 @@ class _TimeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton(
     onPressed: () async {
-      final picked = await showTimePicker(context: context, initialTime: value);
+      final picked = await showAppTimePicker(
+        context: context,
+        initialTime: value,
+      );
       if (picked != null) onChanged(picked);
     },
-    child: Text('$label\n${value.format(context)}'),
+    child: Text('$label\n${formatAppTimeOfDay(value)}'),
   );
 }
 

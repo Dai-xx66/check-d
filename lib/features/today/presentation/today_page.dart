@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/utils/app_time.dart';
 import '../../../shared/widgets/mascot.dart';
 import '../../../shared/widgets/glass_button.dart';
 import '../../reviews/application/review_providers.dart';
@@ -663,7 +664,7 @@ class _DesktopTimeline extends ConsumerWidget {
     WidgetRef ref,
     TaskDetails task,
   ) async {
-    final selected = await showTimePicker(
+    final selected = await showAppTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
         data.now.add(const Duration(hours: 1)),

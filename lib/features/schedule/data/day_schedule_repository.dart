@@ -102,7 +102,6 @@ class DayScheduleRepository {
       },
       userId: _userId,
     );
-    await _syncOverrideReminder(id, draft);
     return id;
   }
 
@@ -123,6 +122,86 @@ class DayScheduleRepository {
     if (ownerId != null) query.where((row) => row.ownerId.equals(ownerId));
     query.orderBy([(row) => OrderingTerm.asc(row.createdAt)]);
     return query.watch().map((rows) => rows.map(_toReminderRule).toList());
+  }
+
+  Future<List<ReminderRule>> loadReminderRules() async {
+    final rows =
+        await (_database.select(_database.reminderRuleRecords)
+              ..where(
+                (row) => row.userId.equals(_userId) & row.deletedAt.isNull(),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.createdAt)]))
+            .get();
+    return rows.map(_toReminderRule).toList();
+  }
+
+  Future<void> replaceReminderConfiguration({
+    required DayItemType ownerType,
+    required String ownerId,
+    DateTime? localDate,
+    required bool advanceEnabled,
+    int? advanceMinutes,
+    required bool atTimeEnabled,
+  }) async {
+    if (advanceEnabled && (advanceMinutes == null || advanceMinutes < 0)) {
+      throw ArgumentError.value(advanceMinutes, 'advanceMinutes');
+    }
+    final now = DateTime.now().toUtc();
+    final dateKey = localDate == null ? null : localDateKey(localDate);
+    await _database.transaction(() async {
+      await (_database.update(_database.reminderRuleRecords)..where(
+            (row) =>
+                row.userId.equals(_userId) &
+                row.ownerType.equals(ownerType.name) &
+                row.ownerId.equals(ownerId) &
+                (dateKey == null
+                    ? row.localDate.isNull()
+                    : row.localDate.equals(dateKey)) &
+                row.deletedAt.isNull(),
+          ))
+          .write(
+            ReminderRuleRecordsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
+      for (final value in [
+        ReminderRuleDraft(
+          ownerType: ownerType,
+          ownerId: ownerId,
+          reminderKind: ReminderKind.advance,
+          enabled: advanceEnabled,
+          remindBeforeMinutes: advanceMinutes,
+          localDate: localDate,
+        ),
+        ReminderRuleDraft(
+          ownerType: ownerType,
+          ownerId: ownerId,
+          reminderKind: ReminderKind.due,
+          enabled: atTimeEnabled,
+          localDate: localDate,
+        ),
+      ]) {
+        await _database
+            .into(_database.reminderRuleRecords)
+            .insert(
+              ReminderRuleRecordsCompanion.insert(
+                id: _uuid.v4(),
+                userId: _userId,
+                ownerType: value.ownerType.name,
+                ownerId: value.ownerId,
+                reminderKind: value.reminderKind.name,
+                enabled: Value(value.enabled),
+                scheduledMinuteOfDay: Value(value.scheduledMinuteOfDay),
+                remindBeforeMinutes: Value(value.remindBeforeMinutes),
+                localDate: Value(dateKey),
+                timezone: Value(value.timezone),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      }
+    });
   }
 
   Future<String> saveReminderRule(
@@ -172,7 +251,6 @@ class DayScheduleRepository {
       },
       userId: _userId,
     );
-    await _syncLocalDateReminder(id, draft);
     return id;
   }
 

@@ -54,6 +54,22 @@ final reminderRulesProvider = StreamProvider.autoDispose
           );
     });
 
+/// A scheduler-only trigger. It intentionally observes all overrides and
+/// reminder configurations, including disabled entries, so changing a single
+/// occurrence reliably rebuilds future notification registrations.
+final reminderScheduleTriggerProvider = StreamProvider.autoDispose<int>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  final query = database.customSelect(
+    'SELECT (SELECT COUNT(*) FROM daily_item_override_records) + '
+    '(SELECT COUNT(*) FROM reminder_rule_records) AS revision',
+    readsFrom: {
+      database.dailyItemOverrideRecords,
+      database.reminderRuleRecords,
+    },
+  );
+  return query.watchSingle().map((row) => row.read<int>('revision'));
+});
+
 class ReminderRuleFilter {
   const ReminderRuleFilter({this.ownerType, this.ownerId});
 
