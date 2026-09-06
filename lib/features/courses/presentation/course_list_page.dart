@@ -36,8 +36,6 @@ class CourseListPage extends ConsumerWidget {
                   course: items[index],
                   onEdit: () => _openForm(context, items[index]),
                   onArchive: () => _archive(context, ref, items[index]),
-                  onEditRule: (rule) => _openRuleForm(context, rule),
-                  onDeleteRule: (rule) => _deleteRule(context, ref, rule),
                 ),
               ),
       ),
@@ -85,42 +83,6 @@ class CourseListPage extends ConsumerWidget {
     if (confirmed != true) return;
     await ref.read(courseRepositoryProvider).archiveCourse(course.id);
   }
-
-  void _openRuleForm(BuildContext context, CourseScheduleRule rule) {
-    Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) =>
-            CourseRuleFormPage(courseId: rule.courseId, initialRule: rule),
-      ),
-    );
-  }
-
-  Future<void> _deleteRule(
-    BuildContext context,
-    WidgetRef ref,
-    CourseScheduleRule rule,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除这条课程安排？'),
-        content: const Text('只会删除本条星期和时间安排，不会删除课程或历史记录。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await ref.read(courseRepositoryProvider).archiveScheduleRule(rule.id);
-    }
-  }
 }
 
 class _CourseCard extends StatelessWidget {
@@ -128,15 +90,11 @@ class _CourseCard extends StatelessWidget {
     required this.course,
     required this.onEdit,
     required this.onArchive,
-    required this.onEditRule,
-    required this.onDeleteRule,
   });
 
   final CourseDetails course;
   final VoidCallback onEdit;
   final VoidCallback onArchive;
-  final ValueChanged<CourseScheduleRule> onEditRule;
-  final ValueChanged<CourseScheduleRule> onDeleteRule;
 
   @override
   Widget build(BuildContext context) {
@@ -211,9 +169,7 @@ class _CourseCard extends StatelessWidget {
                           color: color,
                         ),
                         label: Text(_ruleLabel(rule)),
-                        onPressed: () => onEditRule(rule),
-                        onDeleted: () => onDeleteRule(rule),
-                        deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                        onPressed: onEdit,
                       ),
                     )
                     .toList(),

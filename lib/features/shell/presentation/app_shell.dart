@@ -75,60 +75,71 @@ class _AppShellState extends ConsumerState<AppShell> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '创建什么？',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              _CreateOption(
-                icon: Icons.school_outlined,
-                color: AppColors.blueMist,
-                title: '添加课程',
-                subtitle: '课程会出现在今日时间轴，不参与打卡和专注统计',
-                onTap: () => _openCourseForm(context),
-              ),
-              const SizedBox(height: 10),
-              _CreateOption(
-                icon: Icons.view_list_rounded,
-                color: AppColors.lavender,
-                title: '课程管理',
-                subtitle: '编辑课程安排或归档旧课程',
-                onTap: () => _openCourseList(context),
-              ),
-              const SizedBox(height: 10),
-              _CreateOption(
-                icon: Icons.loop_rounded,
-                color: AppColors.primary,
-                title: '周期任务',
-                subtitle: '计时记录与完成状态独立',
-                onTap: () => _openLongTermForm(context),
-              ),
-              const SizedBox(height: 10),
-              _CreateOption(
-                icon: Icons.bolt_rounded,
-                color: AppColors.orange,
-                title: '临时计时',
-                subtitle: '记录一段不属于任务的专注时间',
-                onTap: () => _openAdHocTimer(context),
-              ),
-              const SizedBox(height: 10),
-              _CreateOption(
-                icon: Icons.event_note_rounded,
-                color: AppColors.orange,
-                title: '单次事项',
-                subtitle: '会议、截止日期或临时事项',
-                onTap: () => _openOneTimeForm(context),
-              ),
-            ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .82,
+          ),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              24 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '创建什么？',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                _CreateOption(
+                  icon: Icons.school_outlined,
+                  color: AppColors.blueMist,
+                  title: '添加课程',
+                  subtitle: '课程会出现在今日时间轴，不参与打卡和专注统计',
+                  onTap: () => _openCourseForm(context),
+                ),
+                const SizedBox(height: 10),
+                _CreateOption(
+                  icon: Icons.view_list_rounded,
+                  color: AppColors.lavender,
+                  title: '课程管理',
+                  subtitle: '编辑课程安排或归档旧课程',
+                  onTap: () => _openCourseList(context),
+                ),
+                const SizedBox(height: 10),
+                _CreateOption(
+                  icon: Icons.loop_rounded,
+                  color: AppColors.primary,
+                  title: '周期任务',
+                  subtitle: '计时记录与完成状态独立',
+                  onTap: () => _openLongTermForm(context),
+                ),
+                const SizedBox(height: 10),
+                _CreateOption(
+                  icon: Icons.bolt_rounded,
+                  color: AppColors.orange,
+                  title: '临时计时',
+                  subtitle: '记录一段不属于任务的专注时间',
+                  onTap: () => _openAdHocTimer(context),
+                ),
+                const SizedBox(height: 10),
+                _CreateOption(
+                  icon: Icons.event_note_rounded,
+                  color: AppColors.orange,
+                  title: '单次事项',
+                  subtitle: '会议、截止日期或临时事项',
+                  onTap: () => _openOneTimeForm(context),
+                ),
+              ],
+            ),
           ),
         ),
       ),

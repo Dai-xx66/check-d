@@ -7,6 +7,7 @@ enum DayOverrideAction {
   retarget,
   reminder,
   courseChange,
+  extraCourse,
 }
 
 enum ReminderKind { due, advance }

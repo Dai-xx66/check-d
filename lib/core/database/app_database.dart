@@ -271,8 +271,11 @@ class CourseScheduleRuleRecords extends Table {
   TextColumn get weekNumbersJson => text().withDefault(const Constant('[]'))();
   TextColumn get scheduleTemplateId => text().nullable()();
   TextColumn get sectionIdsJson => text().withDefault(const Constant('[]'))();
+  TextColumn get timeMode => text().withDefault(const Constant('customTime'))();
   IntColumn get startsAtMinute => integer()();
   IntColumn get endsAtMinute => integer()();
+  TextColumn get classroomOverride => text().nullable()();
+  TextColumn get notes => text().nullable()();
   IntColumn get remindBeforeMinutes => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -473,7 +476,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -685,9 +688,94 @@ class AppDatabase extends _$AppDatabase {
       if (from < 17 && !await hasColumn('course_records', 'semester_id')) {
         await migrator.addColumn(courseRecords, courseRecords.semesterId);
       }
+      if (from < 18) {
+        if (!await hasColumn('course_schedule_rule_records', 'time_mode')) {
+          await migrator.addColumn(
+            courseScheduleRuleRecords,
+            courseScheduleRuleRecords.timeMode,
+          );
+        }
+        if (!await hasColumn(
+          'course_schedule_rule_records',
+          'classroom_override',
+        )) {
+          await migrator.addColumn(
+            courseScheduleRuleRecords,
+            courseScheduleRuleRecords.classroomOverride,
+          );
+        }
+        if (!await hasColumn('course_schedule_rule_records', 'notes')) {
+          await migrator.addColumn(
+            courseScheduleRuleRecords,
+            courseScheduleRuleRecords.notes,
+          );
+        }
+      }
+      // A released v17 build could carry the schema version forward without
+      // the interval table that was introduced for Multi Timer in v14. Keep
+      // this repair as a later, idempotent migration so those IndexedDB users
+      // are upgraded safely too.
+      if (from < 19) {
+        if (!await hasTable('ad_hoc_timer_records')) {
+          await migrator.createTable(adHocTimerRecords);
+        }
+        if (!await hasTable('ad_hoc_timer_interval_records')) {
+          await migrator.createTable(adHocTimerIntervalRecords);
+        }
+        if (await hasTable('ad_hoc_timer_records')) {
+          if (!await hasColumn('ad_hoc_timer_records', 'timer_status')) {
+            await migrator.addColumn(
+              adHocTimerRecords,
+              adHocTimerRecords.timerStatus,
+            );
+          }
+          if (!await hasColumn(
+            'ad_hoc_timer_records',
+            'accumulated_duration_seconds',
+          )) {
+            await migrator.addColumn(
+              adHocTimerRecords,
+              adHocTimerRecords.accumulatedDurationSeconds,
+            );
+          }
+          if (!await hasColumn('ad_hoc_timer_records', 'current_started_at')) {
+            await migrator.addColumn(
+              adHocTimerRecords,
+              adHocTimerRecords.currentStartedAt,
+            );
+          }
+        }
+        if (await hasTable('timer_session_records') &&
+            !await hasColumn('timer_session_records', 'logical_date')) {
+          await migrator.addColumn(
+            timerSessionRecords,
+            timerSessionRecords.logicalDate,
+          );
+        }
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      // Drift only runs onUpgrade when the stored schema version changes. A
+      // historical Web release could nevertheless mark a database upgraded
+      // while omitting this Multi Timer table. Repair that state on every
+      // open; CREATE IF NOT EXISTS is safe for fresh and correct databases.
+      await customStatement('''
+        CREATE TABLE IF NOT EXISTS ad_hoc_timer_interval_records (
+          id TEXT NOT NULL PRIMARY KEY,
+          timer_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          started_at INTEGER NOT NULL,
+          ended_at INTEGER NULL,
+          duration_seconds INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS ad_hoc_timer_interval_timer_idx '
+        'ON ad_hoc_timer_interval_records (timer_id)',
+      );
     },
   );
 

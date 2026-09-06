@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../courses/application/course_providers.dart';
 import '../../courses/domain/course_models.dart';
+import '../../courses/presentation/course_form_page.dart';
 import '../../schedule/application/day_schedule_providers.dart';
 import '../../schedule/domain/day_schedule_models.dart';
 import '../../tasks/application/task_providers.dart';
@@ -41,8 +42,10 @@ class _CalendarWorkspaceState extends ConsumerState<CalendarWorkspace> {
   Widget build(BuildContext context) {
     final coursesAsync = ref.watch(coursesProvider);
     final templatesAsync = ref.watch(scheduleTemplatesProvider);
+    final semestersAsync = ref.watch(semestersProvider);
     final courses = coursesAsync.value ?? const <CourseDetails>[];
     final templates = templatesAsync.value ?? const <ScheduleTemplateDetails>[];
+    final semesters = semestersAsync.value ?? const <SemesterDetails>[];
     final dates = _visibleDates();
     final data = <String, List<CalendarOccurrence>>{};
     var loading = false;
@@ -58,6 +61,7 @@ class _CalendarWorkspaceState extends ConsumerState<CalendarWorkspace> {
         courses: courses,
         overrides: overrides,
         templates: templates,
+        semesters: semesters,
       );
     }
 
@@ -423,14 +427,14 @@ class _MonthView extends StatelessWidget {
                               : FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      for (final item in items.take(desktop ? 3 : 2))
+                      const SizedBox(height: 2),
+                      for (final item in items.take(desktop ? 3 : 1))
                         Container(
                           width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 3),
+                          margin: const EdgeInsets.only(bottom: 1),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 4,
-                            vertical: 2,
+                            vertical: 1,
                           ),
                           decoration: BoxDecoration(
                             color: Color(
@@ -442,14 +446,15 @@ class _MonthView extends StatelessWidget {
                             item.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 9),
+                            style: const TextStyle(fontSize: 8, height: 1),
                           ),
                         ),
-                      if (items.length > (desktop ? 3 : 2))
+                      if (items.length > (desktop ? 3 : 1))
                         Text(
-                          '+${items.length - (desktop ? 3 : 2)}',
+                          '+${items.length - (desktop ? 3 : 1)}',
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
+                            height: 1,
                             color: AppColors.muted,
                           ),
                         ),
@@ -793,54 +798,232 @@ class _AgendaView extends StatelessWidget {
   }
 }
 
-class _AgendaTile extends StatelessWidget {
+class _AgendaTile extends ConsumerWidget {
   const _AgendaTile({required this.item});
   final CalendarOccurrence item;
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 64,
-            child: Text(
-              item.startMinute == null ? '—' : _formatMinute(item.startMinute!),
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      onTap: item.type != CalendarOccurrenceType.course
+          ? null
+          : () => _showCourseOccurrenceActions(context, item),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 64,
+              child: Text(
+                item.startMinute == null
+                    ? '—'
+                    : _formatMinute(item.startMinute!),
+                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              ),
             ),
-          ),
-          Container(
-            width: 4,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Color(item.colorValue),
-              borderRadius: BorderRadius.circular(4),
+            Container(
+              width: 4,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Color(item.colorValue),
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                if (item.subtitle != null)
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    item.subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.muted,
-                    ),
+                    item.title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-              ],
+                  if (item.subtitle != null)
+                    Text(
+                      item.subtitle!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+void _showCourseOccurrenceActions(
+  BuildContext context,
+  CalendarOccurrence item,
+) {
+  final course = item.course;
+  if (course == null) return;
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.event_available_outlined),
+              title: const Text('仅修改本次'),
+              subtitle: const Text('调整本次时间、教室、备注或取消，不影响后续课程'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => _CourseOccurrenceOverrideSheet(item: item),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_calendar_outlined),
+              title: const Text('修改课程安排'),
+              subtitle: const Text('从本周起调整后续规则，历史安排保留'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => CourseFormPage(initialCourse: course),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _CourseOccurrenceOverrideSheet extends ConsumerStatefulWidget {
+  const _CourseOccurrenceOverrideSheet({required this.item});
+  final CalendarOccurrence item;
+  @override
+  ConsumerState<_CourseOccurrenceOverrideSheet> createState() =>
+      _CourseOccurrenceOverrideSheetState();
+}
+
+class _CourseOccurrenceOverrideSheetState
+    extends ConsumerState<_CourseOccurrenceOverrideSheet> {
+  late int _start = widget.item.startMinute ?? 480;
+  late int _end = widget.item.endMinute ?? _start + 45;
+  late final TextEditingController _classroom = TextEditingController(
+    text: widget.item.classroom ?? '',
+  );
+  final _notes = TextEditingController();
+  bool _cancel = false;
+  @override
+  void dispose() {
+    _classroom.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('仅修改本次课程', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _timeButton(
+                    '开始',
+                    _start,
+                    (value) => setState(() => _start = value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _timeButton(
+                    '结束',
+                    _end,
+                    (value) => setState(() => _end = value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _classroom,
+              decoration: const InputDecoration(labelText: '临时教室（可选）'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              decoration: const InputDecoration(labelText: '备注（可选）'),
+              maxLines: 2,
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('取消本次课程'),
+              value: _cancel,
+              onChanged: (value) => setState(() => _cancel = value),
+            ),
+            FilledButton(onPressed: _save, child: const Text('保存本次调整')),
+          ],
+        ),
+      ),
+    ),
+  );
+  Widget _timeButton(String label, int value, ValueChanged<int> onChanged) =>
+      OutlinedButton(
+        onPressed: () async {
+          final result = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: value ~/ 60, minute: value % 60),
+          );
+          if (result != null) onChanged(result.hour * 60 + result.minute);
+        },
+        child: Text('$label ${_formatMinute(value)}'),
+      );
+  Future<void> _save() async {
+    if (!_cancel && _end <= _start) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('当前课程安排暂不支持跨日时间')));
+      return;
+    }
+    final rule = widget.item.courseRule;
+    if (rule == null) return;
+    await ref
+        .read(dayScheduleRepositoryProvider)
+        .saveDailyOverride(
+          DailyItemOverrideDraft(
+            itemType: DayItemType.course,
+            itemId: rule.id,
+            localDate: widget.item.date,
+            action: _cancel
+                ? DayOverrideAction.skip
+                : DayOverrideAction.courseChange,
+            plannedStartMinute: _cancel ? null : _start,
+            plannedEndMinute: _cancel ? null : _end,
+            temporaryClassroom: _classroom.text,
+            notes: _notes.text,
+          ),
+        );
+    if (mounted) Navigator.pop(context);
   }
 }
 

@@ -10,6 +10,7 @@ final todayRepositoryProvider = Provider<TodayRepository>((ref) {
   return TodayRepository(
     tasks: ref.watch(taskRepositoryProvider),
     courses: ref.watch(courseRepositoryProvider),
+    semesters: ref.watch(semesterRepositoryProvider),
     schedule: ref.watch(dayScheduleRepositoryProvider),
   );
 });

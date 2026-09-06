@@ -36,6 +36,7 @@ List<CalendarOccurrence> buildCalendarOccurrencesForDate({
   required List<CourseDetails> courses,
   required List<DailyItemOverride> overrides,
   List<ScheduleTemplateDetails> templates = const [],
+  List<SemesterDetails> semesters = const [],
 }) {
   final day = calendarDateOnly(date);
   final result = <CalendarOccurrence>[
@@ -44,6 +45,7 @@ List<CalendarOccurrence> buildCalendarOccurrencesForDate({
       courses: courses,
       overrides: overrides,
       templates: templates,
+      semesters: semesters,
     ),
   ];
 
@@ -96,10 +98,14 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
   required List<CourseDetails> courses,
   required List<DailyItemOverride> overrides,
   List<ScheduleTemplateDetails> templates = const [],
+  List<SemesterDetails> semesters = const [],
 }) {
   final day = calendarDateOnly(date);
   final templateById = {
     for (final template in templates) template.id: template,
+  };
+  final semesterById = {
+    for (final semester in semesters) semester.id: semester,
   };
   final overrideById = <String, DailyItemOverride>{
     for (final value in overrides)
@@ -107,21 +113,62 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
   };
   final result = <CalendarOccurrence>[];
 
+  // Extra lessons are date-specific course occurrences. They intentionally
+  // share DailyItemOverride storage with a one-off reschedule/cancellation so
+  // every calendar view consumes one effective occurrence stream.
+  for (final override in overrides) {
+    if (override.itemType != DayItemType.course ||
+        override.action != DayOverrideAction.extraCourse ||
+        override.plannedStartMinute == null ||
+        override.plannedEndMinute == null ||
+        override.plannedEndMinute! <= override.plannedStartMinute!) {
+      continue;
+    }
+    final course = courses
+        .where((item) => item.id == override.itemId)
+        .firstOrNull;
+    if (course == null) continue;
+    result.add(
+      CalendarOccurrence(
+        id: 'course-extra:${override.id}',
+        type: CalendarOccurrenceType.course,
+        title: '${course.name}补课',
+        date: day,
+        colorValue: course.colorValue,
+        startMinute: override.plannedStartMinute,
+        endMinute: override.plannedEndMinute,
+        subtitle: [
+          if ((override.temporaryClassroom ?? course.classroom)
+                  ?.trim()
+                  .isNotEmpty ??
+              false)
+            (override.temporaryClassroom ?? course.classroom)!.trim(),
+          if (override.notes?.trim().isNotEmpty ?? false)
+            override.notes!.trim(),
+        ].join(' · '),
+        course: course,
+        classroom: override.temporaryClassroom ?? course.classroom,
+      ),
+    );
+  }
+
   for (final course in courses) {
-    if (course.semesterStartsOn != null &&
-        day.isBefore(calendarDateOnly(course.semesterStartsOn!))) {
-      continue;
-    }
-    if (course.semesterEndsOn != null &&
-        day.isAfter(calendarDateOnly(course.semesterEndsOn!))) {
-      continue;
-    }
-    final semesterWeek = course.semesterStartsOn == null
-        ? _fallbackIsoWeekNumber(day)
-        : semesterWeekNumberFor(day, course.semesterStartsOn!);
+    final semester = course.semesterId == null
+        ? null
+        : semesterById[course.semesterId];
 
     for (final rule in course.rules) {
-      if (rule.weekday != day.weekday || !rule.isDueInWeek(semesterWeek)) {
+      final semesterWeek = courseWeekNumberForDate(
+        course: course,
+        semester: semester,
+        date: day,
+      );
+      if (semesterWeek == null ||
+          !isCourseRuleActiveOnDate(
+            rule: rule,
+            semesterWeek: semesterWeek,
+            date: day,
+          )) {
         continue;
       }
       final override = overrideById[rule.id] ?? overrideById[course.id];
@@ -129,7 +176,9 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
 
       var startMinute = rule.startsAtMinute;
       var endMinute = rule.endsAtMinute;
-      final template = rule.scheduleTemplateId == null
+      final template =
+          rule.timeMode != CourseScheduleTimeMode.periods ||
+              rule.scheduleTemplateId == null
           ? null
           : templateById[rule.scheduleTemplateId!];
       if (template != null && rule.sectionIds.isNotEmpty) {
@@ -149,7 +198,10 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
       endMinute = override?.plannedEndMinute ?? endMinute;
       if (endMinute <= startMinute) continue;
 
-      final classroom = override?.temporaryClassroom ?? course.classroom;
+      final classroom =
+          override?.temporaryClassroom ??
+          rule.classroomOverride ??
+          course.classroom;
       result.add(
         CalendarOccurrence(
           id: 'course:${rule.id}:${day.toIso8601String()}',
@@ -166,10 +218,44 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
           ].join(' · '),
           course: course,
           courseRule: rule,
+          classroom: classroom,
         ),
       );
     }
   }
   result.sort((a, b) => (a.startMinute ?? 0).compareTo(b.startMinute ?? 0));
   return result;
+}
+
+bool isCourseRuleActiveOnDate({
+  required CourseScheduleRule rule,
+  required int semesterWeek,
+  required DateTime date,
+}) =>
+    rule.weekday == calendarDateOnly(date).weekday &&
+    rule.isDueInWeek(semesterWeek);
+
+/// Applies an explicit semester first-week date. Courses created before the
+/// semester model retain their former bounded time-only behavior.
+int? courseWeekNumberForDate({
+  required CourseDetails course,
+  required SemesterDetails? semester,
+  required DateTime date,
+}) {
+  final day = calendarDateOnly(date);
+  if (semester != null) {
+    final start = calendarDateOnly(semester.firstWeekStartDate);
+    final end = start.add(Duration(days: semester.totalWeeks * 7 - 1));
+    if (day.isBefore(start) || day.isAfter(end)) return null;
+    return semester.weekNumberFor(day);
+  }
+  if (course.semesterStartsOn != null &&
+      day.isBefore(calendarDateOnly(course.semesterStartsOn!)))
+    return null;
+  if (course.semesterEndsOn != null &&
+      day.isAfter(calendarDateOnly(course.semesterEndsOn!)))
+    return null;
+  return course.semesterStartsOn == null
+      ? _fallbackIsoWeekNumber(day)
+      : semesterWeekNumberFor(day, course.semesterStartsOn!);
 }

@@ -462,23 +462,91 @@ class _DesktopPendingItems extends StatelessWidget {
   );
 }
 
-class _DesktopPendingChip extends StatelessWidget {
+class _DesktopPendingChip extends ConsumerWidget {
   const _DesktopPendingChip({required this.task, required this.enabled});
   final TaskDetails task;
   final bool enabled;
 
   @override
-  Widget build(BuildContext context) {
-    final content = Chip(
-      avatar: Icon(
-        taskIconData(task.iconName),
-        size: 16,
-        color: Color(task.colorValue),
-      ),
-      label: Text(task.name),
-      side: const BorderSide(color: AppColors.border),
-      backgroundColor: Colors.white,
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = Color(task.colorValue);
+    final timer = task.hasTimer
+        ? ref.watch(taskTimerStateProvider(task.id)).value
+        : null;
+    final now = ref.watch(timerNowProvider).value ?? DateTime.now();
+    final elapsed =
+        timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
+    final content = task.hasTimer
+        ? Container(
+            constraints: const BoxConstraints(minWidth: 190, maxWidth: 320),
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+            decoration: BoxDecoration(
+              color: (timer?.isRunning ?? false)
+                  ? color.withValues(alpha: .09)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: (timer?.isRunning ?? false)
+                    ? color.withValues(alpha: .46)
+                    : AppColors.border,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(taskIconData(task.iconName), size: 16, color: color),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        task.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    _TimerText(
+                      elapsed: elapsed,
+                      running: timer?.isRunning ?? false,
+                      color: color,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _desktopPendingTimerLabel(task, timer),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    if (enabled) ...[
+                      const SizedBox(width: 8),
+                      _InlineTimerControls(
+                        taskId: task.id,
+                        timer: timer,
+                        color: color,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          )
+        : Chip(
+            avatar: Icon(taskIconData(task.iconName), size: 16, color: color),
+            label: Text(task.name),
+            side: const BorderSide(color: AppColors.border),
+            backgroundColor: Colors.white,
+          );
     if (!enabled) return content;
     return LongPressDraggable<TaskDetails>(
       data: task,
@@ -487,6 +555,15 @@ class _DesktopPendingChip extends StatelessWidget {
       child: content,
     );
   }
+}
+
+String _desktopPendingTimerLabel(TaskDetails task, TaskTimerState? timer) {
+  if (timer?.isRunning ?? false) return '进行中';
+  if (timer?.isPaused ?? false) return '已暂停';
+  final target = task.targetDurationSeconds;
+  return target != null && target > 0
+      ? '目标 ${formatDuration(target)}'
+      : '记录专注时长';
 }
 
 class _DesktopTimeline extends ConsumerWidget {
@@ -504,52 +581,81 @@ class _DesktopTimeline extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => DragTarget<TaskDetails>(
     onWillAcceptWithDetails: (_) => data.isToday,
     onAcceptWithDetails: (details) => _scheduleTask(context, ref, details.data),
-    builder: (context, candidate, _) => Column(
-      children: [
-        if (showCurrentLine) ...[
-          _CurrentTimeLine(now: data.now),
-          const SizedBox(height: 8),
-        ],
-        if (entries.isEmpty)
-          const MascotEmptyState(
-            title: '今天还没有时间安排',
-            message: '把上方待安排事项拖到这里，或先配置时间。',
-          )
-        else
-          for (var index = 0; index < entries.length; index++)
-            switch (entries[index]) {
-              _DesktopAgendaCourse entry => _DesktopCourseAgendaRow(
-                item: entry.course,
-                status: _courseStatus(entry.course, data),
-                last: index == entries.length - 1,
-              ),
-              _DesktopAgendaTask entry => _DesktopTaskAgendaRow(
-                task: entry.task,
-                minute: entry.startMinute,
-                isToday: data.isToday,
-                last: index == entries.length - 1,
-              ),
-            },
-        if (candidate.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.blush,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.primary),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.add_alarm_rounded, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('松开以安排到今天'),
-              ],
-            ),
+    builder: (context, candidate, _) {
+      final timeline = <Widget>[];
+      var cursorMinute = 0;
+      var currentInserted = !showCurrentLine;
+      final nowMinute = data.now.hour * 60 + data.now.minute;
+      void addGap(int until) {
+        final minutes = until - cursorMinute;
+        if (minutes > 0) {
+          timeline.add(
+            SizedBox(height: (minutes * .22).clamp(6, 180).toDouble()),
+          );
+        }
+      }
+
+      for (var index = 0; index < entries.length; index++) {
+        final entry = entries[index];
+        if (!currentInserted && nowMinute <= entry.startMinute) {
+          addGap(nowMinute);
+          timeline.add(_CurrentTimeLine(now: data.now));
+          cursorMinute = nowMinute;
+          currentInserted = true;
+        }
+        addGap(entry.startMinute);
+        timeline.add(switch (entry) {
+          _DesktopAgendaCourse entry => _DesktopCourseAgendaRow(
+            item: entry.course,
+            status: _courseStatus(entry.course, data),
+            last: index == entries.length - 1,
           ),
+          _DesktopAgendaTask entry => _DesktopTaskAgendaRow(
+            task: entry.task,
+            minute: entry.startMinute,
+            isToday: data.isToday,
+            last: index == entries.length - 1,
+          ),
+        });
+        cursorMinute = switch (entry) {
+          _DesktopAgendaCourse entry => entry.course.endMinute,
+          _DesktopAgendaTask entry => entry.startMinute + 30,
+        };
+      }
+      if (!currentInserted) {
+        addGap(nowMinute);
+        timeline.add(_CurrentTimeLine(now: data.now));
+      }
+      return Column(
+        children: [
+          if (entries.isEmpty)
+            const MascotEmptyState(
+              title: '今天还没有时间安排',
+              message: '把上方待安排事项拖到这里，或先配置时间。',
+            )
+          else
+            ...timeline,
+          if (candidate.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.blush,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.primary),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.add_alarm_rounded, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text('松开以安排到今天'),
+                ],
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
+      );
+    },
   );
 
   Future<void> _scheduleTask(

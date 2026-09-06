@@ -54,14 +54,14 @@ class TodayTaskItem extends TodayTimelineItem {
 class TodayCourseItem extends TodayTimelineItem {
   const TodayCourseItem({
     required this.course,
-    required this.rule,
+    this.rule,
     required super.startMinute,
     required this.endMinute,
     this.classroom,
   });
 
   final CourseDetails course;
-  final CourseScheduleRule rule;
+  final CourseScheduleRule? rule;
   final int endMinute;
   final String? classroom;
 }

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../application/course_providers.dart';
 import '../domain/course_models.dart';
+import 'semester_settings_page.dart';
 
 class CourseFormPage extends ConsumerStatefulWidget {
   const CourseFormPage({super.key, this.initialCourse});
-
   final CourseDetails? initialCourse;
 
   @override
@@ -16,678 +15,813 @@ class CourseFormPage extends ConsumerStatefulWidget {
 
 class _CourseFormPageState extends ConsumerState<CourseFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _teacherController = TextEditingController();
-  final _classroomController = TextEditingController();
-  final _semesterController = TextEditingController();
-  final _startWeekController = TextEditingController();
-  final _endWeekController = TextEditingController();
-  int _colorValue = 0xFFF47BA2;
-  int _weekday = DateTime.monday;
-  CourseWeekRuleType _weekRule = CourseWeekRuleType.everyWeek;
-  TimeOfDay _startsAt = const TimeOfDay(hour: 8, minute: 0);
-  TimeOfDay _endsAt = const TimeOfDay(hour: 9, minute: 40);
-  int? _remindBeforeMinutes;
-  DateTime? _semesterStartsOn;
-  DateTime? _semesterEndsOn;
+  final _name = TextEditingController();
+  final _teacher = TextEditingController();
+  final _classroom = TextEditingController();
+  final _notes = TextEditingController();
+  late int _colorValue;
+  String? _semesterId;
+  late List<_EditableRule> _rules;
   bool _saving = false;
+  bool _didPickDefault = false;
 
   @override
   void initState() {
     super.initState();
     final course = widget.initialCourse;
-    if (course == null) return;
-    _nameController.text = course.name;
-    _teacherController.text = course.teacher ?? '';
-    _classroomController.text = course.classroom ?? '';
-    _semesterController.text = course.semester ?? '';
-    _colorValue = course.colorValue;
-    _semesterStartsOn = course.semesterStartsOn;
-    _semesterEndsOn = course.semesterEndsOn;
-    final rule = course.rules.isEmpty ? null : course.rules.first;
-    if (rule != null) {
-      _weekday = rule.weekday;
-      _weekRule = rule.weekRuleType;
-      _startsAt = TimeOfDay(
-        hour: rule.startsAtMinute ~/ 60,
-        minute: rule.startsAtMinute % 60,
-      );
-      _endsAt = TimeOfDay(
-        hour: rule.endsAtMinute ~/ 60,
-        minute: rule.endsAtMinute % 60,
-      );
-      _startWeekController.text = rule.startWeek?.toString() ?? '';
-      _endWeekController.text = rule.endWeek?.toString() ?? '';
-      _remindBeforeMinutes = rule.remindBeforeMinutes;
-    }
+    _name.text = course?.name ?? '';
+    _teacher.text = course?.teacher ?? '';
+    _classroom.text = course?.classroom ?? '';
+    _notes.text = course?.notes ?? '';
+    _colorValue = course?.colorValue ?? 0xFF8FA7F5;
+    _semesterId = course?.semesterId;
+    _rules = [
+      for (final rule in course?.rules ?? const [])
+        _EditableRule.fromRule(rule),
+    ];
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _teacherController.dispose();
-    _classroomController.dispose();
-    _semesterController.dispose();
-    _startWeekController.dispose();
-    _endWeekController.dispose();
+    _name.dispose();
+    _teacher.dispose();
+    _classroom.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final semesters =
+        ref.watch(semestersProvider).value ?? const <SemesterDetails>[];
+    final templates =
+        ref.watch(scheduleTemplatesProvider).value ??
+        const <ScheduleTemplateDetails>[];
+    final current = semesters.where((item) => item.isCurrent).firstOrNull;
+    if (!_didPickDefault && _semesterId == null && current != null) {
+      _didPickDefault = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _semesterId = current.id);
+      });
+    }
+    final semester = semesters
+        .where((item) => item.id == _semesterId)
+        .firstOrNull;
+    final template = semester?.scheduleTemplateId == null
+        ? null
+        : templates
+              .where((item) => item.id == semester!.scheduleTemplateId)
+              .firstOrNull;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.initialCourse == null ? '添加课程' : '编辑课程'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          children: [
-            TextFormField(
-              controller: _nameController,
-              autofocus: true,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+        children: [
+          Form(
+            key: _formKey,
+            child: TextFormField(
+              controller: _name,
               decoration: const InputDecoration(labelText: '课程名称 *'),
               validator: (value) =>
                   value == null || value.trim().isEmpty ? '请填写课程名称' : null,
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _teacherController,
-                    decoration: const InputDecoration(labelText: '教师'),
-                  ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            value: _semesterId,
+            decoration: const InputDecoration(labelText: '所属学期 *'),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('请选择学期'),
+              ),
+              ...semesters.map(
+                (item) => DropdownMenuItem(
+                  value: item.id,
+                  child: Text(item.isCurrent ? '${item.name}（当前）' : item.name),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _classroomController,
-                    decoration: const InputDecoration(labelText: '教室'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _semesterController,
-              decoration: const InputDecoration(labelText: '学期'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _dateButton(
-                    '学期开始',
-                    _semesterStartsOn,
-                    (value) => setState(() => _semesterStartsOn = value),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _dateButton(
-                    '学期结束',
-                    _semesterEndsOn,
-                    (value) => setState(() => _semesterEndsOn = value),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text('课程安排', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              value: _weekday,
-              decoration: const InputDecoration(labelText: '星期'),
-              items: [
-                for (var day = DateTime.monday; day <= DateTime.sunday; day++)
-                  DropdownMenuItem(value: day, child: Text(_weekdayLabel(day))),
-              ],
-              onChanged: (value) =>
-                  setState(() => _weekday = value ?? _weekday),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _timeButton(
-                    '开始时间',
-                    _startsAt,
-                    (value) => setState(() => _startsAt = value),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _timeButton(
-                    '结束时间',
-                    _endsAt,
-                    (value) => setState(() => _endsAt = value),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<CourseWeekRuleType>(
-              value: _weekRule,
-              decoration: const InputDecoration(labelText: '周次规则'),
-              items: const [
-                DropdownMenuItem(
-                  value: CourseWeekRuleType.everyWeek,
-                  child: Text('每周'),
-                ),
-                DropdownMenuItem(
-                  value: CourseWeekRuleType.oddWeeks,
-                  child: Text('单周'),
-                ),
-                DropdownMenuItem(
-                  value: CourseWeekRuleType.evenWeeks,
-                  child: Text('双周'),
-                ),
-                DropdownMenuItem(
-                  value: CourseWeekRuleType.everyNWeeks,
-                  child: Text('每 N 周'),
-                ),
-              ],
-              onChanged: (value) =>
-                  setState(() => _weekRule = value ?? _weekRule),
-            ),
-            if (_weekRule == CourseWeekRuleType.everyNWeeks) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startWeekController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '起始周'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _endWeekController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '结束周'),
-                    ),
-                  ),
-                ],
               ),
             ],
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
-              value: _remindBeforeMinutes,
-              decoration: const InputDecoration(labelText: '课程提醒（可选）'),
-              items: const [
-                DropdownMenuItem<int?>(value: null, child: Text('不提醒')),
-                DropdownMenuItem(value: 5, child: Text('提前 5 分钟')),
-                DropdownMenuItem(value: 10, child: Text('提前 10 分钟')),
-                DropdownMenuItem(value: 15, child: Text('提前 15 分钟')),
-                DropdownMenuItem(value: 30, child: Text('提前 30 分钟')),
-              ],
-              onChanged: (value) =>
-                  setState(() => _remindBeforeMinutes = value),
-            ),
-            const SizedBox(height: 20),
-            if (widget.initialCourse != null &&
-                widget.initialCourse!.rules.length > 1)
-              Text(
-                '已保存 ${widget.initialCourse!.rules.length} 条课程安排，保存后可继续从课程列表编辑。',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            if (widget.initialCourse != null)
-              OutlinedButton.icon(
-                onPressed: _openAdditionalRule,
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('新增另一条课程安排'),
-              ),
-            const SizedBox(height: 8),
-            Text('课程颜色', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              children: [
-                for (final color in [
-                  0xFFF47BA2,
-                  0xFF8FA7F5,
-                  0xFF7BCFA0,
-                  0xFFF2B26B,
-                  0xFFB59BEA,
-                ])
-                  InkWell(
-                    onTap: () => setState(() => _colorValue = color),
-                    borderRadius: BorderRadius.circular(20),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Color(color),
-                      child: _colorValue == color
-                          ? const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 18,
-                            )
-                          : null,
-                    ),
+            onChanged: (value) {
+              if (value == _semesterId) return;
+              setState(() {
+                _semesterId = value;
+                for (final rule in _rules) {
+                  if (rule.timeMode == CourseScheduleTimeMode.periods)
+                    rule.clearPeriods();
+                }
+              });
+            },
+          ),
+          if (semesters.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SemesterSettingsPage(),
                   ),
-              ],
+                ),
+                icon: const Icon(Icons.add_circle_outline_rounded),
+                label: const Text('先创建一个学期'),
+              ),
             ),
-            const SizedBox(height: 28),
-            FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+          const SizedBox(height: 12),
+          TextField(
+            controller: _teacher,
+            decoration: const InputDecoration(labelText: '授课教师（可选）'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _classroom,
+            decoration: const InputDecoration(labelText: '默认教室（可选）'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notes,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: '课程备注（可选）'),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '课程安排',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: semester == null
+                    ? null
+                    : () => _editRule(semester, template),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('添加安排'),
+              ),
+            ],
+          ),
+          if (semester == null)
+            const Text('选择学期后即可添加课程安排。')
+          else if (_rules.isEmpty)
+            const _HintCard(text: '还没有安排。可先连续添加多条星期、周次和节次规则，再一次保存课程。')
+          else
+            for (var index = 0; index < _rules.length; index++)
+              _RuleTile(
+                rule: _rules[index],
+                onEdit: () => _editRule(semester, template, index: index),
+                onDelete: () => setState(() => _rules.removeAt(index)),
+              ),
+          const SizedBox(height: 18),
+          Text('课程颜色', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 12,
+            children:
+                [0xFFF47BA2, 0xFF8FA7F5, 0xFF7BCFA0, 0xFFF2B26B, 0xFFB59BEA]
+                    .map(
+                      (color) => InkWell(
+                        onTap: () => setState(() => _colorValue = color),
+                        borderRadius: BorderRadius.circular(20),
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Color(color),
+                          child: _colorValue == color
+                              ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 18,
+                                )
+                              : null,
+                        ),
                       ),
                     )
-                  : const Icon(Icons.check_rounded),
-              label: const Text('保存课程'),
-            ),
-          ],
+                    .toList(),
+          ),
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: _saving ? null : () => _save(semester),
+            icon: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.check_rounded),
+            label: const Text('保存课程'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editRule(
+    SemesterDetails semester,
+    ScheduleTemplateDetails? template, {
+    int? index,
+  }) async {
+    final saved = await Navigator.of(context).push<_EditableRule>(
+      MaterialPageRoute(
+        builder: (_) => _CourseRuleEditorPage(
+          semester: semester,
+          template: template,
+          initial: index == null ? null : _rules[index],
         ),
       ),
     );
+    if (saved != null && mounted) {
+      setState(() {
+        if (index == null)
+          _rules.add(saved);
+        else
+          _rules[index] = saved;
+      });
+    }
   }
 
-  Widget _timeButton(
-    String label,
-    TimeOfDay value,
-    ValueChanged<TimeOfDay> onChanged,
-  ) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: value,
-        );
-        if (picked != null) onChanged(picked);
-      },
-      icon: const Icon(Icons.schedule_outlined),
-      label: Text('$label\n${value.format(context)}'),
-    );
-  }
-
-  Widget _dateButton(
-    String label,
-    DateTime? value,
-    ValueChanged<DateTime?> onChanged,
-  ) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final picked = await showDatePicker(
-          context: context,
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2100),
-          initialDate: value ?? DateTime.now(),
-        );
-        if (picked != null) onChanged(picked);
-      },
-      icon: const Icon(Icons.calendar_today_outlined),
-      label: Text(
-        value == null ? '$label\n未设置' : '$label\n${_dateLabel(value)}',
-      ),
-    );
-  }
-
-  String _dateLabel(DateTime value) =>
-      '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
-
-  Future<void> _save() async {
+  Future<void> _save(SemesterDetails? semester) async {
     if (!_formKey.currentState!.validate()) return;
-    final starts = _startsAt.hour * 60 + _startsAt.minute;
-    final ends = _endsAt.hour * 60 + _endsAt.minute;
-    if (ends <= starts) {
-      _showError('结束时间必须晚于开始时间');
-      return;
-    }
-    if (_semesterStartsOn != null &&
-        _semesterEndsOn != null &&
-        _semesterEndsOn!.isBefore(_semesterStartsOn!)) {
-      _showError('学期结束日期不能早于开始日期');
-      return;
-    }
-    final startWeek = int.tryParse(_startWeekController.text.trim());
-    final endWeek = int.tryParse(_endWeekController.text.trim());
-    if (_weekRule == CourseWeekRuleType.everyNWeeks &&
-        (startWeek == null || endWeek == null)) {
-      _showError('每 N 周规则需要填写起始周和结束周');
-      return;
-    }
+    if (semester == null) return _error('请选择所属学期');
     setState(() => _saving = true);
     try {
-      final repository = ref.read(courseRepositoryProvider);
-      final courseId = await repository.saveCourse(
+      final repo = ref.read(courseRepositoryProvider);
+      final courseId = await repo.saveCourse(
         CourseDraft(
-          name: _nameController.text,
+          name: _name.text,
           colorValue: _colorValue,
-          teacher: _teacherController.text,
-          classroom: _classroomController.text,
-          semester: _semesterController.text,
-          semesterStartsOn: _semesterStartsOn,
-          semesterEndsOn: _semesterEndsOn,
+          teacher: _teacher.text,
+          classroom: _classroom.text,
+          notes: _notes.text,
+          semesterId: semester.id,
+          semester: semester.name,
+          semesterStartsOn: semester.firstWeekStartDate,
+          semesterEndsOn: semester.firstWeekStartDate.add(
+            Duration(days: semester.totalWeeks * 7 - 1),
+          ),
         ),
         courseId: widget.initialCourse?.id,
       );
-      await repository.saveScheduleRule(
-        CourseScheduleRuleDraft(
-          courseId: courseId,
-          weekday: _weekday,
-          weekRuleType: _weekRule,
-          startsAtMinute: starts,
-          endsAtMinute: ends,
-          startWeek: startWeek,
-          endWeek: endWeek,
-          intervalWeeks: _weekRule == CourseWeekRuleType.everyNWeeks ? 2 : null,
-          remindBeforeMinutes: _remindBeforeMinutes,
-        ),
-        ruleId: widget.initialCourse?.rules.isNotEmpty == true
-            ? widget.initialCourse!.rules.first.id
-            : null,
-      );
+      final retained = <String>{};
+      final oldById = {
+        for (final rule
+            in widget.initialCourse?.rules ?? const <CourseScheduleRule>[])
+          rule.id: rule,
+      };
+      final currentWeek = semester
+          .weekNumberFor(DateTime.now())
+          .clamp(1, semester.totalWeeks);
+      for (final editable in _rules) {
+        final old = editable.id == null ? null : oldById[editable.id];
+        if (old != null && editable.matches(old)) {
+          retained.add(old.id);
+        } else if (old != null && currentWeek > (old.startWeek ?? 1)) {
+          // Never rewrite already effective schedule time. Preserve the old
+          // range then create the edited successor from the current week.
+          await repo.endScheduleRuleAtWeek(old.id, currentWeek - 1);
+          retained.add(old.id);
+          final id = await repo.saveScheduleRule(
+            editable.futureDraft(courseId, currentWeek),
+          );
+          retained.add(id);
+        } else {
+          final id = await repo.saveScheduleRule(
+            editable.toDraft(courseId),
+            ruleId: editable.id,
+          );
+          retained.add(id);
+        }
+      }
+      for (final old
+          in widget.initialCourse?.rules ?? const <CourseScheduleRule>[]) {
+        if (!retained.contains(old.id)) await repo.archiveScheduleRule(old.id);
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted)
-        _showError(
-          error is ArgumentError ? error.message.toString() : '课程保存失败，请稍后重试',
+        _error(
+          error is ArgumentError ? error.message.toString() : '课程保存失败：$error',
         );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _showError(String message) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
-
-  String _weekdayLabel(int day) => const {
-    1: '星期一',
-    2: '星期二',
-    3: '星期三',
-    4: '星期四',
-    5: '星期五',
-    6: '星期六',
-    7: '星期日',
-  }[day]!;
-
-  Future<void> _openAdditionalRule() async {
-    final course = widget.initialCourse;
-    if (course == null) return;
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => CourseRuleFormPage(courseId: course.id),
-      ),
-    );
-    if (saved == true && mounted) setState(() {});
-  }
+  void _error(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }
 
-class CourseRuleFormPage extends ConsumerStatefulWidget {
-  const CourseRuleFormPage({
-    required this.courseId,
-    this.initialRule,
-    super.key,
+class _CourseRuleEditorPage extends StatefulWidget {
+  const _CourseRuleEditorPage({
+    required this.semester,
+    required this.template,
+    this.initial,
   });
-  final String courseId;
-  final CourseScheduleRule? initialRule;
-
+  final SemesterDetails semester;
+  final ScheduleTemplateDetails? template;
+  final _EditableRule? initial;
   @override
-  ConsumerState<CourseRuleFormPage> createState() => _CourseRuleFormPageState();
+  State<_CourseRuleEditorPage> createState() => _CourseRuleEditorPageState();
 }
 
-class _CourseRuleFormPageState extends ConsumerState<CourseRuleFormPage> {
-  int _weekday = DateTime.monday;
-  CourseWeekRuleType _weekRule = CourseWeekRuleType.everyWeek;
-  TimeOfDay _startsAt = const TimeOfDay(hour: 8, minute: 0);
-  TimeOfDay _endsAt = const TimeOfDay(hour: 9, minute: 40);
-  int? _remindBeforeMinutes;
+class _CourseRuleEditorPageState extends State<_CourseRuleEditorPage> {
+  late _EditableRule _rule;
   final _startWeek = TextEditingController();
   final _endWeek = TextEditingController();
-  bool _saving = false;
-
+  final _interval = TextEditingController();
+  final _classroom = TextEditingController();
+  final _notes = TextEditingController();
   @override
   void initState() {
     super.initState();
-    final rule = widget.initialRule;
-    if (rule == null) return;
-    _weekday = rule.weekday;
-    _weekRule = rule.weekRuleType;
-    _startsAt = TimeOfDay(
-      hour: rule.startsAtMinute ~/ 60,
-      minute: rule.startsAtMinute % 60,
-    );
-    _endsAt = TimeOfDay(
-      hour: rule.endsAtMinute ~/ 60,
-      minute: rule.endsAtMinute % 60,
-    );
-    _startWeek.text = rule.startWeek?.toString() ?? '';
-    _endWeek.text = rule.endWeek?.toString() ?? '';
-    _remindBeforeMinutes = rule.remindBeforeMinutes;
+    _rule = widget.initial?.copy() ?? _EditableRule();
+    _startWeek.text = _rule.startWeek?.toString() ?? '';
+    _endWeek.text = _rule.endWeek?.toString() ?? '';
+    _interval.text = (_rule.intervalWeeks ?? 2).toString();
+    _classroom.text = _rule.classroomOverride ?? '';
+    _notes.text = _rule.notes ?? '';
   }
 
   @override
   void dispose() {
     _startWeek.dispose();
     _endWeek.dispose();
+    _interval.dispose();
+    _classroom.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.initialRule == null ? '新增课程安排' : '编辑课程安排'),
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        DropdownButtonFormField<int>(
-          value: _weekday,
-          decoration: const InputDecoration(labelText: '星期'),
-          items: [
-            for (var day = 1; day <= 7; day++)
-              DropdownMenuItem(
-                value: day,
-                child: Text('星期${'一二三四五六日'[day - 1]}'),
-              ),
-          ],
-          onChanged: (value) => setState(() => _weekday = value ?? _weekday),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _timeButton(
-                '开始时间',
-                _startsAt,
-                (v) => setState(() => _startsAt = v),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _timeButton(
-                '结束时间',
-                _endsAt,
-                (v) => setState(() => _endsAt = v),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<CourseWeekRuleType>(
-          value: _weekRule,
-          decoration: const InputDecoration(labelText: '周次规则'),
-          items: const [
-            DropdownMenuItem(
-              value: CourseWeekRuleType.everyWeek,
-              child: Text('每周'),
-            ),
-            DropdownMenuItem(
-              value: CourseWeekRuleType.oddWeeks,
-              child: Text('单周'),
-            ),
-            DropdownMenuItem(
-              value: CourseWeekRuleType.evenWeeks,
-              child: Text('双周'),
-            ),
-            DropdownMenuItem(
-              value: CourseWeekRuleType.everyNWeeks,
-              child: Text('每 N 周'),
-            ),
-          ],
-          onChanged: (value) => setState(() => _weekRule = value ?? _weekRule),
-        ),
-        if (_weekRule == CourseWeekRuleType.everyNWeeks) ...[
+  Widget build(BuildContext context) {
+    final segments =
+        (widget.template?.segments ?? const <ScheduleTemplateSegment>[])
+            .where(
+              (segment) => segment.segmentType == ScheduleSegmentType.classTime,
+            )
+            .toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.initial == null ? '添加课程安排' : '编辑课程安排')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          DropdownButtonFormField<int>(
+            value: _rule.weekday,
+            decoration: const InputDecoration(labelText: '星期'),
+            items: [
+              for (var day = 1; day <= 7; day++)
+                DropdownMenuItem(
+                  value: day,
+                  child: Text('星期${'一二三四五六日'[day - 1]}'),
+                ),
+            ],
+            onChanged: (value) => setState(() => _rule.weekday = value!),
+          ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _startWeek,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: '起始周'),
-                ),
+          SegmentedButton<CourseScheduleTimeMode>(
+            segments: const [
+              ButtonSegment(
+                value: CourseScheduleTimeMode.periods,
+                label: Text('按节次'),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _endWeek,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: '结束周'),
-                ),
+              ButtonSegment(
+                value: CourseScheduleTimeMode.customTime,
+                label: Text('自定义时间'),
               ),
             ],
+            selected: {_rule.timeMode},
+            onSelectionChanged: (value) =>
+                setState(() => _rule.timeMode = value.first),
           ),
-        ],
-        const SizedBox(height: 12),
-        DropdownButtonFormField<int?>(
-          value: _remindBeforeMinutes,
-          decoration: const InputDecoration(labelText: '课程提醒（可选）'),
-          items: const [
-            DropdownMenuItem<int?>(value: null, child: Text('不提醒')),
-            DropdownMenuItem(value: 5, child: Text('提前 5 分钟')),
-            DropdownMenuItem(value: 10, child: Text('提前 10 分钟')),
-            DropdownMenuItem(value: 15, child: Text('提前 15 分钟')),
-            DropdownMenuItem(value: 30, child: Text('提前 30 分钟')),
-          ],
-          onChanged: (value) => setState(() => _remindBeforeMinutes = value),
-        ),
-        const SizedBox(height: 24),
-        if (widget.initialRule != null)
-          OutlinedButton.icon(
-            onPressed: _delete,
-            icon: const Icon(Icons.delete_outline_rounded),
-            label: const Text('删除这条安排'),
-          ),
-        if (widget.initialRule != null) const SizedBox(height: 10),
-        FilledButton.icon(
-          onPressed: _saving ? null : _save,
-          icon: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+          const SizedBox(height: 12),
+          if (_rule.timeMode == CourseScheduleTimeMode.periods) ...[
+            if (widget.template == null)
+              const _HintCard(text: '该学期尚未选择作息模板，请先在学期设置中配置模板。')
+            else ...[
+              Text(
+                widget.template!.name,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _rule.startSegmentId,
+                decoration: const InputDecoration(labelText: '开始节次'),
+                items: segments
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item.id,
+                        child: Text(
+                          '${item.name} · ${_minute(item.startsAtMinute)}',
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _rule.startSegmentId = value),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _rule.endSegmentId,
+                decoration: const InputDecoration(labelText: '结束节次'),
+                items: segments
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item.id,
+                        child: Text(
+                          '${item.name} · ${_minute(item.endsAtMinute)}',
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _rule.endSegmentId = value),
+              ),
+            ],
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  child: _timeButton(
+                    '开始时间',
+                    _rule.startsAtMinute,
+                    (value) => setState(() => _rule.startsAtMinute = value),
                   ),
-                )
-              : const Icon(Icons.check),
-          label: const Text('保存安排'),
-        ),
-      ],
-    ),
-  );
-
-  Widget _timeButton(
-    String label,
-    TimeOfDay value,
-    ValueChanged<TimeOfDay> onChanged,
-  ) => OutlinedButton.icon(
-    onPressed: () async {
-      final picked = await showTimePicker(context: context, initialTime: value);
-      if (picked != null) onChanged(picked);
-    },
-    icon: const Icon(Icons.schedule_outlined),
-    label: Text('$label\n${value.format(context)}'),
-  );
-
-  Future<void> _save() async {
-    final starts = _startsAt.hour * 60 + _startsAt.minute;
-    final ends = _endsAt.hour * 60 + _endsAt.minute;
-    if (ends <= starts) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('结束时间必须晚于开始时间')));
-      return;
-    }
-    final startWeek = int.tryParse(_startWeek.text.trim());
-    final endWeek = int.tryParse(_endWeek.text.trim());
-    if (_weekRule == CourseWeekRuleType.everyNWeeks &&
-        (startWeek == null || endWeek == null)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('每 N 周规则需要填写起始周和结束周')));
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(courseRepositoryProvider)
-          .saveScheduleRule(
-            CourseScheduleRuleDraft(
-              courseId: widget.courseId,
-              weekday: _weekday,
-              weekRuleType: _weekRule,
-              startsAtMinute: starts,
-              endsAtMinute: ends,
-              startWeek: startWeek,
-              endWeek: endWeek,
-              intervalWeeks: _weekRule == CourseWeekRuleType.everyNWeeks
-                  ? 2
-                  : null,
-              remindBeforeMinutes: _remindBeforeMinutes,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _timeButton(
+                    '结束时间',
+                    _rule.endsAtMinute,
+                    (value) => setState(() => _rule.endsAtMinute = value),
+                  ),
+                ),
+              ],
             ),
-            ruleId: widget.initialRule?.id,
-          );
-      if (mounted) Navigator.pop(context, true);
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('课程安排保存失败')));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除这条课程安排？'),
-        content: const Text('课程本身和其他安排会保留。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<CourseWeekRuleType>(
+            value: _rule.weekRuleType,
+            decoration: const InputDecoration(labelText: '周次规则'),
+            items: const [
+              DropdownMenuItem(
+                value: CourseWeekRuleType.everyWeek,
+                child: Text('每周'),
+              ),
+              DropdownMenuItem(
+                value: CourseWeekRuleType.oddWeeks,
+                child: Text('单周'),
+              ),
+              DropdownMenuItem(
+                value: CourseWeekRuleType.evenWeeks,
+                child: Text('双周'),
+              ),
+              DropdownMenuItem(
+                value: CourseWeekRuleType.everyNWeeks,
+                child: Text('每 N 周'),
+              ),
+              DropdownMenuItem(
+                value: CourseWeekRuleType.custom,
+                child: Text('自定义周次'),
+              ),
+            ],
+            onChanged: (value) => setState(() => _rule.weekRuleType = value!),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+          if (_rule.weekRuleType == CourseWeekRuleType.everyNWeeks ||
+              _rule.weekRuleType == CourseWeekRuleType.custom) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _startWeek,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: '起始周'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _endWeek,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: '结束周'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_rule.weekRuleType == CourseWeekRuleType.everyNWeeks)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: TextField(
+                controller: _interval,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '间隔周数（例如 2 / 3）'),
+              ),
+            ),
+          if (_rule.weekRuleType == CourseWeekRuleType.custom)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (var week = 1; week <= widget.semester.totalWeeks; week++)
+                    FilterChip(
+                      label: Text('$week'),
+                      selected: _rule.weekNumbers.contains(week),
+                      onSelected: (value) => setState(() {
+                        if (value)
+                          _rule.weekNumbers.add(week);
+                        else
+                          _rule.weekNumbers.remove(week);
+                      }),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _classroom,
+            decoration: const InputDecoration(labelText: '本条安排教室覆盖（可选）'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notes,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: '本条安排备注（可选）'),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () => _save(segments),
+            icon: const Icon(Icons.check),
+            label: const Text('保存安排'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(courseRepositoryProvider)
-          .archiveScheduleRule(widget.initialRule!.id);
-      if (mounted) Navigator.pop(context, true);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
+
+  Widget _timeButton(String label, int minute, ValueChanged<int> onChanged) =>
+      OutlinedButton.icon(
+        onPressed: () async {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: minute ~/ 60, minute: minute % 60),
+          );
+          if (picked != null) onChanged(picked.hour * 60 + picked.minute);
+        },
+        icon: const Icon(Icons.schedule_outlined),
+        label: Text('$label\n${_minute(minute)}'),
+      );
+  void _save(List<ScheduleTemplateSegment> segments) {
+    _rule.startWeek = int.tryParse(_startWeek.text);
+    _rule.endWeek = int.tryParse(_endWeek.text);
+    _rule.intervalWeeks = int.tryParse(_interval.text) ?? 2;
+    _rule.classroomOverride = _classroom.text.trim().isEmpty
+        ? null
+        : _classroom.text.trim();
+    _rule.notes = _notes.text.trim().isEmpty ? null : _notes.text.trim();
+    if (_rule.timeMode == CourseScheduleTimeMode.periods) {
+      if (!_rule.selectPeriodRange(segments, widget.template?.id))
+        return _message('请选择连续的开始与结束节次');
+    }
+    if (_rule.timeMode == CourseScheduleTimeMode.customTime &&
+        _rule.endsAtMinute <= _rule.startsAtMinute)
+      return _message('结束时间必须晚于开始时间');
+    if (_rule.weekRuleType == CourseWeekRuleType.custom &&
+        _rule.weekNumbers.isEmpty)
+      return _message('请选择至少一周');
+    if ((_rule.startWeek ?? 1) < 1 ||
+        (_rule.endWeek ?? widget.semester.totalWeeks) >
+            widget.semester.totalWeeks ||
+        (_rule.endWeek != null &&
+            _rule.startWeek != null &&
+            _rule.endWeek! < _rule.startWeek!))
+      return _message('周次需在 1 到 ${widget.semester.totalWeeks} 之间');
+    Navigator.pop(context, _rule);
+  }
+
+  void _message(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }
+
+class _EditableRule {
+  _EditableRule({
+    this.id,
+    this.weekday = 1,
+    this.weekRuleType = CourseWeekRuleType.everyWeek,
+    this.timeMode = CourseScheduleTimeMode.periods,
+    this.startsAtMinute = 480,
+    this.endsAtMinute = 580,
+    this.startWeek,
+    this.endWeek,
+    this.intervalWeeks,
+    Set<int>? weekNumbers,
+    List<String>? sectionIds,
+    this.scheduleTemplateId,
+    this.startSegmentId,
+    this.endSegmentId,
+    this.classroomOverride,
+    this.notes,
+  }) : weekNumbers = weekNumbers ?? {},
+       sectionIds = sectionIds ?? [];
+  factory _EditableRule.fromRule(CourseScheduleRule rule) {
+    final ids = rule.sectionIds;
+    return _EditableRule(
+      id: rule.id,
+      weekday: rule.weekday,
+      weekRuleType: rule.weekRuleType,
+      timeMode: rule.timeMode,
+      startsAtMinute: rule.startsAtMinute,
+      endsAtMinute: rule.endsAtMinute,
+      startWeek: rule.startWeek,
+      endWeek: rule.endWeek,
+      intervalWeeks: rule.intervalWeeks,
+      weekNumbers: {...rule.weekNumbers},
+      sectionIds: [...ids],
+      scheduleTemplateId: rule.scheduleTemplateId,
+      startSegmentId: ids.isEmpty ? null : ids.first,
+      endSegmentId: ids.isEmpty ? null : ids.last,
+      classroomOverride: rule.classroomOverride,
+      notes: rule.notes,
+    );
+  }
+  final String? id;
+  int weekday;
+  CourseWeekRuleType weekRuleType;
+  CourseScheduleTimeMode timeMode;
+  int startsAtMinute;
+  int endsAtMinute;
+  int? startWeek;
+  int? endWeek;
+  int? intervalWeeks;
+  Set<int> weekNumbers;
+  List<String> sectionIds;
+  String? scheduleTemplateId;
+  String? startSegmentId;
+  String? endSegmentId;
+  String? classroomOverride;
+  String? notes;
+  _EditableRule copy() => _EditableRule(
+    id: id,
+    weekday: weekday,
+    weekRuleType: weekRuleType,
+    timeMode: timeMode,
+    startsAtMinute: startsAtMinute,
+    endsAtMinute: endsAtMinute,
+    startWeek: startWeek,
+    endWeek: endWeek,
+    intervalWeeks: intervalWeeks,
+    weekNumbers: {...weekNumbers},
+    sectionIds: [...sectionIds],
+    scheduleTemplateId: scheduleTemplateId,
+    startSegmentId: startSegmentId,
+    endSegmentId: endSegmentId,
+    classroomOverride: classroomOverride,
+    notes: notes,
+  );
+  void clearPeriods() {
+    sectionIds = [];
+    scheduleTemplateId = null;
+    startSegmentId = null;
+    endSegmentId = null;
+  }
+
+  bool selectPeriodRange(
+    List<ScheduleTemplateSegment> segments,
+    String? templateId,
+  ) {
+    final start = segments.indexWhere((item) => item.id == startSegmentId);
+    final end = segments.indexWhere((item) => item.id == endSegmentId);
+    if (templateId == null || start < 0 || end < start) return false;
+    sectionIds = segments
+        .sublist(start, end + 1)
+        .map((item) => item.id)
+        .toList();
+    scheduleTemplateId = templateId;
+    startsAtMinute = segments[start].startsAtMinute;
+    endsAtMinute = segments[end].endsAtMinute;
+    return true;
+  }
+
+  CourseScheduleRuleDraft toDraft(String courseId) => CourseScheduleRuleDraft(
+    courseId: courseId,
+    weekday: weekday,
+    weekRuleType: weekRuleType,
+    startsAtMinute: startsAtMinute,
+    endsAtMinute: endsAtMinute,
+    startWeek: startWeek,
+    endWeek: endWeek,
+    intervalWeeks: weekRuleType == CourseWeekRuleType.everyNWeeks
+        ? intervalWeeks
+        : null,
+    weekNumbers: weekNumbers,
+    scheduleTemplateId: timeMode == CourseScheduleTimeMode.periods
+        ? scheduleTemplateId
+        : null,
+    sectionIds: sectionIds,
+    timeMode: timeMode,
+    classroomOverride: classroomOverride,
+    notes: notes,
+  );
+
+  CourseScheduleRuleDraft futureDraft(String courseId, int effectiveWeek) {
+    final remainingWeeks = weekRuleType == CourseWeekRuleType.custom
+        ? weekNumbers.where((week) => week >= effectiveWeek).toSet()
+        : weekNumbers;
+    return CourseScheduleRuleDraft(
+      courseId: courseId,
+      weekday: weekday,
+      weekRuleType: weekRuleType,
+      startsAtMinute: startsAtMinute,
+      endsAtMinute: endsAtMinute,
+      startWeek: effectiveWeek,
+      endWeek: endWeek,
+      intervalWeeks: weekRuleType == CourseWeekRuleType.everyNWeeks
+          ? intervalWeeks
+          : null,
+      weekNumbers: remainingWeeks,
+      scheduleTemplateId: timeMode == CourseScheduleTimeMode.periods
+          ? scheduleTemplateId
+          : null,
+      sectionIds: sectionIds,
+      timeMode: timeMode,
+      classroomOverride: classroomOverride,
+      notes: notes,
+    );
+  }
+
+  bool matches(CourseScheduleRule rule) =>
+      weekday == rule.weekday &&
+      weekRuleType == rule.weekRuleType &&
+      timeMode == rule.timeMode &&
+      startsAtMinute == rule.startsAtMinute &&
+      endsAtMinute == rule.endsAtMinute &&
+      startWeek == rule.startWeek &&
+      endWeek == rule.endWeek &&
+      intervalWeeks == rule.intervalWeeks &&
+      _sameSet(weekNumbers, rule.weekNumbers) &&
+      _sameList(sectionIds, rule.sectionIds) &&
+      scheduleTemplateId == rule.scheduleTemplateId &&
+      classroomOverride == rule.classroomOverride &&
+      notes == rule.notes;
+}
+
+bool _sameSet<T>(Set<T> a, Set<T> b) =>
+    a.length == b.length && a.containsAll(b);
+bool _sameList<T>(List<T> a, List<T> b) =>
+    a.length == b.length &&
+    [for (var i = 0; i < a.length; i++) a[i] == b[i]].every((value) => value);
+
+class _RuleTile extends StatelessWidget {
+  const _RuleTile({
+    required this.rule,
+    required this.onEdit,
+    required this.onDelete,
+  });
+  final _EditableRule rule;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ListTile(
+      onTap: onEdit,
+      leading: const Icon(Icons.schedule_rounded),
+      title: Text(
+        '星期${'一二三四五六日'[rule.weekday - 1]} · ${rule.timeMode == CourseScheduleTimeMode.periods ? '按节次 · ${rule.sectionIds.length} 节' : '${_minute(rule.startsAtMinute)}–${_minute(rule.endsAtMinute)}'}',
+      ),
+      subtitle: Text(_weekLabel(rule)),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete_outline_rounded),
+        onPressed: onDelete,
+        tooltip: '删除安排',
+      ),
+    ),
+  );
+}
+
+class _HintCard extends StatelessWidget {
+  const _HintCard({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  );
+}
+
+String _minute(int minute) =>
+    '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
+String _weekLabel(_EditableRule rule) => switch (rule.weekRuleType) {
+  CourseWeekRuleType.everyWeek => '每周',
+  CourseWeekRuleType.oddWeeks => '单周',
+  CourseWeekRuleType.evenWeeks => '双周',
+  CourseWeekRuleType.everyNWeeks => '每 ${rule.intervalWeeks ?? 2} 周',
+  CourseWeekRuleType.custom => '自定义 ${rule.weekNumbers.toList()..sort()}',
+};

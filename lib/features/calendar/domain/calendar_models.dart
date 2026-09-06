@@ -17,6 +17,7 @@ class CalendarOccurrence {
     this.subtitle,
     this.course,
     this.courseRule,
+    this.classroom,
     this.task,
   });
 
@@ -30,6 +31,7 @@ class CalendarOccurrence {
   final String? subtitle;
   final CourseDetails? course;
   final CourseScheduleRule? courseRule;
+  final String? classroom;
   final TaskDetails? task;
 
   bool get hasTime => startMinute != null;

@@ -2,6 +2,10 @@ enum CourseStatus { active, paused, archived }
 
 enum CourseWeekRuleType { everyWeek, oddWeeks, evenWeeks, everyNWeeks, custom }
 
+/// Period rules keep only stable template segment IDs. Custom rules retain
+/// their own clock times so legacy courses keep working without a template.
+enum CourseScheduleTimeMode { periods, customTime }
+
 enum ScheduleSegmentType { classTime, breakTime, custom }
 
 class CourseDraft {
@@ -75,6 +79,9 @@ class CourseScheduleRuleDraft {
     this.weekNumbers = const {},
     this.scheduleTemplateId,
     this.sectionIds = const [],
+    this.timeMode = CourseScheduleTimeMode.customTime,
+    this.classroomOverride,
+    this.notes,
     this.remindBeforeMinutes,
   });
 
@@ -89,6 +96,9 @@ class CourseScheduleRuleDraft {
   final Set<int> weekNumbers;
   final String? scheduleTemplateId;
   final List<String> sectionIds;
+  final CourseScheduleTimeMode timeMode;
+  final String? classroomOverride;
+  final String? notes;
   final int? remindBeforeMinutes;
 }
 
@@ -108,6 +118,9 @@ class CourseScheduleRule {
     this.weekNumbers = const {},
     this.scheduleTemplateId,
     this.sectionIds = const [],
+    this.timeMode = CourseScheduleTimeMode.customTime,
+    this.classroomOverride,
+    this.notes,
     this.remindBeforeMinutes,
   });
 
@@ -125,6 +138,9 @@ class CourseScheduleRule {
   final Set<int> weekNumbers;
   final String? scheduleTemplateId;
   final List<String> sectionIds;
+  final CourseScheduleTimeMode timeMode;
+  final String? classroomOverride;
+  final String? notes;
   final int? remindBeforeMinutes;
 
   bool isDueInWeek(int weekNumber) {

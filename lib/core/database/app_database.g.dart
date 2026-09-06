@@ -8974,6 +8974,18 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   );
+  static const VerificationMeta _timeModeMeta = const VerificationMeta(
+    'timeMode',
+  );
+  @override
+  late final GeneratedColumn<String> timeMode = GeneratedColumn<String>(
+    'time_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('customTime'),
+  );
   static const VerificationMeta _startsAtMinuteMeta = const VerificationMeta(
     'startsAtMinute',
   );
@@ -8995,6 +9007,27 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _classroomOverrideMeta = const VerificationMeta(
+    'classroomOverride',
+  );
+  @override
+  late final GeneratedColumn<String> classroomOverride =
+      GeneratedColumn<String>(
+        'classroom_override',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _remindBeforeMinutesMeta =
       const VerificationMeta('remindBeforeMinutes');
@@ -9052,8 +9085,11 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
     weekNumbersJson,
     scheduleTemplateId,
     sectionIdsJson,
+    timeMode,
     startsAtMinute,
     endsAtMinute,
+    classroomOverride,
+    notes,
     remindBeforeMinutes,
     createdAt,
     updatedAt,
@@ -9159,6 +9195,12 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
         ),
       );
     }
+    if (data.containsKey('time_mode')) {
+      context.handle(
+        _timeModeMeta,
+        timeMode.isAcceptableOrUnknown(data['time_mode']!, _timeModeMeta),
+      );
+    }
     if (data.containsKey('starts_at_minute')) {
       context.handle(
         _startsAtMinuteMeta,
@@ -9180,6 +9222,21 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
       );
     } else if (isInserting) {
       context.missing(_endsAtMinuteMeta);
+    }
+    if (data.containsKey('classroom_override')) {
+      context.handle(
+        _classroomOverrideMeta,
+        classroomOverride.isAcceptableOrUnknown(
+          data['classroom_override']!,
+          _classroomOverrideMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
     }
     if (data.containsKey('remind_before_minutes')) {
       context.handle(
@@ -9268,6 +9325,10 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
         DriftSqlType.string,
         data['${effectivePrefix}section_ids_json'],
       )!,
+      timeMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}time_mode'],
+      )!,
       startsAtMinute: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}starts_at_minute'],
@@ -9276,6 +9337,14 @@ class $CourseScheduleRuleRecordsTable extends CourseScheduleRuleRecords
         DriftSqlType.int,
         data['${effectivePrefix}ends_at_minute'],
       )!,
+      classroomOverride: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}classroom_override'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
       remindBeforeMinutes: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}remind_before_minutes'],
@@ -9314,8 +9383,11 @@ class CourseScheduleRuleRecord extends DataClass
   final String weekNumbersJson;
   final String? scheduleTemplateId;
   final String sectionIdsJson;
+  final String timeMode;
   final int startsAtMinute;
   final int endsAtMinute;
+  final String? classroomOverride;
+  final String? notes;
   final int? remindBeforeMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9332,8 +9404,11 @@ class CourseScheduleRuleRecord extends DataClass
     required this.weekNumbersJson,
     this.scheduleTemplateId,
     required this.sectionIdsJson,
+    required this.timeMode,
     required this.startsAtMinute,
     required this.endsAtMinute,
+    this.classroomOverride,
+    this.notes,
     this.remindBeforeMinutes,
     required this.createdAt,
     required this.updatedAt,
@@ -9361,8 +9436,15 @@ class CourseScheduleRuleRecord extends DataClass
       map['schedule_template_id'] = Variable<String>(scheduleTemplateId);
     }
     map['section_ids_json'] = Variable<String>(sectionIdsJson);
+    map['time_mode'] = Variable<String>(timeMode);
     map['starts_at_minute'] = Variable<int>(startsAtMinute);
     map['ends_at_minute'] = Variable<int>(endsAtMinute);
+    if (!nullToAbsent || classroomOverride != null) {
+      map['classroom_override'] = Variable<String>(classroomOverride);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     if (!nullToAbsent || remindBeforeMinutes != null) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
     }
@@ -9395,8 +9477,15 @@ class CourseScheduleRuleRecord extends DataClass
           ? const Value.absent()
           : Value(scheduleTemplateId),
       sectionIdsJson: Value(sectionIdsJson),
+      timeMode: Value(timeMode),
       startsAtMinute: Value(startsAtMinute),
       endsAtMinute: Value(endsAtMinute),
+      classroomOverride: classroomOverride == null && nullToAbsent
+          ? const Value.absent()
+          : Value(classroomOverride),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
           ? const Value.absent()
           : Value(remindBeforeMinutes),
@@ -9427,8 +9516,13 @@ class CourseScheduleRuleRecord extends DataClass
         json['scheduleTemplateId'],
       ),
       sectionIdsJson: serializer.fromJson<String>(json['sectionIdsJson']),
+      timeMode: serializer.fromJson<String>(json['timeMode']),
       startsAtMinute: serializer.fromJson<int>(json['startsAtMinute']),
       endsAtMinute: serializer.fromJson<int>(json['endsAtMinute']),
+      classroomOverride: serializer.fromJson<String?>(
+        json['classroomOverride'],
+      ),
+      notes: serializer.fromJson<String?>(json['notes']),
       remindBeforeMinutes: serializer.fromJson<int?>(
         json['remindBeforeMinutes'],
       ),
@@ -9452,8 +9546,11 @@ class CourseScheduleRuleRecord extends DataClass
       'weekNumbersJson': serializer.toJson<String>(weekNumbersJson),
       'scheduleTemplateId': serializer.toJson<String?>(scheduleTemplateId),
       'sectionIdsJson': serializer.toJson<String>(sectionIdsJson),
+      'timeMode': serializer.toJson<String>(timeMode),
       'startsAtMinute': serializer.toJson<int>(startsAtMinute),
       'endsAtMinute': serializer.toJson<int>(endsAtMinute),
+      'classroomOverride': serializer.toJson<String?>(classroomOverride),
+      'notes': serializer.toJson<String?>(notes),
       'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -9473,8 +9570,11 @@ class CourseScheduleRuleRecord extends DataClass
     String? weekNumbersJson,
     Value<String?> scheduleTemplateId = const Value.absent(),
     String? sectionIdsJson,
+    String? timeMode,
     int? startsAtMinute,
     int? endsAtMinute,
+    Value<String?> classroomOverride = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
     Value<int?> remindBeforeMinutes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -9495,8 +9595,13 @@ class CourseScheduleRuleRecord extends DataClass
         ? scheduleTemplateId.value
         : this.scheduleTemplateId,
     sectionIdsJson: sectionIdsJson ?? this.sectionIdsJson,
+    timeMode: timeMode ?? this.timeMode,
     startsAtMinute: startsAtMinute ?? this.startsAtMinute,
     endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+    classroomOverride: classroomOverride.present
+        ? classroomOverride.value
+        : this.classroomOverride,
+    notes: notes.present ? notes.value : this.notes,
     remindBeforeMinutes: remindBeforeMinutes.present
         ? remindBeforeMinutes.value
         : this.remindBeforeMinutes,
@@ -9529,12 +9634,17 @@ class CourseScheduleRuleRecord extends DataClass
       sectionIdsJson: data.sectionIdsJson.present
           ? data.sectionIdsJson.value
           : this.sectionIdsJson,
+      timeMode: data.timeMode.present ? data.timeMode.value : this.timeMode,
       startsAtMinute: data.startsAtMinute.present
           ? data.startsAtMinute.value
           : this.startsAtMinute,
       endsAtMinute: data.endsAtMinute.present
           ? data.endsAtMinute.value
           : this.endsAtMinute,
+      classroomOverride: data.classroomOverride.present
+          ? data.classroomOverride.value
+          : this.classroomOverride,
+      notes: data.notes.present ? data.notes.value : this.notes,
       remindBeforeMinutes: data.remindBeforeMinutes.present
           ? data.remindBeforeMinutes.value
           : this.remindBeforeMinutes,
@@ -9558,8 +9668,11 @@ class CourseScheduleRuleRecord extends DataClass
           ..write('weekNumbersJson: $weekNumbersJson, ')
           ..write('scheduleTemplateId: $scheduleTemplateId, ')
           ..write('sectionIdsJson: $sectionIdsJson, ')
+          ..write('timeMode: $timeMode, ')
           ..write('startsAtMinute: $startsAtMinute, ')
           ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('classroomOverride: $classroomOverride, ')
+          ..write('notes: $notes, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9581,8 +9694,11 @@ class CourseScheduleRuleRecord extends DataClass
     weekNumbersJson,
     scheduleTemplateId,
     sectionIdsJson,
+    timeMode,
     startsAtMinute,
     endsAtMinute,
+    classroomOverride,
+    notes,
     remindBeforeMinutes,
     createdAt,
     updatedAt,
@@ -9603,8 +9719,11 @@ class CourseScheduleRuleRecord extends DataClass
           other.weekNumbersJson == this.weekNumbersJson &&
           other.scheduleTemplateId == this.scheduleTemplateId &&
           other.sectionIdsJson == this.sectionIdsJson &&
+          other.timeMode == this.timeMode &&
           other.startsAtMinute == this.startsAtMinute &&
           other.endsAtMinute == this.endsAtMinute &&
+          other.classroomOverride == this.classroomOverride &&
+          other.notes == this.notes &&
           other.remindBeforeMinutes == this.remindBeforeMinutes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -9624,8 +9743,11 @@ class CourseScheduleRuleRecordsCompanion
   final Value<String> weekNumbersJson;
   final Value<String?> scheduleTemplateId;
   final Value<String> sectionIdsJson;
+  final Value<String> timeMode;
   final Value<int> startsAtMinute;
   final Value<int> endsAtMinute;
+  final Value<String?> classroomOverride;
+  final Value<String?> notes;
   final Value<int?> remindBeforeMinutes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -9643,8 +9765,11 @@ class CourseScheduleRuleRecordsCompanion
     this.weekNumbersJson = const Value.absent(),
     this.scheduleTemplateId = const Value.absent(),
     this.sectionIdsJson = const Value.absent(),
+    this.timeMode = const Value.absent(),
     this.startsAtMinute = const Value.absent(),
     this.endsAtMinute = const Value.absent(),
+    this.classroomOverride = const Value.absent(),
+    this.notes = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -9663,8 +9788,11 @@ class CourseScheduleRuleRecordsCompanion
     this.weekNumbersJson = const Value.absent(),
     this.scheduleTemplateId = const Value.absent(),
     this.sectionIdsJson = const Value.absent(),
+    this.timeMode = const Value.absent(),
     required int startsAtMinute,
     required int endsAtMinute,
+    this.classroomOverride = const Value.absent(),
+    this.notes = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -9691,8 +9819,11 @@ class CourseScheduleRuleRecordsCompanion
     Expression<String>? weekNumbersJson,
     Expression<String>? scheduleTemplateId,
     Expression<String>? sectionIdsJson,
+    Expression<String>? timeMode,
     Expression<int>? startsAtMinute,
     Expression<int>? endsAtMinute,
+    Expression<String>? classroomOverride,
+    Expression<String>? notes,
     Expression<int>? remindBeforeMinutes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -9712,8 +9843,11 @@ class CourseScheduleRuleRecordsCompanion
       if (scheduleTemplateId != null)
         'schedule_template_id': scheduleTemplateId,
       if (sectionIdsJson != null) 'section_ids_json': sectionIdsJson,
+      if (timeMode != null) 'time_mode': timeMode,
       if (startsAtMinute != null) 'starts_at_minute': startsAtMinute,
       if (endsAtMinute != null) 'ends_at_minute': endsAtMinute,
+      if (classroomOverride != null) 'classroom_override': classroomOverride,
+      if (notes != null) 'notes': notes,
       if (remindBeforeMinutes != null)
         'remind_before_minutes': remindBeforeMinutes,
       if (createdAt != null) 'created_at': createdAt,
@@ -9735,8 +9869,11 @@ class CourseScheduleRuleRecordsCompanion
     Value<String>? weekNumbersJson,
     Value<String?>? scheduleTemplateId,
     Value<String>? sectionIdsJson,
+    Value<String>? timeMode,
     Value<int>? startsAtMinute,
     Value<int>? endsAtMinute,
+    Value<String?>? classroomOverride,
+    Value<String?>? notes,
     Value<int?>? remindBeforeMinutes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -9755,8 +9892,11 @@ class CourseScheduleRuleRecordsCompanion
       weekNumbersJson: weekNumbersJson ?? this.weekNumbersJson,
       scheduleTemplateId: scheduleTemplateId ?? this.scheduleTemplateId,
       sectionIdsJson: sectionIdsJson ?? this.sectionIdsJson,
+      timeMode: timeMode ?? this.timeMode,
       startsAtMinute: startsAtMinute ?? this.startsAtMinute,
       endsAtMinute: endsAtMinute ?? this.endsAtMinute,
+      classroomOverride: classroomOverride ?? this.classroomOverride,
+      notes: notes ?? this.notes,
       remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -9801,11 +9941,20 @@ class CourseScheduleRuleRecordsCompanion
     if (sectionIdsJson.present) {
       map['section_ids_json'] = Variable<String>(sectionIdsJson.value);
     }
+    if (timeMode.present) {
+      map['time_mode'] = Variable<String>(timeMode.value);
+    }
     if (startsAtMinute.present) {
       map['starts_at_minute'] = Variable<int>(startsAtMinute.value);
     }
     if (endsAtMinute.present) {
       map['ends_at_minute'] = Variable<int>(endsAtMinute.value);
+    }
+    if (classroomOverride.present) {
+      map['classroom_override'] = Variable<String>(classroomOverride.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
     }
     if (remindBeforeMinutes.present) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes.value);
@@ -9839,8 +9988,11 @@ class CourseScheduleRuleRecordsCompanion
           ..write('weekNumbersJson: $weekNumbersJson, ')
           ..write('scheduleTemplateId: $scheduleTemplateId, ')
           ..write('sectionIdsJson: $sectionIdsJson, ')
+          ..write('timeMode: $timeMode, ')
           ..write('startsAtMinute: $startsAtMinute, ')
           ..write('endsAtMinute: $endsAtMinute, ')
+          ..write('classroomOverride: $classroomOverride, ')
+          ..write('notes: $notes, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -22301,8 +22453,11 @@ typedef $$CourseScheduleRuleRecordsTableCreateCompanionBuilder =
       Value<String> weekNumbersJson,
       Value<String?> scheduleTemplateId,
       Value<String> sectionIdsJson,
+      Value<String> timeMode,
       required int startsAtMinute,
       required int endsAtMinute,
+      Value<String?> classroomOverride,
+      Value<String?> notes,
       Value<int?> remindBeforeMinutes,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -22322,8 +22477,11 @@ typedef $$CourseScheduleRuleRecordsTableUpdateCompanionBuilder =
       Value<String> weekNumbersJson,
       Value<String?> scheduleTemplateId,
       Value<String> sectionIdsJson,
+      Value<String> timeMode,
       Value<int> startsAtMinute,
       Value<int> endsAtMinute,
+      Value<String?> classroomOverride,
+      Value<String?> notes,
       Value<int?> remindBeforeMinutes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -22423,6 +22581,11 @@ class $$CourseScheduleRuleRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get timeMode => $composableBuilder(
+    column: $table.timeMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get startsAtMinute => $composableBuilder(
     column: $table.startsAtMinute,
     builder: (column) => ColumnFilters(column),
@@ -22430,6 +22593,16 @@ class $$CourseScheduleRuleRecordsTableFilterComposer
 
   ColumnFilters<int> get endsAtMinute => $composableBuilder(
     column: $table.endsAtMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get classroomOverride => $composableBuilder(
+    column: $table.classroomOverride,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22536,6 +22709,11 @@ class $$CourseScheduleRuleRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get timeMode => $composableBuilder(
+    column: $table.timeMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get startsAtMinute => $composableBuilder(
     column: $table.startsAtMinute,
     builder: (column) => ColumnOrderings(column),
@@ -22543,6 +22721,16 @@ class $$CourseScheduleRuleRecordsTableOrderingComposer
 
   ColumnOrderings<int> get endsAtMinute => $composableBuilder(
     column: $table.endsAtMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get classroomOverride => $composableBuilder(
+    column: $table.classroomOverride,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -22639,6 +22827,9 @@ class $$CourseScheduleRuleRecordsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get timeMode =>
+      $composableBuilder(column: $table.timeMode, builder: (column) => column);
+
   GeneratedColumn<int> get startsAtMinute => $composableBuilder(
     column: $table.startsAtMinute,
     builder: (column) => column,
@@ -22648,6 +22839,14 @@ class $$CourseScheduleRuleRecordsTableAnnotationComposer
     column: $table.endsAtMinute,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get classroomOverride => $composableBuilder(
+    column: $table.classroomOverride,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<int> get remindBeforeMinutes => $composableBuilder(
     column: $table.remindBeforeMinutes,
@@ -22740,8 +22939,11 @@ class $$CourseScheduleRuleRecordsTableTableManager
                 Value<String> weekNumbersJson = const Value.absent(),
                 Value<String?> scheduleTemplateId = const Value.absent(),
                 Value<String> sectionIdsJson = const Value.absent(),
+                Value<String> timeMode = const Value.absent(),
                 Value<int> startsAtMinute = const Value.absent(),
                 Value<int> endsAtMinute = const Value.absent(),
+                Value<String?> classroomOverride = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -22759,8 +22961,11 @@ class $$CourseScheduleRuleRecordsTableTableManager
                 weekNumbersJson: weekNumbersJson,
                 scheduleTemplateId: scheduleTemplateId,
                 sectionIdsJson: sectionIdsJson,
+                timeMode: timeMode,
                 startsAtMinute: startsAtMinute,
                 endsAtMinute: endsAtMinute,
+                classroomOverride: classroomOverride,
+                notes: notes,
                 remindBeforeMinutes: remindBeforeMinutes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -22780,8 +22985,11 @@ class $$CourseScheduleRuleRecordsTableTableManager
                 Value<String> weekNumbersJson = const Value.absent(),
                 Value<String?> scheduleTemplateId = const Value.absent(),
                 Value<String> sectionIdsJson = const Value.absent(),
+                Value<String> timeMode = const Value.absent(),
                 required int startsAtMinute,
                 required int endsAtMinute,
+                Value<String?> classroomOverride = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -22799,8 +23007,11 @@ class $$CourseScheduleRuleRecordsTableTableManager
                 weekNumbersJson: weekNumbersJson,
                 scheduleTemplateId: scheduleTemplateId,
                 sectionIdsJson: sectionIdsJson,
+                timeMode: timeMode,
                 startsAtMinute: startsAtMinute,
                 endsAtMinute: endsAtMinute,
+                classroomOverride: classroomOverride,
+                notes: notes,
                 remindBeforeMinutes: remindBeforeMinutes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

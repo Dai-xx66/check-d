@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import '../../calendar/domain/calendar_occurrence_builder.dart';
 import '../../courses/data/course_repository.dart';
+import '../../courses/data/semester_repository.dart';
 import '../../courses/domain/course_models.dart';
 import '../../schedule/data/day_schedule_repository.dart';
 import '../../schedule/domain/day_schedule_models.dart';
@@ -12,28 +14,44 @@ class TodayRepository {
   TodayRepository({
     required TaskRepository tasks,
     required CourseRepository courses,
+    required SemesterRepository semesters,
     required DayScheduleRepository schedule,
   }) : _tasks = tasks,
        _courses = courses,
+       _semesters = semesters,
        _schedule = schedule;
 
   final TaskRepository _tasks;
   final CourseRepository _courses;
+  final SemesterRepository _semesters;
   final DayScheduleRepository _schedule;
 
   Stream<TodaySnapshot> watch(DateTime date) {
     final controller = StreamController<TodaySnapshot>();
     List<TaskDetails>? tasks;
     List<CourseDetails>? courses;
+    List<SemesterDetails>? semesters;
+    List<ScheduleTemplateDetails>? templates;
     List<DailyItemOverride>? overrides;
 
     void emitIfReady() {
-      if (tasks == null || courses == null || overrides == null) return;
+      if (tasks == null ||
+          courses == null ||
+          semesters == null ||
+          templates == null ||
+          overrides == null)
+        return;
       controller.add(
         TodaySnapshot(
           date: dateOnly(date),
           tasks: tasks!,
-          courses: buildCourseItemsForDate(date, courses!, overrides!),
+          courses: buildCourseItemsForDate(
+            date,
+            courses!,
+            overrides!,
+            semesters!,
+            templates!,
+          ),
           overrides: overrides!,
         ),
       );
@@ -41,6 +59,8 @@ class TodayRepository {
 
     late final StreamSubscription<List<TaskDetails>> taskSub;
     late final StreamSubscription<List<CourseDetails>> courseSub;
+    late final StreamSubscription<List<SemesterDetails>> semesterSub;
+    late final StreamSubscription<List<ScheduleTemplateDetails>> templateSub;
     late final StreamSubscription<List<DailyItemOverride>> overrideSub;
     taskSub = _tasks.watchTasksForDate(date).listen((value) {
       tasks = value;
@@ -50,14 +70,23 @@ class TodayRepository {
       courses = value;
       emitIfReady();
     }, onError: controller.addError);
+    semesterSub = _semesters.watchSemesters().listen((value) {
+      semesters = value;
+      emitIfReady();
+    }, onError: controller.addError);
+    templateSub = _courses.watchScheduleTemplates().listen((value) {
+      templates = value;
+      emitIfReady();
+    }, onError: controller.addError);
     overrideSub = _schedule.watchOverridesForDate(date).listen((value) {
       overrides = value;
       emitIfReady();
     }, onError: controller.addError);
-
     controller.onCancel = () async {
       await taskSub.cancel();
       await courseSub.cancel();
+      await semesterSub.cancel();
+      await templateSub.cancel();
       await overrideSub.cancel();
       await controller.close();
     };
@@ -65,55 +94,29 @@ class TodayRepository {
   }
 }
 
+/// Today deliberately reuses the Calendar occurrence builder so a course has
+/// identical week, segment, cancellation and temporary-edit semantics everywhere.
 List<TodayCourseItem> buildCourseItemsForDate(
   DateTime date,
   List<CourseDetails> courses,
-  List<DailyItemOverride> overrides,
-) {
-  final byRule = {
-    for (final override in overrides)
-      if (override.itemType == DayItemType.course) override.itemId: override,
-  };
-  final weekNumber = _isoWeekNumber(date);
-  final items = <TodayCourseItem>[];
-  for (final course in courses) {
-    final day = dateOnly(date);
-    if (course.semesterStartsOn != null &&
-        day.isBefore(dateOnly(course.semesterStartsOn!))) {
-      continue;
-    }
-    if (course.semesterEndsOn != null &&
-        day.isAfter(dateOnly(course.semesterEndsOn!))) {
-      continue;
-    }
-    for (final rule in course.rules) {
-      if (rule.weekday != date.weekday || !rule.isDueInWeek(weekNumber)) {
-        continue;
-      }
-      final override = byRule[rule.id] ?? byRule[course.id];
-      if (override?.action == DayOverrideAction.skip) continue;
-      final start = override?.plannedStartMinute ?? rule.startsAtMinute;
-      final end = override?.plannedEndMinute ?? rule.endsAtMinute;
-      if (end <= start) continue;
-      items.add(
-        TodayCourseItem(
-          course: course,
-          rule: rule,
-          startMinute: start,
-          endMinute: end,
-          classroom: override?.temporaryClassroom ?? course.classroom,
-        ),
-      );
-    }
-  }
-  return items;
-}
-
-int _isoWeekNumber(DateTime date) {
-  final thursday = dateOnly(date).add(Duration(days: 4 - date.weekday));
-  final firstThursday = DateTime(thursday.year, 1, 4);
-  final firstMonday = firstThursday.subtract(
-    Duration(days: firstThursday.weekday - 1),
-  );
-  return (dateOnly(thursday).difference(dateOnly(firstMonday)).inDays ~/ 7) + 1;
-}
+  List<DailyItemOverride> overrides, [
+  List<SemesterDetails> semesters = const [],
+  List<ScheduleTemplateDetails> templates = const [],
+]) =>
+    buildCourseOccurrencesForDate(
+          date: date,
+          courses: courses,
+          overrides: overrides,
+          semesters: semesters,
+          templates: templates,
+        )
+        .map(
+          (item) => TodayCourseItem(
+            course: item.course!,
+            rule: item.courseRule,
+            startMinute: item.startMinute!,
+            endMinute: item.endMinute!,
+            classroom: item.classroom,
+          ),
+        )
+        .toList();

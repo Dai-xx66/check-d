@@ -2,6 +2,7 @@ import 'package:check_d/app/app.dart';
 import 'package:check_d/app/app_providers.dart';
 import 'package:check_d/core/config/app_config.dart';
 import 'package:check_d/core/database/app_database.dart';
+import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/calendar/presentation/calendar_page.dart';
 import 'package:check_d/features/courses/application/course_providers.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
@@ -10,6 +11,7 @@ import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
 import 'package:check_d/features/statistics/application/statistics_providers.dart';
 import 'package:check_d/features/statistics/domain/statistics_models.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
+import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -201,6 +203,70 @@ void main() {
     expect(find.text('快速创建'), findsOneWidget);
     expect(find.text('立即开始计时'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('desktop pending timed task starts without opening details', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final repository = TaskRepository(
+      database: database,
+      syncQueue: SyncQueueService(database),
+      userId: 'offline-user',
+    );
+    final today = dateOnly(DateTime.now());
+    await repository.saveRecurringTask(
+      RecurringTaskDraft(
+        name: '桌面待安排计时',
+        colorValue: 0xFF9B8BE8,
+        executionMode: RecurringExecutionMode.timed,
+        targetDurationSeconds: 1800,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: today,
+        holidayPause: false,
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWithValue(
+            const AppConfig(supabaseUrl: '', supabaseAnonKey: ''),
+          ),
+          appDatabaseProvider.overrideWithValue(database),
+          supabaseClientProvider.overrideWithValue(null),
+          taskRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const CheckDApp(),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('桌面待安排计时'), findsOneWidget);
+    expect(find.text('开始'), findsOneWidget);
+    await tester.tap(find.text('开始'));
+    await tester.pumpAndSettle();
+
+    expect((await repository.getUnfinishedTimers()), hasLength(1));
+    expect(find.text('暂停'), findsOneWidget);
+    expect(find.text('进行中'), findsOneWidget);
+
+    await tester.tap(find.text('暂停'));
+    await tester.pumpAndSettle();
+    expect(find.text('已暂停'), findsOneWidget);
+    expect(find.text('继续'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

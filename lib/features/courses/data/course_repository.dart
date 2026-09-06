@@ -142,8 +142,11 @@ class CourseRepository {
             weekNumbersJson: Value(jsonEncode(draft.weekNumbers.toList())),
             scheduleTemplateId: Value(draft.scheduleTemplateId),
             sectionIdsJson: Value(jsonEncode(draft.sectionIds)),
+            timeMode: Value(draft.timeMode.name),
             startsAtMinute: draft.startsAtMinute,
             endsAtMinute: draft.endsAtMinute,
+            classroomOverride: Value(_clean(draft.classroomOverride)),
+            notes: Value(_clean(draft.notes)),
             remindBeforeMinutes: Value(draft.remindBeforeMinutes),
             createdAt: now,
             updatedAt: now,
@@ -164,8 +167,11 @@ class CourseRepository {
         'week_numbers': draft.weekNumbers.toList(),
         'schedule_template_id': draft.scheduleTemplateId,
         'section_ids': draft.sectionIds,
+        'time_mode': draft.timeMode.name,
         'starts_at_minute': draft.startsAtMinute,
         'ends_at_minute': draft.endsAtMinute,
+        'classroom_override': _clean(draft.classroomOverride),
+        'notes': _clean(draft.notes),
         'remind_before_minutes': draft.remindBeforeMinutes,
         'updated_at': now.toIso8601String(),
       },
@@ -456,6 +462,31 @@ class CourseRepository {
     );
   }
 
+  /// Keep historical course occurrences stable when a recurring arrangement
+  /// changes. The caller creates a successor rule beginning the next range.
+  Future<void> endScheduleRuleAtWeek(String ruleId, int endWeek) async {
+    final now = DateTime.now().toUtc();
+    await (_database.update(_database.courseScheduleRuleRecords)
+          ..where((row) => row.id.equals(ruleId) & row.userId.equals(_userId)))
+        .write(
+          CourseScheduleRuleRecordsCompanion(
+            endWeek: Value(endWeek),
+            updatedAt: Value(now),
+          ),
+        );
+    await _syncQueue.enqueue(
+      entityType: 'course_schedule_rules',
+      entityId: ruleId,
+      operation: SyncOperationType.upsert,
+      payload: {
+        'id': ruleId,
+        'end_week': endWeek,
+        'updated_at': now.toIso8601String(),
+      },
+      userId: _userId,
+    );
+  }
+
   Future<void> _syncReminder(
     String ruleId,
     CourseScheduleRuleDraft draft,
@@ -686,6 +717,9 @@ class CourseRepository {
       weekNumbers: weeks,
       scheduleTemplateId: row.scheduleTemplateId,
       sectionIds: sections,
+      timeMode: CourseScheduleTimeMode.values.byName(row.timeMode),
+      classroomOverride: row.classroomOverride,
+      notes: row.notes,
       remindBeforeMinutes: row.remindBeforeMinutes,
       createdAt: row.createdAt.toLocal(),
       updatedAt: row.updatedAt.toLocal(),
@@ -697,6 +731,10 @@ class CourseRepository {
       throw ArgumentError.value(draft.weekday, 'weekday', '星期必须在 1 到 7 之间');
     }
     _validateTimeRange(draft.startsAtMinute, draft.endsAtMinute);
+    if (draft.timeMode == CourseScheduleTimeMode.periods &&
+        (draft.scheduleTemplateId == null || draft.sectionIds.isEmpty)) {
+      throw ArgumentError('节次排课需要选择作息模板和至少一个节次');
+    }
     if (draft.weekRuleType == CourseWeekRuleType.everyNWeeks &&
         (draft.intervalWeeks == null || draft.intervalWeeks! <= 0)) {
       throw ArgumentError.value(
