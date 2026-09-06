@@ -148,4 +148,51 @@ void main() {
     expect(ended!.timerStatus, AdHocTimerStatus.ended);
     expect(ended.completedAt, isNull);
   });
+
+  test(
+    'ad hoc timers run independently and preserve pause intervals',
+    () async {
+      final start = DateTime(2026, 9, 3, 20);
+      final first = await schedule.createAdHocTimer(title: '整理资料');
+      final second = await schedule.createAdHocTimer(title: '查阅文献');
+
+      await schedule.startAdHocTimer(first, now: start);
+      await schedule.startAdHocTimer(
+        second,
+        now: start.add(const Duration(minutes: 10)),
+      );
+      await schedule.pauseAdHocTimer(
+        first,
+        now: start.add(const Duration(minutes: 20)),
+      );
+      await schedule.resumeAdHocTimer(
+        first,
+        now: start.add(const Duration(minutes: 40)),
+      );
+      await schedule.endAdHocTimer(
+        first,
+        now: start.add(const Duration(minutes: 50)),
+      );
+      await schedule.endAdHocTimer(
+        second,
+        now: start.add(const Duration(minutes: 60)),
+      );
+
+      final firstTimer = (await schedule.watchAdHocTimer(first).first)!;
+      final secondTimer = (await schedule.watchAdHocTimer(second).first)!;
+      expect(firstTimer.accumulatedDurationSeconds, 30 * 60);
+      expect(secondTimer.accumulatedDurationSeconds, 50 * 60);
+      final intervals = await database
+          .select(database.adHocTimerIntervalRecords)
+          .get();
+      expect(
+        intervals.where((interval) => interval.timerId == first),
+        hasLength(2),
+      );
+      expect(
+        intervals.where((interval) => interval.timerId == second),
+        hasLength(1),
+      );
+    },
+  );
 }

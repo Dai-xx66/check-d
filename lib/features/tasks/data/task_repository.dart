@@ -10,13 +10,6 @@ import '../../../core/sync/sync_queue_service.dart';
 import '../domain/task_models.dart';
 import 'task_history.dart';
 
-class TimerConflictException extends StateError {
-  TimerConflictException({required this.taskId})
-    : super('Another timer is already running for task $taskId.');
-
-  final String taskId;
-}
-
 class TaskRepository {
   TaskRepository({
     required AppDatabase database,
@@ -38,11 +31,41 @@ class TaskRepository {
   final Uuid _uuid = const Uuid();
 
   Future<String?> runningTimerTaskId() async {
-    final session = await _runningTimerSession();
-    return session?.taskId;
+    final timers = await getUnfinishedTimers();
+    return timers
+        .where((timer) => timer.status == TimerSessionStatus.running)
+        .firstOrNull
+        ?.taskId;
   }
 
-  Stream<List<TaskDetails>> watchTasksForDate(DateTime date) {
+  /// Compatibility helper for older callers. Multi-timer consumers should use
+  /// [getUnfinishedTimers] or [watchUnfinishedTimers] instead.
+  Future<List<TimerSessionEntry>> getUnfinishedTimers() async {
+    final rows =
+        await (_database.select(_database.timerSessionRecords)
+              ..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    row.state.equals(TimerSessionStatus.finished.name).not(),
+              )
+              ..orderBy([(row) => OrderingTerm.desc(row.startedAt)]))
+            .get();
+    return _latestUnfinishedByTask(rows);
+  }
+
+  Stream<List<TimerSessionEntry>> watchUnfinishedTimers() async* {
+    final query = _database.select(_database.timerSessionRecords)
+      ..where(
+        (row) =>
+            row.userId.equals(_userId) &
+            row.state.equals(TimerSessionStatus.finished.name).not(),
+      )
+      ..orderBy([(row) => OrderingTerm.desc(row.startedAt)]);
+    yield _latestUnfinishedByTask(await query.get());
+    yield* query.watch().map(_latestUnfinishedByTask);
+  }
+
+  Stream<List<TaskDetails>> watchTasksForDate(DateTime date) async* {
     final query = _database.select(_database.localTasks)
       ..where(
         (row) =>
@@ -52,7 +75,7 @@ class TaskRepository {
       )
       ..orderBy([(row) => OrderingTerm.asc(row.createdAt)]);
 
-    return query.watch().asyncMap((tasks) async {
+    Future<List<TaskDetails>> load(List<LocalTask> tasks) async {
       final details = await Future.wait(
         tasks.map((task) => _loadDetails(task, date)),
       );
@@ -70,7 +93,12 @@ class TaskRepository {
         for (var index = 0; index < details.length; index++)
           if (visible[index]) details[index],
       ];
-    });
+    }
+
+    // Drift's Web worker can delay the first watch event until a write occurs.
+    // Emit an immediate snapshot so consumers never stay in AsyncLoading.
+    yield await load(await query.get());
+    yield* query.watch().asyncMap(load);
   }
 
   Stream<List<TaskDetails>> watchTasksByStatus(TaskLifecycle status) {
@@ -133,7 +161,9 @@ class TaskRepository {
             .map(
               (row) => TimerSessionEntry(
                 id: row.id,
+                taskId: row.taskId,
                 startedAt: row.startedAt.toLocal(),
+                logicalDate: row.logicalDate,
                 endedAt: row.endedAt?.toLocal(),
                 durationSeconds: row.durationSeconds,
                 status: TimerSessionStatus.values.byName(row.state),
@@ -582,7 +612,7 @@ class TaskRepository {
     final shouldComplete = !(existing?.isSuccess ?? false);
     final now = DateTime.now().toUtc();
     final actualDuration = task.hasTimer
-        ? await _durationForDay(taskId, dateOnly(date), now)
+        ? await _durationForLogicalDate(taskId, dateOnly(date), now)
         : 0;
     final target = task.targetDurationSeconds ?? 0;
     final targetReached =
@@ -684,15 +714,12 @@ class TaskRepository {
   Future<void> startTimer(String taskId, {DateTime? now}) async {
     final task = await _requireTimerTask(taskId);
     final timestamp = (now ?? DateTime.now()).toUtc();
+    final logicalDate = localDateKey(timestamp.toLocal());
     final sessionId = _uuid.v4();
     await _database.transaction(() async {
       final latest = await _latestTimerSession(taskId);
       if (latest != null && latest.state != TimerSessionStatus.finished.name) {
         throw StateError('Timer is already active.');
-      }
-      final running = await _runningTimerSession();
-      if (running != null) {
-        throw TimerConflictException(taskId: running.taskId);
       }
       await _database
           .into(_database.timerSessionRecords)
@@ -703,6 +730,7 @@ class TaskRepository {
               tagId: Value(task.tagId),
               userId: _userId,
               startedAt: timestamp,
+              logicalDate: Value(logicalDate),
               state: TimerSessionStatus.running.name,
               createdAt: timestamp,
               updatedAt: timestamp,
@@ -743,10 +771,6 @@ class TaskRepository {
       if (paused == null || paused.state != TimerSessionStatus.paused.name) {
         throw StateError('Only a paused timer can be resumed.');
       }
-      final running = await _runningTimerSession();
-      if (running != null) {
-        throw TimerConflictException(taskId: running.taskId);
-      }
       await (_database.update(
         _database.timerSessionRecords,
       )..where((row) => row.id.equals(paused.id))).write(
@@ -764,6 +788,9 @@ class TaskRepository {
               tagId: Value(task.tagId),
               userId: _userId,
               startedAt: timestamp,
+              logicalDate: Value(
+                paused.logicalDate ?? localDateKey(paused.startedAt.toLocal()),
+              ),
               state: TimerSessionStatus.running.name,
               createdAt: timestamp,
               updatedAt: timestamp,
@@ -825,13 +852,21 @@ class TaskRepository {
     });
   }
 
-  Future<void> archiveTask(String taskId) async {
+  Future<void> archiveTask(
+    String taskId, {
+    bool endUnfinishedTimer = false,
+  }) async {
     final task = await getTask(taskId);
     if (task == null) return;
     final now = DateTime.now().toUtc();
     final activeTimer = task.hasTimer
         ? await _latestTimerSession(taskId)
         : null;
+    if (activeTimer != null &&
+        activeTimer.state != TimerSessionStatus.finished.name &&
+        !endUnfinishedTimer) {
+      throw StateError('请先结束计时，再删除事项。');
+    }
     await _database.transaction(() async {
       if (activeTimer != null &&
           activeTimer.state == TimerSessionStatus.running.name) {
@@ -992,7 +1027,7 @@ class TaskRepository {
       final completion = results[2] as TaskCompletionRecord?;
       final executionMode = _recurringMode(longTerm.checkMode);
       final actualDuration = executionMode != RecurringExecutionMode.untimed
-          ? await _durationForDay(
+          ? await _durationForLogicalDate(
               task.id,
               dateOnly(date),
               DateTime.now().toUtc(),
@@ -1063,7 +1098,7 @@ class TaskRepository {
           : OneTimeExecutionMode.untimed,
       oneTimeCompletedAt: reminder.completedAt?.toLocal(),
       todayActualDurationSeconds: reminder.isTimed
-          ? await _durationForDay(
+          ? await _durationForLogicalDate(
               task.id,
               dateOnly(date),
               DateTime.now().toUtc(),
@@ -1094,15 +1129,26 @@ class TaskRepository {
     return query.getSingleOrNull();
   }
 
-  Future<TimerSessionRecord?> _runningTimerSession() {
-    final query = _database.select(_database.timerSessionRecords)
-      ..where(
-        (row) =>
-            row.userId.equals(_userId) &
-            row.state.equals(TimerSessionStatus.running.name),
-      )
-      ..limit(1);
-    return query.getSingleOrNull();
+  List<TimerSessionEntry> _latestUnfinishedByTask(
+    List<TimerSessionRecord> rows,
+  ) {
+    final seenTaskIds = <String>{};
+    final timers = <TimerSessionEntry>[];
+    for (final row in rows) {
+      if (!seenTaskIds.add(row.taskId)) continue;
+      timers.add(
+        TimerSessionEntry(
+          id: row.id,
+          taskId: row.taskId,
+          startedAt: row.startedAt.toLocal(),
+          logicalDate: row.logicalDate,
+          endedAt: row.endedAt?.toLocal(),
+          durationSeconds: row.durationSeconds,
+          status: TimerSessionStatus.values.byName(row.state),
+        ),
+      );
+    }
+    return timers;
   }
 
   Future<void> _closeTimerSession(
@@ -1140,12 +1186,10 @@ class TaskRepository {
     DateTime endedAt,
   ) async {
     if (task.kind != TaskKind.recurring) return;
-    var day = dateOnly(startedAt.toLocal());
-    final lastDay = dateOnly(endedAt.toLocal());
-    while (!day.isAfter(lastDay)) {
-      await _upsertTimerCompletion(task, day, endedAt);
-      day = day.add(const Duration(days: 1));
-    }
+    final session = await _latestTimerSession(task.id);
+    final logicalDate =
+        session?.logicalDate ?? localDateKey(startedAt.toLocal());
+    await _upsertTimerCompletion(task, DateTime.parse(logicalDate), endedAt);
   }
 
   Future<void> _upsertTimerCompletion(
@@ -1154,7 +1198,7 @@ class TaskRepository {
     DateTime nowUtc,
   ) async {
     final key = localDateKey(day);
-    final duration = await _durationForDay(task.id, day, nowUtc);
+    final duration = await _durationForLogicalDate(task.id, day, nowUtc);
     final target = task.targetDurationSeconds ?? 0;
     final progress = target <= 0
         ? 0.0
@@ -1202,7 +1246,7 @@ class TaskRepository {
     );
   }
 
-  Future<int> _durationForDay(
+  Future<int> _durationForLogicalDate(
     String taskId,
     DateTime day,
     DateTime nowUtc,
@@ -1212,7 +1256,23 @@ class TaskRepository {
               (row) => row.taskId.equals(taskId) & row.userId.equals(_userId),
             ))
             .get();
-    return _durationFromSessionsForDay(sessions, day, nowUtc);
+    final key = localDateKey(day);
+    return sessions
+        .where(
+          (session) =>
+              (session.logicalDate ??
+                  localDateKey(session.startedAt.toLocal())) ==
+              key,
+        )
+        .fold<int>(
+          0,
+          (total, session) =>
+              total +
+              (session.endedAt ?? nowUtc)
+                  .difference(session.startedAt)
+                  .inSeconds
+                  .clamp(0, 1 << 31),
+        );
   }
 
   int _durationFromSessionsForDay(

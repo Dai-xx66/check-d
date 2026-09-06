@@ -25,7 +25,7 @@ class CourseRepository {
   final NotificationService? _notifications;
   final Uuid _uuid = const Uuid();
 
-  Stream<List<CourseDetails>> watchCourses() {
+  Stream<List<CourseDetails>> watchCourses() async* {
     final query = _database.select(_database.courseRecords)
       ..where(
         (row) =>
@@ -34,7 +34,11 @@ class CourseRepository {
             row.status.equals(CourseStatus.active.name),
       )
       ..orderBy([(row) => OrderingTerm.asc(row.name)]);
-    return query.watch().asyncMap((rows) => Future.wait(rows.map(_toDetails)));
+    Future<List<CourseDetails>> load(List<CourseRecord> rows) =>
+        Future.wait(rows.map(_toDetails));
+
+    yield await load(await query.get());
+    yield* query.watch().asyncMap(load);
   }
 
   Future<List<CourseDetails>> loadCourses() async {
@@ -81,6 +85,7 @@ class CourseRepository {
             teacher: Value(_clean(draft.teacher)),
             classroom: Value(_clean(draft.classroom)),
             semester: Value(_clean(draft.semester)),
+            semesterId: Value(draft.semesterId),
             semesterStartsOn: Value(_dateOnlyUtc(draft.semesterStartsOn)),
             semesterEndsOn: Value(_dateOnlyUtc(draft.semesterEndsOn)),
             notes: Value(_clean(draft.notes)),
@@ -99,6 +104,7 @@ class CourseRepository {
         'teacher': _clean(draft.teacher),
         'classroom': _clean(draft.classroom),
         'semester': _clean(draft.semester),
+        'semester_id': draft.semesterId,
         'semester_starts_on': _dateOnlyUtc(
           draft.semesterStartsOn,
         )?.toIso8601String(),
@@ -176,12 +182,92 @@ class CourseRepository {
     if (draft.name.trim().isEmpty) {
       throw ArgumentError.value(draft.name, 'name', '请填写作息模板名称');
     }
-    for (final segment in draft.segments) {
+    final segments = [...draft.segments]
+      ..sort((a, b) => a.startsAtMinute.compareTo(b.startsAtMinute));
+    for (final segment in segments) {
       _validateTimeRange(segment.startsAtMinute, segment.endsAtMinute);
+    }
+    for (var index = 1; index < segments.length; index++) {
+      final previous = segments[index - 1];
+      final current = segments[index];
+      if (current.startsAtMinute < previous.endsAtMinute) {
+        throw ArgumentError(
+          '“${current.name.trim().isEmpty ? '第${index + 1}节' : current.name}”与“${previous.name.trim().isEmpty ? '第$index节' : previous.name}”时间重叠',
+        );
+      }
     }
     final now = DateTime.now().toUtc();
     final id = templateId ?? _uuid.v4();
+    late List<ScheduleTemplateSegmentDraft> savedSegments;
     await _database.transaction(() async {
+      final existingSegments = templateId == null
+          ? const <ScheduleTemplateSegmentRecord>[]
+          : await (_database.select(_database.scheduleTemplateSegmentRecords)
+                  ..where(
+                    (row) => row.templateId.equals(id) & row.deletedAt.isNull(),
+                  )
+                  ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)]))
+                .get();
+      final legacySegments = existingSegments
+          .where(
+            (segment) =>
+                segment.segmentType != ScheduleSegmentType.classTime.name,
+          )
+          .map(
+            (segment) => ScheduleTemplateSegmentDraft(
+              id: segment.id,
+              name: segment.name,
+              startsAtMinute: segment.startsAtMinute,
+              endsAtMinute: segment.endsAtMinute,
+              segmentType: ScheduleSegmentType.values.byName(
+                segment.segmentType,
+              ),
+              sortOrder: segment.sortOrder,
+            ),
+          );
+      final persistedSegments = [...segments, ...legacySegments]
+        ..sort((a, b) => a.startsAtMinute.compareTo(b.startsAtMinute));
+      savedSegments = [
+        for (final segment in persistedSegments)
+          ScheduleTemplateSegmentDraft(
+            id: segment.id ?? _uuid.v4(),
+            name: segment.name,
+            startsAtMinute: segment.startsAtMinute,
+            endsAtMinute: segment.endsAtMinute,
+            segmentType: segment.segmentType,
+            sortOrder: segment.sortOrder,
+          ),
+      ];
+      for (var index = 1; index < persistedSegments.length; index++) {
+        final previous = persistedSegments[index - 1];
+        final current = persistedSegments[index];
+        if (current.startsAtMinute < previous.endsAtMinute) {
+          throw ArgumentError('节次时间不能与现有休息时段重叠');
+        }
+      }
+      final retainedSegmentIds = savedSegments
+          .map((segment) => segment.id)
+          .whereType<String>()
+          .toSet();
+      if (templateId != null) {
+        final rules =
+            await (_database.select(_database.courseScheduleRuleRecords)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.scheduleTemplateId.equals(id) &
+                      row.deletedAt.isNull(),
+                ))
+                .get();
+        final referencedIds = rules
+            .expand(
+              (rule) =>
+                  (jsonDecode(rule.sectionIdsJson) as List).cast<String>(),
+            )
+            .toSet();
+        if (!referencedIds.every(retainedSegmentIds.contains)) {
+          throw StateError('该模板节次正在被课程安排使用，请先调整课程安排。');
+        }
+      }
       await _database
           .into(_database.scheduleTemplateRecords)
           .insertOnConflictUpdate(
@@ -195,24 +281,39 @@ class CourseRepository {
               updatedAt: now,
             ),
           );
+      if (draft.isDefault) {
+        await (_database.update(_database.scheduleTemplateRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.id.equals(id).not() &
+                  row.deletedAt.isNull(),
+            ))
+            .write(
+              ScheduleTemplateRecordsCompanion(
+                isDefault: const Value(false),
+                updatedAt: Value(now),
+              ),
+            );
+      }
       if (templateId != null) {
         await (_database.delete(
           _database.scheduleTemplateSegmentRecords,
         )..where((row) => row.templateId.equals(id))).go();
       }
-      for (final segment in draft.segments) {
+      for (var index = 0; index < savedSegments.length; index++) {
+        final segment = savedSegments[index];
         await _database
             .into(_database.scheduleTemplateSegmentRecords)
             .insert(
               ScheduleTemplateSegmentRecordsCompanion.insert(
-                id: _uuid.v4(),
+                id: segment.id!,
                 templateId: id,
                 userId: _userId,
                 name: segment.name.trim(),
                 startsAtMinute: segment.startsAtMinute,
                 endsAtMinute: segment.endsAtMinute,
                 segmentType: Value(segment.segmentType.name),
-                sortOrder: Value(segment.sortOrder),
+                sortOrder: Value(index),
                 createdAt: now,
                 updatedAt: now,
               ),
@@ -229,13 +330,14 @@ class CourseRepository {
         'timezone': draft.timezone,
         'is_default': draft.isDefault,
         'segments': [
-          for (final segment in draft.segments)
+          for (var index = 0; index < savedSegments.length; index++)
             {
-              'name': segment.name.trim(),
-              'starts_at_minute': segment.startsAtMinute,
-              'ends_at_minute': segment.endsAtMinute,
-              'segment_type': segment.segmentType.name,
-              'sort_order': segment.sortOrder,
+              'id': savedSegments[index].id,
+              'name': savedSegments[index].name.trim(),
+              'starts_at_minute': savedSegments[index].startsAtMinute,
+              'ends_at_minute': savedSegments[index].endsAtMinute,
+              'segment_type': savedSegments[index].segmentType.name,
+              'sort_order': index,
             },
         ],
         'updated_at': now.toIso8601String(),
@@ -243,6 +345,74 @@ class CourseRepository {
       userId: _userId,
     );
     return id;
+  }
+
+  Stream<List<ScheduleTemplateDetails>> watchScheduleTemplates() async* {
+    final query = _database.select(_database.scheduleTemplateRecords)
+      ..where((row) => row.userId.equals(_userId) & row.deletedAt.isNull())
+      ..orderBy([
+        (row) => OrderingTerm.desc(row.isDefault),
+        (row) => OrderingTerm.asc(row.name),
+      ]);
+    Future<List<ScheduleTemplateDetails>> load(
+      List<ScheduleTemplateRecord> rows,
+    ) => Future.wait(rows.map(_toTemplateDetails));
+
+    yield await load(await query.get());
+    yield* query.watch().asyncMap(load);
+  }
+
+  Future<ScheduleTemplateDetails?> loadScheduleTemplate(String templateId) {
+    return (_database.select(_database.scheduleTemplateRecords)..where(
+          (row) =>
+              row.id.equals(templateId) &
+              row.userId.equals(_userId) &
+              row.deletedAt.isNull(),
+        ))
+        .getSingleOrNull()
+        .then((row) => row == null ? null : _toTemplateDetails(row));
+  }
+
+  Future<void> archiveScheduleTemplate(String templateId) async {
+    final usedBySemester =
+        await (_database.select(_database.semesterRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.scheduleTemplateId.equals(templateId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (usedBySemester != null) {
+      throw StateError('该作息模板正在被学期使用，请先更换学期作息模板。');
+    }
+    final usedByRule =
+        await (_database.select(_database.courseScheduleRuleRecords)..where(
+              (row) =>
+                  row.userId.equals(_userId) &
+                  row.scheduleTemplateId.equals(templateId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (usedByRule != null) {
+      throw StateError('该作息模板正在被课程安排使用，请先更换课程安排的作息模板。');
+    }
+    final now = DateTime.now().toUtc();
+    await (_database.update(_database.scheduleTemplateRecords)..where(
+          (row) => row.id.equals(templateId) & row.userId.equals(_userId),
+        ))
+        .write(
+          ScheduleTemplateRecordsCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+    await _syncQueue.enqueue(
+      entityType: 'schedule_templates',
+      entityId: templateId,
+      operation: SyncOperationType.archive,
+      payload: {'id': templateId, 'deleted_at': now.toIso8601String()},
+      userId: _userId,
+    );
   }
 
   Future<void> archiveCourse(String courseId) async {
@@ -291,7 +461,8 @@ class CourseRepository {
     CourseScheduleRuleDraft draft,
   ) async {
     final minutes = draft.remindBeforeMinutes;
-    if (_notifications == null || minutes == null) return;
+    final notifications = _notifications;
+    if (notifications == null || minutes == null) return;
     final reminderMinute = draft.startsAtMinute - minutes;
     if (reminderMinute < 0) return;
     try {
@@ -301,7 +472,7 @@ class CourseRepository {
                     row.id.equals(draft.courseId) & row.userId.equals(_userId),
               ))
               .getSingleOrNull();
-      await _notifications!.requestPermissions();
+      await notifications.requestPermissions();
       final title = '课程提醒：${course?.name ?? '课程'}';
       final body = '课程将在 $minutes 分钟后开始';
       final semesterStart = course?.semesterStartsOn == null
@@ -325,7 +496,7 @@ class CourseRepository {
           semesterStart == null &&
           semesterEnd == null;
       if (isUnboundedEveryWeek) {
-        await _notifications!.scheduleWeekly(
+        await notifications.scheduleWeekly(
           id: _notificationId(ruleId),
           weekday: draft.weekday,
           minuteOfDay: reminderMinute,
@@ -357,7 +528,7 @@ class CourseRepository {
             reminderMinute % 60,
           );
           if (!when.isAfter(DateTime.now())) continue;
-          await _notifications!.scheduleAt(
+          await notifications.scheduleAt(
             id: _notificationId(ruleId, scheduledCount + 1),
             when: when,
             title: title,
@@ -372,10 +543,11 @@ class CourseRepository {
   }
 
   Future<void> _cancelReminder(String ruleId) async {
-    if (_notifications == null) return;
+    final notifications = _notifications;
+    if (notifications == null) return;
     try {
       for (var variant = 0; variant <= 366; variant++) {
-        await _notifications!.cancel(_notificationId(ruleId, variant));
+        await notifications.cancel(_notificationId(ruleId, variant));
       }
     } catch (_) {}
   }
@@ -448,12 +620,53 @@ class CourseRepository {
       teacher: row.teacher,
       classroom: row.classroom,
       semester: row.semester,
+      semesterId: row.semesterId,
       semesterStartsOn: row.semesterStartsOn?.toLocal(),
       semesterEndsOn: row.semesterEndsOn?.toLocal(),
       notes: row.notes,
       createdAt: row.createdAt.toLocal(),
       updatedAt: row.updatedAt.toLocal(),
       rules: rules.map(_toRule).toList(),
+    );
+  }
+
+  Future<ScheduleTemplateDetails> _toTemplateDetails(
+    ScheduleTemplateRecord row,
+  ) async {
+    final segments =
+        await (_database.select(_database.scheduleTemplateSegmentRecords)
+              ..where(
+                (segment) =>
+                    segment.templateId.equals(row.id) &
+                    segment.userId.equals(_userId) &
+                    segment.deletedAt.isNull(),
+              )
+              ..orderBy([(segment) => OrderingTerm.asc(segment.sortOrder)]))
+            .get();
+    return ScheduleTemplateDetails(
+      id: row.id,
+      name: row.name,
+      timezone: row.timezone,
+      isDefault: row.isDefault,
+      createdAt: row.createdAt.toLocal(),
+      updatedAt: row.updatedAt.toLocal(),
+      segments: segments
+          .map(
+            (segment) => ScheduleTemplateSegment(
+              id: segment.id,
+              templateId: segment.templateId,
+              name: segment.name,
+              startsAtMinute: segment.startsAtMinute,
+              endsAtMinute: segment.endsAtMinute,
+              segmentType: ScheduleSegmentType.values.byName(
+                segment.segmentType,
+              ),
+              sortOrder: segment.sortOrder,
+              createdAt: segment.createdAt.toLocal(),
+              updatedAt: segment.updatedAt.toLocal(),
+            ),
+          )
+          .toList(),
     );
   }
 

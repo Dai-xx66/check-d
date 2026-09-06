@@ -25,11 +25,13 @@ Future<void> main() async {
     supabaseClient = Supabase.instance.client;
   }
 
+  final database = AppDatabase();
+
   runApp(
     ProviderScope(
       overrides: [
         appConfigProvider.overrideWithValue(config),
-        appDatabaseProvider.overrideWithValue(AppDatabase()),
+        appDatabaseProvider.overrideWithValue(database),
         supabaseClientProvider.overrideWithValue(supabaseClient),
       ],
       child: const CheckDApp(),

@@ -66,6 +66,19 @@ final runningTimerTaskIdProvider = FutureProvider.autoDispose<String?>((ref) {
   return ref.watch(taskRepositoryProvider).runningTimerTaskId();
 });
 
+/// All task timers that have not been ended. Paused entries remain here so a
+/// page reload can restore their controls without treating pause as finish.
+final unfinishedTaskTimersProvider =
+    StreamProvider.autoDispose<List<TimerSessionEntry>>((ref) {
+      return ref.watch(taskRepositoryProvider).watchUnfinishedTimers();
+    });
+
+final runningTaskTimersProvider = Provider.autoDispose<List<TimerSessionEntry>>(
+  (ref) => (ref.watch(unfinishedTaskTimersProvider).value ?? const [])
+      .where((timer) => timer.status == TimerSessionStatus.running)
+      .toList(),
+);
+
 final calendarMonthProvider = StreamProvider.autoDispose
     .family<CalendarMonthData, DateTime>((ref, month) {
       return ref.watch(taskRepositoryProvider).watchCalendarMonth(month);

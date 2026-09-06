@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../tasks/application/task_providers.dart';
 import '../application/statistics_providers.dart';
 import '../domain/statistics_models.dart';
 import 'time_distribution_chart.dart';
@@ -23,14 +22,20 @@ class DailyTagTime extends ConsumerWidget {
           ),
           data: (data) => TagTimeBreakdown(
             report: data.report(StatisticsPeriod.day, date, now),
+            title: '今日专注时间分布',
           ),
         );
   }
 }
 
 class TagTimeBreakdown extends StatelessWidget {
-  const TagTimeBreakdown({required this.report, super.key});
+  const TagTimeBreakdown({
+    required this.report,
+    this.title = '专注时间分布',
+    super.key,
+  });
   final StatisticsReport report;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -43,30 +48,22 @@ class TagTimeBreakdown extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              runSpacing: 6,
+            Row(
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '标签时间分布',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      '(今日)',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
-                  ],
+                  ),
                 ),
                 Text(
-                  '总计 ${timeLabel(report.seconds)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  timeLabel(report.seconds),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.muted,
+                  ),
                 ),
               ],
             ),
@@ -75,40 +72,43 @@ class TagTimeBreakdown extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
-                  '今日暂无计时记录',
+                  '当前周期暂无专注记录',
                   style: TextStyle(color: AppColors.muted),
                 ),
               )
             else ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+              Center(
                 child: SizedBox(
-                  height: 38,
-                  child: Row(
-                    children: [
-                      for (final tag in entries)
-                        Expanded(
-                          flex: report.secondsForTag(tag.id),
-                          child: Container(
-                            alignment: Alignment.center,
-                            color: Color(tag.colorValue),
-                            child: FittedBox(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                ),
-                                child: Text(
-                                  '${(report.secondsForTag(tag.id) / report.seconds * 100).round()}%',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
+                  width: 168,
+                  height: 168,
+                  child: CustomPaint(
+                    painter: _DonutPainter(
+                      values: [
+                        for (final tag in entries) report.secondsForTag(tag.id),
+                      ],
+                      colors: [
+                        for (final tag in entries) Color(tag.colorValue),
+                      ],
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '标签投入',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.muted,
                             ),
                           ),
-                        ),
-                    ],
+                          const SizedBox(height: 3),
+                          Text(
+                            timeLabel(report.seconds),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -122,6 +122,8 @@ class TagTimeBreakdown extends StatelessWidget {
                       color: Color(tag.colorValue),
                       name: tag.name,
                       duration: timeLabel(report.secondsForTag(tag.id)),
+                      percent:
+                          '${(report.secondsForTag(tag.id) / report.seconds * 100).round()}%',
                     ),
                 ],
               ),
@@ -138,11 +140,13 @@ class _TagLegend extends StatelessWidget {
     required this.color,
     required this.name,
     required this.duration,
+    required this.percent,
   });
 
   final Color color;
   final String name;
   final String duration;
+  final String percent;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -163,8 +167,45 @@ class _TagLegend extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 3),
-        Text(duration, style: const TextStyle(color: AppColors.muted)),
+        Text(
+          '$duration · $percent',
+          style: const TextStyle(fontSize: 12, color: AppColors.muted),
+        ),
       ],
     ),
   );
+}
+
+class _DonutPainter extends CustomPainter {
+  const _DonutPainter({required this.values, required this.colors});
+
+  final List<int> values;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = values.fold<int>(0, (sum, value) => sum + value);
+    if (total == 0) return;
+    final rect = Offset.zero & size;
+    var start = -1.5707963267948966;
+    for (var index = 0; index < values.length; index++) {
+      final sweep = values[index] / total * 6.283185307179586;
+      canvas.drawArc(
+        rect.deflate(17),
+        start,
+        sweep,
+        false,
+        Paint()
+          ..color = colors[index]
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 25
+          ..strokeCap = StrokeCap.butt,
+      );
+      start += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutPainter oldDelegate) =>
+      oldDelegate.values != values || oldDelegate.colors != colors;
 }

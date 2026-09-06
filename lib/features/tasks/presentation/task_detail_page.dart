@@ -192,11 +192,19 @@ class _TaskDetailContent extends ConsumerWidget {
   }
 
   Future<void> _archive(BuildContext context, WidgetRef ref) async {
+    final timer = task.hasTimer
+        ? ref.read(taskTimerStateProvider(task.id)).value
+        : null;
+    final hasUnfinishedTimer = timer?.canStart == false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('归档任务？'),
-        content: const Text('任务会从今日列表移除，但历史打卡和统计数据会保留。'),
+        title: Text(hasUnfinishedTimer ? '该事项正在计时' : '归档任务？'),
+        content: Text(
+          hasUnfinishedTimer
+              ? '结束计时后再归档事项。历史打卡和计时记录会保留。'
+              : '任务会从今日列表移除，但历史打卡和统计数据会保留。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -204,13 +212,15 @@ class _TaskDetailContent extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('归档'),
+            child: Text(hasUnfinishedTimer ? '结束计时并删除' : '归档'),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
-    await ref.read(taskRepositoryProvider).archiveTask(task.id);
+    await ref
+        .read(taskRepositoryProvider)
+        .archiveTask(task.id, endUnfinishedTimer: hasUnfinishedTimer);
     if (context.mounted) Navigator.of(context).pop();
   }
 
@@ -568,7 +578,7 @@ class _OneTimeStatusCard extends ConsumerWidget {
         ? '就是今天'
         : days == null
         ? '未设置日期'
-        : '已过去 ${-(days ?? 0)} 天';
+        : '已过去 ${-days} 天';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),

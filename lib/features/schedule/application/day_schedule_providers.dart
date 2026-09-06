@@ -13,7 +13,6 @@ final dayScheduleRepositoryProvider = Provider<DayScheduleRepository>((ref) {
     syncQueue: ref.watch(syncQueueServiceProvider),
     userId: ref.watch(currentDataOwnerProvider),
     notifications: ref.watch(notificationServiceProvider),
-    runningTaskId: () => ref.read(taskRepositoryProvider).runningTimerTaskId(),
   );
 });
 
@@ -36,6 +35,13 @@ final adHocTimersForDateProvider = StreamProvider.autoDispose
       return ref
           .watch(dayScheduleRepositoryProvider)
           .watchAdHocTimersForDate(date);
+    });
+
+final unfinishedAdHocTimersProvider =
+    StreamProvider.autoDispose<List<AdHocTimerDetails>>((ref) {
+      return ref
+          .watch(dayScheduleRepositoryProvider)
+          .watchUnfinishedAdHocTimers();
     });
 
 final reminderRulesProvider = StreamProvider.autoDispose

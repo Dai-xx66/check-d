@@ -3369,6 +3369,17 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _logicalDateMeta = const VerificationMeta(
+    'logicalDate',
+  );
+  @override
+  late final GeneratedColumn<String> logicalDate = GeneratedColumn<String>(
+    'logical_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _endedAtMeta = const VerificationMeta(
     'endedAt',
   );
@@ -3430,6 +3441,7 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
     userId,
     tagId,
     startedAt,
+    logicalDate,
     endedAt,
     durationSeconds,
     state,
@@ -3482,6 +3494,15 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
       );
     } else if (isInserting) {
       context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('logical_date')) {
+      context.handle(
+        _logicalDateMeta,
+        logicalDate.isAcceptableOrUnknown(
+          data['logical_date']!,
+          _logicalDateMeta,
+        ),
+      );
     }
     if (data.containsKey('ended_at')) {
       context.handle(
@@ -3551,6 +3572,10 @@ class $TimerSessionRecordsTable extends TimerSessionRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}started_at'],
       )!,
+      logicalDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logical_date'],
+      ),
       endedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}ended_at'],
@@ -3587,6 +3612,7 @@ class TimerSessionRecord extends DataClass
   final String userId;
   final String? tagId;
   final DateTime startedAt;
+  final String? logicalDate;
   final DateTime? endedAt;
   final int durationSeconds;
   final String state;
@@ -3598,6 +3624,7 @@ class TimerSessionRecord extends DataClass
     required this.userId,
     this.tagId,
     required this.startedAt,
+    this.logicalDate,
     this.endedAt,
     required this.durationSeconds,
     required this.state,
@@ -3614,6 +3641,9 @@ class TimerSessionRecord extends DataClass
       map['tag_id'] = Variable<String>(tagId);
     }
     map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || logicalDate != null) {
+      map['logical_date'] = Variable<String>(logicalDate);
+    }
     if (!nullToAbsent || endedAt != null) {
       map['ended_at'] = Variable<DateTime>(endedAt);
     }
@@ -3633,6 +3663,9 @@ class TimerSessionRecord extends DataClass
           ? const Value.absent()
           : Value(tagId),
       startedAt: Value(startedAt),
+      logicalDate: logicalDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(logicalDate),
       endedAt: endedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(endedAt),
@@ -3654,6 +3687,7 @@ class TimerSessionRecord extends DataClass
       userId: serializer.fromJson<String>(json['userId']),
       tagId: serializer.fromJson<String?>(json['tagId']),
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      logicalDate: serializer.fromJson<String?>(json['logicalDate']),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
       durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
       state: serializer.fromJson<String>(json['state']),
@@ -3670,6 +3704,7 @@ class TimerSessionRecord extends DataClass
       'userId': serializer.toJson<String>(userId),
       'tagId': serializer.toJson<String?>(tagId),
       'startedAt': serializer.toJson<DateTime>(startedAt),
+      'logicalDate': serializer.toJson<String?>(logicalDate),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
       'durationSeconds': serializer.toJson<int>(durationSeconds),
       'state': serializer.toJson<String>(state),
@@ -3684,6 +3719,7 @@ class TimerSessionRecord extends DataClass
     String? userId,
     Value<String?> tagId = const Value.absent(),
     DateTime? startedAt,
+    Value<String?> logicalDate = const Value.absent(),
     Value<DateTime?> endedAt = const Value.absent(),
     int? durationSeconds,
     String? state,
@@ -3695,6 +3731,7 @@ class TimerSessionRecord extends DataClass
     userId: userId ?? this.userId,
     tagId: tagId.present ? tagId.value : this.tagId,
     startedAt: startedAt ?? this.startedAt,
+    logicalDate: logicalDate.present ? logicalDate.value : this.logicalDate,
     endedAt: endedAt.present ? endedAt.value : this.endedAt,
     durationSeconds: durationSeconds ?? this.durationSeconds,
     state: state ?? this.state,
@@ -3708,6 +3745,9 @@ class TimerSessionRecord extends DataClass
       userId: data.userId.present ? data.userId.value : this.userId,
       tagId: data.tagId.present ? data.tagId.value : this.tagId,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      logicalDate: data.logicalDate.present
+          ? data.logicalDate.value
+          : this.logicalDate,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
       durationSeconds: data.durationSeconds.present
           ? data.durationSeconds.value
@@ -3726,6 +3766,7 @@ class TimerSessionRecord extends DataClass
           ..write('userId: $userId, ')
           ..write('tagId: $tagId, ')
           ..write('startedAt: $startedAt, ')
+          ..write('logicalDate: $logicalDate, ')
           ..write('endedAt: $endedAt, ')
           ..write('durationSeconds: $durationSeconds, ')
           ..write('state: $state, ')
@@ -3742,6 +3783,7 @@ class TimerSessionRecord extends DataClass
     userId,
     tagId,
     startedAt,
+    logicalDate,
     endedAt,
     durationSeconds,
     state,
@@ -3757,6 +3799,7 @@ class TimerSessionRecord extends DataClass
           other.userId == this.userId &&
           other.tagId == this.tagId &&
           other.startedAt == this.startedAt &&
+          other.logicalDate == this.logicalDate &&
           other.endedAt == this.endedAt &&
           other.durationSeconds == this.durationSeconds &&
           other.state == this.state &&
@@ -3770,6 +3813,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
   final Value<String> userId;
   final Value<String?> tagId;
   final Value<DateTime> startedAt;
+  final Value<String?> logicalDate;
   final Value<DateTime?> endedAt;
   final Value<int> durationSeconds;
   final Value<String> state;
@@ -3782,6 +3826,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     this.userId = const Value.absent(),
     this.tagId = const Value.absent(),
     this.startedAt = const Value.absent(),
+    this.logicalDate = const Value.absent(),
     this.endedAt = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     this.state = const Value.absent(),
@@ -3795,6 +3840,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     required String userId,
     this.tagId = const Value.absent(),
     required DateTime startedAt,
+    this.logicalDate = const Value.absent(),
     this.endedAt = const Value.absent(),
     this.durationSeconds = const Value.absent(),
     required String state,
@@ -3814,6 +3860,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     Expression<String>? userId,
     Expression<String>? tagId,
     Expression<DateTime>? startedAt,
+    Expression<String>? logicalDate,
     Expression<DateTime>? endedAt,
     Expression<int>? durationSeconds,
     Expression<String>? state,
@@ -3827,6 +3874,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
       if (userId != null) 'user_id': userId,
       if (tagId != null) 'tag_id': tagId,
       if (startedAt != null) 'started_at': startedAt,
+      if (logicalDate != null) 'logical_date': logicalDate,
       if (endedAt != null) 'ended_at': endedAt,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
       if (state != null) 'state': state,
@@ -3842,6 +3890,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     Value<String>? userId,
     Value<String?>? tagId,
     Value<DateTime>? startedAt,
+    Value<String?>? logicalDate,
     Value<DateTime?>? endedAt,
     Value<int>? durationSeconds,
     Value<String>? state,
@@ -3855,6 +3904,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
       userId: userId ?? this.userId,
       tagId: tagId ?? this.tagId,
       startedAt: startedAt ?? this.startedAt,
+      logicalDate: logicalDate ?? this.logicalDate,
       endedAt: endedAt ?? this.endedAt,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       state: state ?? this.state,
@@ -3881,6 +3931,9 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
     }
     if (startedAt.present) {
       map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (logicalDate.present) {
+      map['logical_date'] = Variable<String>(logicalDate.value);
     }
     if (endedAt.present) {
       map['ended_at'] = Variable<DateTime>(endedAt.value);
@@ -3911,6 +3964,7 @@ class TimerSessionRecordsCompanion extends UpdateCompanion<TimerSessionRecord> {
           ..write('userId: $userId, ')
           ..write('tagId: $tagId, ')
           ..write('startedAt: $startedAt, ')
+          ..write('logicalDate: $logicalDate, ')
           ..write('endedAt: $endedAt, ')
           ..write('durationSeconds: $durationSeconds, ')
           ..write('state: $state, ')
@@ -8001,6 +8055,17 @@ class $CourseRecordsTable extends CourseRecords
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<String> semesterId = GeneratedColumn<String>(
+    'semester_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _semesterStartsOnMeta = const VerificationMeta(
     'semesterStartsOn',
   );
@@ -8086,6 +8151,7 @@ class $CourseRecordsTable extends CourseRecords
     teacher,
     classroom,
     semester,
+    semesterId,
     semesterStartsOn,
     semesterEndsOn,
     notes,
@@ -8151,6 +8217,12 @@ class $CourseRecordsTable extends CourseRecords
       context.handle(
         _semesterMeta,
         semester.isAcceptableOrUnknown(data['semester']!, _semesterMeta),
+      );
+    }
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
       );
     }
     if (data.containsKey('semester_starts_on')) {
@@ -8242,6 +8314,10 @@ class $CourseRecordsTable extends CourseRecords
         DriftSqlType.string,
         data['${effectivePrefix}semester'],
       ),
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}semester_id'],
+      ),
       semesterStartsOn: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}semester_starts_on'],
@@ -8287,6 +8363,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final String? semesterId;
   final DateTime? semesterStartsOn;
   final DateTime? semesterEndsOn;
   final String? notes;
@@ -8302,6 +8379,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterId,
     this.semesterStartsOn,
     this.semesterEndsOn,
     this.notes,
@@ -8325,6 +8403,9 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     }
     if (!nullToAbsent || semester != null) {
       map['semester'] = Variable<String>(semester);
+    }
+    if (!nullToAbsent || semesterId != null) {
+      map['semester_id'] = Variable<String>(semesterId);
     }
     if (!nullToAbsent || semesterStartsOn != null) {
       map['semester_starts_on'] = Variable<DateTime>(semesterStartsOn);
@@ -8359,6 +8440,9 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       semester: semester == null && nullToAbsent
           ? const Value.absent()
           : Value(semester),
+      semesterId: semesterId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(semesterId),
       semesterStartsOn: semesterStartsOn == null && nullToAbsent
           ? const Value.absent()
           : Value(semesterStartsOn),
@@ -8390,6 +8474,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       teacher: serializer.fromJson<String?>(json['teacher']),
       classroom: serializer.fromJson<String?>(json['classroom']),
       semester: serializer.fromJson<String?>(json['semester']),
+      semesterId: serializer.fromJson<String?>(json['semesterId']),
       semesterStartsOn: serializer.fromJson<DateTime?>(
         json['semesterStartsOn'],
       ),
@@ -8412,6 +8497,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       'teacher': serializer.toJson<String?>(teacher),
       'classroom': serializer.toJson<String?>(classroom),
       'semester': serializer.toJson<String?>(semester),
+      'semesterId': serializer.toJson<String?>(semesterId),
       'semesterStartsOn': serializer.toJson<DateTime?>(semesterStartsOn),
       'semesterEndsOn': serializer.toJson<DateTime?>(semesterEndsOn),
       'notes': serializer.toJson<String?>(notes),
@@ -8430,6 +8516,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     Value<String?> teacher = const Value.absent(),
     Value<String?> classroom = const Value.absent(),
     Value<String?> semester = const Value.absent(),
+    Value<String?> semesterId = const Value.absent(),
     Value<DateTime?> semesterStartsOn = const Value.absent(),
     Value<DateTime?> semesterEndsOn = const Value.absent(),
     Value<String?> notes = const Value.absent(),
@@ -8445,6 +8532,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     teacher: teacher.present ? teacher.value : this.teacher,
     classroom: classroom.present ? classroom.value : this.classroom,
     semester: semester.present ? semester.value : this.semester,
+    semesterId: semesterId.present ? semesterId.value : this.semesterId,
     semesterStartsOn: semesterStartsOn.present
         ? semesterStartsOn.value
         : this.semesterStartsOn,
@@ -8468,6 +8556,9 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
       teacher: data.teacher.present ? data.teacher.value : this.teacher,
       classroom: data.classroom.present ? data.classroom.value : this.classroom,
       semester: data.semester.present ? data.semester.value : this.semester,
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
       semesterStartsOn: data.semesterStartsOn.present
           ? data.semesterStartsOn.value
           : this.semesterStartsOn,
@@ -8492,6 +8583,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
           ..write('teacher: $teacher, ')
           ..write('classroom: $classroom, ')
           ..write('semester: $semester, ')
+          ..write('semesterId: $semesterId, ')
           ..write('semesterStartsOn: $semesterStartsOn, ')
           ..write('semesterEndsOn: $semesterEndsOn, ')
           ..write('notes: $notes, ')
@@ -8512,6 +8604,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
     teacher,
     classroom,
     semester,
+    semesterId,
     semesterStartsOn,
     semesterEndsOn,
     notes,
@@ -8531,6 +8624,7 @@ class CourseRecord extends DataClass implements Insertable<CourseRecord> {
           other.teacher == this.teacher &&
           other.classroom == this.classroom &&
           other.semester == this.semester &&
+          other.semesterId == this.semesterId &&
           other.semesterStartsOn == this.semesterStartsOn &&
           other.semesterEndsOn == this.semesterEndsOn &&
           other.notes == this.notes &&
@@ -8548,6 +8642,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
   final Value<String?> teacher;
   final Value<String?> classroom;
   final Value<String?> semester;
+  final Value<String?> semesterId;
   final Value<DateTime?> semesterStartsOn;
   final Value<DateTime?> semesterEndsOn;
   final Value<String?> notes;
@@ -8564,6 +8659,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     this.teacher = const Value.absent(),
     this.classroom = const Value.absent(),
     this.semester = const Value.absent(),
+    this.semesterId = const Value.absent(),
     this.semesterStartsOn = const Value.absent(),
     this.semesterEndsOn = const Value.absent(),
     this.notes = const Value.absent(),
@@ -8581,6 +8677,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     this.teacher = const Value.absent(),
     this.classroom = const Value.absent(),
     this.semester = const Value.absent(),
+    this.semesterId = const Value.absent(),
     this.semesterStartsOn = const Value.absent(),
     this.semesterEndsOn = const Value.absent(),
     this.notes = const Value.absent(),
@@ -8603,6 +8700,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     Expression<String>? teacher,
     Expression<String>? classroom,
     Expression<String>? semester,
+    Expression<String>? semesterId,
     Expression<DateTime>? semesterStartsOn,
     Expression<DateTime>? semesterEndsOn,
     Expression<String>? notes,
@@ -8620,6 +8718,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
       if (teacher != null) 'teacher': teacher,
       if (classroom != null) 'classroom': classroom,
       if (semester != null) 'semester': semester,
+      if (semesterId != null) 'semester_id': semesterId,
       if (semesterStartsOn != null) 'semester_starts_on': semesterStartsOn,
       if (semesterEndsOn != null) 'semester_ends_on': semesterEndsOn,
       if (notes != null) 'notes': notes,
@@ -8639,6 +8738,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     Value<String?>? teacher,
     Value<String?>? classroom,
     Value<String?>? semester,
+    Value<String?>? semesterId,
     Value<DateTime?>? semesterStartsOn,
     Value<DateTime?>? semesterEndsOn,
     Value<String?>? notes,
@@ -8656,6 +8756,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
       teacher: teacher ?? this.teacher,
       classroom: classroom ?? this.classroom,
       semester: semester ?? this.semester,
+      semesterId: semesterId ?? this.semesterId,
       semesterStartsOn: semesterStartsOn ?? this.semesterStartsOn,
       semesterEndsOn: semesterEndsOn ?? this.semesterEndsOn,
       notes: notes ?? this.notes,
@@ -8690,6 +8791,9 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
     }
     if (semester.present) {
       map['semester'] = Variable<String>(semester.value);
+    }
+    if (semesterId.present) {
+      map['semester_id'] = Variable<String>(semesterId.value);
     }
     if (semesterStartsOn.present) {
       map['semester_starts_on'] = Variable<DateTime>(semesterStartsOn.value);
@@ -8728,6 +8832,7 @@ class CourseRecordsCompanion extends UpdateCompanion<CourseRecord> {
           ..write('teacher: $teacher, ')
           ..write('classroom: $classroom, ')
           ..write('semester: $semester, ')
+          ..write('semesterId: $semesterId, ')
           ..write('semesterStartsOn: $semesterStartsOn, ')
           ..write('semesterEndsOn: $semesterEndsOn, ')
           ..write('notes: $notes, ')
@@ -10930,6 +11035,635 @@ class ScheduleTemplateSegmentRecordsCompanion
           ..write('endsAtMinute: $endsAtMinute, ')
           ..write('segmentType: $segmentType, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SemesterRecordsTable extends SemesterRecords
+    with TableInfo<$SemesterRecordsTable, SemesterRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SemesterRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _firstWeekStartDateMeta =
+      const VerificationMeta('firstWeekStartDate');
+  @override
+  late final GeneratedColumn<DateTime> firstWeekStartDate =
+      GeneratedColumn<DateTime>(
+        'first_week_start_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _totalWeeksMeta = const VerificationMeta(
+    'totalWeeks',
+  );
+  @override
+  late final GeneratedColumn<int> totalWeeks = GeneratedColumn<int>(
+    'total_weeks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scheduleTemplateIdMeta =
+      const VerificationMeta('scheduleTemplateId');
+  @override
+  late final GeneratedColumn<String> scheduleTemplateId =
+      GeneratedColumn<String>(
+        'schedule_template_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _isCurrentMeta = const VerificationMeta(
+    'isCurrent',
+  );
+  @override
+  late final GeneratedColumn<bool> isCurrent = GeneratedColumn<bool>(
+    'is_current',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_current" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    name,
+    firstWeekStartDate,
+    totalWeeks,
+    scheduleTemplateId,
+    isCurrent,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'semester_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SemesterRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('first_week_start_date')) {
+      context.handle(
+        _firstWeekStartDateMeta,
+        firstWeekStartDate.isAcceptableOrUnknown(
+          data['first_week_start_date']!,
+          _firstWeekStartDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_firstWeekStartDateMeta);
+    }
+    if (data.containsKey('total_weeks')) {
+      context.handle(
+        _totalWeeksMeta,
+        totalWeeks.isAcceptableOrUnknown(data['total_weeks']!, _totalWeeksMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_totalWeeksMeta);
+    }
+    if (data.containsKey('schedule_template_id')) {
+      context.handle(
+        _scheduleTemplateIdMeta,
+        scheduleTemplateId.isAcceptableOrUnknown(
+          data['schedule_template_id']!,
+          _scheduleTemplateIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_current')) {
+      context.handle(
+        _isCurrentMeta,
+        isCurrent.isAcceptableOrUnknown(data['is_current']!, _isCurrentMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SemesterRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SemesterRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      firstWeekStartDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}first_week_start_date'],
+      )!,
+      totalWeeks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_weeks'],
+      )!,
+      scheduleTemplateId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_template_id'],
+      ),
+      isCurrent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_current'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $SemesterRecordsTable createAlias(String alias) {
+    return $SemesterRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class SemesterRecord extends DataClass implements Insertable<SemesterRecord> {
+  final String id;
+  final String userId;
+  final String name;
+  final DateTime firstWeekStartDate;
+  final int totalWeeks;
+  final String? scheduleTemplateId;
+  final bool isCurrent;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const SemesterRecord({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.firstWeekStartDate,
+    required this.totalWeeks,
+    this.scheduleTemplateId,
+    required this.isCurrent,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['name'] = Variable<String>(name);
+    map['first_week_start_date'] = Variable<DateTime>(firstWeekStartDate);
+    map['total_weeks'] = Variable<int>(totalWeeks);
+    if (!nullToAbsent || scheduleTemplateId != null) {
+      map['schedule_template_id'] = Variable<String>(scheduleTemplateId);
+    }
+    map['is_current'] = Variable<bool>(isCurrent);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  SemesterRecordsCompanion toCompanion(bool nullToAbsent) {
+    return SemesterRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      name: Value(name),
+      firstWeekStartDate: Value(firstWeekStartDate),
+      totalWeeks: Value(totalWeeks),
+      scheduleTemplateId: scheduleTemplateId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduleTemplateId),
+      isCurrent: Value(isCurrent),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory SemesterRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SemesterRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      name: serializer.fromJson<String>(json['name']),
+      firstWeekStartDate: serializer.fromJson<DateTime>(
+        json['firstWeekStartDate'],
+      ),
+      totalWeeks: serializer.fromJson<int>(json['totalWeeks']),
+      scheduleTemplateId: serializer.fromJson<String?>(
+        json['scheduleTemplateId'],
+      ),
+      isCurrent: serializer.fromJson<bool>(json['isCurrent']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'name': serializer.toJson<String>(name),
+      'firstWeekStartDate': serializer.toJson<DateTime>(firstWeekStartDate),
+      'totalWeeks': serializer.toJson<int>(totalWeeks),
+      'scheduleTemplateId': serializer.toJson<String?>(scheduleTemplateId),
+      'isCurrent': serializer.toJson<bool>(isCurrent),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  SemesterRecord copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    DateTime? firstWeekStartDate,
+    int? totalWeeks,
+    Value<String?> scheduleTemplateId = const Value.absent(),
+    bool? isCurrent,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => SemesterRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    name: name ?? this.name,
+    firstWeekStartDate: firstWeekStartDate ?? this.firstWeekStartDate,
+    totalWeeks: totalWeeks ?? this.totalWeeks,
+    scheduleTemplateId: scheduleTemplateId.present
+        ? scheduleTemplateId.value
+        : this.scheduleTemplateId,
+    isCurrent: isCurrent ?? this.isCurrent,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  SemesterRecord copyWithCompanion(SemesterRecordsCompanion data) {
+    return SemesterRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      name: data.name.present ? data.name.value : this.name,
+      firstWeekStartDate: data.firstWeekStartDate.present
+          ? data.firstWeekStartDate.value
+          : this.firstWeekStartDate,
+      totalWeeks: data.totalWeeks.present
+          ? data.totalWeeks.value
+          : this.totalWeeks,
+      scheduleTemplateId: data.scheduleTemplateId.present
+          ? data.scheduleTemplateId.value
+          : this.scheduleTemplateId,
+      isCurrent: data.isCurrent.present ? data.isCurrent.value : this.isCurrent,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SemesterRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('firstWeekStartDate: $firstWeekStartDate, ')
+          ..write('totalWeeks: $totalWeeks, ')
+          ..write('scheduleTemplateId: $scheduleTemplateId, ')
+          ..write('isCurrent: $isCurrent, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    name,
+    firstWeekStartDate,
+    totalWeeks,
+    scheduleTemplateId,
+    isCurrent,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SemesterRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.name == this.name &&
+          other.firstWeekStartDate == this.firstWeekStartDate &&
+          other.totalWeeks == this.totalWeeks &&
+          other.scheduleTemplateId == this.scheduleTemplateId &&
+          other.isCurrent == this.isCurrent &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class SemesterRecordsCompanion extends UpdateCompanion<SemesterRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> name;
+  final Value<DateTime> firstWeekStartDate;
+  final Value<int> totalWeeks;
+  final Value<String?> scheduleTemplateId;
+  final Value<bool> isCurrent;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const SemesterRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.firstWeekStartDate = const Value.absent(),
+    this.totalWeeks = const Value.absent(),
+    this.scheduleTemplateId = const Value.absent(),
+    this.isCurrent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SemesterRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String name,
+    required DateTime firstWeekStartDate,
+    required int totalWeeks,
+    this.scheduleTemplateId = const Value.absent(),
+    this.isCurrent = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       name = Value(name),
+       firstWeekStartDate = Value(firstWeekStartDate),
+       totalWeeks = Value(totalWeeks),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SemesterRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? name,
+    Expression<DateTime>? firstWeekStartDate,
+    Expression<int>? totalWeeks,
+    Expression<String>? scheduleTemplateId,
+    Expression<bool>? isCurrent,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (name != null) 'name': name,
+      if (firstWeekStartDate != null)
+        'first_week_start_date': firstWeekStartDate,
+      if (totalWeeks != null) 'total_weeks': totalWeeks,
+      if (scheduleTemplateId != null)
+        'schedule_template_id': scheduleTemplateId,
+      if (isCurrent != null) 'is_current': isCurrent,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SemesterRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? name,
+    Value<DateTime>? firstWeekStartDate,
+    Value<int>? totalWeeks,
+    Value<String?>? scheduleTemplateId,
+    Value<bool>? isCurrent,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return SemesterRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      firstWeekStartDate: firstWeekStartDate ?? this.firstWeekStartDate,
+      totalWeeks: totalWeeks ?? this.totalWeeks,
+      scheduleTemplateId: scheduleTemplateId ?? this.scheduleTemplateId,
+      isCurrent: isCurrent ?? this.isCurrent,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (firstWeekStartDate.present) {
+      map['first_week_start_date'] = Variable<DateTime>(
+        firstWeekStartDate.value,
+      );
+    }
+    if (totalWeeks.present) {
+      map['total_weeks'] = Variable<int>(totalWeeks.value);
+    }
+    if (scheduleTemplateId.present) {
+      map['schedule_template_id'] = Variable<String>(scheduleTemplateId.value);
+    }
+    if (isCurrent.present) {
+      map['is_current'] = Variable<bool>(isCurrent.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SemesterRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('name: $name, ')
+          ..write('firstWeekStartDate: $firstWeekStartDate, ')
+          ..write('totalWeeks: $totalWeeks, ')
+          ..write('scheduleTemplateId: $scheduleTemplateId, ')
+          ..write('isCurrent: $isCurrent, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -14281,6 +15015,527 @@ class AdHocTimerRecordsCompanion extends UpdateCompanion<AdHocTimerRecord> {
   }
 }
 
+class $AdHocTimerIntervalRecordsTable extends AdHocTimerIntervalRecords
+    with TableInfo<$AdHocTimerIntervalRecordsTable, AdHocTimerIntervalRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AdHocTimerIntervalRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timerIdMeta = const VerificationMeta(
+    'timerId',
+  );
+  @override
+  late final GeneratedColumn<String> timerId = GeneratedColumn<String>(
+    'timer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationSecondsMeta = const VerificationMeta(
+    'durationSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> durationSeconds = GeneratedColumn<int>(
+    'duration_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    timerId,
+    userId,
+    startedAt,
+    endedAt,
+    durationSeconds,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ad_hoc_timer_interval_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AdHocTimerIntervalRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('timer_id')) {
+      context.handle(
+        _timerIdMeta,
+        timerId.isAcceptableOrUnknown(data['timer_id']!, _timerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timerIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('duration_seconds')) {
+      context.handle(
+        _durationSecondsMeta,
+        durationSeconds.isAcceptableOrUnknown(
+          data['duration_seconds']!,
+          _durationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AdHocTimerIntervalRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AdHocTimerIntervalRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      timerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timer_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      durationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_seconds'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AdHocTimerIntervalRecordsTable createAlias(String alias) {
+    return $AdHocTimerIntervalRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class AdHocTimerIntervalRecord extends DataClass
+    implements Insertable<AdHocTimerIntervalRecord> {
+  final String id;
+  final String timerId;
+  final String userId;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+  final int durationSeconds;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const AdHocTimerIntervalRecord({
+    required this.id,
+    required this.timerId,
+    required this.userId,
+    required this.startedAt,
+    this.endedAt,
+    required this.durationSeconds,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['timer_id'] = Variable<String>(timerId);
+    map['user_id'] = Variable<String>(userId);
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    map['duration_seconds'] = Variable<int>(durationSeconds);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  AdHocTimerIntervalRecordsCompanion toCompanion(bool nullToAbsent) {
+    return AdHocTimerIntervalRecordsCompanion(
+      id: Value(id),
+      timerId: Value(timerId),
+      userId: Value(userId),
+      startedAt: Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      durationSeconds: Value(durationSeconds),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AdHocTimerIntervalRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AdHocTimerIntervalRecord(
+      id: serializer.fromJson<String>(json['id']),
+      timerId: serializer.fromJson<String>(json['timerId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'timerId': serializer.toJson<String>(timerId),
+      'userId': serializer.toJson<String>(userId),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'durationSeconds': serializer.toJson<int>(durationSeconds),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  AdHocTimerIntervalRecord copyWith({
+    String? id,
+    String? timerId,
+    String? userId,
+    DateTime? startedAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+    int? durationSeconds,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => AdHocTimerIntervalRecord(
+    id: id ?? this.id,
+    timerId: timerId ?? this.timerId,
+    userId: userId ?? this.userId,
+    startedAt: startedAt ?? this.startedAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    durationSeconds: durationSeconds ?? this.durationSeconds,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  AdHocTimerIntervalRecord copyWithCompanion(
+    AdHocTimerIntervalRecordsCompanion data,
+  ) {
+    return AdHocTimerIntervalRecord(
+      id: data.id.present ? data.id.value : this.id,
+      timerId: data.timerId.present ? data.timerId.value : this.timerId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      durationSeconds: data.durationSeconds.present
+          ? data.durationSeconds.value
+          : this.durationSeconds,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdHocTimerIntervalRecord(')
+          ..write('id: $id, ')
+          ..write('timerId: $timerId, ')
+          ..write('userId: $userId, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    timerId,
+    userId,
+    startedAt,
+    endedAt,
+    durationSeconds,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AdHocTimerIntervalRecord &&
+          other.id == this.id &&
+          other.timerId == this.timerId &&
+          other.userId == this.userId &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.durationSeconds == this.durationSeconds &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AdHocTimerIntervalRecordsCompanion
+    extends UpdateCompanion<AdHocTimerIntervalRecord> {
+  final Value<String> id;
+  final Value<String> timerId;
+  final Value<String> userId;
+  final Value<DateTime> startedAt;
+  final Value<DateTime?> endedAt;
+  final Value<int> durationSeconds;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const AdHocTimerIntervalRecordsCompanion({
+    this.id = const Value.absent(),
+    this.timerId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AdHocTimerIntervalRecordsCompanion.insert({
+    required String id,
+    required String timerId,
+    required String userId,
+    required DateTime startedAt,
+    this.endedAt = const Value.absent(),
+    this.durationSeconds = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       timerId = Value(timerId),
+       userId = Value(userId),
+       startedAt = Value(startedAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<AdHocTimerIntervalRecord> custom({
+    Expression<String>? id,
+    Expression<String>? timerId,
+    Expression<String>? userId,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<int>? durationSeconds,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (timerId != null) 'timer_id': timerId,
+      if (userId != null) 'user_id': userId,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (durationSeconds != null) 'duration_seconds': durationSeconds,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AdHocTimerIntervalRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? timerId,
+    Value<String>? userId,
+    Value<DateTime>? startedAt,
+    Value<DateTime?>? endedAt,
+    Value<int>? durationSeconds,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return AdHocTimerIntervalRecordsCompanion(
+      id: id ?? this.id,
+      timerId: timerId ?? this.timerId,
+      userId: userId ?? this.userId,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (timerId.present) {
+      map['timer_id'] = Variable<String>(timerId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (durationSeconds.present) {
+      map['duration_seconds'] = Variable<int>(durationSeconds.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AdHocTimerIntervalRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('timerId: $timerId, ')
+          ..write('userId: $userId, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('durationSeconds: $durationSeconds, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -14314,6 +15569,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ScheduleTemplateRecordsTable(this);
   late final $ScheduleTemplateSegmentRecordsTable
   scheduleTemplateSegmentRecords = $ScheduleTemplateSegmentRecordsTable(this);
+  late final $SemesterRecordsTable semesterRecords = $SemesterRecordsTable(
+    this,
+  );
   late final $DailyItemOverrideRecordsTable dailyItemOverrideRecords =
       $DailyItemOverrideRecordsTable(this);
   late final $ReminderRuleRecordsTable reminderRuleRecords =
@@ -14323,6 +15581,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $AdHocTimerRecordsTable adHocTimerRecords =
       $AdHocTimerRecordsTable(this);
+  late final $AdHocTimerIntervalRecordsTable adHocTimerIntervalRecords =
+      $AdHocTimerIntervalRecordsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14346,10 +15606,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     courseScheduleRuleRecords,
     scheduleTemplateRecords,
     scheduleTemplateSegmentRecords,
+    semesterRecords,
     dailyItemOverrideRecords,
     reminderRuleRecords,
     alarmRuleRecords,
     adHocTimerRecords,
+    adHocTimerIntervalRecords,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -17288,6 +18550,7 @@ typedef $$TimerSessionRecordsTableCreateCompanionBuilder =
       required String userId,
       Value<String?> tagId,
       required DateTime startedAt,
+      Value<String?> logicalDate,
       Value<DateTime?> endedAt,
       Value<int> durationSeconds,
       required String state,
@@ -17302,6 +18565,7 @@ typedef $$TimerSessionRecordsTableUpdateCompanionBuilder =
       Value<String> userId,
       Value<String?> tagId,
       Value<DateTime> startedAt,
+      Value<String?> logicalDate,
       Value<DateTime?> endedAt,
       Value<int> durationSeconds,
       Value<String> state,
@@ -17367,6 +18631,11 @@ class $$TimerSessionRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get startedAt => $composableBuilder(
     column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get logicalDate => $composableBuilder(
+    column: $table.logicalDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17448,6 +18717,11 @@ class $$TimerSessionRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get logicalDate => $composableBuilder(
+    column: $table.logicalDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get endedAt => $composableBuilder(
     column: $table.endedAt,
     builder: (column) => ColumnOrderings(column),
@@ -17517,6 +18791,11 @@ class $$TimerSessionRecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get startedAt =>
       $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get logicalDate => $composableBuilder(
+    column: $table.logicalDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get endedAt =>
       $composableBuilder(column: $table.endedAt, builder: (column) => column);
@@ -17600,6 +18879,7 @@ class $$TimerSessionRecordsTableTableManager
                 Value<String> userId = const Value.absent(),
                 Value<String?> tagId = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
+                Value<String?> logicalDate = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
                 Value<String> state = const Value.absent(),
@@ -17612,6 +18892,7 @@ class $$TimerSessionRecordsTableTableManager
                 userId: userId,
                 tagId: tagId,
                 startedAt: startedAt,
+                logicalDate: logicalDate,
                 endedAt: endedAt,
                 durationSeconds: durationSeconds,
                 state: state,
@@ -17626,6 +18907,7 @@ class $$TimerSessionRecordsTableTableManager
                 required String userId,
                 Value<String?> tagId = const Value.absent(),
                 required DateTime startedAt,
+                Value<String?> logicalDate = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
                 required String state,
@@ -17638,6 +18920,7 @@ class $$TimerSessionRecordsTableTableManager
                 userId: userId,
                 tagId: tagId,
                 startedAt: startedAt,
+                logicalDate: logicalDate,
                 endedAt: endedAt,
                 durationSeconds: durationSeconds,
                 state: state,
@@ -20497,6 +21780,7 @@ typedef $$CourseRecordsTableCreateCompanionBuilder =
       Value<String?> teacher,
       Value<String?> classroom,
       Value<String?> semester,
+      Value<String?> semesterId,
       Value<DateTime?> semesterStartsOn,
       Value<DateTime?> semesterEndsOn,
       Value<String?> notes,
@@ -20515,6 +21799,7 @@ typedef $$CourseRecordsTableUpdateCompanionBuilder =
       Value<String?> teacher,
       Value<String?> classroom,
       Value<String?> semester,
+      Value<String?> semesterId,
       Value<DateTime?> semesterStartsOn,
       Value<DateTime?> semesterEndsOn,
       Value<String?> notes,
@@ -20601,6 +21886,11 @@ class $$CourseRecordsTableFilterComposer
 
   ColumnFilters<String> get semester => $composableBuilder(
     column: $table.semester,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get semesterId => $composableBuilder(
+    column: $table.semesterId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20711,6 +22001,11 @@ class $$CourseRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get semesterStartsOn => $composableBuilder(
     column: $table.semesterStartsOn,
     builder: (column) => ColumnOrderings(column),
@@ -20778,6 +22073,11 @@ class $$CourseRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get semester =>
       $composableBuilder(column: $table.semester, builder: (column) => column);
+
+  GeneratedColumn<String> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get semesterStartsOn => $composableBuilder(
     column: $table.semesterStartsOn,
@@ -20867,6 +22167,7 @@ class $$CourseRecordsTableTableManager
                 Value<String?> teacher = const Value.absent(),
                 Value<String?> classroom = const Value.absent(),
                 Value<String?> semester = const Value.absent(),
+                Value<String?> semesterId = const Value.absent(),
                 Value<DateTime?> semesterStartsOn = const Value.absent(),
                 Value<DateTime?> semesterEndsOn = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -20883,6 +22184,7 @@ class $$CourseRecordsTableTableManager
                 teacher: teacher,
                 classroom: classroom,
                 semester: semester,
+                semesterId: semesterId,
                 semesterStartsOn: semesterStartsOn,
                 semesterEndsOn: semesterEndsOn,
                 notes: notes,
@@ -20901,6 +22203,7 @@ class $$CourseRecordsTableTableManager
                 Value<String?> teacher = const Value.absent(),
                 Value<String?> classroom = const Value.absent(),
                 Value<String?> semester = const Value.absent(),
+                Value<String?> semesterId = const Value.absent(),
                 Value<DateTime?> semesterStartsOn = const Value.absent(),
                 Value<DateTime?> semesterEndsOn = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
@@ -20917,6 +22220,7 @@ class $$CourseRecordsTableTableManager
                 teacher: teacher,
                 classroom: classroom,
                 semester: semester,
+                semesterId: semesterId,
                 semesterStartsOn: semesterStartsOn,
                 semesterEndsOn: semesterEndsOn,
                 notes: notes,
@@ -22453,6 +23757,322 @@ typedef $$ScheduleTemplateSegmentRecordsTableProcessedTableManager =
       ),
       ScheduleTemplateSegmentRecord,
       PrefetchHooks Function({bool templateId})
+    >;
+typedef $$SemesterRecordsTableCreateCompanionBuilder =
+    SemesterRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String name,
+      required DateTime firstWeekStartDate,
+      required int totalWeeks,
+      Value<String?> scheduleTemplateId,
+      Value<bool> isCurrent,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$SemesterRecordsTableUpdateCompanionBuilder =
+    SemesterRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> name,
+      Value<DateTime> firstWeekStartDate,
+      Value<int> totalWeeks,
+      Value<String?> scheduleTemplateId,
+      Value<bool> isCurrent,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$SemesterRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $SemesterRecordsTable> {
+  $$SemesterRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get firstWeekStartDate => $composableBuilder(
+    column: $table.firstWeekStartDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalWeeks => $composableBuilder(
+    column: $table.totalWeeks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCurrent => $composableBuilder(
+    column: $table.isCurrent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SemesterRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SemesterRecordsTable> {
+  $$SemesterRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get firstWeekStartDate => $composableBuilder(
+    column: $table.firstWeekStartDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalWeeks => $composableBuilder(
+    column: $table.totalWeeks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCurrent => $composableBuilder(
+    column: $table.isCurrent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SemesterRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SemesterRecordsTable> {
+  $$SemesterRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get firstWeekStartDate => $composableBuilder(
+    column: $table.firstWeekStartDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalWeeks => $composableBuilder(
+    column: $table.totalWeeks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scheduleTemplateId => $composableBuilder(
+    column: $table.scheduleTemplateId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isCurrent =>
+      $composableBuilder(column: $table.isCurrent, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$SemesterRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SemesterRecordsTable,
+          SemesterRecord,
+          $$SemesterRecordsTableFilterComposer,
+          $$SemesterRecordsTableOrderingComposer,
+          $$SemesterRecordsTableAnnotationComposer,
+          $$SemesterRecordsTableCreateCompanionBuilder,
+          $$SemesterRecordsTableUpdateCompanionBuilder,
+          (
+            SemesterRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $SemesterRecordsTable,
+              SemesterRecord
+            >,
+          ),
+          SemesterRecord,
+          PrefetchHooks Function()
+        > {
+  $$SemesterRecordsTableTableManager(
+    _$AppDatabase db,
+    $SemesterRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SemesterRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SemesterRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SemesterRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> firstWeekStartDate = const Value.absent(),
+                Value<int> totalWeeks = const Value.absent(),
+                Value<String?> scheduleTemplateId = const Value.absent(),
+                Value<bool> isCurrent = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SemesterRecordsCompanion(
+                id: id,
+                userId: userId,
+                name: name,
+                firstWeekStartDate: firstWeekStartDate,
+                totalWeeks: totalWeeks,
+                scheduleTemplateId: scheduleTemplateId,
+                isCurrent: isCurrent,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String name,
+                required DateTime firstWeekStartDate,
+                required int totalWeeks,
+                Value<String?> scheduleTemplateId = const Value.absent(),
+                Value<bool> isCurrent = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SemesterRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                name: name,
+                firstWeekStartDate: firstWeekStartDate,
+                totalWeeks: totalWeeks,
+                scheduleTemplateId: scheduleTemplateId,
+                isCurrent: isCurrent,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SemesterRecordsTable, SemesterRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SemesterRecordsTable,
+                    SemesterRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SemesterRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SemesterRecordsTable,
+      SemesterRecord,
+      $$SemesterRecordsTableFilterComposer,
+      $$SemesterRecordsTableOrderingComposer,
+      $$SemesterRecordsTableAnnotationComposer,
+      $$SemesterRecordsTableCreateCompanionBuilder,
+      $$SemesterRecordsTableUpdateCompanionBuilder,
+      (
+        SemesterRecord,
+        BaseReferences<_$AppDatabase, $SemesterRecordsTable, SemesterRecord>,
+      ),
+      SemesterRecord,
+      PrefetchHooks Function()
     >;
 typedef $$DailyItemOverrideRecordsTableCreateCompanionBuilder =
     DailyItemOverrideRecordsCompanion Function({
@@ -24065,6 +25685,296 @@ typedef $$AdHocTimerRecordsTableProcessedTableManager =
       AdHocTimerRecord,
       PrefetchHooks Function()
     >;
+typedef $$AdHocTimerIntervalRecordsTableCreateCompanionBuilder =
+    AdHocTimerIntervalRecordsCompanion Function({
+      required String id,
+      required String timerId,
+      required String userId,
+      required DateTime startedAt,
+      Value<DateTime?> endedAt,
+      Value<int> durationSeconds,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$AdHocTimerIntervalRecordsTableUpdateCompanionBuilder =
+    AdHocTimerIntervalRecordsCompanion Function({
+      Value<String> id,
+      Value<String> timerId,
+      Value<String> userId,
+      Value<DateTime> startedAt,
+      Value<DateTime?> endedAt,
+      Value<int> durationSeconds,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$AdHocTimerIntervalRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $AdHocTimerIntervalRecordsTable> {
+  $$AdHocTimerIntervalRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timerId => $composableBuilder(
+    column: $table.timerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AdHocTimerIntervalRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AdHocTimerIntervalRecordsTable> {
+  $$AdHocTimerIntervalRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timerId => $composableBuilder(
+    column: $table.timerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AdHocTimerIntervalRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AdHocTimerIntervalRecordsTable> {
+  $$AdHocTimerIntervalRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get timerId =>
+      $composableBuilder(column: $table.timerId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get durationSeconds => $composableBuilder(
+    column: $table.durationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AdHocTimerIntervalRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AdHocTimerIntervalRecordsTable,
+          AdHocTimerIntervalRecord,
+          $$AdHocTimerIntervalRecordsTableFilterComposer,
+          $$AdHocTimerIntervalRecordsTableOrderingComposer,
+          $$AdHocTimerIntervalRecordsTableAnnotationComposer,
+          $$AdHocTimerIntervalRecordsTableCreateCompanionBuilder,
+          $$AdHocTimerIntervalRecordsTableUpdateCompanionBuilder,
+          (
+            AdHocTimerIntervalRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $AdHocTimerIntervalRecordsTable,
+              AdHocTimerIntervalRecord
+            >,
+          ),
+          AdHocTimerIntervalRecord,
+          PrefetchHooks Function()
+        > {
+  $$AdHocTimerIntervalRecordsTableTableManager(
+    _$AppDatabase db,
+    $AdHocTimerIntervalRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AdHocTimerIntervalRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$AdHocTimerIntervalRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AdHocTimerIntervalRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> timerId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> durationSeconds = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AdHocTimerIntervalRecordsCompanion(
+                id: id,
+                timerId: timerId,
+                userId: userId,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                durationSeconds: durationSeconds,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String timerId,
+                required String userId,
+                required DateTime startedAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<int> durationSeconds = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AdHocTimerIntervalRecordsCompanion.insert(
+                id: id,
+                timerId: timerId,
+                userId: userId,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                durationSeconds: durationSeconds,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $AdHocTimerIntervalRecordsTable,
+                    AdHocTimerIntervalRecord
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AdHocTimerIntervalRecordsTable,
+                    AdHocTimerIntervalRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AdHocTimerIntervalRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AdHocTimerIntervalRecordsTable,
+      AdHocTimerIntervalRecord,
+      $$AdHocTimerIntervalRecordsTableFilterComposer,
+      $$AdHocTimerIntervalRecordsTableOrderingComposer,
+      $$AdHocTimerIntervalRecordsTableAnnotationComposer,
+      $$AdHocTimerIntervalRecordsTableCreateCompanionBuilder,
+      $$AdHocTimerIntervalRecordsTableUpdateCompanionBuilder,
+      (
+        AdHocTimerIntervalRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $AdHocTimerIntervalRecordsTable,
+          AdHocTimerIntervalRecord
+        >,
+      ),
+      AdHocTimerIntervalRecord,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -24118,6 +26028,8 @@ class $AppDatabaseManager {
         _db,
         _db.scheduleTemplateSegmentRecords,
       );
+  $$SemesterRecordsTableTableManager get semesterRecords =>
+      $$SemesterRecordsTableTableManager(_db, _db.semesterRecords);
   $$DailyItemOverrideRecordsTableTableManager get dailyItemOverrideRecords =>
       $$DailyItemOverrideRecordsTableTableManager(
         _db,
@@ -24129,4 +26041,9 @@ class $AppDatabaseManager {
       $$AlarmRuleRecordsTableTableManager(_db, _db.alarmRuleRecords);
   $$AdHocTimerRecordsTableTableManager get adHocTimerRecords =>
       $$AdHocTimerRecordsTableTableManager(_db, _db.adHocTimerRecords);
+  $$AdHocTimerIntervalRecordsTableTableManager get adHocTimerIntervalRecords =>
+      $$AdHocTimerIntervalRecordsTableTableManager(
+        _db,
+        _db.adHocTimerIntervalRecords,
+      );
 }

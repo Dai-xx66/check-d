@@ -3,6 +3,10 @@ import 'package:check_d/app/app_providers.dart';
 import 'package:check_d/core/config/app_config.dart';
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/features/calendar/presentation/calendar_page.dart';
+import 'package:check_d/features/courses/application/course_providers.dart';
+import 'package:check_d/features/courses/domain/course_models.dart';
+import 'package:check_d/features/schedule/application/day_schedule_providers.dart';
+import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
 import 'package:check_d/features/statistics/application/statistics_providers.dart';
 import 'package:check_d/features/statistics/domain/statistics_models.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
@@ -41,6 +45,15 @@ void main() {
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
+          coursesSnapshotProvider.overrideWith(
+            (ref) => Future.value(const <CourseDetails>[]),
+          ),
+          dailyOverridesSnapshotProvider.overrideWith(
+            (ref, date) => Future.value(const <DailyItemOverride>[]),
+          ),
+          adHocTimersForDateProvider.overrideWith(
+            (ref, date) => Stream.value(const <AdHocTimerDetails>[]),
+          ),
         ],
         child: const CheckDApp(),
       ),
@@ -52,11 +65,106 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('今日完成度'), findsOneWidget);
-    expect(find.text('单次事项'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('今日待完成'), findsOneWidget);
+    expect(find.text('三日日程'), findsOneWidget);
+    expect(find.text('今日总结'), findsOneWidget);
+    expect(find.text('连续打卡'), findsOneWidget);
+    expect(find.text('周期任务'), findsNothing);
+    expect(find.text('单次事项'), findsNothing);
+    expect(find.text('我的'), findsOneWidget);
+    expect(find.text('复盘'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('desktop width uses the navigation rail', (tester) async {
+  testWidgets('mobile today splits pending and precisely scheduled items', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final today = dateOnly(DateTime.now());
+    final createdAt = DateTime(2026);
+    final pending = TaskDetails(
+      id: 'pending',
+      name: '背单词',
+      kind: TaskKind.recurring,
+      colorValue: 0xFF9B8BE8,
+      status: TaskLifecycle.active,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      recurringMode: RecurringExecutionMode.timed,
+      targetDurationSeconds: 1800,
+    );
+    final scheduled = TaskDetails(
+      id: 'scheduled',
+      name: '数据库作业',
+      kind: TaskKind.oneTime,
+      colorValue: 0xFFEF8FA8,
+      status: TaskLifecycle.active,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      scheduledAt: DateTime(today.year, today.month, today.day, 14),
+      oneTimeExecutionMode: OneTimeExecutionMode.untimed,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWithValue(
+            const AppConfig(supabaseUrl: '', supabaseAnonKey: ''),
+          ),
+          appDatabaseProvider.overrideWithValue(database),
+          supabaseClientProvider.overrideWithValue(null),
+          dailyTimerStateProvider.overrideWith(
+            (ref, date) => Stream.value(
+              TaskTimerState(sessions: const [], localDate: date),
+            ),
+          ),
+          tasksForDateProvider.overrideWith((ref, date) {
+            if (dateOnly(date) == today) {
+              return Stream.value([pending, scheduled]);
+            }
+            return Stream.value(const <TaskDetails>[]);
+          }),
+          coursesSnapshotProvider.overrideWith(
+            (ref) => Future.value(const <CourseDetails>[]),
+          ),
+          dailyOverridesSnapshotProvider.overrideWith(
+            (ref, date) => Future.value(const <DailyItemOverride>[]),
+          ),
+          adHocTimersForDateProvider.overrideWith(
+            (ref, date) => Stream.value(const <AdHocTimerDetails>[]),
+          ),
+        ],
+        child: const CheckDApp(),
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('今日待完成'), findsOneWidget);
+    expect(find.text('背单词'), findsWidgets);
+    expect(find.text('数据库作业'), findsWidgets);
+    expect(find.text('周期任务'), findsNothing);
+    expect(find.text('单次事项'), findsNothing);
+
+    await tester.drag(find.byType(PageView), const Offset(-320, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('明日待完成'), findsOneWidget);
+    expect(find.text('回到今天'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('desktop width uses the desktop sidebar', (tester) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -90,8 +198,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('快速创建'), findsOneWidget);
+    expect(find.text('立即开始计时'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('mobile calendar opens the selected day details', (tester) async {
@@ -148,6 +260,9 @@ void main() {
 
     expect(find.text('当天详情'), findsOneWidget);
     expect(find.text('当天完成度'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('desktop calendar keeps day details beside the month', (

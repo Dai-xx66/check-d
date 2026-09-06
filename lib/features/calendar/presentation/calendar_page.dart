@@ -8,6 +8,7 @@ import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../../plans/presentation/plans_page.dart';
 import 'daily_detail_page.dart';
+import 'calendar_workspace.dart';
 
 class CalendarPage extends ConsumerStatefulWidget {
   const CalendarPage({super.key});
@@ -30,10 +31,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    final monthValue = ref.watch(calendarMonthProvider(_focusedMonth));
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -49,50 +49,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               ),
             ),
             const SizedBox(height: 20),
-            Expanded(
-              child: monthValue.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stackTrace) =>
-                    const Center(child: Text('日历加载失败')),
-                data: (monthData) => LayoutBuilder(
-                  builder: (context, constraints) {
-                    final desktop = constraints.maxWidth >= 980;
-                    final calendar = _CalendarPane(
-                      monthData: monthData,
-                      focusedMonth: _focusedMonth,
-                      selectedDate: _selectedDate,
-                      onPrevious: () => _changeMonth(-1),
-                      onNext: () => _changeMonth(1),
-                      onToday: _goToToday,
-                      onSelect: (date) => _selectDate(date, desktop),
-                    );
-                    if (!desktop) {
-                      return ListView(
-                        padding: const EdgeInsets.only(bottom: 32),
-                        children: [
-                          calendar,
-                          const SizedBox(height: 20),
-                          _MonthSummary(data: monthData),
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(flex: 6, child: calendar),
-                        const SizedBox(width: 24),
-                        const VerticalDivider(width: 1),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          flex: 4,
-                          child: DailyDetailPanel(date: _selectedDate),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
+            const Expanded(child: CalendarWorkspace()),
           ],
         ),
       ),
@@ -272,10 +229,10 @@ class _CalendarDayCell extends StatelessWidget {
             ? AppColors.surface
             : Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: today
+          borderRadius: BorderRadius.circular(14),
+          side: today || selected
               ? const BorderSide(color: AppColors.primary, width: 1.5)
-              : const BorderSide(color: AppColors.border),
+              : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

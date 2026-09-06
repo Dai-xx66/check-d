@@ -1,23 +1,71 @@
 import '../../tasks/domain/task_models.dart';
 
-enum StatisticsPeriod { day, week, month, year }
+enum StatisticsPeriod { day, week, month, semester, year }
+
+class StatisticsSemester {
+  const StatisticsSemester({
+    required this.name,
+    required this.start,
+    required this.end,
+  });
+
+  final String name;
+  final DateTime start;
+  final DateTime end;
+
+  int get totalWeeks => ((end.difference(start).inDays + 1) / 7).ceil();
+
+  bool contains(DateTime date) => !date.isBefore(start) && !date.isAfter(end);
+
+  static StatisticsSemester fallback(DateTime anchor) {
+    if (anchor.month == 1) {
+      return StatisticsSemester(
+        name: '${anchor.year - 1}秋季学期',
+        start: DateTime(anchor.year - 1, 9),
+        end: DateTime(anchor.year, 1, 31),
+      );
+    }
+    if (anchor.month < 8) {
+      return StatisticsSemester(
+        name: '${anchor.year}春季学期',
+        start: DateTime(anchor.year, 2),
+        end: DateTime(anchor.year, 7, 31),
+      );
+    }
+    return StatisticsSemester(
+      name: '${anchor.year}秋季学期',
+      start: DateTime(anchor.year, 9),
+      end: DateTime(anchor.year + 1, 1, 31),
+    );
+  }
+}
 
 class StatisticsRange {
-  StatisticsRange(StatisticsPeriod period, DateTime anchor)
-    : start = switch (period) {
-        StatisticsPeriod.day => dateOnly(anchor),
-        StatisticsPeriod.week => DateTime(
-          anchor.year,
-          anchor.month,
-          anchor.day - anchor.weekday + 1,
-        ),
-        StatisticsPeriod.month => DateTime(anchor.year, anchor.month),
-        StatisticsPeriod.year => DateTime(anchor.year),
-      } {
+  StatisticsRange(
+    StatisticsPeriod period,
+    DateTime anchor, {
+    StatisticsSemester? semester,
+  }) : start = switch (period) {
+         StatisticsPeriod.day => dateOnly(anchor),
+         StatisticsPeriod.week => DateTime(
+           anchor.year,
+           anchor.month,
+           anchor.day - anchor.weekday + 1,
+         ),
+         StatisticsPeriod.month => DateTime(anchor.year, anchor.month),
+         StatisticsPeriod.semester =>
+           (semester ?? StatisticsSemester.fallback(anchor)).start,
+         StatisticsPeriod.year => DateTime(anchor.year),
+       } {
     end = switch (period) {
       StatisticsPeriod.day => DateTime(start.year, start.month, start.day + 1),
       StatisticsPeriod.week => DateTime(start.year, start.month, start.day + 7),
       StatisticsPeriod.month => DateTime(start.year, start.month + 1),
+      StatisticsPeriod.semester => DateTime(
+        (semester ?? StatisticsSemester.fallback(anchor)).end.year,
+        (semester ?? StatisticsSemester.fallback(anchor)).end.month,
+        (semester ?? StatisticsSemester.fallback(anchor)).end.day + 1,
+      ),
       StatisticsPeriod.year => DateTime(start.year + 1),
     };
   }
@@ -66,6 +114,23 @@ class TimeEntry {
     final b = overlapEnd.difference(start).inMicroseconds;
     return ((durationSeconds * b) ~/ wall) - ((durationSeconds * a) ~/ wall);
   }
+
+  ActiveInterval? intervalWithin(DateTime from, DateTime until, DateTime now) {
+    final stop = running
+        ? now
+        : end ?? start.add(Duration(seconds: durationSeconds));
+    final cappedStop = stop.isAfter(now) ? now : stop;
+    final overlapStart = start.isAfter(from) ? start : from;
+    final overlapEnd = cappedStop.isBefore(until) ? cappedStop : until;
+    if (!overlapEnd.isAfter(overlapStart)) return null;
+    return ActiveInterval(overlapStart, overlapEnd);
+  }
+}
+
+class ActiveInterval {
+  const ActiveInterval(this.start, this.end);
+  final DateTime start;
+  final DateTime end;
 }
 
 class ExecutionDay {
@@ -116,6 +181,7 @@ class TimeBucket {
   final String label;
   final Map<String?, int> secondsByTag = {};
   int get seconds => secondsByTag.values.fold(0, (a, b) => a + b);
+  int focusSeconds = 0;
 }
 
 class StatisticsReport {
@@ -125,18 +191,39 @@ class StatisticsReport {
     required this.buckets,
     required this.tasks,
     required this.remindersCompleted,
+    required this.remindersExpected,
+    required this.checkInDays,
   });
   final StatisticsRange range;
   final List<TimeTag> tags;
   final List<TimeBucket> buckets;
   final List<TaskStatistics> tasks;
   final int remindersCompleted;
+  final int remindersExpected;
+  final int checkInDays;
   int get seconds => buckets.fold(0, (sum, bucket) => sum + bucket.seconds);
+
+  /// Global active focus time. Parallel item timers are merged rather than
+  /// summed, so overlapping work is counted once here.
+  int get focusSeconds =>
+      buckets.fold(0, (sum, bucket) => sum + bucket.focusSeconds);
   int get expected => tasks.fold(0, (sum, task) => sum + task.expected);
   int get completed => tasks.fold(0, (sum, task) => sum + task.completed);
   int get targetReached =>
       tasks.fold(0, (sum, task) => sum + task.targetReached);
   double get rate => expected == 0 ? 0 : completed / expected;
+  int get completedItems => completed + remindersCompleted;
+  int get expectedItems => expected + remindersExpected;
+  int get currentStreak => tasks.fold(
+    0,
+    (maximum, task) =>
+        task.currentStreak > maximum ? task.currentStreak : maximum,
+  );
+  int get longestStreak => tasks.fold(
+    0,
+    (maximum, task) =>
+        task.longestStreak > maximum ? task.longestStreak : maximum,
+  );
   int secondsForTag(String? id) =>
       buckets.fold(0, (sum, b) => sum + (b.secondsByTag[id] ?? 0));
 
@@ -196,23 +283,41 @@ class StatisticsData {
     required this.sessions,
     required this.tasks,
     required this.reminderCompletions,
+    this.reminderSchedules = const [],
+    this.semesters = const [],
   });
   final List<TimeTag> tags;
   final List<TimeEntry> sessions;
   final List<StatisticsTask> tasks;
   final List<DateTime> reminderCompletions;
+  final List<DateTime> reminderSchedules;
+  final List<StatisticsSemester> semesters;
+
+  StatisticsSemester semesterFor(DateTime anchor) {
+    final matching = semesters.where((semester) => semester.contains(anchor));
+    if (matching.isNotEmpty) return matching.first;
+    return StatisticsSemester.fallback(anchor);
+  }
 
   StatisticsReport report(
     StatisticsPeriod period,
     DateTime anchor,
-    DateTime now,
-  ) {
-    final range = StatisticsRange(period, anchor);
+    DateTime now, {
+    StatisticsSemester? semester,
+  }) {
+    final selectedSemester = period == StatisticsPeriod.semester
+        ? semester ?? semesterFor(anchor)
+        : null;
+    final range = StatisticsRange(period, anchor, semester: selectedSemester);
     final buckets = <TimeBucket>[];
+    var bucketIndex = 0;
     for (var day = range.start; day.isBefore(range.end);) {
-      final end = period == StatisticsPeriod.year
-          ? DateTime(day.year, day.month + 1)
-          : DateTime(day.year, day.month, day.day + 1);
+      final candidateEnd = switch (period) {
+        StatisticsPeriod.year => DateTime(day.year, day.month + 1),
+        StatisticsPeriod.semester => DateTime(day.year, day.month, day.day + 7),
+        _ => DateTime(day.year, day.month, day.day + 1),
+      };
+      final end = candidateEnd.isAfter(range.end) ? range.end : candidateEnd;
       final label = switch (period) {
         StatisticsPeriod.week => const [
           '一',
@@ -223,11 +328,13 @@ class StatisticsData {
           '六',
           '日',
         ][day.weekday - 1],
+        StatisticsPeriod.semester => '第${bucketIndex + 1}周',
         StatisticsPeriod.year => '${day.month}月',
         _ => '${day.day}',
       };
       buckets.add(TimeBucket(day, end, label));
       day = end;
+      bucketIndex++;
     }
     final knownIds = tags.map((tag) => tag.id).toSet();
     for (final session in sessions) {
@@ -242,6 +349,16 @@ class StatisticsData {
           );
         }
       }
+    }
+    for (final bucket in buckets) {
+      bucket.focusSeconds = _unionSeconds(
+        sessions
+            .map(
+              (session) =>
+                  session.intervalWithin(bucket.start, bucket.end, now),
+            )
+            .whereType<ActiveInterval>(),
+      );
     }
     final taskStats = <TaskStatistics>[];
     final today = dateOnly(now);
@@ -289,6 +406,35 @@ class StatisticsData {
       remindersCompleted: reminderCompletions
           .where((date) => range.contains(date) && !date.isAfter(now))
           .length,
+      remindersExpected: reminderSchedules
+          .where((date) => range.contains(date) && !date.isAfter(now))
+          .length,
+      checkInDays: {
+        for (final task in taskStats)
+          for (final day in task.task.days)
+            if (day.success && range.contains(day.date)) dateOnly(day.date),
+        for (final date in reminderCompletions)
+          if (range.contains(date) && !date.isAfter(now)) dateOnly(date),
+      }.length,
     );
+  }
+
+  int _unionSeconds(Iterable<ActiveInterval> intervals) {
+    final sorted = intervals.toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+    if (sorted.isEmpty) return 0;
+    var total = 0;
+    var start = sorted.first.start;
+    var end = sorted.first.end;
+    for (final interval in sorted.skip(1)) {
+      if (!interval.start.isAfter(end)) {
+        if (interval.end.isAfter(end)) end = interval.end;
+        continue;
+      }
+      total += end.difference(start).inSeconds;
+      start = interval.start;
+      end = interval.end;
+    }
+    return total + end.difference(start).inSeconds;
   }
 }

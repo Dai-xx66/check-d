@@ -187,14 +187,18 @@ class TaskDetails {
 class TimerSessionEntry {
   const TimerSessionEntry({
     required this.id,
+    required this.taskId,
     required this.startedAt,
+    required this.logicalDate,
     required this.durationSeconds,
     required this.status,
     this.endedAt,
   });
 
   final String id;
+  final String taskId;
   final DateTime startedAt;
+  final String? logicalDate;
   final DateTime? endedAt;
   final int durationSeconds;
   final TimerSessionStatus status;

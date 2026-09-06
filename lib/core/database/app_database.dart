@@ -105,6 +105,8 @@ class TimerSessionRecords extends Table {
   TextColumn get userId => text()();
   TextColumn get tagId => text().nullable()();
   DateTimeColumn get startedAt => dateTime()();
+  // Recurring completion belongs to the local day on which the timer began.
+  TextColumn get logicalDate => text().nullable()();
   DateTimeColumn get endedAt => dateTime().nullable()();
   IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
   TextColumn get state => text()();
@@ -242,6 +244,8 @@ class CourseRecords extends Table {
   TextColumn get teacher => text().nullable()();
   TextColumn get classroom => text().nullable()();
   TextColumn get semester => text().nullable()();
+  // Nullable for courses created before the dedicated Semester model.
+  TextColumn get semesterId => text().nullable()();
   DateTimeColumn get semesterStartsOn => dateTime().nullable()();
   DateTimeColumn get semesterEndsOn => dateTime().nullable()();
   TextColumn get notes => text().nullable()();
@@ -307,6 +311,22 @@ class ScheduleTemplateSegmentRecords extends Table {
   TextColumn get segmentType =>
       text().withDefault(const Constant('classTime'))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class SemesterRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get firstWeekStartDate => dateTime()();
+  IntColumn get totalWeeks => integer()();
+  TextColumn get scheduleTemplateId => text().nullable()();
+  BoolColumn get isCurrent => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -402,6 +422,23 @@ class AdHocTimerRecords extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Each row is one active interval of an ad-hoc timer. The parent timer keeps
+/// its current UI state and cached elapsed duration; these rows are the source
+/// of truth for pause-aware, cross-day statistics.
+class AdHocTimerIntervalRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get timerId => text()();
+  TextColumn get userId => text()();
+  DateTimeColumn get startedAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalTasks,
@@ -422,10 +459,12 @@ class AdHocTimerRecords extends Table {
     CourseScheduleRuleRecords,
     ScheduleTemplateRecords,
     ScheduleTemplateSegmentRecords,
+    SemesterRecords,
     DailyItemOverrideRecords,
     ReminderRuleRecords,
     AlarmRuleRecords,
     AdHocTimerRecords,
+    AdHocTimerIntervalRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -434,7 +473,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -442,8 +481,23 @@ class AppDatabase extends _$AppDatabase {
       await migrator.createAll();
     },
     onUpgrade: (migrator, from, to) async {
+      Future<bool> hasColumn(String table, String column) async {
+        final columns = await customSelect('PRAGMA table_info($table)').get();
+        return columns.any((row) => row.read<String>('name') == column);
+      }
+
+      Future<bool> hasTable(String table) async {
+        final rows = await customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+          variables: [Variable<String>(table)],
+        ).get();
+        return rows.isNotEmpty;
+      }
+
       if (from < 2) {
-        await migrator.addColumn(localTasks, localTasks.notes);
+        if (!await hasColumn('local_tasks', 'notes')) {
+          await migrator.addColumn(localTasks, localTasks.notes);
+        }
         await migrator.createTable(longTermTaskRecords);
         await migrator.createTable(taskScheduleRecords);
         await migrator.createTable(oneTimeReminderRecords);
@@ -454,18 +508,24 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(timerSessionRecords);
       }
       if (from < 4) {
-        await migrator.addColumn(localTasks, localTasks.iconName);
+        if (!await hasColumn('local_tasks', 'icon_name')) {
+          await migrator.addColumn(localTasks, localTasks.iconName);
+        }
       }
       if (from < 5) {
         if (from >= 2) {
-          await migrator.addColumn(
-            oneTimeReminderRecords,
-            oneTimeReminderRecords.isTimed,
-          );
-          await migrator.addColumn(
-            taskCompletionRecords,
-            taskCompletionRecords.targetReached,
-          );
+          if (!await hasColumn('one_time_reminder_records', 'is_timed')) {
+            await migrator.addColumn(
+              oneTimeReminderRecords,
+              oneTimeReminderRecords.isTimed,
+            );
+          }
+          if (!await hasColumn('task_completion_records', 'target_reached')) {
+            await migrator.addColumn(
+              taskCompletionRecords,
+              taskCompletionRecords.targetReached,
+            );
+          }
         }
         await customStatement(
           "UPDATE long_term_task_records SET check_mode = 'targetTimer' "
@@ -483,12 +543,16 @@ class AppDatabase extends _$AppDatabase {
       if (from < 6) {
         await migrator.createTable(tagRecords);
         await migrator.createTable(tagRevisionRecords);
-        await migrator.addColumn(localTasks, localTasks.tagId);
+        if (!await hasColumn('local_tasks', 'tag_id')) {
+          await migrator.addColumn(localTasks, localTasks.tagId);
+        }
         if (from >= 3) {
-          await migrator.addColumn(
-            timerSessionRecords,
-            timerSessionRecords.tagId,
-          );
+          if (!await hasColumn('timer_session_records', 'tag_id')) {
+            await migrator.addColumn(
+              timerSessionRecords,
+              timerSessionRecords.tagId,
+            );
+          }
         }
       }
       if (from < 7) {
@@ -527,17 +591,21 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(reviewRecords);
       }
       if (from < 10) {
-        final tables = await customSelect(
-          "SELECT name FROM sqlite_master WHERE type = 'table'",
-        ).get();
-        final names = tables.map((row) => row.read<String>('name')).toSet();
-        if (names.contains('long_term_task_records')) {
+        if (await hasColumn('long_term_task_records', 'task_id') &&
+            !await hasColumn(
+              'long_term_task_records',
+              'scheduled_minute_of_day',
+            )) {
           await migrator.addColumn(
             longTermTaskRecords,
             longTermTaskRecords.scheduledMinuteOfDay,
           );
         }
-        if (names.contains('one_time_reminder_records')) {
+        if (await hasColumn('one_time_reminder_records', 'task_id') &&
+            !await hasColumn(
+              'one_time_reminder_records',
+              'has_scheduled_date',
+            )) {
           await migrator.addColumn(
             oneTimeReminderRecords,
             oneTimeReminderRecords.hasScheduledDate,
@@ -555,22 +623,67 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(adHocTimerRecords);
       }
       if (from < 12) {
-        await migrator.addColumn(courseRecords, courseRecords.semesterStartsOn);
-        await migrator.addColumn(courseRecords, courseRecords.semesterEndsOn);
+        // Version 11 creates the course table from the current schema. Older
+        // databases still need these fields, so add each one only when absent.
+        final courseColumns = await customSelect(
+          'PRAGMA table_info(course_records)',
+        ).get();
+        final courseColumnNames = courseColumns
+            .map((row) => row.read<String>('name'))
+            .toSet();
+        if (!courseColumnNames.contains('semester_starts_on')) {
+          await migrator.addColumn(
+            courseRecords,
+            courseRecords.semesterStartsOn,
+          );
+        }
+        if (!courseColumnNames.contains('semester_ends_on')) {
+          await migrator.addColumn(courseRecords, courseRecords.semesterEndsOn);
+        }
       }
       if (from < 13) {
+        final adHocColumns = await customSelect(
+          'PRAGMA table_info(ad_hoc_timer_records)',
+        ).get();
+        final adHocColumnNames = adHocColumns
+            .map((row) => row.read<String>('name'))
+            .toSet();
+        if (!adHocColumnNames.contains('timer_status')) {
+          await migrator.addColumn(
+            adHocTimerRecords,
+            adHocTimerRecords.timerStatus,
+          );
+        }
+        if (!adHocColumnNames.contains('accumulated_duration_seconds')) {
+          await migrator.addColumn(
+            adHocTimerRecords,
+            adHocTimerRecords.accumulatedDurationSeconds,
+          );
+        }
+        if (!adHocColumnNames.contains('current_started_at')) {
+          await migrator.addColumn(
+            adHocTimerRecords,
+            adHocTimerRecords.currentStartedAt,
+          );
+        }
+      }
+      if (from < 14) {
+        // This table is additive. Existing ad-hoc rows retain their cached
+        // duration and remain readable; intervals are recorded from now on.
+        await migrator.createTable(adHocTimerIntervalRecords);
+      }
+      if (from < 15 &&
+          !await hasColumn('timer_session_records', 'logical_date')) {
         await migrator.addColumn(
-          adHocTimerRecords,
-          adHocTimerRecords.timerStatus,
+          timerSessionRecords,
+          timerSessionRecords.logicalDate,
         );
-        await migrator.addColumn(
-          adHocTimerRecords,
-          adHocTimerRecords.accumulatedDurationSeconds,
-        );
-        await migrator.addColumn(
-          adHocTimerRecords,
-          adHocTimerRecords.currentStartedAt,
-        );
+      }
+      if (from < 16 && !await hasTable('semester_records')) {
+        await migrator.createTable(semesterRecords);
+      }
+      if (from < 17 && !await hasColumn('course_records', 'semester_id')) {
+        await migrator.addColumn(courseRecords, courseRecords.semesterId);
       }
     },
     beforeOpen: (details) async {

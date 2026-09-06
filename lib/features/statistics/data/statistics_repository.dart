@@ -16,22 +16,30 @@ class StatisticsRepository {
   final String userId;
   final HolidayCalendar? _holidayCalendar;
 
-  Stream<StatisticsData> watchData() => database
-      .customSelect(
-        'SELECT 1',
-        readsFrom: {
-          database.localTasks,
-          database.longTermTaskRecords,
-          database.taskScheduleRecords,
-          database.taskCompletionRecords,
-          database.timerSessionRecords,
-          database.tagRecords,
-          database.taskRevisionRecords,
-          database.oneTimeReminderRecords,
-        },
-      )
-      .watch()
-      .asyncMap((_) => load());
+  Stream<StatisticsData> watchData() async* {
+    final trigger = database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        database.localTasks,
+        database.longTermTaskRecords,
+        database.taskScheduleRecords,
+        database.taskCompletionRecords,
+        database.timerSessionRecords,
+        database.tagRecords,
+        database.taskRevisionRecords,
+        database.oneTimeReminderRecords,
+        database.courseRecords,
+        database.adHocTimerRecords,
+        database.adHocTimerIntervalRecords,
+      },
+    );
+
+    // Keep the database probe inside the subscribed stream. This initializes
+    // the Web executor without delaying runApp(), then provides first-frame data.
+    await trigger.get();
+    yield await load();
+    yield* trigger.watch().asyncMap((_) => load());
+  }
 
   Future<StatisticsData> load({DateTime? now}) =>
       database.transaction(() async {
@@ -64,6 +72,15 @@ class StatisticsRepository {
                 .get();
         final reminders = await (database.select(
           database.oneTimeReminderRecords,
+        )..where((r) => r.userId.equals(userId))).get();
+        final courses = await (database.select(
+          database.courseRecords,
+        )..where((r) => r.userId.equals(userId) & r.deletedAt.isNull())).get();
+        final adHocTimers = await (database.select(
+          database.adHocTimerRecords,
+        )..where((r) => r.userId.equals(userId) & r.deletedAt.isNull())).get();
+        final adHocIntervals = await (database.select(
+          database.adHocTimerIntervalRecords,
         )..where((r) => r.userId.equals(userId))).get();
         final goalById = {for (final row in goals) row.taskId: row};
         final scheduleById = {for (final row in schedules) row.taskId: row};
@@ -163,12 +180,100 @@ class StatisticsRepository {
                       s.endedAt == null,
                 ),
               )
+              .followedBy(_adHocTimeEntries(adHocTimers, adHocIntervals))
               .toList(),
           tasks: result,
           reminderCompletions: reminders
               .where((r) => r.completedAt != null)
               .map((r) => r.completedAt!.toLocal())
               .toList(),
+          reminderSchedules: reminders
+              .where((r) => r.hasScheduledDate)
+              .map((r) => r.scheduledAt.toLocal())
+              .toList(),
+          semesters: _semestersFromCourses(courses),
         );
       });
+
+  List<StatisticsSemester> _semestersFromCourses(List<CourseRecord> courses) {
+    final grouped = <String, List<CourseRecord>>{};
+    for (final course in courses.where((row) => row.semesterStartsOn != null)) {
+      final start = course.semesterStartsOn!.toLocal();
+      final key = (course.semester?.trim().isNotEmpty ?? false)
+          ? course.semester!.trim()
+          : '${start.year}学期';
+      grouped.putIfAbsent(key, () => []).add(course);
+    }
+    return grouped.entries.map((entry) {
+      final starts =
+          entry.value
+              .map((row) => dateOnly(row.semesterStartsOn!.toLocal()))
+              .toList()
+            ..sort();
+      final ends =
+          entry.value
+              .where((row) => row.semesterEndsOn != null)
+              .map((row) => dateOnly(row.semesterEndsOn!.toLocal()))
+              .toList()
+            ..sort();
+      final start = starts.first;
+      final end = ends.isEmpty
+          ? start.add(const Duration(days: 18 * 7 - 1))
+          : ends.last;
+      return StatisticsSemester(name: entry.key, start: start, end: end);
+    }).toList()..sort((a, b) => b.start.compareTo(a.start));
+  }
+
+  Iterable<TimeEntry> _adHocTimeEntries(
+    List<AdHocTimerRecord> timers,
+    List<AdHocTimerIntervalRecord> intervals,
+  ) sync* {
+    final intervalsByTimer = <String, List<AdHocTimerIntervalRecord>>{};
+    for (final interval in intervals) {
+      intervalsByTimer.putIfAbsent(interval.timerId, () => []).add(interval);
+    }
+    for (final timer in timers) {
+      final timerIntervals = intervalsByTimer[timer.id] ?? const [];
+      if (timerIntervals.isNotEmpty) {
+        for (final interval in timerIntervals) {
+          yield TimeEntry(
+            taskId: 'ad-hoc:${timer.id}',
+            tagId: timer.tagId,
+            start: interval.startedAt.toLocal(),
+            end: interval.endedAt?.toLocal(),
+            durationSeconds: interval.durationSeconds,
+            running: interval.endedAt == null,
+          );
+        }
+        continue;
+      }
+      // Existing records predate interval storage. Keep their cached duration
+      // readable as a legacy best-effort entry instead of discarding history.
+      final start = timer.startedAt.toLocal();
+      final currentStart = timer.currentStartedAt?.toLocal();
+      if (timer.accumulatedDurationSeconds > 0) {
+        yield TimeEntry(
+          taskId: 'ad-hoc:${timer.id}',
+          tagId: timer.tagId,
+          start: start,
+          end:
+              timer.endedAt?.toLocal() ??
+              currentStart ??
+              timer.updatedAt.toLocal(),
+          durationSeconds: timer.accumulatedDurationSeconds,
+          running: false,
+        );
+      }
+      if (timer.timerStatus == 'running' && currentStart != null) {
+        yield TimeEntry(
+          taskId: 'ad-hoc:${timer.id}',
+          tagId: timer.tagId,
+          start: currentStart,
+          end: null,
+          durationSeconds: 0,
+          running: true,
+        );
+      }
+    }
+  }
 }

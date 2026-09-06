@@ -11,6 +11,7 @@ class CourseDraft {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterId,
     this.semesterStartsOn,
     this.semesterEndsOn,
     this.notes,
@@ -21,6 +22,7 @@ class CourseDraft {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final String? semesterId;
   final DateTime? semesterStartsOn;
   final DateTime? semesterEndsOn;
   final String? notes;
@@ -37,6 +39,7 @@ class CourseDetails {
     this.teacher,
     this.classroom,
     this.semester,
+    this.semesterId,
     this.semesterStartsOn,
     this.semesterEndsOn,
     this.notes,
@@ -52,6 +55,7 @@ class CourseDetails {
   final String? teacher;
   final String? classroom;
   final String? semester;
+  final String? semesterId;
   final DateTime? semesterStartsOn;
   final DateTime? semesterEndsOn;
   final String? notes;
@@ -182,10 +186,12 @@ class ScheduleTemplateSegmentDraft {
     required this.name,
     required this.startsAtMinute,
     required this.endsAtMinute,
+    this.id,
     this.segmentType = ScheduleSegmentType.classTime,
     this.sortOrder = 0,
   });
 
+  final String? id;
   final String name;
   final int startsAtMinute;
   final int endsAtMinute;
@@ -215,4 +221,61 @@ class ScheduleTemplateSegment {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+}
+
+class SemesterDraft {
+  const SemesterDraft({
+    required this.name,
+    required this.firstWeekStartDate,
+    required this.totalWeeks,
+    this.scheduleTemplateId,
+    this.isCurrent = false,
+  });
+
+  final String name;
+  final DateTime firstWeekStartDate;
+  final int totalWeeks;
+  final String? scheduleTemplateId;
+  final bool isCurrent;
+}
+
+class SemesterDetails {
+  const SemesterDetails({
+    required this.id,
+    required this.name,
+    required this.firstWeekStartDate,
+    required this.totalWeeks,
+    required this.isCurrent,
+    required this.createdAt,
+    required this.updatedAt,
+    this.scheduleTemplateId,
+  });
+
+  final String id;
+  final String name;
+  final DateTime firstWeekStartDate;
+  final int totalWeeks;
+  final String? scheduleTemplateId;
+  final bool isCurrent;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  DateTime get endsOn => firstWeekStartDate.add(
+    Duration(days: totalWeeks * DateTime.daysPerWeek - 1),
+  );
+
+  int weekNumberFor(DateTime date) {
+    final start = DateTime(
+      firstWeekStartDate.year,
+      firstWeekStartDate.month,
+      firstWeekStartDate.day,
+    );
+    final day = DateTime(date.year, date.month, date.day);
+    return day.difference(start).inDays ~/ DateTime.daysPerWeek + 1;
+  }
+
+  bool contains(DateTime date) {
+    final week = weekNumberFor(date);
+    return week >= 1 && week <= totalWeeks;
+  }
 }

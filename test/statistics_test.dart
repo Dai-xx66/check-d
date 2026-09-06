@@ -346,4 +346,176 @@ void main() {
       0,
     );
   });
+
+  test('semester report aggregates timer sessions by semester week', () {
+    final semester = StatisticsSemester(
+      name: '2026秋季学期',
+      start: DateTime(2026, 9, 1),
+      end: DateTime(2026, 10, 12),
+    );
+    final data = StatisticsData(
+      tags: const [],
+      sessions: [
+        TimeEntry(
+          taskId: 'a',
+          tagId: null,
+          start: DateTime(2026, 9, 1, 8),
+          end: DateTime(2026, 9, 1, 9),
+          durationSeconds: 3600,
+          running: false,
+        ),
+        TimeEntry(
+          taskId: 'a',
+          tagId: null,
+          start: DateTime(2026, 9, 9, 8),
+          end: DateTime(2026, 9, 9, 10),
+          durationSeconds: 7200,
+          running: false,
+        ),
+        TimeEntry(
+          taskId: 'a',
+          tagId: null,
+          start: DateTime(2026, 10, 1, 8),
+          end: DateTime(2026, 10, 1, 8, 30),
+          durationSeconds: 1800,
+          running: false,
+        ),
+      ],
+      tasks: const [],
+      reminderCompletions: const [],
+      semesters: [semester],
+    );
+
+    final report = data.report(
+      StatisticsPeriod.semester,
+      DateTime(2026, 9, 20),
+      DateTime(2026, 11),
+      semester: semester,
+    );
+
+    expect(report.buckets, hasLength(6));
+    expect(report.buckets.map((bucket) => bucket.label), [
+      '第1周',
+      '第2周',
+      '第3周',
+      '第4周',
+      '第5周',
+      '第6周',
+    ]);
+    expect(report.buckets.map((bucket) => bucket.seconds), [
+      3600,
+      7200,
+      0,
+      0,
+      1800,
+      0,
+    ]);
+    expect(report.seconds, 12600);
+  });
+
+  test('ad hoc focus duration contributes to focus statistics', () async {
+    final start = DateTime(2026, 9, 3, 10);
+    await db
+        .into(db.adHocTimerRecords)
+        .insert(
+          AdHocTimerRecordsCompanion.insert(
+            id: 'focus-a',
+            userId: 'a',
+            title: '专注时光',
+            colorValue: 0xFFF17F9D,
+            startedAt: start.toUtc(),
+            timerStatus: const Value('ended'),
+            accumulatedDurationSeconds: const Value(900),
+            endedAt: Value(start.add(const Duration(minutes: 20)).toUtc()),
+            createdAt: start.toUtc(),
+            updatedAt: start.add(const Duration(minutes: 20)).toUtc(),
+          ),
+        );
+
+    final report = (await stats.load(
+      now: DateTime(2026, 9, 3, 12),
+    )).report(StatisticsPeriod.week, start, DateTime(2026, 9, 3, 12));
+
+    expect(report.seconds, 900);
+    expect(report.secondsForTag(null), 900);
+  });
+
+  test(
+    'global focus unions overlapping intervals while tags retain investment',
+    () {
+      final start = DateTime(2026, 9, 3, 20);
+      final data = StatisticsData(
+        tags: const [TimeTag('study', '学习', 1), TimeTag('work', '工作', 2)],
+        sessions: [
+          TimeEntry(
+            taskId: 'a',
+            tagId: 'study',
+            start: start,
+            end: start.add(const Duration(minutes: 40)),
+            durationSeconds: 40 * 60,
+            running: false,
+          ),
+          TimeEntry(
+            taskId: 'b',
+            tagId: 'work',
+            start: start.add(const Duration(minutes: 20)),
+            end: start.add(const Duration(minutes: 60)),
+            durationSeconds: 40 * 60,
+            running: false,
+          ),
+        ],
+        tasks: const [],
+        reminderCompletions: const [],
+      );
+
+      final report = data.report(
+        StatisticsPeriod.day,
+        start,
+        start.add(const Duration(hours: 2)),
+      );
+      expect(report.focusSeconds, 60 * 60);
+      expect(report.secondsForTag('study'), 40 * 60);
+      expect(report.secondsForTag('work'), 40 * 60);
+    },
+  );
+
+  test('global focus splits a cross-day union at midnight', () {
+    final day = DateTime(2026, 9, 3);
+    final first = DateTime(2026, 9, 3, 23, 40);
+    final data = StatisticsData(
+      tags: const [],
+      sessions: [
+        TimeEntry(
+          taskId: 'a',
+          tagId: null,
+          start: first,
+          end: DateTime(2026, 9, 4, 0, 20),
+          durationSeconds: 40 * 60,
+          running: false,
+        ),
+        TimeEntry(
+          taskId: 'b',
+          tagId: null,
+          start: DateTime(2026, 9, 3, 23, 50),
+          end: DateTime(2026, 9, 4, 0, 10),
+          durationSeconds: 20 * 60,
+          running: false,
+        ),
+      ],
+      tasks: const [],
+      reminderCompletions: const [],
+    );
+    final firstDay = data.report(
+      StatisticsPeriod.day,
+      day,
+      DateTime(2026, 9, 4, 1),
+    );
+    final secondDay = data.report(
+      StatisticsPeriod.day,
+      day.add(const Duration(days: 1)),
+      DateTime(2026, 9, 4, 1),
+    );
+    expect(firstDay.focusSeconds, 20 * 60);
+    expect(secondDay.focusSeconds, 20 * 60);
+  });
 }

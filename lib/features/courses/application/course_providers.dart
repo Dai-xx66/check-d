@@ -5,6 +5,7 @@ import '../../../core/notifications/notification_providers.dart';
 import '../../../core/sync/sync_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../data/course_repository.dart';
+import '../data/semester_repository.dart';
 import '../domain/course_models.dart';
 
 final courseRepositoryProvider = Provider<CourseRepository>((ref) {
@@ -16,9 +17,34 @@ final courseRepositoryProvider = Provider<CourseRepository>((ref) {
   );
 });
 
+final semesterRepositoryProvider = Provider<SemesterRepository>((ref) {
+  return SemesterRepository(
+    database: ref.watch(appDatabaseProvider),
+    syncQueue: ref.watch(syncQueueServiceProvider),
+    userId: ref.watch(currentDataOwnerProvider),
+  );
+});
+
+final semestersProvider = StreamProvider.autoDispose<List<SemesterDetails>>((
+  ref,
+) {
+  return ref.watch(semesterRepositoryProvider).watchSemesters();
+});
+
+final currentSemesterProvider = StreamProvider.autoDispose<SemesterDetails?>((
+  ref,
+) {
+  return ref.watch(semesterRepositoryProvider).watchCurrentSemester();
+});
+
 final coursesProvider = StreamProvider.autoDispose<List<CourseDetails>>((ref) {
   return ref.watch(courseRepositoryProvider).watchCourses();
 });
+
+final scheduleTemplatesProvider =
+    StreamProvider.autoDispose<List<ScheduleTemplateDetails>>((ref) {
+      return ref.watch(courseRepositoryProvider).watchScheduleTemplates();
+    });
 
 final coursesSnapshotProvider = FutureProvider.autoDispose<List<CourseDetails>>(
   (ref) {

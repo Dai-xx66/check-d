@@ -23,6 +23,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -63,7 +64,6 @@ void main() {
     expect(tasks.single.iconName, TaskIconKey.book);
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await database.close();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

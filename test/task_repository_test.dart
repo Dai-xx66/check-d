@@ -264,22 +264,23 @@ void main() {
     );
   });
 
-  test('timer crossing midnight is aggregated into both local days', () async {
-    final firstDay = DateTime(2026, 9, 2);
-    final taskId = await repository.saveRecurringTask(_timerDraft(firstDay));
+  test(
+    'timer crossing midnight remains on its logical occurrence day',
+    () async {
+      final firstDay = DateTime(2026, 9, 2);
+      final taskId = await repository.saveRecurringTask(_timerDraft(firstDay));
 
-    await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 23, 55));
-    await repository.endTimer(taskId, now: DateTime(2026, 9, 3, 0, 10));
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 23, 55));
+      await repository.endTimer(taskId, now: DateTime(2026, 9, 3, 0, 10));
 
-    final completions = await (database.select(
-      database.taskCompletionRecords,
-    )..orderBy([(row) => OrderingTerm.asc(row.localDate)])).get();
-    expect(completions, hasLength(2));
-    expect(completions[0].localDate, '2026-09-02');
-    expect(completions[0].actualDurationSeconds, 300);
-    expect(completions[1].localDate, '2026-09-03');
-    expect(completions[1].actualDurationSeconds, 600);
-  });
+      final completions = await (database.select(
+        database.taskCompletionRecords,
+      )..orderBy([(row) => OrderingTerm.asc(row.localDate)])).get();
+      expect(completions, hasLength(1));
+      expect(completions[0].localDate, '2026-09-02');
+      expect(completions[0].actualDurationSeconds, 900);
+    },
+  );
 
   test('invalid timer transitions are rejected', () async {
     final day = DateTime(2026, 9, 2);
@@ -296,29 +297,56 @@ void main() {
     );
   });
 
-  test('only one timer can run for the same user', () async {
-    final day = DateTime(2026, 9, 2);
-    final firstId = await repository.saveRecurringTask(_timerDraft(day));
-    final secondId = await repository.saveRecurringTask(
-      RecurringTaskDraft(
-        name: '运动',
-        colorValue: 0xFF45A77A,
-        executionMode: RecurringExecutionMode.timed,
-        targetDurationSeconds: 1200,
-        schedulePreset: SchedulePreset.daily,
-        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
-        startsOn: day,
-        holidayPause: false,
-      ),
-    );
+  test(
+    'different tasks can run in parallel while one task stays unique',
+    () async {
+      final day = DateTime(2026, 9, 2);
+      final firstId = await repository.saveRecurringTask(_timerDraft(day));
+      final secondId = await repository.saveRecurringTask(
+        RecurringTaskDraft(
+          name: '运动',
+          colorValue: 0xFF45A77A,
+          executionMode: RecurringExecutionMode.timed,
+          targetDurationSeconds: 1200,
+          schedulePreset: SchedulePreset.daily,
+          weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+          startsOn: day,
+          holidayPause: false,
+        ),
+      );
 
-    await repository.startTimer(firstId, now: DateTime(2026, 9, 2, 9));
+      await repository.startTimer(firstId, now: DateTime(2026, 9, 2, 9));
+      await repository.startTimer(secondId, now: DateTime(2026, 9, 2, 9, 1));
 
-    await expectLater(
-      repository.startTimer(secondId, now: DateTime(2026, 9, 2, 9, 1)),
-      throwsStateError,
-    );
-  });
+      var unfinished = await repository.getUnfinishedTimers();
+      expect(unfinished, hasLength(2));
+      expect(
+        unfinished.where((timer) => timer.status == TimerSessionStatus.running),
+        hasLength(2),
+      );
+      await expectLater(
+        repository.startTimer(firstId, now: DateTime(2026, 9, 2, 9, 2)),
+        throwsStateError,
+      );
+
+      await repository.pauseTimer(firstId, now: DateTime(2026, 9, 2, 9, 5));
+      unfinished = await repository.getUnfinishedTimers();
+      expect(
+        unfinished.singleWhere((timer) => timer.taskId == firstId).status,
+        TimerSessionStatus.paused,
+      );
+      expect(
+        unfinished.singleWhere((timer) => timer.taskId == secondId).status,
+        TimerSessionStatus.running,
+      );
+
+      await repository.endTimer(secondId, now: DateTime(2026, 9, 2, 9, 10));
+      expect(await repository.getUnfinishedTimers(), hasLength(1));
+      await repository.resumeTimer(firstId, now: DateTime(2026, 9, 2, 9, 12));
+      await repository.endTimer(firstId, now: DateTime(2026, 9, 2, 9, 15));
+      expect(await repository.getUnfinishedTimers(), isEmpty);
+    },
+  );
 
   test('archiving a running timer closes its active session', () async {
     final now = DateTime.now();
@@ -330,7 +358,11 @@ void main() {
       now: now.subtract(const Duration(minutes: 2)),
     );
 
-    await repository.archiveTask(taskId);
+    await expectLater(
+      () => repository.archiveTask(taskId),
+      throwsA(isA<StateError>()),
+    );
+    await repository.archiveTask(taskId, endUnfinishedTimer: true);
 
     final session = await database
         .select(database.timerSessionRecords)
@@ -339,6 +371,36 @@ void main() {
     expect(session.endedAt, isNotNull);
     expect(session.durationSeconds, greaterThanOrEqualTo(120));
   });
+
+  test(
+    'a recurring timer crossing midnight belongs to its start date',
+    () async {
+      final taskId = await repository.saveRecurringTask(
+        _timerDraft(DateTime(2026, 9, 2)),
+      );
+
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 23, 50));
+      await repository.endTimer(taskId, now: DateTime(2026, 9, 3, 0, 20));
+
+      final startedDay = await repository.getTask(
+        taskId,
+        date: DateTime(2026, 9, 2),
+      );
+      final nextDay = await repository.getTask(
+        taskId,
+        date: DateTime(2026, 9, 3),
+      );
+      expect(startedDay!.todayActualDurationSeconds, 30 * 60);
+      expect(nextDay!.todayActualDurationSeconds, 0);
+
+      final completions = await database
+          .select(database.taskCompletionRecords)
+          .get();
+      expect(completions.map((item) => item.localDate), [
+        localDateKey(DateTime(2026, 9, 2)),
+      ]);
+    },
+  );
 
   test('calendar month combines partial timers and completed tasks', () async {
     final day = DateTime(2026, 9, 2);
