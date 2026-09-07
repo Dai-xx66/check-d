@@ -692,46 +692,65 @@ class _TimeGrid extends StatelessWidget {
                   60 *
                   hourHeight,
             ),
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Color(layout.item.colorValue).withValues(alpha: .20),
-                borderRadius: BorderRadius.circular(7),
-                border: Border(
-                  left: BorderSide(
-                    color: Color(layout.item.colorValue),
-                    width: 3,
-                  ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    layout.item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (layout.item.subtitle != null)
-                    Text(
-                      layout.item.subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 8,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            child: CalendarWeekEventBlock(item: layout.item),
           ),
     ];
   }
+}
+
+/// Keeps a timed occurrence's real height while reducing detail for short
+/// durations. Courses and timed task occurrences share this renderer.
+class CalendarWeekEventBlock extends StatelessWidget {
+  const CalendarWeekEventBlock({required this.item, super.key});
+
+  final CalendarOccurrence item;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final height = constraints.maxHeight;
+      final showSubtitle = item.subtitle != null && height >= 52;
+      final roomy = height >= 44;
+      final compact = height < 32;
+      return Container(
+        padding: EdgeInsets.all(compact ? 2 : roomy ? 5 : 3),
+        decoration: BoxDecoration(
+          color: Color(item.colorValue).withValues(alpha: .20),
+          borderRadius: BorderRadius.circular(7),
+          border: Border(
+            left: BorderSide(color: Color(item.colorValue), width: 3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              item.title,
+              maxLines: roomy ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: compact ? 8 : 10,
+                height: 1.05,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (showSubtitle)
+              Text(
+                item.subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 8,
+                  height: 1.05,
+                  color: AppColors.muted,
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _AgendaView extends StatelessWidget {

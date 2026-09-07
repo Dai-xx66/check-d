@@ -24,11 +24,13 @@ final taskRepositoryProvider = Provider<TaskRepository>((ref) {
 
 final tasksForDateProvider = StreamProvider.autoDispose
     .family<List<TaskDetails>, DateTime>((ref, date) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref.watch(taskRepositoryProvider).watchTasksForDate(date);
     });
 
 final taskDetailsProvider = StreamProvider.autoDispose
     .family<TaskDetails?, String>((ref, taskId) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref.watch(taskRepositoryProvider).watchTask(taskId);
     });
 
@@ -44,6 +46,7 @@ final taskCompletionHistoryProvider = StreamProvider.autoDispose
 
 final taskTimerStateProvider = StreamProvider.autoDispose
     .family<TaskTimerState, String>((ref, taskId) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref
           .watch(taskRepositoryProvider)
           .watchTimerState(taskId, dateOnly(DateTime.now()));
@@ -70,6 +73,7 @@ final runningTimerTaskIdProvider = FutureProvider.autoDispose<String?>((ref) {
 /// page reload can restore their controls without treating pause as finish.
 final unfinishedTaskTimersProvider =
     StreamProvider.autoDispose<List<TimerSessionEntry>>((ref) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref.watch(taskRepositoryProvider).watchUnfinishedTimers();
     });
 

@@ -473,39 +473,30 @@ class _CourseRuleEditorPageState extends State<_CourseRuleEditorPage> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _rule.startSegmentId,
-                decoration: const InputDecoration(labelText: '开始节次'),
-                items: segments
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.id,
-                        child: Text(
-                          '${item.name} · ${_minute(item.startsAtMinute)}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _rule.startSegmentId = value),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _rule.endSegmentId,
-                decoration: const InputDecoration(labelText: '结束节次'),
-                items: segments
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item.id,
-                        child: Text(
-                          '${item.name} · ${_minute(item.endsAtMinute)}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _rule.endSegmentId = value),
-              ),
+              Text('选择节次', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              for (final item in segments)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: _rule.sectionIds.contains(item.id),
+                  title: Text(item.name),
+                  subtitle: Text(
+                    '${_minute(item.startsAtMinute)}–${_minute(item.endsAtMinute)}',
+                  ),
+                  onChanged: (selected) => setState(() {
+                    if (selected == true) {
+                      _rule.sectionIds.add(item.id);
+                    } else {
+                      _rule.sectionIds.remove(item.id);
+                    }
+                  }),
+                ),
+              if (_rule.hasPeriodGap(segments))
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text('所选节次之间存在间隔，课程进行时会显示为课间。'),
+                ),
             ],
           ] else
             Row(
@@ -685,8 +676,8 @@ class _CourseRuleEditorPageState extends State<_CourseRuleEditorPage> {
         : _classroom.text.trim();
     _rule.notes = _notes.text.trim().isEmpty ? null : _notes.text.trim();
     if (_rule.timeMode == CourseScheduleTimeMode.periods) {
-      if (!_rule.selectPeriodRange(segments, widget.template?.id))
-        return _message('请选择连续的开始与结束节次');
+      if (!_rule.selectPeriods(segments, widget.template?.id))
+        return _message('请选择至少一个节次');
     }
     if (_rule.timeMode == CourseScheduleTimeMode.customTime &&
         _rule.endsAtMinute <= _rule.startsAtMinute)
@@ -816,21 +807,32 @@ class _EditableRule {
     endSegmentId = null;
   }
 
-  bool selectPeriodRange(
+  bool selectPeriods(
     List<ScheduleTemplateSegment> segments,
     String? templateId,
   ) {
-    final start = segments.indexWhere((item) => item.id == startSegmentId);
-    final end = segments.indexWhere((item) => item.id == endSegmentId);
-    if (templateId == null || start < 0 || end < start) return false;
-    sectionIds = segments
-        .sublist(start, end + 1)
-        .map((item) => item.id)
-        .toList();
+    final selected =
+        segments.where((item) => sectionIds.contains(item.id)).toList()
+          ..sort((a, b) => a.startsAtMinute.compareTo(b.startsAtMinute));
+    if (templateId == null || selected.isEmpty) return false;
+    sectionIds = selected.map((item) => item.id).toList();
     scheduleTemplateId = templateId;
-    startsAtMinute = segments[start].startsAtMinute;
-    endsAtMinute = segments[end].endsAtMinute;
+    startsAtMinute = selected.first.startsAtMinute;
+    endsAtMinute = selected
+        .map((item) => item.endsAtMinute)
+        .reduce((a, b) => a > b ? a : b);
     return true;
+  }
+
+  bool hasPeriodGap(List<ScheduleTemplateSegment> segments) {
+    final selected =
+        segments.where((item) => sectionIds.contains(item.id)).toList()
+          ..sort((a, b) => a.startsAtMinute.compareTo(b.startsAtMinute));
+    return selected.indexed.any(
+      (entry) =>
+          entry.$1 > 0 &&
+          selected[entry.$1 - 1].endsAtMinute < entry.$2.startsAtMinute,
+    );
   }
 
   CourseScheduleRuleDraft toDraft(String courseId) => CourseScheduleRuleDraft(

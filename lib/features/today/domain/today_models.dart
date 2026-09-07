@@ -1,4 +1,5 @@
 import '../../courses/domain/course_models.dart';
+import '../../calendar/domain/calendar_models.dart';
 import '../../schedule/domain/day_schedule_models.dart';
 import '../../tasks/domain/task_models.dart';
 
@@ -58,10 +59,12 @@ class TodayCourseItem extends TodayTimelineItem {
     required super.startMinute,
     required this.endMinute,
     this.classroom,
+    this.courseTiming,
   });
 
   final CourseDetails course;
   final CourseScheduleRule? rule;
   final int endMinute;
   final String? classroom;
+  final CourseOccurrenceTiming? courseTiming;
 }

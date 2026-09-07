@@ -148,6 +148,12 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
         ].join(' · '),
         course: course,
         classroom: override.temporaryClassroom ?? course.classroom,
+        courseTiming: CourseOccurrenceTiming.single(
+          startMinute: override.plannedStartMinute!,
+          endMinute: override.plannedEndMinute!,
+          id: 'extra:${override.id}',
+          label: '${course.name}补课',
+        ),
       ),
     );
   }
@@ -174,8 +180,12 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
       final override = overrideById[rule.id] ?? overrideById[course.id];
       if (override?.action == DayOverrideAction.skip) continue;
 
-      var startMinute = rule.startsAtMinute;
-      var endMinute = rule.endsAtMinute;
+      var timing = CourseOccurrenceTiming.single(
+        startMinute: rule.startsAtMinute,
+        endMinute: rule.endsAtMinute,
+        id: rule.id,
+        label: course.name,
+      );
       final template =
           rule.timeMode != CourseScheduleTimeMode.periods ||
               rule.scheduleTemplateId == null
@@ -184,18 +194,48 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
       if (template != null && rule.sectionIds.isNotEmpty) {
         final selected =
             template.segments
-                .where((segment) => rule.sectionIds.contains(segment.id))
+                .where(
+                  (segment) =>
+                      rule.sectionIds.contains(segment.id) &&
+                      segment.segmentType == ScheduleSegmentType.classTime,
+                )
                 .toList()
               ..sort((a, b) => a.startsAtMinute.compareTo(b.startsAtMinute));
         if (selected.isNotEmpty) {
-          startMinute = selected.first.startsAtMinute;
-          endMinute = selected
-              .map((segment) => segment.endsAtMinute)
-              .reduce((a, b) => a > b ? a : b);
+          timing = CourseOccurrenceTiming.fromTeachingSegments(
+            selected
+                .map(
+                  (segment) => CourseTeachingSegment(
+                    id: segment.id,
+                    label: segment.name,
+                    startMinute: segment.startsAtMinute,
+                    endMinute: segment.endsAtMinute,
+                    index: 0,
+                    total: selected.length,
+                  ),
+                )
+                .toList(),
+          );
         }
       }
-      startMinute = override?.plannedStartMinute ?? startMinute;
-      endMinute = override?.plannedEndMinute ?? endMinute;
+      if (override?.plannedStartMinute != null ||
+          override?.plannedEndMinute != null) {
+        final startMinute = override?.plannedStartMinute;
+        final endMinute = override?.plannedEndMinute;
+        if (startMinute == null ||
+            endMinute == null ||
+            endMinute <= startMinute) {
+          continue;
+        }
+        timing = CourseOccurrenceTiming.single(
+          startMinute: startMinute,
+          endMinute: endMinute,
+          id: 'override:${override!.id}',
+          label: course.name,
+        );
+      }
+      final startMinute = timing.startMinute;
+      final endMinute = timing.endMinute;
       if (endMinute <= startMinute) continue;
 
       final classroom =
@@ -219,6 +259,7 @@ List<CalendarOccurrence> buildCourseOccurrencesForDate({
           course: course,
           courseRule: rule,
           classroom: classroom,
+          courseTiming: timing,
         ),
       );
     }

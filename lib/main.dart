@@ -8,13 +8,34 @@ import 'app/app_providers.dart';
 import 'core/config/app_config.dart';
 import 'core/database/app_database.dart';
 import 'core/notifications/notification_providers.dart';
+import 'core/platform/desktop_mini_window.dart';
+import 'features/mini_window/presentation/mini_window_page.dart';
+import 'features/tasks/application/task_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('zh_CN');
-  await notificationService.initialize();
 
   const config = AppConfig.fromEnvironment();
+  final windowArguments = await currentDesktopWindowArguments();
+  final database = AppDatabase();
+
+  if (windowArguments.isMiniWindow) {
+    runApp(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWithValue(config),
+          appDatabaseProvider.overrideWithValue(database),
+          supabaseClientProvider.overrideWithValue(null),
+          currentDataOwnerProvider.overrideWithValue(windowArguments.ownerId!),
+        ],
+        child: MiniWindowApp(ownerId: windowArguments.ownerId!),
+      ),
+    );
+    return;
+  }
+
+  await notificationService.initialize();
   SupabaseClient? supabaseClient;
 
   if (config.hasCloudConfiguration) {
@@ -24,8 +45,6 @@ Future<void> main() async {
     );
     supabaseClient = Supabase.instance.client;
   }
-
-  final database = AppDatabase();
 
   runApp(
     ProviderScope(

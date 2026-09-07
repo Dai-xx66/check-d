@@ -32,6 +32,7 @@ final dailyOverridesSnapshotProvider = FutureProvider.autoDispose
 
 final adHocTimersForDateProvider = StreamProvider.autoDispose
     .family<List<AdHocTimerDetails>, DateTime>((ref, date) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref
           .watch(dayScheduleRepositoryProvider)
           .watchAdHocTimersForDate(date);
@@ -39,6 +40,7 @@ final adHocTimersForDateProvider = StreamProvider.autoDispose
 
 final unfinishedAdHocTimersProvider =
     StreamProvider.autoDispose<List<AdHocTimerDetails>>((ref) {
+      ref.watch(miniWindowDataRevisionProvider);
       return ref
           .watch(dayScheduleRepositoryProvider)
           .watchUnfinishedAdHocTimers();

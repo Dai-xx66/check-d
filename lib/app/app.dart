@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/notifications/reminder_scheduler_providers.dart';
+import '../core/platform/desktop_mini_window.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/shell/presentation/app_shell.dart';
+import 'app_providers.dart';
 
 class CheckDApp extends ConsumerWidget {
   const CheckDApp({super.key});
@@ -19,12 +21,15 @@ class CheckDApp extends ConsumerWidget {
       ],
     );
 
-    return ReminderSchedulerHost(
-      child: MaterialApp.router(
-        title: 'Check D',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        routerConfig: router,
+    return DesktopMainWindowSyncHost(
+      onRefresh: () => ref.read(miniWindowDataRevisionProvider.notifier).bump(),
+      child: ReminderSchedulerHost(
+        child: MaterialApp.router(
+          title: 'Check D',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          routerConfig: router,
+        ),
       ),
     );
   }

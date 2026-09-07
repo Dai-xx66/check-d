@@ -117,6 +117,7 @@ List<TodayCourseItem> buildCourseItemsForDate(
             startMinute: item.startMinute!,
             endMinute: item.endMinute!,
             classroom: item.classroom,
+            courseTiming: item.courseTiming,
           ),
         )
         .toList();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/platform/desktop_mini_window.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
@@ -14,6 +15,7 @@ import '../../schedule/application/day_schedule_providers.dart';
 import '../../statistics/presentation/statistics_page.dart';
 import '../../tasks/presentation/long_term_task_form_page.dart';
 import '../../tasks/presentation/one_time_reminder_form_page.dart';
+import '../../tasks/application/task_providers.dart';
 import '../../today/presentation/today_page.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -54,6 +56,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             onCreateRecurring: _createRecurring,
             onCreateOneTime: _createOneTime,
             onStartFocus: _startQuickFocus,
+            onOpenMiniWindow: _openMiniWindow,
             onSignOut: _signOut,
           );
         }
@@ -70,6 +73,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _selectDestination(int index) {
     setState(() => _selectedIndex = index);
   }
+
+  Future<void> _openMiniWindow() => DesktopMiniWindowLauncher.open(
+    ownerId: ref.read(currentDataOwnerProvider),
+  );
 
   Future<void> _showCreateSheet() async {
     await showModalBottomSheet<void>(
@@ -420,6 +427,7 @@ class _DesktopShell extends StatelessWidget {
     required this.onCreateRecurring,
     required this.onCreateOneTime,
     required this.onStartFocus,
+    required this.onOpenMiniWindow,
     required this.onSignOut,
   });
 
@@ -431,6 +439,7 @@ class _DesktopShell extends StatelessWidget {
   final VoidCallback onCreateRecurring;
   final VoidCallback onCreateOneTime;
   final VoidCallback onStartFocus;
+  final VoidCallback onOpenMiniWindow;
   final VoidCallback onSignOut;
 
   @override
@@ -449,6 +458,7 @@ class _DesktopShell extends StatelessWidget {
               onCreateRecurring: onCreateRecurring,
               onCreateOneTime: onCreateOneTime,
               onStartFocus: onStartFocus,
+              onOpenMiniWindow: onOpenMiniWindow,
               onSignOut: onSignOut,
             ),
             const SizedBox(width: 24),
@@ -469,6 +479,7 @@ class _DesktopSidebar extends StatelessWidget {
     required this.onCreateRecurring,
     required this.onCreateOneTime,
     required this.onStartFocus,
+    required this.onOpenMiniWindow,
     required this.onSignOut,
   });
 
@@ -479,6 +490,7 @@ class _DesktopSidebar extends StatelessWidget {
   final VoidCallback onCreateRecurring;
   final VoidCallback onCreateOneTime;
   final VoidCallback onStartFocus;
+  final VoidCallback onOpenMiniWindow;
   final VoidCallback onSignOut;
 
   @override
@@ -557,6 +569,11 @@ class _DesktopSidebar extends StatelessWidget {
           icon: Icons.bolt_rounded,
           label: '立即开始计时',
           onTap: onStartFocus,
+        ),
+        _DesktopCreateLink(
+          icon: Icons.open_in_new_rounded,
+          label: '打开桌面组件',
+          onTap: onOpenMiniWindow,
         ),
         const Spacer(),
         const Divider(color: Color(0xFFE6EAE8)),
