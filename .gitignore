@@ -49,3 +49,5 @@ pnpm-debug.log*
 # Temporary files
 *.tmp
 *.temp
+
+android/key.properties
