@@ -149,11 +149,11 @@ class FocusBarChart extends StatelessWidget {
       DateFormat('M月d日').format(bucket.start);
 
   static Color _barColor(int index) => const [
-    AppColors.accentBlue,
-    AppColors.accentLavender,
-    AppColors.accentMint,
+    AppColors.primary,
+    AppColors.purple,
+    AppColors.green,
     AppColors.orange,
-    AppColors.accentPink,
+    AppColors.accentBlue,
   ][index % 5];
 }
 
@@ -227,10 +227,10 @@ class MonthlyFocusHeatmap extends StatelessWidget {
           spacing: 14,
           runSpacing: 8,
           children: [
-            _HeatLegend(color: Color(0xFFF3F5F7), label: '<1h'),
-            _HeatLegend(color: Color(0xFFDDEBFB), label: '1–2h'),
-            _HeatLegend(color: Color(0xFFB8D6F4), label: '2–4h'),
-            _HeatLegend(color: AppColors.accentBlue, label: '>4h'),
+            _HeatLegend(color: Color(0xFFF8EFF2), label: '<1h'),
+            _HeatLegend(color: Color(0xFFF9DCE5), label: '1–2h'),
+            _HeatLegend(color: Color(0xFFF4A8BC), label: '2–4h'),
+            _HeatLegend(color: AppColors.primaryStrong, label: '>4h'),
           ],
         ),
       ],
@@ -238,11 +238,11 @@ class MonthlyFocusHeatmap extends StatelessWidget {
   }
 
   Color _heatColor(int seconds) {
-    if (seconds == 0) return const Color(0xFFF8F9FA);
-    if (seconds < 3600) return const Color(0xFFF3F5F7);
-    if (seconds < 2 * 3600) return const Color(0xFFDDEBFB);
-    if (seconds < 4 * 3600) return const Color(0xFFB8D6F4);
-    return AppColors.accentBlue;
+    if (seconds == 0) return const Color(0xFFFFFBF7);
+    if (seconds < 3600) return const Color(0xFFF8EFF2);
+    if (seconds < 2 * 3600) return const Color(0xFFF9DCE5);
+    if (seconds < 4 * 3600) return const Color(0xFFF4A8BC);
+    return AppColors.primaryStrong;
   }
 }
 
@@ -322,7 +322,7 @@ class _LineChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final grid = Paint()..color = const Color(0xFFE9EDF1);
+    final grid = Paint()..color = AppColors.border;
     for (final y in [0.0, size.height / 2, size.height]) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
@@ -350,12 +350,12 @@ class _LineChartPainter extends CustomPainter {
       ..close();
     canvas.drawPath(
       fill,
-      Paint()..color = AppColors.accentLavender.withValues(alpha: .14),
+      Paint()..color = AppColors.primary.withValues(alpha: .14),
     );
     canvas.drawPath(
       path,
       Paint()
-        ..color = AppColors.accentLavender
+        ..color = AppColors.primaryStrong
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
@@ -370,7 +370,7 @@ class _LineChartPainter extends CustomPainter {
         point,
         4,
         Paint()
-          ..color = AppColors.accentLavender
+          ..color = AppColors.primaryStrong
           ..strokeWidth = 2
           ..style = PaintingStyle.stroke,
       );

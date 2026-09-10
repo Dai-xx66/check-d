@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/home_widget_surface"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#4A3038"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#9A7780"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/widget_state"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F06B93"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/widget_current_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#3F3034"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/widget_current_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#856B73"
+                android:textSize="12sp" />
+        </LinearLayout>
+        <ImageView
+            android:id="@+id/widget_sheep"
+            android:layout_width="64dp"
+            android:layout_height="54dp"
+            android:contentDescription="@null"
+            android:scaleType="centerInside" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/widget_course_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="6dp"
+        android:progressBackgroundTint="#F7DEE5"
+        android:progressTint="#F36E97" />
+    <TextView
+        android:id="@+id/widget_concurrent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#765B66"
+        android:textSize="12sp" />
+    <!-- RemoteViews only permits its supported widget classes. A one-pixel
+         TextView provides the same divider without using android.view.View. -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:background="#F1E2E5"
+        android:text="" />
+    <TextView
+        android:id="@+id/widget_next_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#4A3038"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/widget_next_detail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#856B73"
+        android:textSize="12sp" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/widget_summary_complete"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#4A9A79"
+            android:textSize="12sp" />
+        <TextView
+            android:id="@+id/widget_summary_pending"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A87954"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

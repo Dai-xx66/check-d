@@ -4,8 +4,10 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/app_time.dart';
+import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
 import '../../../shared/widgets/glass_button.dart';
+import '../../calendar/domain/calendar_models.dart';
 import '../../reviews/application/review_providers.dart';
 import '../../reviews/domain/review_models.dart';
 import '../../reviews/presentation/reviews_page.dart';
@@ -139,8 +141,11 @@ class _TodayContent extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       // AppShell has already reserved the desktop sidebar. Use the remaining
-      // workspace width so a 1280px desktop window is not treated as tablet.
-      if (constraints.maxWidth >= 850) {
+      // workspace width, while keeping a narrow desktop shell on the desktop
+      // composition so its context rail can collapse instead of reverting to
+      // the unrelated tablet dashboard.
+      final inDesktopShell = MediaQuery.sizeOf(context).width >= 1024;
+      if (inDesktopShell || constraints.maxWidth >= 850) {
         return _DesktopLayout(data: data, onDateSelected: onDateSelected);
       }
       if (constraints.maxWidth >= 600) return _TabletLayout(data: data);
@@ -156,12 +161,11 @@ class _DesktopLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _TodayScroll(
-    horizontal: 28,
+    horizontal: 0,
+    bottom: 18,
     child: _DesktopTodayWorkspace(data: data, onDateSelected: onDateSelected),
   );
 }
-
-enum _DesktopTaskFilter { all, courses, items }
 
 class _DesktopTodayWorkspace extends ConsumerStatefulWidget {
   const _DesktopTodayWorkspace({
@@ -179,8 +183,6 @@ class _DesktopTodayWorkspace extends ConsumerStatefulWidget {
 
 class _DesktopTodayWorkspaceState
     extends ConsumerState<_DesktopTodayWorkspace> {
-  _DesktopTaskFilter _filter = _DesktopTaskFilter.all;
-
   _TodayData get data => widget.data;
 
   @override
@@ -191,7 +193,8 @@ class _DesktopTodayWorkspaceState
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final showSidePanel = constraints.maxWidth >= 1020;
+        final showSidePanel = constraints.maxWidth >= 980;
+        final railWidth = constraints.maxWidth >= 1240 ? 350.0 : 320.0;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -201,31 +204,37 @@ class _DesktopTodayWorkspaceState
                 children: [
                   _DesktopWorkspaceHeader(
                     data: data,
-                    onPrevious: () => widget.onDateSelected(
-                      data.date.subtract(const Duration(days: 1)),
-                    ),
-                    onNext: () => widget.onDateSelected(
-                      data.date.add(const Duration(days: 1)),
-                    ),
                     onToday: () => widget.onDateSelected(DateTime.now()),
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 12),
                   _DesktopAgenda(
                     data: data,
-                    filter: _filter,
-                    onFilterChanged: (filter) =>
-                        setState(() => _filter = filter),
+                    onDateSelected: widget.onDateSelected,
                   ),
-                  const SizedBox(height: 24),
-                  _DesktopTodaySummary(data: data),
-                  const SizedBox(height: 16),
-                  _ReviewSummary(date: data.date),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 96,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          flex: 6,
+                          child: _DesktopTodaySummary(data: data),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 4,
+                          child: _ReviewSummary(date: data.date),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
             if (showSidePanel) ...[
-              const SizedBox(width: 24),
-              SizedBox(width: 310, child: rightPanel),
+              const SizedBox(width: 16),
+              SizedBox(width: railWidth, child: rightPanel),
             ],
             if (!showSidePanel) ...[
               const SizedBox(width: 24),
@@ -244,69 +253,114 @@ class _DesktopTodayWorkspaceState
   }
 }
 
-class _DesktopWorkspaceHeader extends StatelessWidget {
-  const _DesktopWorkspaceHeader({
-    required this.data,
-    required this.onPrevious,
-    required this.onNext,
-    required this.onToday,
-  });
+class _DesktopWorkspaceHeader extends ConsumerWidget {
+  const _DesktopWorkspaceHeader({required this.data, required this.onToday});
 
   final _TodayData data;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
   final VoidCallback onToday;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              data.isToday
-                  ? '今天'
-                  : DateFormat('M月d日', 'zh_CN').format(data.date),
-              style: Theme.of(context).textTheme.headlineSmall,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final taskTimers =
+        ref.watch(unfinishedTaskTimersProvider).value ?? const [];
+    final adHocTimers =
+        ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
+    final sheepState = _mobileSheepState(data, taskTimers, adHocTimers);
+    return Container(
+      height: 142,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x96FFF3E8), Color(0x52FFFAF6), Color(0x24FFE8EE)],
+          stops: [0, .58, 1],
+        ),
+        borderRadius: BorderRadius.all(AppRadius.feature),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            right: 14,
+            bottom: -2,
+            child: CheckDSheep(
+              state: sheepState,
+              size: MascotSize.heroLarge,
+              framed: false,
             ),
-            const SizedBox(height: 5),
-            Text(data.dateText, style: const TextStyle(color: AppColors.muted)),
-          ],
-        ),
+          ),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 17, 178, 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.wb_sunny_rounded,
+                        color: AppColors.creamYellow,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 9),
+                      Flexible(
+                        child: Text(
+                          data.isToday
+                              ? _greetingFor(data.now)
+                              : _mobileHeaderTitle(data.date),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(fontSize: 25),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    data.dateText,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.isToday ? '专注让每一天更靠近理想的自己 ♡' : data.encouragement,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!data.isToday)
+            Positioned(
+              right: 12,
+              top: 10,
+              child: TextButton.icon(
+                onPressed: onToday,
+                icon: const Icon(Icons.today_rounded, size: 16),
+                label: const Text('回到今天'),
+              ),
+            ),
+        ],
       ),
-      if (!data.isToday)
-        TextButton.icon(
-          onPressed: onToday,
-          icon: const Icon(Icons.today_rounded, size: 17),
-          label: const Text('回到今天'),
-        ),
-      IconButton(
-        tooltip: '前一天',
-        onPressed: onPrevious,
-        icon: const Icon(Icons.chevron_left_rounded),
-      ),
-      IconButton(
-        tooltip: '后一天',
-        onPressed: onNext,
-        icon: const Icon(Icons.chevron_right_rounded),
-      ),
-      const SizedBox(width: 4),
-      MascotWidget(state: data.mascotState, size: 56, compact: true),
-    ],
-  );
+    );
+  }
 }
 
 class _DesktopAgenda extends StatelessWidget {
-  const _DesktopAgenda({
-    required this.data,
-    required this.filter,
-    required this.onFilterChanged,
-  });
+  const _DesktopAgenda({required this.data, required this.onDateSelected});
 
   final _TodayData data;
-  final _DesktopTaskFilter filter;
-  final ValueChanged<_DesktopTaskFilter> onFilterChanged;
+  final ValueChanged<DateTime> onDateSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -316,65 +370,74 @@ class _DesktopAgenda extends StatelessWidget {
     };
     final pending = data.tasks.where((task) {
       final override = overrides[task.id];
-      return _taskMinute(task, override) == null;
+      return !task.isCompleted && override?.action != DayOverrideAction.skip;
     }).toList();
     final timeline = <_DesktopAgendaEntry>[
-      if (filter != _DesktopTaskFilter.items)
-        ...data.courses.map(_DesktopAgendaCourse.new),
-      if (filter != _DesktopTaskFilter.courses)
-        ...data.tasks
-            .where((task) => _taskMinute(task, overrides[task.id]) != null)
-            .map(
-              (task) => _DesktopAgendaTask(
-                task,
-                _taskMinute(task, overrides[task.id])!,
-              ),
+      ...data.courses.map(_DesktopAgendaCourse.new),
+      ...data.tasks
+          .where((task) => _taskMinute(task, overrides[task.id]) != null)
+          .map(
+            (task) => _DesktopAgendaTask(
+              task,
+              _taskMinute(task, overrides[task.id])!,
             ),
+          ),
     ]..sort((a, b) => a.startMinute.compareTo(b.startMinute));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text('今日任务', style: Theme.of(context).textTheme.titleLarge),
-            const Spacer(),
-            SegmentedButton<_DesktopTaskFilter>(
-              segments: const [
-                ButtonSegment(value: _DesktopTaskFilter.all, label: Text('全部')),
-                ButtonSegment(
-                  value: _DesktopTaskFilter.courses,
-                  label: Text('课程'),
-                ),
-                ButtonSegment(
-                  value: _DesktopTaskFilter.items,
-                  label: Text('事项'),
-                ),
-              ],
-              selected: {filter},
-              showSelectedIcon: false,
-              onSelectionChanged: (value) => onFilterChanged(value.first),
+        CheckDSectionTitle(
+          title: data.isToday ? '今日待完成' : '${data.date.day}日待完成',
+          count: pending.length,
+          trailing: TextButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const TaskListPage()),
             ),
-          ],
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.muted,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('全部'),
+                Icon(Icons.chevron_right_rounded, size: 17),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 7),
+        _DesktopPendingItems(
+          tasks: pending,
+          date: data.date,
+          overrides: overrides,
+          isToday: data.isToday,
         ),
         const SizedBox(height: 12),
-        if (filter != _DesktopTaskFilter.courses)
-          _DesktopPendingItems(
-            tasks: pending,
-            date: data.date,
-            isToday: data.isToday,
+        _DesktopThreeDaySchedule(
+          selectedDate: data.date,
+          onDateSelected: onDateSelected,
+        ),
+        const SizedBox(height: 12),
+        CheckDSectionTitle(
+          title: data.isToday
+              ? '今日时间轴'
+              : '${data.date.month}月${data.date.day}日时间轴',
+          trailing: Text(
+            data.dateText,
+            style: const TextStyle(color: AppColors.muted, fontSize: 11),
           ),
-        if (filter != _DesktopTaskFilter.courses) const SizedBox(height: 14),
-        Text('今日完整安排', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
-            child: _DesktopTimeline(
-              entries: timeline,
-              data: data,
-              showCurrentLine: data.isToday,
-            ),
+        ),
+        const SizedBox(height: 7),
+        CheckDSurface(
+          level: CheckDSurfaceLevel.plain,
+          color: const Color(0x8CFFFFFF),
+          padding: const EdgeInsets.fromLTRB(15, 8, 15, 10),
+          child: _DesktopTimeline(
+            entries: timeline,
+            data: data,
+            showCurrentLine: data.isToday,
           ),
         ),
       ],
@@ -385,6 +448,202 @@ class _DesktopAgenda extends StatelessWidget {
 sealed class _DesktopAgendaEntry {
   const _DesktopAgendaEntry(this.startMinute);
   final int startMinute;
+}
+
+class _DesktopThreeDaySchedule extends StatelessWidget {
+  const _DesktopThreeDaySchedule({
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = dateOnly(selectedDate);
+    final dates = [
+      selected.subtract(const Duration(days: 1)),
+      selected,
+      selected.add(const Duration(days: 1)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CheckDSectionTitle(
+          title: '三日日程',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: '前一天',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onDateSelected(dates.first),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              IconButton(
+                tooltip: '后一天',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => onDateSelected(dates.last),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 5),
+        AnimatedSwitcher(
+          duration: AppMotion.duration(context, AppMotion.emphasis),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(.035, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: SizedBox(
+            key: ValueKey(selected),
+            height: 130,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 10,
+                  child: _DesktopDayCard(
+                    date: dates[0],
+                    selected: false,
+                    onTap: () => onDateSelected(dates[0]),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 11,
+                  child: _DesktopDayCard(
+                    date: dates[1],
+                    selected: true,
+                    onTap: () {},
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 10,
+                  child: _DesktopDayCard(
+                    date: dates[2],
+                    selected: false,
+                    onTap: () => onDateSelected(dates[2]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopDayCard extends ConsumerWidget {
+  const _DesktopDayCard({
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasks = ref.watch(tasksForDateProvider(date)).value ?? const [];
+    final completed = tasks.where((task) => task.isCompleted).length;
+    final running = tasks.where((task) => !task.isCompleted).length;
+    return CheckDHoverLift(
+      radius: const BorderRadius.all(AppRadius.importantCard),
+      child: AnimatedScale(
+        scale: selected ? 1 : .94,
+        duration: AppMotion.duration(context, AppMotion.standard),
+        curve: AppMotion.curve,
+        child: Opacity(
+          opacity: selected ? 1 : .7,
+          child: CheckDSurface(
+            level: selected
+                ? CheckDSurfaceLevel.glassSoft
+                : CheckDSurfaceLevel.raised,
+            color: selected ? const Color(0xA6FFF2F5) : const Color(0xA8FFFFFF),
+            borderColor: selected
+                ? const Color(0x30FFFFFF)
+                : const Color(0x48FFFFFF),
+            child: CheckDPressable(
+              onTap: onTap,
+              pressedScale: .985,
+              borderRadius: const BorderRadius.all(AppRadius.importantCard),
+              child: Stack(
+                children: [
+                  if (selected)
+                    Positioned(
+                      right: 12,
+                      bottom: -12,
+                      child: CheckDSheep(
+                        state: running > 0 ? SheepState.focus : SheepState.idle,
+                        size: MascotSize.lg,
+                        compact: true,
+                        framed: false,
+                      ),
+                    ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      14,
+                      12,
+                      selected ? 72 : 14,
+                      10,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _relativeDayLabel(date),
+                          style: TextStyle(
+                            color: selected
+                                ? AppColors.primaryStrong
+                                : AppColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${date.month}月${date.day}日',
+                          style: TextStyle(
+                            fontSize: selected ? 20 : 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          running > 0 ? '进行中 $running 项' : '完成 $completed 项',
+                          style: TextStyle(
+                            color: running > 0
+                                ? AppColors.primaryStrong
+                                : AppColors.muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _DesktopAgendaTask extends _DesktopAgendaEntry {
@@ -405,68 +664,84 @@ int? _taskMinute(TaskDetails task, DailyItemOverride? override) {
   return date == null ? null : date.hour * 60 + date.minute;
 }
 
-class _DesktopPendingItems extends StatelessWidget {
+class _DesktopPendingItems extends ConsumerWidget {
   const _DesktopPendingItems({
     required this.tasks,
     required this.date,
+    required this.overrides,
     required this.isToday,
   });
 
   final List<TaskDetails> tasks;
   final DateTime date;
+  final Map<String, DailyItemOverride> overrides;
   final bool isToday;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final timerEntries =
+        ref.watch(unfinishedTaskTimersProvider).value ?? const [];
+    final statusByTask = {
+      for (final value in timerEntries) value.taskId: value,
+    };
+    final sorted = [...tasks]
+      ..sort((a, b) {
+        int rank(TaskDetails task) => switch (statusByTask[task.id]?.status) {
+          TimerSessionStatus.running => 0,
+          TimerSessionStatus.paused => 1,
+          _ => 2,
+        };
+        return rank(a).compareTo(rank(b));
+      });
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.inbox_outlined,
-                color: AppColors.orange,
-                size: 19,
+          if (sorted.isEmpty)
+            const SizedBox(
+              height: 48,
+              child: Center(
+                child: Text(
+                  '今天的待完成事项已经处理好了',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
               ),
-              const SizedBox(width: 7),
-              Text('待安排', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              Text(
-                '${tasks.length} 项',
-                style: const TextStyle(color: AppColors.muted),
-              ),
-            ],
-          ),
-          if (tasks.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final task in tasks)
-                  _DesktopPendingChip(task: task, enabled: isToday),
-              ],
-            ),
-          ] else
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text(
-                '没有需要安排的事项。',
-                style: TextStyle(color: AppColors.muted),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 228),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: sorted.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (_, index) {
+                  final task = sorted[index];
+                  return _DesktopPendingChip(
+                    task: task,
+                    enabled: isToday,
+                    plannedMinute: _taskMinute(task, overrides[task.id]),
+                  );
+                },
               ),
             ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _DesktopPendingChip extends ConsumerWidget {
-  const _DesktopPendingChip({required this.task, required this.enabled});
+  const _DesktopPendingChip({
+    required this.task,
+    required this.enabled,
+    required this.plannedMinute,
+  });
   final TaskDetails task;
   final bool enabled;
+  final int? plannedMinute;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -477,83 +752,112 @@ class _DesktopPendingChip extends ConsumerWidget {
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
     final elapsed =
         timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
-    final content = task.hasTimer
-        ? Container(
-            constraints: const BoxConstraints(minWidth: 190, maxWidth: 320),
-            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-            decoration: BoxDecoration(
-              color: (timer?.isRunning ?? false)
-                  ? color.withValues(alpha: .09)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: (timer?.isRunning ?? false)
-                    ? color.withValues(alpha: .46)
-                    : AppColors.border,
+    final running = timer?.isRunning ?? false;
+    final paused = timer?.isPaused ?? false;
+    final content = CheckDSurface(
+      level: running
+          ? CheckDSurfaceLevel.glassActive
+          : paused
+          ? CheckDSurfaceLevel.raised
+          : CheckDSurfaceLevel.plain,
+      radius: const BorderRadius.all(AppRadius.control),
+      color: paused ? const Color(0x8CF3EEFF) : null,
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context, AppMotion.standard),
+        curve: AppMotion.curve,
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(taskIconData(task.iconName), size: 19, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    task.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    running || paused
+                        ? '${running ? '进行中' : '已暂停'} · ${formatDuration(elapsed)}'
+                        : plannedMinute == null
+                        ? _desktopPendingTimerLabel(task, timer)
+                        : _formatMinute(plannedMinute!),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: running
+                          ? AppColors.primaryStrong
+                          : paused
+                          ? AppColors.purple
+                          : AppColors.muted,
+                      fontSize: 11,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontWeight: running || paused
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Icon(taskIconData(task.iconName), size: 16, color: color),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        task.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    _TimerText(
-                      elapsed: elapsed,
-                      running: timer?.isRunning ?? false,
-                      color: color,
-                    ),
-                  ],
+            if (running || paused)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: CheckDSheep(
+                  state: running ? SheepState.focus : SheepState.paused,
+                  size: MascotSize.sm,
+                  compact: true,
+                  framed: false,
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _desktopPendingTimerLabel(task, timer),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
+              ),
+            if (enabled)
+              task.hasTimer
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _InlineTimerControls(
+                          taskId: task.id,
+                          timer: timer,
+                          color: AppColors.primaryStrong,
                         ),
-                      ),
-                    ),
-                    if (enabled) ...[
-                      const SizedBox(width: 8),
-                      _InlineTimerControls(
-                        taskId: task.id,
-                        timer: timer,
-                        color: color,
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          )
-        : Chip(
-            avatar: Icon(taskIconData(task.iconName), size: 16, color: color),
-            label: Text(task.name),
-            side: const BorderSide(color: AppColors.border),
-            backgroundColor: Colors.white,
-          );
+                        const SizedBox(width: 2),
+                        _CompletionButton(
+                          task: task,
+                          enabled: true,
+                          dimension: 34,
+                        ),
+                      ],
+                    )
+                  : _CompletionButton(task: task, enabled: true),
+          ],
+        ),
+      ),
+    );
     if (!enabled) return content;
+    final hoverContent = CheckDHoverLift(
+      radius: const BorderRadius.all(AppRadius.control),
+      child: content,
+    );
     return LongPressDraggable<TaskDetails>(
       data: task,
       feedback: Material(color: Colors.transparent, child: content),
       childWhenDragging: Opacity(opacity: .35, child: content),
-      child: content,
+      child: hoverContent,
     );
   }
 }
@@ -584,27 +888,15 @@ class _DesktopTimeline extends ConsumerWidget {
     onAcceptWithDetails: (details) => _scheduleTask(context, ref, details.data),
     builder: (context, candidate, _) {
       final timeline = <Widget>[];
-      var cursorMinute = 0;
       var currentInserted = !showCurrentLine;
       final nowMinute = data.now.hour * 60 + data.now.minute;
-      void addGap(int until) {
-        final minutes = until - cursorMinute;
-        if (minutes > 0) {
-          timeline.add(
-            SizedBox(height: (minutes * .22).clamp(6, 180).toDouble()),
-          );
-        }
-      }
 
       for (var index = 0; index < entries.length; index++) {
         final entry = entries[index];
         if (!currentInserted && nowMinute <= entry.startMinute) {
-          addGap(nowMinute);
           timeline.add(_CurrentTimeLine(now: data.now));
-          cursorMinute = nowMinute;
           currentInserted = true;
         }
-        addGap(entry.startMinute);
         timeline.add(switch (entry) {
           _DesktopAgendaCourse entry => _DesktopCourseAgendaRow(
             item: entry.course,
@@ -618,21 +910,21 @@ class _DesktopTimeline extends ConsumerWidget {
             last: index == entries.length - 1,
           ),
         });
-        cursorMinute = switch (entry) {
-          _DesktopAgendaCourse entry => entry.course.endMinute,
-          _DesktopAgendaTask entry => entry.startMinute + 30,
-        };
       }
       if (!currentInserted) {
-        addGap(nowMinute);
         timeline.add(_CurrentTimeLine(now: data.now));
       }
       return Column(
         children: [
           if (entries.isEmpty)
-            const MascotEmptyState(
-              title: '今天还没有时间安排',
-              message: '把上方待安排事项拖到这里，或先配置时间。',
+            const SizedBox(
+              height: 52,
+              child: Center(
+                child: Text(
+                  '今天还没有明确时间的安排',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ),
             )
           else
             ...timeline,
@@ -757,6 +1049,7 @@ class _DesktopCourseAgendaRow extends StatelessWidget {
       subtitle:
           '课程 · ${_formatMinute(item.startMinute)}–${_formatMinute(item.endMinute)}${item.classroom == null ? '' : ' · ${item.classroom}'}',
       trailing: _StatusPill(label: statusText, color: color),
+      highlighted: status == _DesktopCourseState.active,
     );
   }
 }
@@ -781,6 +1074,7 @@ class _DesktopTaskAgendaRow extends ConsumerWidget {
         : null;
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
     final running = timer?.isRunning ?? false;
+    final paused = timer?.isPaused ?? false;
     final elapsed =
         timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
     final color = Color(task.colorValue);
@@ -797,12 +1091,24 @@ class _DesktopTaskAgendaRow extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (task.hasTimer && isToday)
-            _InlineTimerControls(taskId: task.id, timer: timer, color: color)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _InlineTimerControls(
+                  taskId: task.id,
+                  timer: timer,
+                  color: color,
+                ),
+                const SizedBox(width: 2),
+                _CompletionButton(task: task, enabled: true, dimension: 34),
+              ],
+            )
           else
             _CompletionButton(task: task, enabled: isToday),
           if (running) const SizedBox(width: 4),
         ],
       ),
+      highlighted: running || paused,
     );
   }
 }
@@ -816,6 +1122,7 @@ class _DesktopTimelineRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailing,
+    this.highlighted = false,
   });
 
   final int minute;
@@ -825,70 +1132,79 @@ class _DesktopTimelineRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget trailing;
+  final bool highlighted;
 
   @override
-  Widget build(BuildContext context) => IntrinsicHeight(
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 62,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 14),
-            child: Text(
-              _formatMinute(minute),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-        Column(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              margin: const EdgeInsets.only(top: 18),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            if (!last)
-              Expanded(
-                child: Container(width: 1, color: const Color(0xFFE6E8EA)),
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: AppMotion.duration(context, AppMotion.standard),
+    curve: AppMotion.curve,
+    decoration: BoxDecoration(
+      color: highlighted ? const Color(0x66FFE8EF) : Colors.transparent,
+      borderRadius: const BorderRadius.all(AppRadius.control),
+    ),
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 62,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Text(
+                _formatMinute(minute),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            child: Row(
-              children: [
-                _TaskIcon(color: color, icon: leading),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                trailing,
-              ],
             ),
           ),
-        ),
-      ],
+          Column(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                margin: const EdgeInsets.only(top: 18),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              if (!last)
+                Expanded(
+                  child: Container(width: 1, color: const Color(0xFFE6E8EA)),
+                ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                children: [
+                  _TaskIcon(color: color, icon: leading),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  trailing,
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -917,100 +1233,107 @@ class _DesktopTodaySummary extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statistics = ref.watch(statisticsSnapshotProvider);
-    var streak = 0;
-    statistics.when(
-      data: (snapshot) {
-        final report = snapshot.report(
-          StatisticsPeriod.day,
-          data.date,
-          data.now,
-        );
-        for (final item in report.tasks) {
-          if (item.currentStreak > streak) streak = item.currentStreak;
-        }
-      },
-      loading: () {},
-      error: (_, _) {},
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('今日总结', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _DesktopSummaryCard(
-                label: '已完成',
-                value: '${data.completed} / ${data.tasks.length}',
-                icon: Icons.check_circle_rounded,
-                color: AppColors.green,
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      child: SizedBox(
+        height: 96,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                data.isToday ? '今日总结' : '${data.date.day}日总结',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _DesktopSummaryCard(
-                label: '专注时长',
-                value: formatDuration(data.focusedSeconds),
-                icon: Icons.hourglass_bottom_rounded,
-                color: AppColors.purple,
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DesktopSummaryMetric(
+                      label: '已完成',
+                      value: '${data.completed}',
+                      icon: Icons.check_rounded,
+                      color: AppColors.green,
+                    ),
+                  ),
+                  Expanded(
+                    child: _DesktopSummaryMetric(
+                      label: '专注时长',
+                      value: formatDuration(data.focusedSeconds),
+                      icon: Icons.hourglass_bottom_rounded,
+                      color: AppColors.purple,
+                    ),
+                  ),
+                  Expanded(
+                    child: _DesktopSummaryMetric(
+                      label: '待完成',
+                      value: '${data.remaining}',
+                      icon: Icons.folder_outlined,
+                      color: AppColors.orange,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _DesktopSummaryCard(
-                label: '待办事项',
-                value: '${data.remaining}',
-                icon: Icons.inbox_outlined,
-                color: AppColors.orange,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _DesktopSummaryCard(
-                label: '连续打卡',
-                value: '$streak 天',
-                icon: Icons.local_fire_department_rounded,
-                color: AppColors.red,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _DesktopSummaryCard extends StatelessWidget {
-  const _DesktopSummaryCard({
+class _DesktopSummaryMetric extends StatelessWidget {
+  const _DesktopSummaryMetric({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
   });
+
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 12),
-          Text(value, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
-        ],
+  Widget build(BuildContext context) => Row(
+    children: [
+      DecoratedBox(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .14),
+          shape: BoxShape.circle,
+        ),
+        child: SizedBox.square(
+          dimension: 28,
+          child: Icon(icon, size: 16, color: color),
+        ),
       ),
-    ),
+      const SizedBox(width: 7),
+      Flexible(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 }
 
@@ -1026,15 +1349,81 @@ class _DesktopContextPanel extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            Expanded(
+              child: CheckDPressable(
+                pressedScale: .985,
+                borderRadius: const BorderRadius.all(AppRadius.chip),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const TaskListPage()),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13),
+                  decoration: const BoxDecoration(
+                    color: Color(0xAAFFFFFF),
+                    borderRadius: BorderRadius.all(AppRadius.chip),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.search_rounded,
+                        size: 17,
+                        color: AppColors.muted,
+                      ),
+                      SizedBox(width: 7),
+                      Text(
+                        '查看课程、事项...',
+                        style: TextStyle(color: AppColors.muted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 10),
       _DesktopMiniCalendar(
         selectedDate: data.date,
         onDateSelected: onDateSelected,
       ),
-      const SizedBox(height: 16),
-      _DesktopUpcomingItems(data: data),
-      const SizedBox(height: 16),
+      const SizedBox(height: 12),
       _DesktopFocusCard(data: data),
+      const SizedBox(height: 12),
+      _DesktopUpcomingItems(data: data),
+      const SizedBox(height: 12),
+      const _DesktopMotivationCard(),
     ],
+  );
+}
+
+class _DesktopMotivationCard extends StatelessWidget {
+  const _DesktopMotivationCard();
+
+  @override
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.glassSoft,
+    color: const Color(0xCFFFF5EF),
+    child: SizedBox(
+      height: 132,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 17, 16, 14),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Text(
+            '每一个专注的日子\n都在靠近更好的自己 ♡',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF855B63),
+              height: 1.55,
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -1105,182 +1494,232 @@ class _DesktopMiniCalendarState extends State<_DesktopMiniCalendar> {
   Widget build(BuildContext context) {
     final start = _month.subtract(Duration(days: _month.weekday - 1));
     final today = dateOnly(DateTime.now());
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Text('迷你日历', style: Theme.of(context).textTheme.titleMedium),
-                const Spacer(),
-                IconButton(
-                  tooltip: '上个月',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(
-                    () => _month = DateTime(_month.year, _month.month - 1),
-                  ),
-                  icon: const Icon(Icons.chevron_left_rounded),
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text('迷你日历', style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              IconButton(
+                tooltip: '上个月',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => _month = DateTime(_month.year, _month.month - 1),
                 ),
-                IconButton(
-                  tooltip: '下个月',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => setState(
-                    () => _month = DateTime(_month.year, _month.month + 1),
-                  ),
-                  icon: const Icon(Icons.chevron_right_rounded),
-                ),
-              ],
-            ),
-            Text(DateFormat('yyyy年M月', 'zh_CN').format(_month)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                for (final label in ['一', '二', '三', '四', '五', '六', '日'])
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        label,
-                        style: TextStyle(fontSize: 11, color: AppColors.muted),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 42,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: 1.05,
+                icon: const Icon(Icons.chevron_left_rounded),
               ),
-              itemBuilder: (context, index) {
-                final day = dateOnly(start.add(Duration(days: index)));
-                final selected = day == dateOnly(widget.selectedDate);
-                final isToday = day == today;
-                final isCurrentMonth = day.month == _month.month;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => widget.onDateSelected(day),
+              IconButton(
+                tooltip: '下个月',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => _month = DateTime(_month.year, _month.month + 1),
+                ),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+          Text(DateFormat('yyyy年M月', 'zh_CN').format(_month)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (final label in ['一', '二', '三', '四', '五', '六', '日'])
+                Expanded(
                   child: Center(
-                    child: Container(
-                      width: 29,
-                      height: 29,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 11, color: AppColors.muted),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 42,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.15,
+            ),
+            itemBuilder: (context, index) {
+              final day = dateOnly(start.add(Duration(days: index)));
+              final selected = day == dateOnly(widget.selectedDate);
+              final isToday = day == today;
+              final isCurrentMonth = day.month == _month.month;
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => widget.onDateSelected(day),
+                child: Center(
+                  child: Container(
+                    width: 29,
+                    height: 29,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.primary
+                          : isToday
+                          ? AppColors.blush
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: selected || isToday
+                            ? FontWeight.w800
+                            : FontWeight.w500,
                         color: selected
-                            ? AppColors.primary
-                            : isToday
-                            ? AppColors.blush
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${day.day}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: selected || isToday
-                              ? FontWeight.w800
-                              : FontWeight.w500,
-                          color: selected
-                              ? Colors.white
-                              : isCurrentMonth
-                              ? AppColors.ink
-                              : AppColors.muted.withValues(alpha: .55),
-                        ),
+                            ? Colors.white
+                            : isCurrentMonth
+                            ? AppColors.ink
+                            : AppColors.muted.withValues(alpha: .55),
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => widget.onDateSelected(DateTime.now()),
-              icon: const Icon(Icons.today_rounded, size: 16),
-              label: const Text('回到今天'),
-            ),
-          ],
-        ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 3),
+          TextButton.icon(
+            onPressed: () => widget.onDateSelected(DateTime.now()),
+            icon: const Icon(Icons.today_rounded, size: 16),
+            label: const Text('回到今天'),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DesktopUpcomingItems extends StatelessWidget {
+class _DesktopUpcomingItems extends ConsumerWidget {
   const _DesktopUpcomingItems({required this.data});
   final _TodayData data;
 
   @override
-  Widget build(BuildContext context) {
-    final entries = <_DesktopAgendaEntry>[
-      ...data.courses.map(_DesktopAgendaCourse.new),
-      ...data.tasks
-          .where((task) => _taskMinute(task, null) != null)
-          .map((task) => _DesktopAgendaTask(task, _taskMinute(task, null)!)),
-    ]..sort((a, b) => a.startMinute.compareTo(b.startMinute));
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('近期事项', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            if (entries.isEmpty)
+  Widget build(BuildContext context, WidgetRef ref) {
+    final courseValues = ref.watch(coursesSnapshotProvider).value ?? const [];
+    final upcoming =
+        <({DateTime date, int minute, String title, Color color})>[];
+    for (var offset = 1; offset <= 5; offset++) {
+      final day = dateOnly(data.date.add(Duration(days: offset)));
+      final tasks = ref.watch(tasksForDateProvider(day)).value ?? const [];
+      final overrides =
+          ref.watch(dailyOverridesSnapshotProvider(day)).value ?? const [];
+      final overrideMap = {
+        for (final value in overrides)
+          if (value.itemType != DayItemType.course) value.itemId: value,
+      };
+      for (final course in buildCourseItemsForDate(
+        day,
+        courseValues,
+        overrides,
+      )) {
+        upcoming.add((
+          date: day,
+          minute: course.startMinute,
+          title: course.course.name,
+          color: Color(course.course.colorValue),
+        ));
+      }
+      for (final task in tasks) {
+        if (task.isCompleted ||
+            overrideMap[task.id]?.action == DayOverrideAction.skip) {
+          continue;
+        }
+        final minute = _taskMinute(task, overrideMap[task.id]);
+        if (minute == null) continue;
+        upcoming.add((
+          date: day,
+          minute: minute,
+          title: task.name,
+          color: Color(task.colorValue),
+        ));
+      }
+    }
+    upcoming.sort((a, b) {
+      final day = a.date.compareTo(b.date);
+      return day != 0 ? day : a.minute.compareTo(b.minute);
+    });
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      padding: const EdgeInsets.all(13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '近期事项',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
               const Text(
-                '近期还没有已安排事项。',
-                style: TextStyle(color: AppColors.muted),
-              )
-            else
-              for (final entry in entries.take(4))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: switch (entry) {
-                            _DesktopAgendaCourse value => Color(
-                              value.course.course.colorValue,
-                            ),
-                            _DesktopAgendaTask value => Color(
-                              value.task.colorValue,
-                            ),
-                          },
-                          shape: BoxShape.circle,
-                        ),
+                '更多',
+                style: TextStyle(color: AppColors.muted, fontSize: 11),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.muted,
+                size: 17,
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          if (upcoming.isEmpty)
+            const SizedBox(
+              height: 34,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '近期还没有已安排事项。',
+                  style: TextStyle(color: AppColors.muted, fontSize: 11),
+                ),
+              ),
+            )
+          else
+            for (final entry in upcoming.take(3))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: entry.color,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          switch (entry) {
-                            _DesktopAgendaCourse value =>
-                              value.course.course.name,
-                            _DesktopAgendaTask value => value.task.name,
-                          },
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 58,
+                      child: Text(
+                        '${entry.date.month}月${entry.date.day}日',
+                        style: const TextStyle(fontSize: 11),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatMinute(entry.startMinute),
+                    ),
+                    Expanded(
+                      child: Text(
+                        entry.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-          ],
-        ),
+              ),
+        ],
       ),
     );
   }
@@ -1303,83 +1742,102 @@ class _DesktopFocusCardState extends ConsumerState<_DesktopFocusCard> {
     final adHocTimers =
         ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
-    final total = taskTimers.length + adHocTimers.length;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: total == 0
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '专注一会儿吧',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ),
-                      MascotWidget(
-                        state: MascotState.working,
-                        size: 42,
-                        compact: true,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '从现在开始，给自己 25 分钟的专注时光。',
-                    style: TextStyle(color: AppColors.muted, fontSize: 12),
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton.icon(
-                    onPressed: widget.data.isToday && !_busy
-                        ? _startFocus
-                        : null,
-                    icon: _busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.play_arrow_rounded),
-                    label: const Text('开始计时'),
-                  ),
-                ],
+    final minute = now.hour * 60 + now.minute;
+    final currentCourses = widget.data.isToday
+        ? widget.data.courses
+              .where(
+                (course) =>
+                    minute >= course.startMinute && minute < course.endMinute,
               )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '正在进行 · $total',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final entry in taskTimers.take(2))
-                    _CompactTaskTimerLine(
-                      taskId: entry.taskId,
-                      now: now,
-                      enabled: widget.data.isToday,
-                    ),
-                  for (final timer in adHocTimers.take(
-                    taskTimers.length >= 2 ? 0 : 2 - taskTimers.length,
-                  ))
-                    _CompactAdHocTimerLine(
-                      timer: timer,
-                      now: now,
-                      enabled: widget.data.isToday,
-                    ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => _showMultiTimerSheet(context),
-                    icon: const Icon(Icons.timer_outlined, size: 18),
-                    label: Text(total == 1 ? '查看计时' : '查看全部计时'),
-                  ),
-                ],
+              .toList()
+        : const <TodayCourseItem>[];
+    final total =
+        currentCourses.length + taskTimers.length + adHocTimers.length;
+    return CheckDSurface(
+      level: total > 0
+          ? CheckDSurfaceLevel.glassActive
+          : CheckDSurfaceLevel.raised,
+      padding: const EdgeInsets.fromLTRB(13, 11, 13, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '正在进行${total > 1 ? ' · $total' : ''}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
+              if (total > 0)
+                CheckDSheep(
+                  state: currentCourses.isNotEmpty
+                      ? (currentCourses.first.courseTiming
+                                    ?.phaseAt(minute)
+                                    .kind ==
+                                CourseOccurrencePhaseKind.breakTime
+                            ? SheepState.breakTime
+                            : SheepState.course)
+                      : SheepState.focus,
+                  size: MascotSize.sm,
+                  compact: true,
+                  framed: false,
+                ),
+            ],
+          ),
+          if (total == 0) ...[
+            const SizedBox(height: 4),
+            const Text(
+              '当前没有进行中的课程或计时事项',
+              style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: widget.data.isToday && !_busy ? _startFocus : null,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: AppColors.primaryStrong,
+              ),
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.play_arrow_rounded, size: 18),
+              label: const Text('开始计时'),
+            ),
+          ] else ...[
+            for (final course in currentCourses)
+              _DesktopCurrentCourseLine(course: course, now: now),
+            for (final entry in taskTimers)
+              _CompactTaskTimerLine(
+                taskId: entry.taskId,
+                now: now,
+                enabled: widget.data.isToday,
+              ),
+            for (final timer in adHocTimers)
+              _CompactAdHocTimerLine(
+                timer: timer,
+                now: now,
+                enabled: widget.data.isToday,
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _showMultiTimerSheet(context),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.timer_outlined, size: 16),
+                label: Text(
+                  taskTimers.length + adHocTimers.length <= 1
+                      ? '查看计时'
+                      : '查看全部计时',
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1399,6 +1857,102 @@ class _DesktopFocusCardState extends ConsumerState<_DesktopFocusCard> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+class _DesktopCurrentCourseLine extends StatelessWidget {
+  const _DesktopCurrentCourseLine({required this.course, required this.now});
+
+  final TodayCourseItem course;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final minute = now.hour * 60 + now.minute;
+    final phase = course.courseTiming?.phaseAt(minute);
+    final inBreak = phase?.kind == CourseOccurrencePhaseKind.breakTime;
+    final span = (course.endMinute - course.startMinute).clamp(1, 1440);
+    final progress = ((minute - course.startMinute) / span).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                inBreak ? Icons.coffee_rounded : Icons.menu_book_rounded,
+                size: 18,
+                color: inBreak ? AppColors.orange : AppColors.accentBlue,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  course.course.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                inBreak ? '课间休息' : '上课中',
+                style: TextStyle(
+                  color: inBreak ? AppColors.orange : AppColors.primaryStrong,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 25,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const sheepSize = 25.0;
+                final left = (constraints.maxWidth - sheepSize) * progress;
+                return Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        minHeight: 6,
+                        value: progress,
+                        backgroundColor: AppColors.blush,
+                        valueColor: AlwaysStoppedAnimation(
+                          inBreak ? AppColors.orange : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: left,
+                      child: CheckDSheep(
+                        state: inBreak
+                            ? SheepState.breakTime
+                            : SheepState.course,
+                        size: sheepSize,
+                        compact: true,
+                        framed: false,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)}',
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 10,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1522,22 +2076,25 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final floatingLayerGap = CheckDLayout.mobileFloatingLayerGap;
+    final bottomNavigationExtent = CheckDLayout.mobileBottomNavigationExtent(
+      context,
+    );
     final overrides = {
       for (final value in data.overrides)
         if (value.itemType != DayItemType.course) value.itemId: value,
     };
     final pending = data.tasks.where((task) {
       final override = overrides[task.id];
-      return !task.isCompleted &&
-          override?.action != DayOverrideAction.skip &&
-          _taskMinute(task, override) == null;
+      return _isMobilePendingTask(task, override);
     }).toList();
 
     return Stack(
       children: [
         _TodayScroll(
           horizontal: 16,
-          bottom: 124,
+          bottom: bottomNavigationExtent + floatingLayerGap,
           child: Column(
             children: [
               _MobileHeader(data: data),
@@ -1552,21 +2109,21 @@ class _MobileLayout extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
               _PendingTasksSection(
                 date: data.date,
                 tasks: pending,
                 isToday: data.isToday,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               _ThreeDaySchedule(
                 selectedDate: data.date,
                 now: data.now,
                 onSelected: onDateSelected,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               _MobileSummary(data: data),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               _ReviewSummary(date: data.date),
             ],
           ),
@@ -1574,12 +2131,26 @@ class _MobileLayout extends StatelessWidget {
         Positioned(
           left: 16,
           right: 16,
-          bottom: 12,
+          bottom: safeBottom + floatingLayerGap,
           child: _MobileActiveTimerPanel(data: data),
         ),
       ],
     );
   }
+}
+
+bool _isMobilePendingTask(TaskDetails task, DailyItemOverride? override) {
+  if (task.isCompleted || override?.action == DayOverrideAction.skip) {
+    return false;
+  }
+
+  // One-off items are projected by their exact planned time, never by their
+  // execution mode. A timer can be running or paused while the item remains
+  // a pending, untimed item in Today.
+  if (task.kind == TaskKind.oneTime) {
+    return task.scheduledAt == null && override?.plannedStartMinute == null;
+  }
+  return _taskMinute(task, override) == null;
 }
 
 class _PendingTasksSection extends StatelessWidget {
@@ -1597,21 +2168,29 @@ class _PendingTasksSection extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Row(
-        children: [
-          Text(
-            _pendingTitle(date),
-            style: Theme.of(context).textTheme.titleLarge,
+      CheckDSectionTitle(
+        title: _pendingTitle(date),
+        count: tasks.length,
+        trailing: TextButton(
+          onPressed: () => Navigator.of(
+            context,
+          ).push<void>(MaterialPageRoute(builder: (_) => const TaskListPage())),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.muted,
+            visualDensity: VisualDensity.compact,
           ),
-          const SizedBox(width: 8),
-          Text(
-            '${tasks.length}',
-            style: const TextStyle(color: AppColors.muted),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('全部', style: TextStyle(fontSize: 12)),
+              Icon(Icons.chevron_right_rounded, size: 17),
+            ],
           ),
-        ],
+        ),
       ),
       const SizedBox(height: 8),
-      Card(
+      CheckDSurface(
+        level: CheckDSurfaceLevel.raised,
         child: tasks.isEmpty
             ? MascotEmptyState(
                 title: _pendingEmptyTitle(date),
@@ -1670,88 +2249,181 @@ class _PendingTaskRow extends ConsumerWidget {
     final progress = target > 0
         ? (elapsed / target).clamp(0, 1).toDouble()
         : 0.0;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 11, 10, 11),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _TaskIcon(color: color, icon: taskIconData(task.iconName)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      task.hasTimer
-                          ? _pendingTimerLabel(task, elapsed)
-                          : '时间未定',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!task.hasTimer)
-                _CompletionButton(task: task, enabled: enabled),
-            ],
-          ),
-          if (task.hasTimer) ...[
-            const SizedBox(height: 9),
+    final status = timer?.latest?.status;
+    final active = status == TimerSessionStatus.running;
+    final paused = status == TimerSessionStatus.paused;
+    final stateKey = active
+        ? 'running'
+        : paused
+        ? 'paused'
+        : 'idle';
+    return CheckDSurface(
+      level: active
+          ? CheckDSurfaceLevel.glassActive
+          : paused
+          ? CheckDSurfaceLevel.raised
+          : CheckDSurfaceLevel.plain,
+      radius: const BorderRadius.all(AppRadius.control),
+      color: paused ? const Color(0x78F3EEFF) : null,
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context, AppMotion.standard),
+        curve: AppMotion.curve,
+        padding: EdgeInsets.fromLTRB(14, active || paused ? 13 : 10, 10, 10),
+        child: Column(
+          children: [
             Row(
               children: [
-                if (target > 0)
-                  Expanded(
-                    child: _ProgressBar(value: progress, color: color),
+                _TaskIcon(color: color, icon: taskIconData(task.iconName)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      AnimatedSwitcher(
+                        duration: AppMotion.duration(
+                          context,
+                          AppMotion.standard,
+                        ),
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: SizeTransition(
+                            sizeFactor: animation,
+                            alignment: Alignment.topCenter,
+                            child: child,
+                          ),
+                        ),
+                        child: Row(
+                          key: ValueKey(stateKey),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (active || paused) ...[
+                              CheckDStatusDot(
+                                color: active
+                                    ? AppColors.primary
+                                    : AppColors.purple,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(
+                              child: Text(
+                                task.hasTimer
+                                    ? _pendingTimerLabel(task, elapsed, status)
+                                    : '时间未定',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: active
+                                      ? AppColors.primaryStrong
+                                      : paused
+                                      ? AppColors.purple
+                                      : AppColors.muted,
+                                  fontWeight: active || paused
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                if (target > 0) const SizedBox(width: 10),
-                _InlineTimerControls(
-                  taskId: task.id,
-                  timer: timer,
-                  color: color,
                 ),
-                if (task.todayTargetReached || task.isCompleted) ...[
-                  const SizedBox(width: 2),
-                  _CompletionButton(task: task, enabled: enabled),
-                ],
+                AnimatedSwitcher(
+                  duration: AppMotion.duration(context, AppMotion.emphasis),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(scale: animation, child: child),
+                  ),
+                  child: active || paused
+                      ? CheckDSheep(
+                          key: ValueKey('pending-sheep-$stateKey'),
+                          state: active ? SheepState.focus : SheepState.paused,
+                          size: MascotSize.md,
+                          compact: true,
+                          framed: false,
+                        )
+                      : const SizedBox.shrink(key: ValueKey('no-sheep')),
+                ),
+                if (!task.hasTimer)
+                  _CompletionButton(
+                    task: task,
+                    enabled: enabled,
+                    dimension: 34,
+                  ),
               ],
             ),
-            if (task.todayTargetReached && !task.isCompleted) ...[
-              const SizedBox(height: 5),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '目标时长已达到，请确认今日完成',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+            if (task.hasTimer) ...[
+              SizedBox(height: active || paused ? 8 : 6),
+              Row(
+                children: [
+                  if (target > 0)
+                    Expanded(
+                      child: _ProgressBar(value: progress, color: color),
+                    ),
+                  if (target > 0) const SizedBox(width: 10),
+                  _InlineTimerControls(
+                    taskId: task.id,
+                    timer: timer,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 2),
+                  _CompletionButton(
+                    task: task,
+                    enabled: enabled,
+                    dimension: 34,
+                  ),
+                ],
+              ),
+              if (task.todayTargetReached && !task.isCompleted) ...[
+                const SizedBox(height: 5),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '目标时长已达到，请确认今日完成',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-String _pendingTimerLabel(TaskDetails task, int elapsed) {
+String _pendingTimerLabel(
+  TaskDetails task,
+  int elapsed,
+  TimerSessionStatus? status,
+) {
   final target = task.targetDurationSeconds;
+  final prefix = switch (status) {
+    TimerSessionStatus.running => '进行中 · ',
+    TimerSessionStatus.paused => '已暂停 · ',
+    _ => '',
+  };
   if (target != null && target > 0) {
-    return '${formatDuration(elapsed)} / ${formatDuration(target)}';
+    return '$prefix${formatDuration(elapsed)} / ${formatDuration(target)}';
   }
-  return elapsed > 0 ? '已专注 ${formatDuration(elapsed)}' : '时间未定';
+  if (status == TimerSessionStatus.running ||
+      status == TimerSessionStatus.paused) {
+    return '$prefix${formatDuration(elapsed)}';
+  }
+  return elapsed > 0 ? '$prefix已专注 ${formatDuration(elapsed)}' : '时间未定';
 }
 
 class _ThreeDaySchedule extends ConsumerStatefulWidget {
@@ -1773,16 +2445,14 @@ class _ThreeDayScheduleState extends ConsumerState<_ThreeDaySchedule> {
   static const _originPage = 10000;
   late final PageController _controller;
   late DateTime _originDate;
-  late DateTime _visibleDate;
 
   @override
   void initState() {
     super.initState();
     _originDate = dateOnly(widget.selectedDate);
-    _visibleDate = _originDate;
     _controller = PageController(
       initialPage: _originPage,
-      viewportFraction: .82,
+      viewportFraction: .34,
     );
   }
 
@@ -1790,10 +2460,11 @@ class _ThreeDayScheduleState extends ConsumerState<_ThreeDaySchedule> {
   void didUpdateWidget(covariant _ThreeDaySchedule oldWidget) {
     super.didUpdateWidget(oldWidget);
     final selected = dateOnly(widget.selectedDate);
-    if (selected == _visibleDate) return;
-    _originDate = selected;
-    _visibleDate = selected;
-    if (_controller.hasClients) _controller.jumpToPage(_originPage);
+    final expectedPage = _originPage + selected.difference(_originDate).inDays;
+    if (_controller.hasClients && _controller.page?.round() != expectedPage) {
+      _originDate = selected;
+      _controller.jumpToPage(_originPage);
+    }
   }
 
   @override
@@ -1803,67 +2474,202 @@ class _ThreeDayScheduleState extends ConsumerState<_ThreeDaySchedule> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text('三日日程', style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: 8),
-      SizedBox(
-        height: 326,
-        child: PageView.builder(
-          controller: _controller,
-          onPageChanged: (page) {
-            final date = dateOnly(
-              _originDate.add(Duration(days: page - _originPage)),
-            );
-            _visibleDate = date;
-            widget.onSelected(date);
-          },
-          itemBuilder: (context, page) {
-            final date = dateOnly(
-              _originDate.add(Duration(days: page - _originPage)),
-            );
-            return AnimatedBuilder(
-              animation: _controller,
-              child: _MobileScheduleCard(
-                date: date,
-                now: widget.now,
-                onTap: () {
-                  if (_controller.page?.round() != page) {
-                    _controller.animateToPage(
-                      page,
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                    );
-                  }
-                },
-              ),
-              builder: (context, child) {
+  Widget build(BuildContext context) {
+    final selected = dateOnly(widget.selectedDate);
+    final tasks = ref.watch(tasksForDateProvider(selected)).value ?? const [];
+    final courses = ref.watch(coursesSnapshotProvider).value ?? const [];
+    final overrides =
+        ref.watch(dailyOverridesSnapshotProvider(selected)).value ?? const [];
+    final taskOverrides = {
+      for (final value in overrides)
+        if (value.itemType != DayItemType.course) value.itemId: value,
+    };
+    final scheduledTaskCount = tasks.where((task) {
+      final override = taskOverrides[task.id];
+      return override?.action != DayOverrideAction.skip &&
+          _taskMinute(task, override) != null;
+    }).length;
+    final courseCount = buildCourseItemsForDate(
+      selected,
+      courses,
+      overrides,
+    ).length;
+    final entryCount = scheduledTaskCount + courseCount;
+    final timelineHeight = entryCount == 0
+        ? 112.0
+        : (70.0 + entryCount.clamp(1, 5) * 48).clamp(118.0, 310.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const CheckDSectionTitle(title: '三日日程'),
+        const SizedBox(height: 9),
+        SizedBox(
+          height: 150,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) => PageView.builder(
+              controller: _controller,
+              padEnds: true,
+              onPageChanged: (page) {
+                final date = _originDate.add(
+                  Duration(days: page - _originPage),
+                );
+                widget.onSelected(dateOnly(date));
+              },
+              itemBuilder: (context, page) {
                 final currentPage = _controller.hasClients
                     ? (_controller.page ?? _originPage.toDouble())
                     : _originPage.toDouble();
-                final distance = (currentPage - page).abs().clamp(0.0, 1.0);
-                return Opacity(
-                  opacity: 1 - distance * .34,
-                  child: Transform.scale(
-                    scale: 1 - distance * .07,
-                    child: child,
+                final emphasis = (1 - (currentPage - page).abs()).clamp(
+                  0.0,
+                  1.0,
+                );
+                final date = _originDate.add(
+                  Duration(days: page - _originPage),
+                );
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: _ThreeDayCard(
+                    date: date,
+                    emphasis: emphasis,
+                    onTap: () => _controller.animateToPage(
+                      page,
+                      duration: AppMotion.duration(context, AppMotion.emphasis),
+                      curve: Curves.easeInOutCubic,
+                    ),
                   ),
                 );
               },
-            );
-          },
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        AnimatedContainer(
+          height: timelineHeight,
+          duration: AppMotion.duration(context, AppMotion.standard),
+          curve: AppMotion.curve,
+          child: _MobileScheduleCard(
+            date: selected,
+            now: widget.now,
+            onTap: () {},
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ThreeDayCard extends ConsumerWidget {
+  const _ThreeDayCard({
+    required this.date,
+    required this.emphasis,
+    required this.onTap,
+  });
+
+  final DateTime date;
+  final double emphasis;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tasks = ref.watch(tasksForDateProvider(date));
+    final values = tasks.value ?? const <TaskDetails>[];
+    final completed = values.where((task) => task.isCompleted).length;
+    final remaining = values.length - completed;
+    final selected = emphasis > .72;
+    final scale = .9 + emphasis * .1;
+    final opacity = .58 + emphasis * .42;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${date.month}月${date.day}日',
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.scale(
+          scale: scale,
+          child: CheckDSurface(
+            level: selected
+                ? CheckDSurfaceLevel.glassSoft
+                : CheckDSurfaceLevel.raised,
+            color: selected ? const Color(0xA6FFF2F5) : const Color(0xA8FFFFFF),
+            borderColor: selected
+                ? const Color(0x30FFFFFF)
+                : const Color(0x48FFFFFF),
+            radius: const BorderRadius.all(AppRadius.importantCard),
+            child: CheckDPressable(
+              borderRadius: const BorderRadius.all(AppRadius.importantCard),
+              onTap: onTap,
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(7, 13, 7, 10),
+                    child: Column(
+                      children: [
+                        Text(
+                          _relativeDayLabel(date),
+                          style: TextStyle(
+                            color: selected
+                                ? AppColors.primaryStrong
+                                : AppColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${date.month}月${date.day}日',
+                          style: TextStyle(
+                            color: selected ? AppColors.ink : AppColors.muted,
+                            fontSize: selected ? 18 : 16,
+                            height: 1.1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          values.isEmpty
+                              ? '暂无事项'
+                              : selected && remaining > 0
+                              ? '进行中 $remaining 项'
+                              : '完成 $completed 项',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selected
+                                ? AppColors.primaryStrong
+                                : AppColors.muted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: selected ? 12 : 8,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: selected ? .68 : .18,
+                        child: CheckDSheep(
+                          state: SheepState.idle,
+                          size: selected
+                              ? MascotSize.lg
+                              : MascotSize.compactLarge,
+                          compact: true,
+                          framed: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-      const SizedBox(height: 4),
-      const Center(
-        child: Text(
-          '左右滑动切换日期',
-          style: TextStyle(fontSize: 11, color: AppColors.muted),
-        ),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 class _MobileScheduleCard extends ConsumerWidget {
@@ -1885,46 +2691,41 @@ class _MobileScheduleCard extends ConsumerWidget {
     final overrides = ref.watch(dailyOverridesSnapshotProvider(date));
     final isToday = dateOnly(date) == dateOnly(now);
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(15, 13, 15, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    _relativeDayLabel(date),
-                    style: TextStyle(
-                      color: isToday ? AppColors.primary : AppColors.ink,
-                      fontWeight: FontWeight.w800,
-                    ),
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.plain,
+      radius: const BorderRadius.all(AppRadius.importantCard),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 13, 12, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(
+                  isToday ? '今日时间轴' : '${date.month}月${date.day}日时间轴',
+                  style: TextStyle(
+                    color: isToday ? AppColors.primary : AppColors.ink,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const Spacer(),
-                  Text(
-                    '${date.month}月${date.day}日 · $weekday',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: _MobileScheduleContents(
-                  date: date,
-                  now: now,
-                  tasks: tasks,
-                  courses: courses,
-                  overrides: overrides,
                 ),
+                const Spacer(),
+                Text(
+                  '${date.month}月${date.day}日 · $weekday',
+                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: _MobileScheduleContents(
+                date: date,
+                now: now,
+                tasks: tasks,
+                courses: courses,
+                overrides: overrides,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1992,9 +2793,9 @@ class _MobileScheduleContents extends StatelessWidget {
 
     if (entries.isEmpty) {
       return const Center(
-        child: MascotEmptyState(
-          title: '今天还没有安排～',
-          message: '有明确时间的课程和事项会显示在这里。',
+        child: Text(
+          '今天还没有明确时间的安排',
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
       );
     }
@@ -2008,7 +2809,7 @@ class _MobileScheduleContents extends StatelessWidget {
         rows.add(_MobileCurrentTimeLine(now: now));
         lineInserted = true;
       }
-      rows.add(_MobileScheduleRow(entry: entry));
+      rows.add(_MobileScheduleRow(entry: entry, date: date, now: now));
     }
     if (showNow && !lineInserted) rows.add(_MobileCurrentTimeLine(now: now));
 
@@ -2021,13 +2822,19 @@ class _MobileScheduleContents extends StatelessWidget {
   }
 }
 
-class _MobileScheduleRow extends StatelessWidget {
-  const _MobileScheduleRow({required this.entry});
+class _MobileScheduleRow extends ConsumerWidget {
+  const _MobileScheduleRow({
+    required this.entry,
+    required this.date,
+    required this.now,
+  });
 
   final _DesktopAgendaEntry entry;
+  final DateTime date;
+  final DateTime now;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isCourse = entry is _DesktopAgendaCourse;
     final course = isCourse ? (entry as _DesktopAgendaCourse).course : null;
     final task = !isCourse ? (entry as _DesktopAgendaTask).task : null;
@@ -2035,69 +2842,204 @@ class _MobileScheduleRow extends StatelessWidget {
         ? Color(course.course.colorValue)
         : Color(task!.colorValue);
     final title = course?.course.name ?? task!.name;
+    final currentMinute = now.hour * 60 + now.minute;
+    final isCurrentCourse =
+        course != null &&
+        dateOnly(date) == dateOnly(now) &&
+        currentMinute >= entry.startMinute &&
+        currentMinute < course.endMinute;
+    final coursePhase = isCurrentCourse
+        ? course.courseTiming?.phaseAt(currentMinute).kind
+        : null;
+    final courseStatus = coursePhase == CourseOccurrencePhaseKind.breakTime
+        ? '课间休息'
+        : isCurrentCourse
+        ? '上课中'
+        : '课程';
     final subtitle = course != null
-        ? '课程${course.classroom == null ? '' : ' · ${course.classroom}'}'
+        ? '$courseStatus${course.classroom == null ? '' : ' · ${course.classroom}'}'
         : (task!.tagId == null ? '事项 · 未分类' : '事项 · 已设置标签');
+    final timer = task?.hasTimer == true
+        ? ref.watch(taskTimerStateProvider(task!.id)).value
+        : null;
+    final taskRunning = timer?.isRunning ?? false;
+    final taskPaused = timer?.isPaused ?? false;
+    final taskElapsed = task == null
+        ? 0
+        : timer?.elapsedSecondsAt(now) ?? task.todayActualDurationSeconds;
+    final highlighted = isCurrentCourse || taskRunning || taskPaused;
+    final courseProgress =
+        course == null || course.endMinute <= entry.startMinute
+        ? 0.0
+        : ((currentMinute - entry.startMinute) /
+                  (course.endMinute - entry.startMinute))
+              .clamp(0.0, 1.0);
 
-    final child = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
+    final content = AnimatedContainer(
+      duration: AppMotion.duration(context, AppMotion.standard),
+      curve: AppMotion.curve,
+      padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
+      decoration: BoxDecoration(
+        gradient: highlighted
+            ? const LinearGradient(
+                colors: [Color(0x64FFF0F4), Color(0x30FFFFFF)],
+              )
+            : null,
+        borderRadius: const BorderRadius.all(AppRadius.control),
+        boxShadow: highlighted
+            ? const [
+                BoxShadow(
+                  color: Color(0x0C754A55),
+                  blurRadius: 14,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
         children: [
-          SizedBox(
-            width: 48,
-            child: Text(
-              _formatMinute(entry.startMinute),
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isCourse
+                      ? Icons.menu_book_outlined
+                      : taskIconData(task!.iconName),
+                  size: 16,
+                  color: color,
+                ),
               ),
-            ),
-          ),
-          Container(
-            width: 4,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
+              ),
+              if (task != null)
+                _CompletionButton(
+                  task: task,
+                  enabled: dateOnly(date) == dateOnly(now),
+                  dimension: 34,
+                ),
+              AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.standard),
+                child: Text(
+                  key: ValueKey(
+                    isCurrentCourse
+                        ? courseStatus
+                        : taskRunning
+                        ? 'running'
+                        : taskPaused
+                        ? 'paused'
+                        : subtitle,
+                  ),
+                  isCurrentCourse
+                      ? courseStatus
+                      : taskRunning
+                      ? '进行中 ${formatDuration(taskElapsed)}'
+                      : taskPaused
+                      ? '已暂停 ${formatDuration(taskElapsed)}'
+                      : subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                  style: TextStyle(
+                    color: highlighted
+                        ? AppColors.primaryStrong
+                        : AppColors.muted,
+                    fontSize: 10,
+                    fontWeight: highlighted ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          if (isCurrentCourse) ...[
+            const SizedBox(height: 7),
+            Padding(
+              padding: const EdgeInsets.only(left: 37, right: 2),
+              child: _ProgressBar(
+                value: courseProgress,
+                color: coursePhase == CourseOccurrencePhaseKind.breakTime
+                    ? AppColors.orange
+                    : AppColors.primary,
+              ),
             ),
-          ),
-          Icon(
-            isCourse ? Icons.school_outlined : Icons.chevron_right_rounded,
-            size: 18,
-            color: AppColors.muted,
-          ),
+          ],
         ],
       ),
     );
 
-    if (task == null) return child;
-    return InkWell(
+    final row = SizedBox(
+      height: isCurrentCourse
+          ? 56
+          : task != null
+          ? 50
+          : 46,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 47,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _formatMinute(entry.startMinute),
+                style: TextStyle(
+                  color: highlighted ? AppColors.current : AppColors.muted,
+                  fontSize: 12,
+                  fontWeight: highlighted ? FontWeight.w800 : FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 18,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 2, color: AppColors.border),
+                ),
+                Positioned(
+                  top: 14,
+                  child: Container(
+                    width: highlighted ? 10 : 8,
+                    height: highlighted ? 10 : 8,
+                    decoration: BoxDecoration(
+                      color: highlighted ? AppColors.primary : color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.surface, width: 2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 5),
+          Expanded(child: content),
+        ],
+      ),
+    );
+
+    if (task == null) return row;
+    return CheckDPressable(
+      borderRadius: const BorderRadius.all(AppRadius.control),
       onTap: () => Navigator.of(context).push<void>(
         MaterialPageRoute(builder: (_) => TaskDetailPage(taskId: task.id)),
       ),
-      child: child,
+      child: row,
     );
   }
 }
@@ -2109,28 +3051,27 @@ class _MobileCurrentTimeLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 9),
+    padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(
       children: [
-        const Expanded(
-          child: Divider(color: Color(0xFFE34B62), thickness: 1.5),
+        SizedBox(
+          width: 47,
+          child: Text(
+            _formatMinute(now.hour * 60 + now.minute),
+            style: const TextStyle(
+              color: AppColors.current,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ),
-        const SizedBox(width: 6),
         const DecoratedBox(
           decoration: BoxDecoration(
             color: Color(0xFFE34B62),
             shape: BoxShape.circle,
           ),
           child: SizedBox(width: 8, height: 8),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '${_formatMinute(now.hour * 60 + now.minute)} 现在',
-          style: const TextStyle(
-            color: Color(0xFFE34B62),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
         ),
         const SizedBox(width: 6),
         const Expanded(
@@ -2153,21 +3094,40 @@ class _MobileActiveTimerPanel extends ConsumerWidget {
     final adHocTimers =
         ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
     final total = taskTimers.length + adHocTimers.length;
-    if (total == 0) return const SizedBox.shrink();
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 7,
-      color: AppColors.glassStrong,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+    if (total == 0) {
+      return const AnimatedSwitcher(
+        duration: AppMotion.standard,
+        child: SizedBox.shrink(key: ValueKey('no-mobile-timer')),
+      );
+    }
+    final now = ref.watch(timerNowProvider).value ?? DateTime.now();
+    final runningCount =
+        taskTimers
+            .where((timer) => timer.status == TimerSessionStatus.running)
+            .length +
+        adHocTimers
+            .where((timer) => timer.timerStatus == AdHocTimerStatus.running)
+            .length;
+    final paused = runningCount == 0;
+    final elapsed = taskTimers.isNotEmpty
+        ? taskTimers.first.elapsedSecondsAt(now)
+        : adHocTimers.first.durationSecondsForDate(now, now: now);
+    final panel = CheckDSurface(
+      key: ValueKey('mobile-timer-$total-$paused'),
+      level: CheckDSurfaceLevel.glassFloating,
+      radius: const BorderRadius.all(AppRadius.feature),
+      child: CheckDPressable(
+        borderRadius: const BorderRadius.all(AppRadius.feature),
         onTap: () => _showMultiTimerSheet(context),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           child: Row(
             children: [
-              const _TaskIcon(
-                color: AppColors.primary,
-                icon: Icons.timer_rounded,
+              CheckDSheep(
+                state: paused ? SheepState.paused : SheepState.focus,
+                size: MascotSize.sm,
+                compact: true,
+                framed: false,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -2175,19 +3135,45 @@ class _MobileActiveTimerPanel extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      total == 1 ? '正在计时' : '正在计时 · $total项',
-                      style: const TextStyle(
+                      paused
+                          ? '计时已暂停'
+                          : total == 1
+                          ? '专注进行中'
+                          : '$runningCount 项进行中 · $total 项计时',
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.muted,
+                        color: paused
+                            ? AppColors.purple
+                            : AppColors.primaryStrong,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      total == 1
-                          ? _singleTimerTitle(ref, taskTimers, adHocTimers)
-                          : '点击查看全部计时',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            total == 1
+                                ? _singleTimerTitle(
+                                    ref,
+                                    taskTimers,
+                                    adHocTimers,
+                                  )
+                                : '点击查看全部计时',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        if (total == 1)
+                          Text(
+                            formatDuration(elapsed),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -2200,6 +3186,26 @@ class _MobileActiveTimerPanel extends ConsumerWidget {
           ),
         ),
       ),
+    );
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.emphasis),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, .24),
+          end: Offset.zero,
+        ).animate(animation);
+        final scale = Tween<double>(begin: .96, end: 1).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: slide,
+            child: ScaleTransition(scale: scale, child: child),
+          ),
+        );
+      },
+      child: panel,
     );
   }
 }
@@ -2612,31 +3618,131 @@ class _DesktopHeader extends StatelessWidget {
   );
 }
 
-class _MobileHeader extends StatelessWidget {
+class _MobileHeader extends ConsumerWidget {
   const _MobileHeader({required this.data});
   final _TodayData data;
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _mobileHeaderTitle(data.date),
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontSize: 31),
-            ),
-            const SizedBox(height: 2),
-            Text(data.dateText, style: const TextStyle(color: AppColors.muted)),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final taskTimers =
+        ref.watch(unfinishedTaskTimersProvider).value ?? const [];
+    final adHocTimers =
+        ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
+    final state = _mobileSheepState(data, taskTimers, adHocTimers);
+    return Container(
+      height: 132,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x96FFF3E8), Color(0x4CFFFAF6), Color(0x20FFE8EE)],
+          stops: [0, .58, 1],
         ),
+        borderRadius: BorderRadius.all(AppRadius.feature),
       ),
-      MascotWidget(state: data.mascotState, size: 64, compact: true),
-    ],
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            right: -4,
+            bottom: -4,
+            child: CheckDSheep(
+              state: state,
+              size: MascotSize.hero,
+              framed: false,
+            ),
+          ),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 15, 112, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.wb_sunny_rounded,
+                        color: AppColors.creamYellow,
+                        size: 25,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          data.isToday
+                              ? _greetingFor(data.now)
+                              : _mobileHeaderTitle(data.date),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    data.dateText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data.encouragement,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _greetingFor(DateTime now) => switch (now.hour) {
+  < 6 => '夜深了',
+  < 11 => 'Good Morning !',
+  < 14 => '中午好！',
+  < 18 => 'Good Afternoon !',
+  _ => 'Good Evening !',
+};
+
+SheepState _mobileSheepState(
+  _TodayData data,
+  List<TimerSessionEntry> taskTimers,
+  List<AdHocTimerDetails> adHocTimers,
+) {
+  var hasCurrentCourse = false;
+  var isCourseBreak = false;
+  if (data.isToday) {
+    final minute = data.now.hour * 60 + data.now.minute;
+    for (final course in data.courses) {
+      if (minute < course.startMinute || minute >= course.endMinute) continue;
+      final phase = course.courseTiming?.phaseAt(minute).kind;
+      hasCurrentCourse = true;
+      isCourseBreak = phase == CourseOccurrencePhaseKind.breakTime;
+      break;
+    }
+  }
+  final running =
+      taskTimers.any((timer) => timer.status == TimerSessionStatus.running) ||
+      adHocTimers.any((timer) => timer.timerStatus == AdHocTimerStatus.running);
+  return resolveCheckDSheepState(
+    hasCurrentCourse: hasCurrentCourse,
+    isCourseBreak: isCourseBreak,
+    hasRunningTimer: running,
+    hasPausedTimer: taskTimers.isNotEmpty || adHocTimers.isNotEmpty,
+    allTasksComplete: data.tasks.isNotEmpty && data.remaining == 0,
   );
 }
 
@@ -2711,32 +3817,16 @@ class _DesktopSummary extends StatelessWidget {
   );
 }
 
-class _MobileSummary extends ConsumerWidget {
+class _MobileSummary extends StatelessWidget {
   const _MobileSummary({required this.data});
   final _TodayData data;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statistics = ref.watch(statisticsSnapshotProvider);
-    var streak = 0;
-    statistics.when(
-      data: (snapshot) {
-        final report = snapshot.report(
-          StatisticsPeriod.day,
-          data.date,
-          data.now,
-        );
-        for (final item in report.tasks) {
-          if (item.currentStreak > streak) streak = item.currentStreak;
-        }
-      },
-      loading: () {},
-      error: (_, _) {},
-    );
-
-    return Card(
+  Widget build(BuildContext context) {
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 15, 18, 14),
+        padding: const EdgeInsets.fromLTRB(15, 12, 12, 13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2750,62 +3840,36 @@ class _MobileSummary extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                MascotWidget(state: data.mascotState, size: 52, compact: true),
               ],
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${(data.progress * 100).round()}%',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 34,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 7),
-                  child: Text(
-                    data.isToday ? '今日完成度' : '当日完成度',
-                    style: const TextStyle(color: AppColors.muted),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _ProgressBar(value: data.progress, color: AppColors.primary),
-            const SizedBox(height: 7),
-            Text(
-              '${data.completed}/${data.tasks.length} 项任务已完成',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: _MobileMetric(
+                    icon: Icons.check_circle_rounded,
+                    color: AppColors.green,
                     label: '已完成',
-                    value: '${data.completed}项',
+                    value: '${data.completed}',
                   ),
                 ),
                 const _MetricDivider(short: true),
                 Expanded(
                   child: _MobileMetric(
-                    label: '待完成',
-                    value: '${data.remaining}项',
-                  ),
-                ),
-                const _MetricDivider(short: true),
-                Expanded(
-                  child: _MobileMetric(
-                    label: '累计专注',
+                    icon: Icons.hourglass_bottom_rounded,
+                    color: AppColors.purple,
+                    label: '专注时长',
                     value: formatDuration(data.focusedSeconds),
                   ),
                 ),
                 const _MetricDivider(short: true),
                 Expanded(
-                  child: _MobileMetric(label: '连续打卡', value: '$streak天'),
+                  child: _MobileMetric(
+                    icon: Icons.folder_outlined,
+                    color: AppColors.orange,
+                    label: '待完成',
+                    value: '${data.remaining}',
+                  ),
                 ),
               ],
             ),
@@ -3082,37 +4146,104 @@ class _TimerText extends StatelessWidget {
   );
 }
 
-class _CompletionButton extends ConsumerWidget {
-  const _CompletionButton({required this.task, required this.enabled});
+class _CompletionButton extends ConsumerStatefulWidget {
+  const _CompletionButton({
+    required this.task,
+    required this.enabled,
+    this.dimension = 42,
+  });
   final TaskDetails task;
   final bool enabled;
+  final double dimension;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) => IconButton(
-    tooltip: task.isCompleted ? '撤销完成' : '标记完成',
-    onPressed: !enabled
-        ? null
-        : () async {
-            final repository = ref.read(taskRepositoryProvider);
-            if (task.kind == TaskKind.recurring) {
-              await repository.toggleRecurringCompletion(
-                task.id,
-                DateTime.now(),
-              );
-            } else {
-              await repository.toggleOneTimeCompletion(task.id);
-            }
-          },
-    icon: AnimatedScale(
-      duration: const Duration(milliseconds: 280),
-      scale: task.isCompleted ? 1.06 : 1,
-      child: Icon(
-        task.isCompleted
-            ? Icons.check_circle_rounded
-            : Icons.radio_button_unchecked_rounded,
-        color: task.isCompleted ? Color(task.colorValue) : AppColors.muted,
+  ConsumerState<_CompletionButton> createState() => _CompletionButtonState();
+}
+
+class _CompletionButtonState extends ConsumerState<_CompletionButton> {
+  bool _celebrating = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    return Tooltip(
+      message: task.isCompleted ? '撤销完成' : '标记完成',
+      child: SizedBox.square(
+        dimension: widget.dimension,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            CheckDPressable(
+              onTap: widget.enabled ? _toggle : null,
+              pressedScale: .9,
+              borderRadius: BorderRadius.circular(22),
+              child: Padding(
+                padding: EdgeInsets.all(widget.dimension * .19),
+                child: AnimatedSwitcher(
+                  duration: AppMotion.duration(
+                    context,
+                    const Duration(milliseconds: 420),
+                  ),
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutBack,
+                    ),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: Icon(
+                    task.isCompleted
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    key: ValueKey(task.isCompleted),
+                    color: task.isCompleted
+                        ? Color(task.colorValue)
+                        : AppColors.muted,
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _celebrating ? 1 : 0,
+                duration: AppMotion.duration(
+                  context,
+                  const Duration(milliseconds: 180),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 38,
+                  color: AppColors.creamYellow,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
+
+  Future<void> _toggle() async {
+    final completing = !widget.task.isCompleted;
+    if (completing) setState(() => _celebrating = true);
+    try {
+      final repository = ref.read(taskRepositoryProvider);
+      if (widget.task.kind == TaskKind.recurring) {
+        await repository.toggleRecurringCompletion(
+          widget.task.id,
+          DateTime.now(),
+        );
+      } else {
+        await repository.toggleOneTimeCompletion(widget.task.id);
+      }
+      if (completing) {
+        await Future<void>.delayed(const Duration(milliseconds: 560));
+      }
+    } finally {
+      if (mounted && _celebrating) setState(() => _celebrating = false);
+    }
+  }
 }
 
 class _TaskMenu extends ConsumerWidget {
@@ -3185,44 +4316,65 @@ class _InlineTimerControlsState extends ConsumerState<_InlineTimerControls> {
   bool _busy = false;
   @override
   Widget build(BuildContext context) {
+    final timer = widget.timer;
+    final stateKey = _busy
+        ? 'busy'
+        : timer?.isRunning == true
+        ? 'running'
+        : timer?.isPaused == true
+        ? 'paused'
+        : 'idle';
     if (_busy) {
-      return const SizedBox(
-        width: 28,
-        height: 28,
-        child: CircularProgressIndicator(strokeWidth: 2),
+      return AnimatedSwitcher(
+        duration: AppMotion.duration(context, AppMotion.standard),
+        child: const SizedBox(
+          key: ValueKey('busy'),
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
       );
     }
-    final timer = widget.timer;
-    return Wrap(
-      spacing: 6,
-      children: [
-        if (timer == null || timer.canStart)
-          _control(
-            Icons.play_arrow_rounded,
-            '开始',
-            () => ref.read(taskRepositoryProvider).startTimer(widget.taskId),
-            filled: true,
-          ),
-        if (timer?.isRunning ?? false)
-          _control(
-            Icons.pause_rounded,
-            '暂停',
-            () => ref.read(taskRepositoryProvider).pauseTimer(widget.taskId),
-          ),
-        if (timer?.isPaused ?? false)
-          _control(
-            Icons.play_arrow_rounded,
-            '继续',
-            () => ref.read(taskRepositoryProvider).resumeTimer(widget.taskId),
-            filled: true,
-          ),
-        if (timer != null && !timer.canStart)
-          _control(
-            Icons.stop_rounded,
-            '结束',
-            () => ref.read(taskRepositoryProvider).endTimer(widget.taskId),
-          ),
-      ],
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.standard),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(scale: animation, child: child),
+      ),
+      child: Wrap(
+        key: ValueKey(stateKey),
+        spacing: 6,
+        children: [
+          if (timer == null || timer.canStart)
+            _control(
+              Icons.play_arrow_rounded,
+              '开始',
+              () => ref.read(taskRepositoryProvider).startTimer(widget.taskId),
+              filled: true,
+            ),
+          if (timer?.isRunning ?? false)
+            _control(
+              Icons.pause_rounded,
+              '暂停',
+              () => ref.read(taskRepositoryProvider).pauseTimer(widget.taskId),
+            ),
+          if (timer?.isPaused ?? false)
+            _control(
+              Icons.play_arrow_rounded,
+              '继续',
+              () => ref.read(taskRepositoryProvider).resumeTimer(widget.taskId),
+              filled: true,
+            ),
+          if (timer != null && !timer.canStart)
+            _control(
+              Icons.stop_rounded,
+              '结束',
+              () => ref.read(taskRepositoryProvider).endTimer(widget.taskId),
+            ),
+        ],
+      ),
     );
   }
 
@@ -3516,63 +4668,83 @@ class _ReviewSummary extends ConsumerWidget {
       endsOn: dateOnly(date),
     );
     final review = ref.watch(reviewProvider(period));
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: review.when(
-          loading: () => const SizedBox(
-            height: 104,
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (_, _) => const Text('复盘加载失败'),
-          data: (entry) {
-            final content = entry?.learnedText ?? entry?.happenedText;
-            final empty = content == null || content.trim().isEmpty;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '今日复盘',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        empty ? '今天还没有留下记录' : content,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: empty ? AppColors.muted : AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 13),
-                      TextButton(
-                        onPressed: () => showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          showDragHandle: true,
-                          builder: (_) => const FractionallySizedBox(
-                            heightFactor: 0.92,
-                            child: ReviewsPage(),
-                          ),
-                        ),
-                        child: Text(empty ? '去复盘 >' : '查看完整复盘 >'),
-                      ),
-                    ],
-                  ),
-                ),
-                MascotWidget(
-                  state: empty ? MascotState.writing : MascotState.happy,
-                  size: 70,
-                  compact: true,
-                ),
-              ],
-            );
-          },
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      color: const Color(0xC8FFF3EC),
+      borderColor: const Color(0x48FFFFFF),
+      child: review.when(
+        loading: () => const SizedBox(
+          height: 88,
+          child: Center(child: CircularProgressIndicator()),
         ),
+        error: (_, _) => const Text('复盘加载失败'),
+        data: (entry) {
+          final content = entry?.learnedText ?? entry?.happenedText;
+          final empty = content == null || content.trim().isEmpty;
+          return CheckDPressable(
+            borderRadius: const BorderRadius.all(AppRadius.card),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => const FractionallySizedBox(
+                heightFactor: 0.92,
+                child: ReviewsPage(),
+              ),
+            ),
+            child: SizedBox(
+              height: 96,
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: 34,
+                    bottom: -10,
+                    child: CheckDSheep(
+                      state: empty ? SheepState.idle : SheepState.complete,
+                      size: MascotSize.card,
+                      compact: true,
+                      framed: false,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(17, 14, 112, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '今日复盘',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            empty ? '记录今天的成长，遇见更好的自己' : content,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: empty ? AppColors.muted : AppColors.ink,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    right: 12,
+                    top: 0,
+                    bottom: 0,
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -3677,17 +4849,48 @@ class _Metric extends StatelessWidget {
 }
 
 class _MobileMetric extends StatelessWidget {
-  const _MobileMetric({required this.label, required this.value});
+  const _MobileMetric({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final Color color;
   final String label;
   final String value;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Row(
     children: [
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
-      const SizedBox(height: 3),
-      FittedBox(
-        child: Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+      Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .14),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 17),
+      ),
+      const SizedBox(width: 7),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FittedBox(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+            ),
+          ],
+        ),
       ),
     ],
   );

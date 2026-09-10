@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../application/course_providers.dart';
 import '../domain/course_models.dart';
 import 'course_form_page.dart';
+import 'course_schedule_import_page.dart';
 
 class CourseListPage extends ConsumerWidget {
   const CourseListPage({super.key});
@@ -17,6 +18,15 @@ class CourseListPage extends ConsumerWidget {
         title: const Text('课程管理'),
         actions: [
           IconButton(
+            tooltip: '从课程表导入',
+            onPressed: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => const CourseScheduleImportPage(),
+              ),
+            ),
+            icon: const Icon(Icons.document_scanner_outlined),
+          ),
+          IconButton(
             tooltip: '添加课程',
             onPressed: () => _openForm(context),
             icon: const Icon(Icons.add_rounded),
@@ -27,7 +37,14 @@ class CourseListPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('课程加载失败：$error')),
         data: (items) => items.isEmpty
-            ? _EmptyCourses(onAdd: () => _openForm(context))
+            ? _EmptyCourses(
+                onAdd: () => _openForm(context),
+                onImport: () => Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => const CourseScheduleImportPage(),
+                  ),
+                ),
+              )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 itemCount: items.length,
@@ -205,8 +222,9 @@ class _CourseCard extends StatelessWidget {
 }
 
 class _EmptyCourses extends StatelessWidget {
-  const _EmptyCourses({required this.onAdd});
+  const _EmptyCourses({required this.onAdd, required this.onImport});
   final VoidCallback onAdd;
+  final VoidCallback onImport;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -223,6 +241,12 @@ class _EmptyCourses extends StatelessWidget {
             onPressed: onAdd,
             icon: const Icon(Icons.add),
             label: const Text('添加第一门课程'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onImport,
+            icon: const Icon(Icons.document_scanner_outlined),
+            label: const Text('从课程表导入'),
           ),
         ],
       ),

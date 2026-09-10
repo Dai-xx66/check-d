@@ -191,6 +191,39 @@ void main() {
     expect((await repository.getTask(taskId, date: day))!.isCompleted, isTrue);
   });
 
+  test(
+    'completion is independent from running and paused timer sessions',
+    () async {
+      final day = DateTime(2026, 9, 2);
+      final taskId = await repository.saveRecurringTask(_timerDraft(day));
+
+      await repository.startTimer(taskId, now: DateTime(2026, 9, 2, 10));
+      await repository.toggleRecurringCompletion(taskId, day);
+
+      expect(
+        (await repository.watchTimerState(taskId, day).first).isRunning,
+        isTrue,
+      );
+      expect(
+        (await repository.getTask(taskId, date: day))!.isCompleted,
+        isTrue,
+      );
+
+      await repository.toggleRecurringCompletion(taskId, day);
+      await repository.pauseTimer(taskId, now: DateTime(2026, 9, 2, 10, 5));
+      await repository.toggleRecurringCompletion(taskId, day);
+
+      expect(
+        (await repository.watchTimerState(taskId, day).first).isPaused,
+        isTrue,
+      );
+      expect(
+        (await repository.getTask(taskId, date: day))!.isCompleted,
+        isTrue,
+      );
+    },
+  );
+
   test('partial timer duration is retained as proportional progress', () async {
     final day = DateTime(2026, 9, 2);
     final taskId = await repository.saveRecurringTask(_timerDraft(day));

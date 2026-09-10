@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -9,6 +10,8 @@ import 'package:window_manager/window_manager.dart';
 import '../../../app/app_providers.dart';
 import '../../../core/platform/desktop_mini_window.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/check_d_design.dart';
+import '../../../shared/widgets/mascot.dart';
 import '../../courses/application/course_providers.dart';
 import '../../schedule/application/day_schedule_providers.dart';
 import '../../tasks/application/task_providers.dart';
@@ -21,12 +24,30 @@ class MiniWindowApp extends StatelessWidget {
   final String ownerId;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Check D 悬浮组件',
-    debugShowCheckedModeBanner: false,
-    theme: AppTheme.light,
-    home: const MiniWindowPage(),
-  );
+  Widget build(BuildContext context) {
+    final isMacOS = defaultTargetPlatform == TargetPlatform.macOS;
+    return MaterialApp(
+      title: 'Check D 悬浮组件',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light.copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
+        canvasColor: Colors.transparent,
+        cardTheme: isMacOS
+            ? AppTheme.light.cardTheme.copyWith(
+                color: const Color(0x26FFFFFF),
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                elevation: 0,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(AppRadius.card),
+                  side: BorderSide(color: Color(0x3DFFFFFF), width: .7),
+                ),
+              )
+            : AppTheme.light.cardTheme,
+      ),
+      home: const MiniWindowPage(),
+    );
+  }
 }
 
 class MiniWindowPage extends ConsumerStatefulWidget {
@@ -189,7 +210,8 @@ class _MiniWindowPageState extends ConsumerState<MiniWindowPage>
         : snapshot.currentCourses.length * 82.0 +
               visibleTimerCount * 64.0 +
               (snapshot.timers.length > 3 ? 34.0 : 0);
-    final nextHeight = (snapshot.nextCourse == null ? 0.0 : 62.0) +
+    final nextHeight =
+        (snapshot.nextCourse == null ? 0.0 : 62.0) +
         (snapshot.pendingItems.isEmpty
             ? (snapshot.nextCourse == null ? 28.0 : 0.0)
             : 38.0 + snapshot.pendingItems.take(2).length * 24.0);
@@ -227,7 +249,8 @@ class _MiniWindowPageState extends ConsumerState<MiniWindowPage>
       final origin = display.visiblePosition;
       final displaySize = display.visibleSize;
       if (origin == null || displaySize == null) continue;
-      final isOnDisplay = current.dx >= origin.dx - size.width &&
+      final isOnDisplay =
+          current.dx >= origin.dx - size.width &&
           current.dx <= origin.dx + displaySize.width &&
           current.dy >= origin.dy - size.height &&
           current.dy <= origin.dy + displaySize.height;
@@ -297,6 +320,7 @@ class _MiniWindowPageState extends ConsumerState<MiniWindowPage>
 
   @override
   Widget build(BuildContext context) {
+    final isMacOS = defaultTargetPlatform == TargetPlatform.macOS;
     final snapshot = _snapshot;
     final body = _loading || snapshot == null
         ? const Center(child: CircularProgressIndicator())
@@ -312,10 +336,64 @@ class _MiniWindowPageState extends ConsumerState<MiniWindowPage>
             onClose: windowManager.close,
           );
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(child: body),
+      backgroundColor: Colors.transparent,
+      body: ClipRRect(
+        borderRadius: const BorderRadius.all(AppRadius.importantCard),
+        child: CustomPaint(
+          foregroundPainter: isMacOS ? const _FloatingWidgetRimPainter() : null,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: isMacOS
+                  ? const Color(0x08FFF3F6)
+                  : const Color(0x70FFF9FA),
+              border: isMacOS
+                  ? null
+                  : Border.all(color: const Color(0xB8FFFFFF)),
+              borderRadius: const BorderRadius.all(AppRadius.importantCard),
+            ),
+            child: SafeArea(child: body),
+          ),
+        ),
+      ),
     );
   }
+}
+
+class _FloatingWidgetRimPainter extends CustomPainter {
+  const _FloatingWidgetRimPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final roundedRect = const BorderRadius.all(
+      AppRadius.importantCard,
+    ).toRRect(rect).deflate(.55);
+    final path = Path()..addRRect(roundedRect);
+
+    final highlight = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = const RadialGradient(
+        center: Alignment(-.82, -.9),
+        radius: 1.05,
+        colors: [Color(0x12FFFFFF), Color(0x05FFFFFF), Colors.transparent],
+        stops: [0, .42, 1],
+      ).createShader(rect);
+    canvas.drawPath(path, highlight);
+
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .85
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0x8AFFFFFF), Color(0x24FFFFFF), Color(0x1A40252B)],
+        stops: [0, .62, 1],
+      ).createShader(rect);
+    canvas.drawPath(path, rim);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FloatingWidgetRimPainter oldDelegate) => false;
 }
 
 class _CompactContent extends StatelessWidget {
@@ -352,7 +430,12 @@ class _CompactContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
+            CheckDSheep(
+              state: _compactSheepState(snapshot),
+              size: 46,
+              compact: true,
+              framed: false,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -538,40 +621,43 @@ class _CourseCard extends StatelessWidget {
   final MiniCourseItem course;
   final VoidCallback onOpenMain;
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 6),
-    child: InkWell(
-      onTap: onOpenMain,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    course.title,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) => CheckDHoverLift(
+    radius: const BorderRadius.all(AppRadius.card),
+    child: Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: InkWell(
+        onTap: onOpenMain,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      course.title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ),
-                Text(
-                  course.phase == MiniCoursePhase.breakTime ? '课间休息' : '上课中',
-                  style: const TextStyle(color: AppColors.muted),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              course.phase == MiniCoursePhase.breakTime &&
-                      course.nextSegmentMinute != null
-                  ? '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)} · ${_formatMinute(course.nextSegmentMinute!)}继续'
-                  : '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)}',
-              style: const TextStyle(color: AppColors.muted),
-            ),
-            const SizedBox(height: 8),
-            _CourseProgress(course: course),
-          ],
+                  Text(
+                    course.phase == MiniCoursePhase.breakTime ? '课间休息' : '上课中',
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                course.phase == MiniCoursePhase.breakTime &&
+                        course.nextSegmentMinute != null
+                    ? '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)} · ${_formatMinute(course.nextSegmentMinute!)}继续'
+                    : '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)}',
+                style: const TextStyle(color: AppColors.muted),
+              ),
+              const SizedBox(height: 8),
+              _CourseProgress(course: course),
+            ],
+          ),
         ),
       ),
     ),
@@ -582,23 +668,51 @@ class _CourseProgress extends StatelessWidget {
   const _CourseProgress({required this.course});
   final MiniCourseItem course;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      for (final phase in course.timing.phases)
-        Expanded(
-          flex: (phase.endMinute - phase.startMinute).clamp(1, 24 * 60),
-          child: Container(
-            height: 6,
-            margin: const EdgeInsets.only(right: 2),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(3),
-              color: phase.kind.name == 'breakTime'
-                  ? AppColors.blueMist.withValues(alpha: .35)
-                  : AppColors.primary.withValues(alpha: .45),
+  Widget build(BuildContext context) => SizedBox(
+    height: 27,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        const sheepSize = 27.0;
+        final left = (constraints.maxWidth - sheepSize) * course.progress;
+        return Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            Row(
+              children: [
+                for (final phase in course.timing.phases)
+                  Expanded(
+                    flex: (phase.endMinute - phase.startMinute).clamp(
+                      1,
+                      24 * 60,
+                    ),
+                    child: Container(
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        color: phase.kind.name == 'breakTime'
+                            ? AppColors.blueMist.withValues(alpha: .35)
+                            : AppColors.primary.withValues(alpha: .45),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ),
-    ],
+            Positioned(
+              left: left,
+              child: CheckDSheep(
+                state: course.phase == MiniCoursePhase.breakTime
+                    ? SheepState.breakTime
+                    : SheepState.course,
+                size: sheepSize,
+                compact: true,
+                framed: false,
+              ),
+            ),
+          ],
+        );
+      },
+    ),
   );
 }
 
@@ -624,62 +738,76 @@ class _TimerRowState extends State<_TimerRow> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 6),
-        child: InkWell(
-          onTap: widget.onOpenMain,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  timer.status == TimerStatus.running
-                      ? Icons.play_circle_fill_rounded
-                      : Icons.pause_circle_outline_rounded,
-                  color: timer.status == TimerStatus.running
-                      ? AppColors.primary
-                      : AppColors.muted,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        timer.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        timer.status == TimerStatus.running
-                            ? '${_duration(timer.elapsedSeconds)}${timer.targetSeconds == null ? '' : ' / ${_duration(timer.targetSeconds!)}'}'
-                            : '已暂停 · ${_duration(timer.elapsedSeconds)}',
-                        style: const TextStyle(color: AppColors.muted),
-                      ),
-                    ],
+      child: CheckDHoverLift(
+        radius: const BorderRadius.all(AppRadius.card),
+        child: Card(
+          margin: const EdgeInsets.only(bottom: 6),
+          child: InkWell(
+            onTap: widget.onOpenMain,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    timer.status == TimerStatus.running
+                        ? Icons.play_circle_fill_rounded
+                        : Icons.pause_circle_outline_rounded,
+                    color: timer.status == TimerStatus.running
+                        ? AppColors.primary
+                        : AppColors.muted,
                   ),
-                ),
-                AnimatedOpacity(
-                  opacity: _hovered && action != null ? 1 : 0,
-                  duration: const Duration(milliseconds: 120),
-                  child: IgnorePointer(
-                    ignoring: !_hovered || action == null,
-                    child: TextButton(
-                      onPressed: widget.onAction,
-                      child: Text(
-                        action == MiniTimerQuickAction.pause ? '暂停' : '继续',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          timer.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          timer.status == TimerStatus.running
+                              ? '${_duration(timer.elapsedSeconds)}${timer.targetSeconds == null ? '' : ' / ${_duration(timer.targetSeconds!)}'}'
+                              : '已暂停 · ${_duration(timer.elapsedSeconds)}',
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedOpacity(
+                    opacity: _hovered && action != null ? 1 : 0,
+                    duration: const Duration(milliseconds: 120),
+                    child: IgnorePointer(
+                      ignoring: !_hovered || action == null,
+                      child: TextButton(
+                        onPressed: widget.onAction,
+                        child: Text(
+                          action == MiniTimerQuickAction.pause ? '暂停' : '继续',
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+SheepState _compactSheepState(MiniWindowSnapshot snapshot) {
+  if (snapshot.currentCourses.isNotEmpty) {
+    return snapshot.currentCourses.first.phase == MiniCoursePhase.breakTime
+        ? SheepState.breakTime
+        : SheepState.course;
+  }
+  if (snapshot.runningTimers.isNotEmpty) return SheepState.focus;
+  if (snapshot.pausedTimers.isNotEmpty) return SheepState.paused;
+  return SheepState.idle;
 }
 
 class _NextCourse extends StatelessWidget {

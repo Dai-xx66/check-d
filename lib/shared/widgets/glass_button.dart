@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'check_d_design.dart';
 
 class GlassButton extends StatelessWidget {
   const GlassButton({
@@ -38,36 +39,32 @@ class GlassButton extends StatelessWidget {
             ),
             boxShadow: const [AppShadows.glass],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onPressed,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(
-                        icon,
-                        size: 16,
-                        color: filled ? Colors.white : foreground,
-                      ),
-                      const SizedBox(width: 5),
-                    ],
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: filled ? Colors.white : foreground,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
+          child: CheckDPressable(
+            onTap: onPressed,
+            pressedScale: .97,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: filled ? Colors.white : foreground,
                     ),
+                    const SizedBox(width: 5),
                   ],
-                ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: filled ? Colors.white : foreground,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

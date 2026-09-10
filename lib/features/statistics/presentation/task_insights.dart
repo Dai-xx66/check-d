@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/check_d_design.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
 import '../application/statistics_providers.dart';
@@ -46,8 +47,8 @@ class TaskInsights extends ConsumerWidget {
                   if (task.hasTimer)
                     Row(
                       children: [
-                        Icon(
-                          Icons.label,
+                        CheckDIcon(
+                          CheckDIconType.tag,
                           color: Color(tag.colorValue),
                           size: 18,
                         ),

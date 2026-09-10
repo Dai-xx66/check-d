@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/check_d_design.dart';
 import '../application/statistics_providers.dart';
 import '../domain/statistics_models.dart';
 import 'time_distribution_chart.dart';
@@ -42,94 +43,92 @@ class TagTimeBreakdown extends StatelessWidget {
     final entries = report.tags
         .where((tag) => report.secondsForTag(tag.id) > 0)
         .toList();
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Text(
-                  timeLabel(report.seconds),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.muted,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            if (entries.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      padding: const EdgeInsets.all(18),
+      radius: BorderRadius.circular(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
                 child: Text(
-                  '当前周期暂无专注记录',
-                  style: TextStyle(color: AppColors.muted),
-                ),
-              )
-            else ...[
-              Center(
-                child: SizedBox(
-                  width: 168,
-                  height: 168,
-                  child: CustomPaint(
-                    painter: _DonutPainter(
-                      values: [
-                        for (final tag in entries) report.secondsForTag(tag.id),
-                      ],
-                      colors: [
-                        for (final tag in entries) Color(tag.colorValue),
-                      ],
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            '标签投入',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            timeLabel(report.seconds),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    ),
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 20,
-                runSpacing: 12,
-                children: [
-                  for (final tag in entries)
-                    _TagLegend(
-                      color: Color(tag.colorValue),
-                      name: tag.name,
-                      duration: timeLabel(report.secondsForTag(tag.id)),
-                      percent:
-                          '${(report.secondsForTag(tag.id) / report.seconds * 100).round()}%',
-                    ),
-                ],
+              Text(
+                timeLabel(report.seconds),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.muted,
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 18),
+          if (entries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                '当前周期暂无专注记录',
+                style: TextStyle(color: AppColors.muted),
+              ),
+            )
+          else ...[
+            Center(
+              child: SizedBox(
+                width: 168,
+                height: 168,
+                child: CustomPaint(
+                  painter: _DonutPainter(
+                    values: [
+                      for (final tag in entries) report.secondsForTag(tag.id),
+                    ],
+                    colors: [for (final tag in entries) Color(tag.colorValue)],
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '标签投入',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          timeLabel(report.seconds),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 20,
+              runSpacing: 12,
+              children: [
+                for (final tag in entries)
+                  _TagLegend(
+                    color: Color(tag.colorValue),
+                    name: tag.name,
+                    duration: timeLabel(report.secondsForTag(tag.id)),
+                    percent:
+                        '${(report.secondsForTag(tag.id) / report.seconds * 100).round()}%',
+                  ),
+              ],
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

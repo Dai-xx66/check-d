@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.daixx66" "\0"
-            VALUE "FileDescription", "check_d" "\0"
+            VALUE "FileDescription", "Check D" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "check_d" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.daixx66. All rights reserved." "\0"
             VALUE "OriginalFilename", "check_d.exe" "\0"
-            VALUE "ProductName", "check_d" "\0"
+            VALUE "ProductName", "Check D" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

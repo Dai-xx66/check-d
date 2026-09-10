@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/platform/desktop_mini_window.dart';
-import '../../auth/presentation/auth_controller.dart';
+import '../../../shared/widgets/check_d_design.dart';
+import '../../../shared/widgets/mascot.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
 import '../../courses/presentation/course_list_page.dart';
@@ -29,10 +30,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
 
   static const _destinations = [
-    _Destination('今日', Icons.today_outlined, Icons.today_rounded),
-    _Destination('日历', Icons.calendar_month_outlined, Icons.calendar_month),
-    _Destination('统计', Icons.bar_chart_outlined, Icons.bar_chart_rounded),
-    _Destination('我的', Icons.person_outline_rounded, Icons.person_rounded),
+    _Destination('今日', CheckDIconType.today),
+    _Destination('日历', CheckDIconType.calendar),
+    _Destination('统计', CheckDIconType.statistics),
+    _Destination('我的', CheckDIconType.profile),
   ];
 
   static const _pages = [
@@ -57,7 +58,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             onCreateOneTime: _createOneTime,
             onStartFocus: _startQuickFocus,
             onOpenMiniWindow: _openMiniWindow,
-            onSignOut: _signOut,
+            onOpenSettings: () => _selectDestination(3),
           );
         }
         return _MobileShell(
@@ -107,7 +108,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const SizedBox(height: 16),
                 _CreateOption(
-                  icon: Icons.school_outlined,
+                  icon: CheckDIconType.course,
                   color: AppColors.blueMist,
                   title: '添加课程',
                   subtitle: '课程会出现在今日时间轴，不参与打卡和专注统计',
@@ -115,7 +116,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const SizedBox(height: 10),
                 _CreateOption(
-                  icon: Icons.view_list_rounded,
+                  icon: CheckDIconType.course,
                   color: AppColors.lavender,
                   title: '课程管理',
                   subtitle: '编辑课程安排或归档旧课程',
@@ -123,7 +124,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const SizedBox(height: 10),
                 _CreateOption(
-                  icon: Icons.loop_rounded,
+                  icon: CheckDIconType.recurring,
                   color: AppColors.primary,
                   title: '周期任务',
                   subtitle: '计时记录与完成状态独立',
@@ -131,7 +132,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const SizedBox(height: 10),
                 _CreateOption(
-                  icon: Icons.bolt_rounded,
+                  icon: CheckDIconType.timer,
                   color: AppColors.orange,
                   title: '临时计时',
                   subtitle: '记录一段不属于任务的专注时间',
@@ -139,7 +140,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
                 const SizedBox(height: 10),
                 _CreateOption(
-                  icon: Icons.event_note_rounded,
+                  icon: CheckDIconType.oneOff,
                   color: AppColors.orange,
                   title: '单次事项',
                   subtitle: '会议、截止日期或临时事项',
@@ -156,40 +157,36 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _openLongTermForm(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const RecurringTaskFormPage()),
+      checkDPageRoute(builder: (context) => const RecurringTaskFormPage()),
     );
   }
 
   void _openCourseForm(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const CourseFormPage()),
-    );
+    Navigator.of(
+      context,
+    ).push<void>(checkDPageRoute(builder: (context) => const CourseFormPage()));
   }
 
   void _openCourseList(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const CourseListPage()),
-    );
+    Navigator.of(
+      context,
+    ).push<void>(checkDPageRoute(builder: (context) => const CourseListPage()));
   }
 
   void _openOneTimeForm(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const OneTimeReminderFormPage()),
+      checkDPageRoute(builder: (context) => const OneTimeReminderFormPage()),
     );
   }
 
   void _openAdHocTimer(BuildContext sheetContext) {
     Navigator.of(sheetContext).pop();
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (context) => const AdHocTimerFormPage()),
+      checkDPageRoute(builder: (context) => const AdHocTimerFormPage()),
     );
-  }
-
-  Future<void> _signOut() {
-    return ref.read(authControllerProvider.notifier).signOut();
   }
 
   void _createCourse() {
@@ -286,92 +283,168 @@ class _MobileBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
     top: false,
-    child: ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          height: 76,
-          decoration: const BoxDecoration(
-            color: AppColors.glassStrong,
-            border: Border(top: BorderSide(color: AppColors.border)),
-          ),
-          child: Row(
+    child: SizedBox(
+      height: CheckDLayout.mobileBottomBarHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const horizontalInset = 8.0;
+          const topInset = 6.0;
+          final contentWidth = constraints.maxWidth - horizontalInset * 2;
+          final slotWidth = contentWidth / 5;
+          final motionReduced =
+              MediaQuery.maybeOf(context)?.disableAnimations == true;
+          final duration = motionReduced
+              ? Duration.zero
+              : const Duration(milliseconds: 280);
+          return Stack(
+            clipBehavior: Clip.none,
             children: [
-              _MobileNavItem(
-                label: '今日',
-                icon: Icons.today_outlined,
-                activeIcon: Icons.today_rounded,
-                selected: selectedIndex == 0,
-                onTap: () => onSelected(0),
-              ),
-              _MobileNavItem(
-                label: '日历',
-                icon: Icons.calendar_month_outlined,
-                activeIcon: Icons.calendar_month,
-                selected: selectedIndex == 1,
-                onTap: () => onSelected(1),
-              ),
-              Expanded(
-                child: Transform.translate(
-                  offset: const Offset(0, -14),
-                  child: Center(
-                    child: Semantics(
-                      button: true,
-                      label: '添加',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(38),
-                        onTap: () => onSelected(2),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 54,
-                              height: 54,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                boxShadow: [AppShadows.soft],
-                              ),
-                              child: const Icon(
-                                Icons.add_rounded,
-                                size: 30,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            const Text(
-                              '添加',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 10,
-                                height: 1,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+              // The filter is deliberately inside this local clipped surface.
+              // Keeping it out of the full Scaffold prevents Web compositor
+              // backdrops from blurring the page above the navigation bar.
+              Positioned(
+                left: horizontalInset,
+                right: horizontalInset,
+                top: topInset,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  clipBehavior: Clip.antiAlias,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: Color(0xD4FFFEFC),
+                        border: Border.fromBorderSide(
+                          BorderSide(color: Color(0x70FFFFFF)),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x0E754A55),
+                            blurRadius: 24,
+                            offset: Offset(0, -7),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-              _MobileNavItem(
-                label: '统计',
-                icon: Icons.bar_chart_outlined,
-                activeIcon: Icons.bar_chart_rounded,
-                selected: selectedIndex == 3,
-                onTap: () => onSelected(3),
+              AnimatedPositioned(
+                duration: duration,
+                curve: Curves.easeOutCubic,
+                left: horizontalInset + selectedIndex * slotWidth + 10,
+                top: topInset - 2,
+                width: slotWidth - 20,
+                height: 60,
+                child: IgnorePointer(
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: Curves.easeOutCubic,
+                    decoration: BoxDecoration(
+                      color: AppColors.blush.withValues(alpha: .64),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: .78),
+                      ),
+                      boxShadow: const [AppShadows.soft],
+                    ),
+                  ),
+                ),
               ),
-              _MobileNavItem(
-                label: '我的',
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-                selected: selectedIndex == 4,
-                onTap: () => onSelected(4),
+              Positioned(
+                left: horizontalInset,
+                right: horizontalInset,
+                top: topInset,
+                bottom: 0,
+                child: Row(
+                  children: [
+                    _MobileNavItem(
+                      label: '今天',
+                      icon: CheckDIconType.today,
+                      selected: selectedIndex == 0,
+                      reducedMotion: motionReduced,
+                      onTap: () => onSelected(0),
+                    ),
+                    _MobileNavItem(
+                      label: '日历',
+                      icon: CheckDIconType.calendar,
+                      selected: selectedIndex == 1,
+                      reducedMotion: motionReduced,
+                      onTap: () => onSelected(1),
+                    ),
+                    Expanded(
+                      child: Transform.translate(
+                        offset: const Offset(0, -14),
+                        child: Center(
+                          child: Semantics(
+                            button: true,
+                            label: '添加',
+                            child: CheckDPressable(
+                              borderRadius: BorderRadius.circular(38),
+                              pressedScale: .96,
+                              onTap: () => onSelected(2),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 54,
+                                    height: 54,
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFFF993AE),
+                                          AppColors.primaryStrong,
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [AppShadows.soft],
+                                    ),
+                                    child: const CheckDIcon(
+                                      CheckDIconType.add,
+                                      size: 30,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  const Text(
+                                    '添加',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      height: 1,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _MobileNavItem(
+                      label: '统计',
+                      icon: CheckDIconType.statistics,
+                      selected: selectedIndex == 3,
+                      reducedMotion: motionReduced,
+                      onTap: () => onSelected(3),
+                    ),
+                    _MobileNavItem(
+                      label: '我的',
+                      icon: CheckDIconType.profile,
+                      selected: selectedIndex == 4,
+                      reducedMotion: motionReduced,
+                      onTap: () => onSelected(4),
+                    ),
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     ),
   );
@@ -381,37 +454,57 @@ class _MobileNavItem extends StatelessWidget {
   const _MobileNavItem({
     required this.label,
     required this.icon,
-    required this.activeIcon,
     required this.selected,
+    required this.reducedMotion,
     required this.onTap,
   });
   final String label;
-  final IconData icon;
-  final IconData activeIcon;
+  final CheckDIconType icon;
   final bool selected;
+  final bool reducedMotion;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Expanded(
-    child: InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            selected ? activeIcon : icon,
-            color: selected ? AppColors.primary : AppColors.muted,
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: selected ? AppColors.primary : AppColors.muted,
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    child: Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: CheckDPressable(
+        pressedScale: .97,
+        onTap: onTap,
+        child: AnimatedSlide(
+          duration: reducedMotion ? Duration.zero : AppMotion.standard,
+          curve: Curves.easeOutCubic,
+          offset: selected ? const Offset(0, -.10) : Offset.zero,
+          child: AnimatedScale(
+            duration: reducedMotion ? Duration.zero : AppMotion.standard,
+            curve: Curves.easeOutBack,
+            scale: selected ? 1.14 : 1,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CheckDIcon(
+                  icon,
+                  active: selected,
+                  color: selected ? AppColors.primaryStrong : AppColors.muted,
+                  size: selected ? 24 : 21,
+                ),
+                const SizedBox(height: 3),
+                AnimatedDefaultTextStyle(
+                  duration: reducedMotion ? Duration.zero : AppMotion.quick,
+                  style: TextStyle(
+                    color: selected ? AppColors.primaryStrong : AppColors.muted,
+                    fontSize: 11,
+                    height: 1,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  child: Text(label),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     ),
   );
@@ -428,7 +521,7 @@ class _DesktopShell extends StatelessWidget {
     required this.onCreateOneTime,
     required this.onStartFocus,
     required this.onOpenMiniWindow,
-    required this.onSignOut,
+    required this.onOpenSettings,
   });
 
   final int selectedIndex;
@@ -440,30 +533,32 @@ class _DesktopShell extends StatelessWidget {
   final VoidCallback onCreateOneTime;
   final VoidCallback onStartFocus;
   final VoidCallback onOpenMiniWindow;
-  final VoidCallback onSignOut;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCFCFC),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            _DesktopSidebar(
-              selectedIndex: selectedIndex,
-              destinations: destinations,
-              onDestinationSelected: onDestinationSelected,
-              onCreateCourse: onCreateCourse,
-              onCreateRecurring: onCreateRecurring,
-              onCreateOneTime: onCreateOneTime,
-              onStartFocus: onStartFocus,
-              onOpenMiniWindow: onOpenMiniWindow,
-              onSignOut: onSignOut,
-            ),
-            const SizedBox(width: 24),
-            Expanded(child: page),
-          ],
+      backgroundColor: AppColors.background,
+      body: _SweetBackdrop(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              _DesktopSidebar(
+                selectedIndex: selectedIndex,
+                destinations: destinations,
+                onDestinationSelected: onDestinationSelected,
+                onCreateCourse: onCreateCourse,
+                onCreateRecurring: onCreateRecurring,
+                onCreateOneTime: onCreateOneTime,
+                onStartFocus: onStartFocus,
+                onOpenMiniWindow: onOpenMiniWindow,
+                onOpenSettings: onOpenSettings,
+              ),
+              const SizedBox(width: 16),
+              Expanded(child: page),
+            ],
+          ),
         ),
       ),
     );
@@ -480,7 +575,7 @@ class _DesktopSidebar extends StatelessWidget {
     required this.onCreateOneTime,
     required this.onStartFocus,
     required this.onOpenMiniWindow,
-    required this.onSignOut,
+    required this.onOpenSettings,
   });
 
   final int selectedIndex;
@@ -491,30 +586,69 @@ class _DesktopSidebar extends StatelessWidget {
   final VoidCallback onCreateOneTime;
   final VoidCallback onStartFocus;
   final VoidCallback onOpenMiniWindow;
-  final VoidCallback onSignOut;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 224,
-    padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
+    width: 244,
+    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
     decoration: BoxDecoration(
-      color: const Color(0xFFF8FAF8),
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFE8ECEA)),
-      boxShadow: const [AppShadows.soft],
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xDBFFFEFC), Color(0xC8FFF9F6)],
+      ),
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0x78FFFFFF)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0C5E3B43),
+          blurRadius: 24,
+          offset: Offset(0, 7),
+        ),
+      ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(10, 2, 10, 18),
+          padding: EdgeInsets.fromLTRB(8, 2, 8, 20),
           child: Row(
             children: [
-              Icon(Icons.task_alt_rounded, color: AppColors.primary, size: 28),
-              SizedBox(width: 9),
-              Text(
-                '小羊日常',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox.square(
+                  dimension: 38,
+                  child: CheckDIcon(
+                    CheckDIconType.today,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Check D',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'A kinder way to keep going ♡',
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 9, color: AppColors.muted),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -528,7 +662,7 @@ class _DesktopSidebar extends StatelessWidget {
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: onCreateRecurring,
-          icon: const Icon(Icons.add_rounded),
+          icon: const CheckDIcon(CheckDIconType.add, color: Colors.white),
           label: const Text('新建'),
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(42),
@@ -551,40 +685,71 @@ class _DesktopSidebar extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         _DesktopCreateLink(
-          icon: Icons.school_outlined,
+          icon: CheckDIconType.course,
           label: '添加课程',
           onTap: onCreateCourse,
         ),
         _DesktopCreateLink(
-          icon: Icons.loop_rounded,
+          icon: CheckDIconType.recurring,
           label: '周期事项',
           onTap: onCreateRecurring,
         ),
         _DesktopCreateLink(
-          icon: Icons.event_note_outlined,
+          icon: CheckDIconType.oneOff,
           label: '单次事项',
           onTap: onCreateOneTime,
         ),
         _DesktopCreateLink(
-          icon: Icons.bolt_rounded,
+          icon: CheckDIconType.timer,
           label: '立即开始计时',
           onTap: onStartFocus,
         ),
         _DesktopCreateLink(
-          icon: Icons.open_in_new_rounded,
+          icon: CheckDIconType.widget,
           label: '打开桌面组件',
           onTap: onOpenMiniWindow,
         ),
         const Spacer(),
-        const Divider(color: Color(0xFFE6EAE8)),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: onSignOut,
-            icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('退出当前模式'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+        const SizedBox(
+          height: 126,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 4,
+                bottom: 2,
+                child: Opacity(
+                  opacity: .66,
+                  child: CheckDSheep(
+                    state: SheepState.idle,
+                    size: MascotSize.compactLarge,
+                    compact: true,
+                    framed: false,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 34,
+                child: Text(
+                  'Small Steps\nBright Days ♡',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.primaryStrong,
+                    fontSize: 10,
+                    height: 1.45,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+        const Divider(color: AppColors.border),
+        _DesktopCreateLink(
+          icon: CheckDIconType.settings,
+          label: '设置',
+          onTap: onOpenSettings,
         ),
       ],
     ),
@@ -604,7 +769,7 @@ class _DesktopNavItem extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Material(
-      color: selected ? AppColors.blush : Colors.transparent,
+      color: selected ? const Color(0x9CFFE6EC) : Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -613,8 +778,9 @@ class _DesktopNavItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           child: Row(
             children: [
-              Icon(
-                selected ? destination.selectedIcon : destination.icon,
+              CheckDIcon(
+                destination.icon,
+                active: selected,
                 color: selected ? AppColors.primary : AppColors.ink,
                 size: 20,
               ),
@@ -640,7 +806,7 @@ class _DesktopCreateLink extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
-  final IconData icon;
+  final CheckDIconType icon;
   final String label;
   final VoidCallback onTap;
   @override
@@ -651,7 +817,7 @@ class _DesktopCreateLink extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.muted),
+          CheckDIcon(icon, size: 18, color: AppColors.muted),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -677,7 +843,8 @@ class _SweetBackdrop extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF8FA), Color(0xFFF8F1FF), Color(0xFFFFF4F0)],
+          colors: [Color(0xFFFFF7F1), Color(0xFFFFFCF9), Color(0xFFFFF8FA)],
+          stops: [0, .54, 1],
         ),
       ),
       child: child,
@@ -694,7 +861,7 @@ class _CreateOption extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final CheckDIconType icon;
   final Color color;
   final String title;
   final String subtitle;
@@ -708,11 +875,11 @@ class _CreateOption extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.12),
           foregroundColor: color,
-          child: Icon(icon),
+          child: CheckDIcon(icon, size: 20, color: color),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        trailing: const CheckDIcon(CheckDIconType.forward),
         onTap: onTap,
       ),
     );
@@ -720,9 +887,8 @@ class _CreateOption extends StatelessWidget {
 }
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
+  const _Destination(this.label, this.icon);
 
   final String label;
-  final IconData icon;
-  final IconData selectedIcon;
+  final CheckDIconType icon;
 }

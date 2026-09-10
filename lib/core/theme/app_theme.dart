@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const background = Color(0xFFFFF7F8);
-  static const surface = Color(0xEFFFFBFC);
+  // Check D v1 keeps the canvas warm and quiet. Pink is an action/status
+  // accent rather than the page background.
+  static const background = Color(0xFFFFFBF7);
+  static const surface = Color(0xFFFFFEFC);
+  static const surfaceSoft = Color(0xFFFFF8F5);
   static const glass = Color(0xCFFFFFFF);
   static const glassStrong = Color(0xE8FFFFFF);
-  static const ink = Color(0xFF533B3D);
-  static const muted = Color(0xFF9C7D82);
-  static const border = Color(0xFFFFE2E8);
-  static const primary = Color(0xFFF17F9D);
+  static const ink = Color(0xFF3F3435);
+  static const muted = Color(0xFF918588);
+  static const border = Color(0xFFF1E8E5);
+  static const primary = Color(0xFFF47F9E);
+  static const primaryStrong = Color(0xFFEA668A);
+  static const current = Color(0xFFE94E68);
   static const green = Color(0xFF7CBFA2);
   static const orange = Color(0xFFF2AB79);
   static const purple = Color(0xFFA58AE2);
@@ -29,22 +34,49 @@ abstract final class AppColors {
 }
 
 abstract final class AppRadius {
-  static const card = Radius.circular(24);
-  static const section = Radius.circular(20);
-  static const control = Radius.circular(14);
+  static const control = Radius.circular(12);
+  static const chip = Radius.circular(14);
+  static const card = Radius.circular(16);
+  static const importantCard = Radius.circular(20);
+  static const feature = Radius.circular(24);
+  static const sheet = Radius.circular(28);
+  static const section = importantCard;
+}
+
+abstract final class AppSpacing {
+  static const xxs = 4.0;
+  static const xs = 8.0;
+  static const sm = 12.0;
+  static const md = 16.0;
+  static const lg = 20.0;
+  static const xl = 24.0;
+  static const page = 16.0;
+}
+
+abstract final class AppMotion {
+  static const quick = Duration(milliseconds: 140);
+  static const standard = Duration(milliseconds: 220);
+  static const emphasis = Duration(milliseconds: 300);
+  static const curve = Curves.easeOutCubic;
+
+  static Duration duration(BuildContext context, Duration value) {
+    return MediaQuery.maybeOf(context)?.disableAnimations == true
+        ? Duration.zero
+        : value;
+  }
 }
 
 abstract final class AppShadows {
   static const soft = BoxShadow(
-    color: Color(0x100F0010),
-    blurRadius: 18,
-    offset: Offset(0, 7),
+    color: Color(0x0D40252B),
+    blurRadius: 16,
+    offset: Offset(0, 6),
   );
 
   static const glass = BoxShadow(
-    color: Color(0x140F0010),
-    blurRadius: 14,
-    offset: Offset(0, 5),
+    color: Color(0x1240252B),
+    blurRadius: 20,
+    offset: Offset(0, 8),
   );
 }
 
@@ -76,12 +108,12 @@ abstract final class AppTheme {
       textTheme: const TextTheme(
         headlineSmall: TextStyle(
           fontSize: 30,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           color: AppColors.ink,
         ),
         titleLarge: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w800,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
           color: AppColors.ink,
         ),
         titleMedium: TextStyle(
@@ -94,12 +126,12 @@ abstract final class AppTheme {
       ),
       cardTheme: const CardThemeData(
         color: AppColors.surface,
-        elevation: 1,
-        shadowColor: Color(0x140F0010),
+        elevation: 0,
+        shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(24)),
+          borderRadius: BorderRadius.all(AppRadius.card),
           side: BorderSide(color: AppColors.border),
         ),
       ),

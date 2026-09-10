@@ -2,6 +2,7 @@ import 'package:check_d/core/theme/app_theme.dart';
 import 'package:check_d/features/statistics/application/statistics_providers.dart';
 import 'package:check_d/features/statistics/domain/statistics_models.dart';
 import 'package:check_d/features/statistics/presentation/statistics_page.dart';
+import 'package:check_d/shared/widgets/mascot.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,6 +52,12 @@ void main() {
     ],
     reminderCompletions: [],
   );
+  const emptyData = StatisticsData(
+    tags: [],
+    sessions: [],
+    tasks: [],
+    reminderCompletions: [],
+  );
 
   for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets('statistics periods and layout at width $width', (
@@ -76,7 +83,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('本周主动专注'), findsOneWidget);
-      expect(find.text('0 / 1'), findsOneWidget);
+      expect(find.text('0/1'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('年', skipOffstage: false));
       await tester.pumpAndSettle();
@@ -87,11 +94,38 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('本月主动专注'), findsOneWidget);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('日', skipOffstage: false));
-      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     });
   }
+
+  testWidgets(
+    'statistics empty state uses idle sheep without execution action',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            statisticsDataProvider.overrideWith(
+              (ref) => Stream.value(emptyData),
+            ),
+            timerNowProvider.overrideWith((ref) => Stream.value(start)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: StatisticsPage()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(CheckDSheep), findsOneWidget);
+      expect(find.text('开始计时'), findsNothing);
+      expect(find.text('这周还没有专注记录'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

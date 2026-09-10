@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/app_time.dart';
+import '../../../shared/widgets/check_d_design.dart';
 import '../../courses/application/course_providers.dart';
 import '../../courses/domain/course_models.dart';
 import '../../courses/presentation/course_form_page.dart';
@@ -265,26 +266,78 @@ class _DesktopToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SegmentedButton<CalendarViewMode>(
-          segments: const [
-            ButtonSegment(value: CalendarViewMode.month, label: Text('月')),
-            ButtonSegment(value: CalendarViewMode.week, label: Text('周')),
-            ButtonSegment(value: CalendarViewMode.timetable, label: Text('课表')),
-            ButtonSegment(value: CalendarViewMode.agenda, label: Text('日程')),
-          ],
-          selected: {mode},
-          showSelectedIcon: false,
-          onSelectionChanged: (value) => onModeChanged(value.first),
-        ),
+        _CalendarModeSwitcher(mode: mode, onChanged: onModeChanged),
         const SizedBox(width: 24),
-        IconButton(onPressed: onPrevious, icon: const Icon(Icons.chevron_left)),
+        IconButton(
+          tooltip: '上一段',
+          onPressed: onPrevious,
+          icon: const CheckDIcon(CheckDIconType.back),
+        ),
         Text(title, style: Theme.of(context).textTheme.titleMedium),
-        IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
+        IconButton(
+          tooltip: '下一段',
+          onPressed: onNext,
+          icon: const CheckDIcon(CheckDIconType.forward),
+        ),
         const Spacer(),
-        TextButton(onPressed: onToday, child: const Text('今天')),
+        TextButton.icon(
+          onPressed: onToday,
+          icon: const CheckDIcon(CheckDIconType.today, size: 17),
+          label: const Text('今天'),
+        ),
       ],
     );
   }
+}
+
+class _CalendarModeSwitcher extends StatelessWidget {
+  const _CalendarModeSwitcher({required this.mode, required this.onChanged});
+
+  final CalendarViewMode mode;
+  final ValueChanged<CalendarViewMode> onChanged;
+
+  static const _labels = <CalendarViewMode, String>{
+    CalendarViewMode.month: '月',
+    CalendarViewMode.week: '周',
+    CalendarViewMode.timetable: '课表',
+    CalendarViewMode.agenda: '日程',
+  };
+
+  @override
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.glassSoft,
+    radius: BorderRadius.circular(18),
+    padding: const EdgeInsets.all(4),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final entry in _labels.entries)
+          CheckDPressable(
+            onTap: () => onChanged(entry.key),
+            borderRadius: BorderRadius.circular(14),
+            child: AnimatedContainer(
+              duration: AppMotion.duration(context, AppMotion.standard),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              decoration: BoxDecoration(
+                color: mode == entry.key ? AppColors.blush : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                entry.value,
+                style: TextStyle(
+                  color: mode == entry.key
+                      ? AppColors.primaryStrong
+                      : AppColors.ink,
+                  fontWeight: mode == entry.key
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _MobileToolbar extends StatelessWidget {
@@ -309,27 +362,14 @@ class _MobileToolbar extends StatelessWidget {
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: SegmentedButton<CalendarViewMode>(
-            segments: const [
-              ButtonSegment(value: CalendarViewMode.month, label: Text('月')),
-              ButtonSegment(value: CalendarViewMode.week, label: Text('周')),
-              ButtonSegment(
-                value: CalendarViewMode.timetable,
-                label: Text('课表'),
-              ),
-              ButtonSegment(value: CalendarViewMode.agenda, label: Text('日程')),
-            ],
-            selected: {mode},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) => onModeChanged(value.first),
-          ),
+          child: _CalendarModeSwitcher(mode: mode, onChanged: onModeChanged),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
             IconButton(
               onPressed: onPrevious,
-              icon: const Icon(Icons.chevron_left),
+              icon: const CheckDIcon(CheckDIconType.back),
             ),
             Expanded(
               child: Text(
@@ -340,7 +380,7 @@ class _MobileToolbar extends StatelessWidget {
             ),
             IconButton(
               onPressed: onNext,
-              icon: const Icon(Icons.chevron_right),
+              icon: const CheckDIcon(CheckDIconType.forward),
             ),
             TextButton(onPressed: onToday, child: const Text('今天')),
           ],
@@ -393,7 +433,9 @@ class _MonthView extends StatelessWidget {
             itemCount: dates.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1.05,
+              childAspectRatio: 1.12,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
             ),
             itemBuilder: (context, index) {
               final date = dates[index];
@@ -404,69 +446,173 @@ class _MonthView extends StatelessWidget {
                   date.year == focusedMonth.year;
               return InkWell(
                 onTap: () => onSelectDate(date),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.blush
-                        : (inMonth ? AppColors.surface : Colors.transparent),
-                    borderRadius: BorderRadius.circular(14),
-                    border: selected || _sameDay(date, DateTime.now())
-                        ? Border.all(color: AppColors.primary, width: 1.5)
-                        : null,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${date.day}',
-                        style: TextStyle(
-                          color: inMonth ? AppColors.ink : AppColors.muted,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      for (final item in items.take(desktop ? 3 : 1))
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 1),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Color(
-                              item.colorValue,
-                            ).withValues(alpha: .14),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 8, height: 1),
-                          ),
-                        ),
-                      if (items.length > (desktop ? 3 : 1))
-                        Text(
-                          '+${items.length - (desktop ? 3 : 1)}',
-                          style: const TextStyle(
-                            fontSize: 8,
-                            height: 1,
-                            color: AppColors.muted,
-                          ),
-                        ),
-                    ],
-                  ),
+                child: CalendarMonthDayCell(
+                  date: date,
+                  items: items,
+                  selected: selected,
+                  inMonth: inMonth,
+                  desktop: desktop,
                 ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class CalendarMonthDayCell extends StatelessWidget {
+  const CalendarMonthDayCell({
+    super.key,
+    required this.date,
+    required this.items,
+    required this.selected,
+    required this.inMonth,
+    required this.desktop,
+  });
+
+  final DateTime date;
+  final List<CalendarOccurrence> items;
+  final bool selected;
+  final bool inMonth;
+  final bool desktop;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight;
+        final padding = height >= 72
+            ? 6.0
+            : height >= 48
+            ? 4.0
+            : 2.0;
+        final dateHeight = height >= 48 ? 18.0 : 14.0;
+        final gap = height >= 48 ? 2.0 : 0.0;
+        final summaryHeight = height >= 72
+            ? 15.0
+            : height >= 48
+            ? 13.0
+            : 0.0;
+        final availableForSummary = math.max(
+          0.0,
+          height - padding * 2 - dateHeight - gap,
+        );
+        final requestedCount = desktop ? 3 : 1;
+        final visibleCount = summaryHeight == 0
+            ? 0
+            : math.min(
+                requestedCount,
+                (availableForSummary / summaryHeight).floor(),
+              );
+        final shownItems = items.take(visibleCount).toList();
+        final hiddenCount = items.length - shownItems.length;
+        final showMarker = items.isNotEmpty && visibleCount == 0;
+        final markerText = showMarker
+            ? (items.length > 1 ? '+${items.length}' : '•')
+            : (hiddenCount > 0 ? '+$hiddenCount' : null);
+
+        return Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.blush.withValues(alpha: .82)
+                : (_sameDay(date, DateTime.now())
+                      ? AppColors.surfaceSoft
+                      : Colors.transparent),
+            borderRadius: BorderRadius.circular(14),
+            border: selected
+                ? Border.all(color: AppColors.primary.withValues(alpha: .42))
+                : null,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                left: padding,
+                top: padding,
+                right: padding,
+                height: math.min(
+                  dateHeight,
+                  math.max(0.0, height - padding * 2),
+                ),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    '${date.day}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: inMonth ? AppColors.ink : AppColors.muted,
+                      fontSize: height < 48 ? 11 : 13,
+                      height: 1,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              if (shownItems.isNotEmpty)
+                Positioned(
+                  left: padding,
+                  right: padding,
+                  bottom: padding,
+                  height: summaryHeight * shownItems.length,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final item in shownItems)
+                        SizedBox(
+                          height: summaryHeight,
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 1),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: Color(
+                                item.colorValue,
+                              ).withValues(alpha: .12),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              item.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: height < 72 ? 7 : 8,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              if (markerText != null)
+                Positioned(
+                  right: padding,
+                  top: shownItems.isNotEmpty ? padding : null,
+                  bottom: shownItems.isNotEmpty
+                      ? null
+                      : math.max(1.0, padding - 1),
+                  height: math.min(12.0, math.max(8.0, height)),
+                  child: Text(
+                    markerText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: height < 48 ? 7 : 8,
+                      height: 1,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -558,7 +704,9 @@ class _TimeGrid extends StatelessWidget {
                   onTap: () => onSelectDate(day),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    color: _sameDay(day, selectedDate) ? AppColors.blush : null,
+                    color: _sameDay(day, selectedDate)
+                        ? AppColors.blush.withValues(alpha: .55)
+                        : Colors.transparent,
                     child: Column(
                       children: [
                         Text(
@@ -618,7 +766,7 @@ class _TimeGrid extends StatelessWidget {
                                 top: h * hourHeight,
                                 child: const Divider(
                                   height: 1,
-                                  color: AppColors.border,
+                                  color: Color(0x35D8C8C5),
                                 ),
                               ),
                             for (var d = 0; d <= 7; d++)
@@ -628,7 +776,7 @@ class _TimeGrid extends StatelessWidget {
                                 left: d * colWidth,
                                 child: const VerticalDivider(
                                   width: 1,
-                                  color: AppColors.border,
+                                  color: Color(0x24D8C8C5),
                                 ),
                               ),
                             for (
@@ -713,7 +861,13 @@ class CalendarWeekEventBlock extends StatelessWidget {
       final roomy = height >= 44;
       final compact = height < 32;
       return Container(
-        padding: EdgeInsets.all(compact ? 2 : roomy ? 5 : 3),
+        padding: EdgeInsets.all(
+          compact
+              ? 2
+              : roomy
+              ? 5
+              : 3,
+        ),
         decoration: BoxDecoration(
           color: Color(item.colorValue).withValues(alpha: .20),
           borderRadius: BorderRadius.circular(7),
@@ -768,48 +922,77 @@ class _AgendaView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = List.generate(7, (i) => weekStart.add(Duration(days: i)));
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 28),
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 28),
       itemCount: days.length,
-      separatorBuilder: (_, __) => const Divider(height: 24),
       itemBuilder: (context, index) {
         final day = days[index];
         final items = data[_dayKey(day)] ?? const <CalendarOccurrence>[];
         final timed = items.where((item) => item.hasTime).toList();
         final untimed = items.where((item) => !item.hasTime).toList();
-        return InkWell(
-          onTap: () => onSelectDate(day),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat('M月d日 EEEE', 'zh_CN').format(day),
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: _sameDay(day, selectedDate)
-                        ? FontWeight.w800
-                        : FontWeight.w600,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            onTap: () => onSelectDate(day),
+            borderRadius: BorderRadius.circular(16),
+            child: CheckDSurface(
+              level: _sameDay(day, selectedDate)
+                  ? CheckDSurfaceLevel.glassSoft
+                  : CheckDSurfaceLevel.plain,
+              color: _sameDay(day, selectedDate)
+                  ? AppColors.surfaceSoft
+                  : Colors.transparent,
+              borderColor: Colors.transparent,
+              radius: BorderRadius.circular(16),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          DateFormat('M月d日 EEEE', 'zh_CN').format(day),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: _sameDay(day, selectedDate)
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                      if (_sameDay(day, DateTime.now()))
+                        const Text(
+                          '今天',
+                          style: TextStyle(color: AppColors.primary),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (timed.isEmpty && untimed.isEmpty)
-                  const Text('暂无安排', style: TextStyle(color: AppColors.muted)),
-                for (final item in timed) _AgendaTile(item: item),
-                if (untimed.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  const Text(
-                    '待完成 / 时间未定',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                      fontWeight: FontWeight.w600,
+                  if (timed.isEmpty && untimed.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 5),
+                      child: Text(
+                        '暂无安排',
+                        style: TextStyle(color: AppColors.muted),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  for (final item in untimed) _AgendaTile(item: item),
+                  for (final item in timed) _AgendaTile(item: item),
+                  if (untimed.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '待完成 / 时间未定',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    for (final item in untimed) _AgendaTile(item: item),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -829,7 +1012,7 @@ class _AgendaTile extends ConsumerWidget {
           : () => _showCourseOccurrenceActions(context, item),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -842,14 +1025,7 @@ class _AgendaTile extends ConsumerWidget {
                 style: const TextStyle(fontSize: 12, color: AppColors.muted),
               ),
             ),
-            Container(
-              width: 4,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Color(item.colorValue),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
+            CheckDStatusDot(color: Color(item.colorValue), size: 8),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1162,13 +1338,10 @@ class _DesktopContextPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return CheckDSurface(
+      level: CheckDSurfaceLevel.raised,
+      radius: BorderRadius.circular(22),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1184,9 +1357,15 @@ class _DesktopContextPanel extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          Text(
-            '${occurrences.length} 项安排',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              const CheckDIcon(CheckDIconType.calendar, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                '${occurrences.length} 项安排',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Expanded(

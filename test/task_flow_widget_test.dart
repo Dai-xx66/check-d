@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, '保存'));
     await tester.pumpAndSettle();
 
-    expect(find.text('今日完成度'), findsOneWidget);
+    expect(find.text('今日总结'), findsOneWidget);
     final tasks = await database.select(database.localTasks).get();
     expect(tasks.single.name, '晨间整理');
     expect(tasks.single.taskType, TaskKind.recurring.name);

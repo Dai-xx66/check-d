@@ -6,6 +6,7 @@ import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/calendar/presentation/calendar_page.dart';
 import 'package:check_d/features/courses/application/course_providers.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
+import 'package:check_d/features/reviews/application/review_providers.dart';
 import 'package:check_d/features/schedule/application/day_schedule_providers.dart';
 import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
 import 'package:check_d/features/statistics/application/statistics_providers.dart';
@@ -13,6 +14,8 @@ import 'package:check_d/features/statistics/domain/statistics_models.dart';
 import 'package:check_d/features/tasks/application/task_providers.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
+import 'package:check_d/features/profile/presentation/my_page.dart';
+import 'package:check_d/shared/widgets/mascot.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,6 +50,7 @@ void main() {
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
+          reviewProvider.overrideWith((ref, period) => Stream.value(null)),
           coursesSnapshotProvider.overrideWith(
             (ref) => Future.value(const <CourseDetails>[]),
           ),
@@ -63,14 +67,12 @@ void main() {
 
     expect(find.text('离线体验'), findsOneWidget);
     await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
-    expect(find.text('今日完成度'), findsOneWidget);
     expect(find.text('今日待完成'), findsOneWidget);
     expect(find.text('三日日程'), findsOneWidget);
     expect(find.text('今日总结'), findsOneWidget);
-    expect(find.text('连续打卡'), findsOneWidget);
+    expect(find.text('专注时长'), findsOneWidget);
     expect(find.text('周期任务'), findsNothing);
     expect(find.text('单次事项'), findsNothing);
     expect(find.text('我的'), findsOneWidget);
@@ -114,6 +116,16 @@ void main() {
       scheduledAt: DateTime(today.year, today.month, today.day, 14),
       oneTimeExecutionMode: OneTimeExecutionMode.untimed,
     );
+    final untimedOneOff = TaskDetails(
+      id: 'untimed-one-off',
+      name: '临时阅读',
+      kind: TaskKind.oneTime,
+      colorValue: 0xFFF2AB79,
+      status: TaskLifecycle.active,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      oneTimeExecutionMode: OneTimeExecutionMode.timed,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -130,7 +142,7 @@ void main() {
           ),
           tasksForDateProvider.overrideWith((ref, date) {
             if (dateOnly(date) == today) {
-              return Stream.value([pending, scheduled]);
+              return Stream.value([pending, scheduled, untimedOneOff]);
             }
             return Stream.value(const <TaskDetails>[]);
           }),
@@ -153,14 +165,20 @@ void main() {
 
     expect(find.text('今日待完成'), findsOneWidget);
     expect(find.text('背单词'), findsWidgets);
+    expect(find.text('临时阅读'), findsWidgets);
     expect(find.text('数据库作业'), findsWidgets);
+    expect(find.text('查看详情'), findsNothing);
+    expect(find.byIcon(Icons.radio_button_unchecked_rounded), findsWidgets);
     expect(find.text('周期任务'), findsNothing);
     expect(find.text('单次事项'), findsNothing);
+    expect(find.byType(CheckDSheep), findsNWidgets(5));
+    expect(tester.takeException(), isNull);
 
-    await tester.drag(find.byType(PageView), const Offset(-320, 0));
+    await tester.drag(find.byType(PageView), const Offset(-140, 0));
     await tester.pumpAndSettle();
     expect(find.text('明日待完成'), findsOneWidget);
     expect(find.text('回到今天'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -191,18 +209,37 @@ void main() {
           tasksForDateProvider.overrideWith(
             (ref, date) => Stream.value(const <TaskDetails>[]),
           ),
+          reviewProvider.overrideWith((ref, period) => Stream.value(null)),
         ],
         child: const CheckDApp(),
       ),
     );
 
     await tester.tap(find.widgetWithText(OutlinedButton, '离线体验'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
     expect(find.text('快速创建'), findsOneWidget);
     expect(find.text('立即开始计时'), findsOneWidget);
+    expect(find.text('Check D'), findsOneWidget);
+    expect(find.text('今日待完成'), findsOneWidget);
+    expect(find.text('三日日程'), findsOneWidget);
+    expect(find.text('今日时间轴'), findsOneWidget);
+    expect(find.text('今日总结'), findsOneWidget);
+    expect(find.text('今日复盘'), findsOneWidget);
+    expect(find.text('迷你日历'), findsOneWidget);
+    expect(find.textContaining('正在进行'), findsOneWidget);
+    expect(find.text('近期事项'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(CheckDSheep), findsNWidgets(4));
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(1100, 800);
+    await tester.pumpAndSettle();
+    expect(find.text('Check D'), findsOneWidget);
+    expect(find.text('三日日程'), findsOneWidget);
+    expect(find.text('今日时间轴'), findsOneWidget);
+    expect(find.text('周期任务'), findsNothing);
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -260,13 +297,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((await repository.getUnfinishedTimers()), hasLength(1));
-    expect(find.text('暂停'), findsOneWidget);
-    expect(find.text('进行中'), findsOneWidget);
+    expect(find.text('暂停'), findsNWidgets(2));
+    expect(find.textContaining('进行中'), findsWidgets);
 
-    await tester.tap(find.text('暂停'));
+    await tester.tap(find.text('暂停').first);
     await tester.pumpAndSettle();
-    expect(find.text('已暂停'), findsOneWidget);
-    expect(find.text('继续'), findsOneWidget);
+    expect(find.textContaining('已暂停'), findsWidgets);
+    expect(find.text('继续'), findsNWidgets(2));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -371,5 +408,28 @@ void main() {
     expect(find.text('日历'), findsOneWidget);
     expect(find.text('${month.year}年 ${month.month}月'), findsOneWidget);
     expect(find.text('当天完成度'), findsOneWidget);
+  });
+
+  testWidgets('my page keeps all settings entries across responsive widths', (
+    tester,
+  ) async {
+    for (final size in [const Size(320, 720), const Size(1100, 800)]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(const MaterialApp(home: MyPage()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('我的小羊'), findsOneWidget);
+      expect(find.text('作息模板'), findsOneWidget);
+      expect(find.text('学期与课程设置'), findsOneWidget);
+      expect(find.text('标签管理'), findsOneWidget);
+      expect(find.text('提醒设置'), findsOneWidget);
+      expect(find.text('通知权限'), findsOneWidget);
+      expect(find.text('数据备份'), findsOneWidget);
+      expect(find.text('关于 App'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
   });
 }

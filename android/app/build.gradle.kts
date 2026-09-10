@@ -51,4 +51,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Bundled models keep Chinese timetable OCR entirely on the device.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("androidx.core:core-ktx:1.17.0")
 }

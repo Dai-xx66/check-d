@@ -23,6 +23,7 @@ dependencies:
   desktop_multi_window: ^0.3.1
   window_manager: ^0.5.2
   screen_retriever: ^0.2.2
+  file_picker: ^10.3.3
 
 dev_dependencies:
   flutter_test:
@@ -34,4 +35,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/pink_lamb_piano.png
+    - assets/images/

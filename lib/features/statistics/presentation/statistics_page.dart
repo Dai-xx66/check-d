@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
-import '../../schedule/application/day_schedule_providers.dart';
 import '../../tags/presentation/tags_page.dart';
 import '../../tasks/application/task_providers.dart';
 import '../../tasks/domain/task_models.dart';
@@ -31,13 +31,13 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
     final now = ref.watch(timerNowProvider).value ?? DateTime.now();
     final data = ref.watch(statisticsDataProvider);
     return ColoredBox(
-      color: const Color(0xFFFAFBFC),
+      color: AppColors.background,
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1280),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 40),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
               children: [
                 _PageHeader(
                   period: _period,
@@ -55,7 +55,7 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                   error: (_, _) => Center(
                     child: TextButton.icon(
                       onPressed: () => ref.invalidate(statisticsDataProvider),
-                      icon: const Icon(Icons.refresh_rounded),
+                      icon: const CheckDIcon(CheckDIconType.refresh),
                       label: const Text('统计加载失败，重试'),
                     ),
                   ),
@@ -86,7 +86,32 @@ class _StatisticsPageState extends ConsumerState<StatisticsPage> {
                               : () => setState(() => _anchor = dateOnly(now)),
                         ),
                         const SizedBox(height: 18),
-                        _ReportContent(report: report, period: _period),
+                        AnimatedSwitcher(
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.emphasis,
+                          ),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, .018),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                          child: _ReportContent(
+                            key: ValueKey(
+                              '${_period.name}-${report.range.start}',
+                            ),
+                            report: report,
+                            period: _period,
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -197,19 +222,9 @@ class _PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final switcher = SegmentedButton<StatisticsPeriod>(
-        showSelectedIcon: false,
-        segments: [
-          for (final value in const [
-            StatisticsPeriod.week,
-            StatisticsPeriod.month,
-            StatisticsPeriod.semester,
-            StatisticsPeriod.year,
-          ])
-            ButtonSegment(value: value, label: Text(value.tabLabel)),
-        ],
-        selected: {period},
-        onSelectionChanged: (value) => onPeriodChanged(value.first),
+      final switcher = _PeriodSwitcher(
+        period: period,
+        onChanged: onPeriodChanged,
       );
       if (constraints.maxWidth < 680) {
         return Column(
@@ -228,11 +243,23 @@ class _PageHeader extends StatelessWidget {
 
   Widget _titleRow(BuildContext context) => Row(
     children: [
-      Text('统计', style: Theme.of(context).textTheme.headlineSmall),
-      const Spacer(),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('统计', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 3),
+            const Text(
+              '记录每一份努力，看见更好的自己',
+              style: TextStyle(color: AppColors.muted),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 12),
       IconButton(
         tooltip: '标签管理',
-        icon: const Icon(Icons.label_outline_rounded),
+        icon: const CheckDIcon(CheckDIconType.tag),
         onPressed: () => Navigator.of(
           context,
         ).push<void>(MaterialPageRoute(builder: (_) => const TagsPage())),
@@ -259,35 +286,35 @@ class _RangeNavigator extends StatelessWidget {
   final VoidCallback? onCurrent;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFE8EAED)),
-    ),
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.plain,
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+    radius: BorderRadius.circular(18),
     child: Row(
       children: [
         IconButton(
           tooltip: '上一周期',
           onPressed: onPrevious,
-          icon: const Icon(Icons.chevron_left_rounded),
+          icon: const CheckDIcon(CheckDIconType.back),
         ),
         Expanded(
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
           ),
         ),
         IconButton(
           tooltip: '下一周期',
           onPressed: onNext,
-          icon: const Icon(Icons.chevron_right_rounded),
+          icon: const CheckDIcon(CheckDIconType.forward),
         ),
         TextButton.icon(
           onPressed: onCurrent,
-          icon: const Icon(Icons.today_outlined, size: 17),
+          icon: const CheckDIcon(CheckDIconType.today, size: 17),
           label: Text(currentLabel),
         ),
       ],
@@ -295,8 +322,75 @@ class _RangeNavigator extends StatelessWidget {
   );
 }
 
+class _PeriodSwitcher extends StatelessWidget {
+  const _PeriodSwitcher({required this.period, required this.onChanged});
+
+  final StatisticsPeriod period;
+  final ValueChanged<StatisticsPeriod> onChanged;
+
+  @override
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.plain,
+    padding: const EdgeInsets.all(4),
+    radius: BorderRadius.circular(18),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final value in const [
+          StatisticsPeriod.week,
+          StatisticsPeriod.month,
+          StatisticsPeriod.semester,
+          StatisticsPeriod.year,
+        ])
+          _PeriodButton(
+            label: value.tabLabel,
+            selected: value == period,
+            onTap: () => onChanged(value),
+          ),
+      ],
+    ),
+  );
+}
+
+class _PeriodButton extends StatelessWidget {
+  const _PeriodButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => CheckDPressable(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(14),
+    child: AnimatedContainer(
+      duration: AppMotion.duration(context, AppMotion.standard),
+      curve: AppMotion.curve,
+      width: 62,
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: BoxDecoration(
+        color: selected ? AppColors.blush : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: selected ? AppColors.primaryStrong : AppColors.muted,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          fontSize: 13,
+        ),
+      ),
+    ),
+  );
+}
+
 class _ReportContent extends StatelessWidget {
-  const _ReportContent({required this.report, required this.period});
+  const _ReportContent({required this.report, required this.period, super.key});
 
   final StatisticsReport report;
   final StatisticsPeriod period;
@@ -337,9 +431,25 @@ class _ReportContent extends StatelessWidget {
           },
         ),
       const SizedBox(height: 18),
-      _SmartSummaryCard(summary: report.smartSummary),
-      const SizedBox(height: 18),
-      _TaskPerformance(report: report),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final insight = _SmartSummaryCard(summary: report.smartSummary);
+          final tasks = _TaskPerformance(report: report);
+          if (constraints.maxWidth < 820) {
+            return Column(
+              children: [insight, const SizedBox(height: 16), tasks],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: insight),
+              const SizedBox(width: 16),
+              Expanded(child: tasks),
+            ],
+          );
+        },
+      ),
     ],
   );
 
@@ -361,111 +471,176 @@ class _SummaryCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final columns = constraints.maxWidth >= 800 ? 4 : 2;
-      final width = (constraints.maxWidth - (columns - 1) * 12) / columns;
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      final focus = CheckDSurface(
+        level: CheckDSurfaceLevel.glassSoft,
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: AppColors.blush,
+                shape: BoxShape.circle,
+              ),
+              child: const CheckDIcon(
+                CheckDIconType.focus,
+                color: AppColors.primaryStrong,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    period.focusLabel,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    timeLabel(report.focusSeconds),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (report.focusSeconds > 0)
+              const CheckDIcon(
+                CheckDIconType.insight,
+                color: AppColors.creamYellow,
+                size: 22,
+              ),
+          ],
+        ),
+      );
+      final compact = Row(
         children: [
-          _Metric(
-            width: width,
-            label: period.focusLabel,
-            value: timeLabel(report.focusSeconds),
-            color: AppColors.accentBlue,
-            icon: Icons.hourglass_bottom_rounded,
+          Expanded(
+            child: _CompactMetric(
+              label: '完成事项',
+              value: '${report.completedItems}/${report.expectedItems}',
+              icon: CheckDIconType.completion,
+              color: AppColors.green,
+            ),
           ),
-          _Metric(
-            width: width,
-            label: '完成事项',
-            value: '${report.completedItems} / ${report.expectedItems}',
-            color: AppColors.accentMint,
-            icon: Icons.task_alt_rounded,
+          const SizedBox(width: 10),
+          Expanded(
+            child: _CompactMetric(
+              label: '打卡天数',
+              value: '${report.checkInDays}天',
+              icon: CheckDIconType.checkIn,
+              color: AppColors.orange,
+            ),
           ),
-          _Metric(
-            width: width,
-            label: '打卡天数',
-            value: '${report.checkInDays} 天',
-            color: AppColors.orange,
-            icon: Icons.calendar_month_rounded,
+          const SizedBox(width: 10),
+          Expanded(
+            child: _CompactMetric(
+              label: period == StatisticsPeriod.year ? '最长坚持' : '连续坚持',
+              value:
+                  '${period == StatisticsPeriod.year ? report.longestStreak : report.currentStreak}天',
+              icon: CheckDIconType.streak,
+              color: AppColors.purple,
+            ),
           ),
-          _Metric(
-            width: width,
-            label: period == StatisticsPeriod.year ? '最长连续坚持' : '连续坚持',
-            value:
-                '${period == StatisticsPeriod.year ? report.longestStreak : report.currentStreak} 天',
-            color: AppColors.accentLavender,
-            icon: Icons.local_fire_department_outlined,
-          ),
+        ],
+      );
+      if (constraints.maxWidth < 520) {
+        return Column(children: [focus, const SizedBox(height: 10), compact]);
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 5, child: focus),
+          const SizedBox(width: 12),
+          Expanded(flex: 7, child: compact),
         ],
       );
     },
   );
 }
 
-class _StatisticsEmptyState extends ConsumerStatefulWidget {
+class _CompactMetric extends StatelessWidget {
+  const _CompactMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final CheckDIconType icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.raised,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    radius: BorderRadius.circular(18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CheckDIcon(icon, size: 19, color: color),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+        ),
+      ],
+    ),
+  );
+}
+
+class _StatisticsEmptyState extends StatelessWidget {
   const _StatisticsEmptyState({required this.period});
 
   final StatisticsPeriod period;
 
   @override
-  ConsumerState<_StatisticsEmptyState> createState() =>
-      _StatisticsEmptyStateState();
-}
-
-class _StatisticsEmptyStateState extends ConsumerState<_StatisticsEmptyState> {
-  bool _starting = false;
-
   @override
   Widget build(BuildContext context) => _Panel(
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 28),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 4),
       child: Column(
         children: [
-          const MascotWidget(state: MascotState.working, size: 84),
-          const SizedBox(height: 14),
+          const CheckDSheep(
+            state: SheepState.idle,
+            size: MascotSize.md,
+            framed: false,
+            compact: true,
+          ),
+          const SizedBox(height: 10),
           Text(
-            '${widget.period.emptyPeriod}还没有专注记录',
+            '${period.emptyPeriod}还没有专注记录',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 7),
           const Text(
-            '开始一次计时后，这里会记录你的专注轨迹。',
+            '完成一次专注后，\n这里会慢慢记录下你的节奏。',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _starting ? null : _startFocus,
-            icon: _starting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.play_arrow_rounded),
-            label: Text(_starting ? '正在开始' : '开始计时'),
           ),
         ],
       ),
     ),
   );
-
-  Future<void> _startFocus() async {
-    setState(() => _starting = true);
-    try {
-      final repository = ref.read(dayScheduleRepositoryProvider);
-      final timerId = await repository.createAdHocTimer(title: '专注时光');
-      await repository.startAdHocTimer(timerId);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
-      }
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
-  }
 }
 
 class _Panel extends StatelessWidget {
@@ -476,20 +651,10 @@ class _Panel extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFE8EAED)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0A1A1D23),
-          blurRadius: 18,
-          offset: Offset(0, 6),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => CheckDSurface(
+    level: CheckDSurfaceLevel.raised,
+    padding: const EdgeInsets.all(18),
+    radius: BorderRadius.circular(22),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -525,7 +690,7 @@ class _SmartSummaryCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome_outlined, color: color),
+          CheckDIcon(CheckDIconType.insight, color: color),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -618,50 +783,7 @@ class _TaskRow extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-        ],
-      ),
-    ),
-  );
-}
-
-class _Metric extends StatelessWidget {
-  const _Metric({
-    required this.width,
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
-
-  final double width;
-  final String label;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 21, color: color),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
+          const CheckDIcon(CheckDIconType.forward, color: AppColors.muted),
         ],
       ),
     ),

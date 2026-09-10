@@ -102,26 +102,46 @@ class MiniWindowRepository {
           .cast<MiniCourseItem?>()
           .firstOrNull;
     }
+    final nextScheduledItem =
+        dateTasks
+            .where((task) => !task.isCompleted)
+            .map((task) => (task: task, minute: _plannedMinute(task)))
+            .where((item) => item.minute != null && item.minute! > minute)
+            .toList()
+          ..sort((a, b) => a.minute!.compareTo(b.minute!));
     return MiniWindowSnapshot(
       now: current,
       currentCourses: currentCourses,
       timers: timerItems,
       nextCourse: nextCourse,
+      nextScheduledItem: nextScheduledItem.isEmpty
+          ? null
+          : MiniScheduledItem(
+              id: nextScheduledItem.first.task.id,
+              title: nextScheduledItem.first.task.name,
+              plannedMinute: nextScheduledItem.first.minute!,
+            ),
       pendingItems: dateTasks
-          .where(
-            (task) => !task.isCompleted && !timedTaskIds.contains(task.id),
-          )
+          .where((task) => !task.isCompleted && !timedTaskIds.contains(task.id))
           .map(
             (task) => MiniPendingItem(
               id: task.id,
               title: task.name,
               targetSeconds: task.targetDurationSeconds,
+              plannedMinute: _plannedMinute(task),
             ),
           )
           .toList(),
       completedTaskCount: dateTasks.where((task) => task.isCompleted).length,
       totalTaskCount: dateTasks.length,
     );
+  }
+
+  static int? _plannedMinute(TaskDetails task) {
+    if (task.kind == TaskKind.oneTime && task.scheduledAt != null) {
+      return task.scheduledAt!.hour * 60 + task.scheduledAt!.minute;
+    }
+    return task.scheduledMinuteOfDay;
   }
 
   Future<List<CalendarOccurrence>> _effectiveCoursesForDay(

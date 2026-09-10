@@ -68,11 +68,29 @@ class MiniPendingItem {
     required this.id,
     required this.title,
     this.targetSeconds,
+    this.plannedMinute,
   });
 
   final String id;
   final String title;
   final int? targetSeconds;
+  final int? plannedMinute;
+}
+
+/// A read-only, precisely scheduled task used by companion surfaces.
+///
+/// This preserves the Today projection's distinction between timed timeline
+/// items and untimed pending items without introducing any new task rule.
+class MiniScheduledItem {
+  const MiniScheduledItem({
+    required this.id,
+    required this.title,
+    required this.plannedMinute,
+  });
+
+  final String id;
+  final String title;
+  final int plannedMinute;
 }
 
 class MiniWindowSnapshot {
@@ -84,6 +102,7 @@ class MiniWindowSnapshot {
     this.completedTaskCount = 0,
     this.totalTaskCount = 0,
     this.nextCourse,
+    this.nextScheduledItem,
   });
 
   final DateTime now;
@@ -93,6 +112,7 @@ class MiniWindowSnapshot {
   final int completedTaskCount;
   final int totalTaskCount;
   final MiniCourseItem? nextCourse;
+  final MiniScheduledItem? nextScheduledItem;
 
   List<MiniTimerItem> get runningTimers =>
       timers.where((item) => item.status == TimerStatus.running).toList();
