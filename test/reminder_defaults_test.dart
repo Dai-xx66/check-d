@@ -20,17 +20,20 @@ void main() {
   test(
     'reminder defaults persist per user without changing saved rules',
     () async {
+      final syncQueue = SyncQueueService(database);
       final defaults = ReminderDefaultsRepository(
         database: database,
         userId: 'student-a',
+        syncQueue: syncQueue,
       );
       final otherUserDefaults = ReminderDefaultsRepository(
         database: database,
         userId: 'student-b',
+        syncQueue: syncQueue,
       );
       final schedule = DayScheduleRepository(
         database: database,
-        syncQueue: SyncQueueService(database),
+        syncQueue: syncQueue,
         userId: 'student-a',
       );
       await schedule.replaceReminderConfiguration(

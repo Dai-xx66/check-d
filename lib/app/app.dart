@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/app_theme.dart';
 import '../core/notifications/reminder_scheduler_providers.dart';
 import '../core/platform/desktop_mini_window.dart';
+import '../core/sync/sync_upload_host.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/home_widget/presentation/home_widget_host.dart';
@@ -25,14 +26,16 @@ class CheckDApp extends ConsumerWidget {
 
     return DesktopMainWindowSyncHost(
       onRefresh: () => ref.read(miniWindowDataRevisionProvider.notifier).bump(),
-      child: LockScreenStatusHost(
-        child: HomeWidgetHost(
-          child: ReminderSchedulerHost(
-            child: MaterialApp.router(
-              title: 'Check D',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.light,
-              routerConfig: router,
+      child: SyncUploadHost(
+        child: LockScreenStatusHost(
+          child: HomeWidgetHost(
+            child: ReminderSchedulerHost(
+              child: MaterialApp.router(
+                title: 'Check D',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light,
+                routerConfig: router,
+              ),
             ),
           ),
         ),

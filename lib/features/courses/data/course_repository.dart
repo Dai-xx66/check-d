@@ -203,6 +203,7 @@ class CourseRepository {
     final now = DateTime.now().toUtc();
     final id = templateId ?? _uuid.v4();
     late List<ScheduleTemplateSegmentDraft> savedSegments;
+    late List<String> removedSegmentIds;
     await _database.transaction(() async {
       final existingSegments = templateId == null
           ? const <ScheduleTemplateSegmentRecord>[]
@@ -253,6 +254,10 @@ class CourseRepository {
           .map((segment) => segment.id)
           .whereType<String>()
           .toSet();
+      removedSegmentIds = existingSegments
+          .map((segment) => segment.id)
+          .where((segmentId) => !retainedSegmentIds.contains(segmentId))
+          .toList();
       if (templateId != null) {
         final rules =
             await (_database.select(_database.courseScheduleRuleRecords)..where(
@@ -348,6 +353,15 @@ class CourseRepository {
       },
       userId: _userId,
     );
+    for (final segmentId in removedSegmentIds) {
+      await _syncQueue.enqueue(
+        entityType: 'schedule_template_segments',
+        entityId: segmentId,
+        operation: SyncOperationType.archive,
+        payload: {'id': segmentId, 'deleted_at': now.toIso8601String()},
+        userId: _userId,
+      );
+    }
     return id;
   }
 

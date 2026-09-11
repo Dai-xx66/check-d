@@ -148,7 +148,22 @@ class DayScheduleRepository {
     }
     final now = DateTime.now().toUtc();
     final dateKey = localDate == null ? null : localDateKey(localDate);
+    final removedRuleIds = <String>[];
+    final addedRuleIds = <String>[];
     await _database.transaction(() async {
+      final existing =
+          await (_database.select(_database.reminderRuleRecords)..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    row.ownerType.equals(ownerType.name) &
+                    row.ownerId.equals(ownerId) &
+                    (dateKey == null
+                        ? row.localDate.isNull()
+                        : row.localDate.equals(dateKey)) &
+                    row.deletedAt.isNull(),
+              ))
+              .get();
+      removedRuleIds.addAll(existing.map((rule) => rule.id));
       await (_database.update(_database.reminderRuleRecords)..where(
             (row) =>
                 row.userId.equals(_userId) &
@@ -182,11 +197,13 @@ class DayScheduleRepository {
           localDate: localDate,
         ),
       ]) {
+        final id = _uuid.v4();
+        addedRuleIds.add(id);
         await _database
             .into(_database.reminderRuleRecords)
             .insert(
               ReminderRuleRecordsCompanion.insert(
-                id: _uuid.v4(),
+                id: id,
                 userId: _userId,
                 ownerType: value.ownerType.name,
                 ownerId: value.ownerId,
@@ -202,6 +219,24 @@ class DayScheduleRepository {
             );
       }
     });
+    for (final id in removedRuleIds) {
+      await _syncQueue.enqueue(
+        entityType: 'reminder_rules',
+        entityId: id,
+        operation: SyncOperationType.archive,
+        payload: {'id': id, 'deleted_at': now.toIso8601String()},
+        userId: _userId,
+      );
+    }
+    for (final id in addedRuleIds) {
+      await _syncQueue.enqueue(
+        entityType: 'reminder_rules',
+        entityId: id,
+        operation: SyncOperationType.upsert,
+        payload: {'id': id, 'updated_at': now.toIso8601String()},
+        userId: _userId,
+      );
+    }
   }
 
   Future<String> saveReminderRule(
@@ -399,12 +434,13 @@ class DayScheduleRepository {
       throw StateError('该临时计时已经在运行。');
     }
     final timestamp = (now ?? DateTime.now()).toUtc();
+    final intervalId = _uuid.v4();
     await _database.transaction(() async {
       await _database
           .into(_database.adHocTimerIntervalRecords)
           .insert(
             AdHocTimerIntervalRecordsCompanion.insert(
-              id: _uuid.v4(),
+              id: intervalId,
               timerId: timerId,
               userId: _userId,
               startedAt: timestamp,
@@ -419,6 +455,7 @@ class DayScheduleRepository {
         timestamp,
         now: timestamp,
       );
+      await _enqueueAdHocInterval(intervalId);
     });
   }
 
@@ -481,6 +518,7 @@ class DayScheduleRepository {
             updatedAt: Value(timestamp),
           ),
         );
+    await _enqueueAdHocTimer(timerId);
   }
 
   Future<int> _closeActiveAdHocInterval(
@@ -512,7 +550,41 @@ class DayScheduleRepository {
         updatedAt: Value(endedAt),
       ),
     );
+    await _enqueueAdHocInterval(active.id);
     return seconds;
+  }
+
+  Future<void> _enqueueAdHocTimer(String timerId) async {
+    final timer =
+        await (_database.select(_database.adHocTimerRecords)..where(
+              (row) => row.id.equals(timerId) & row.userId.equals(_userId),
+            ))
+            .getSingle();
+    await _syncQueue.enqueue(
+      entityType: 'ad_hoc_timers',
+      entityId: timerId,
+      operation: SyncOperationType.upsert,
+      payload: {'id': timerId, 'updated_at': timer.updatedAt.toIso8601String()},
+      userId: _userId,
+    );
+  }
+
+  Future<void> _enqueueAdHocInterval(String intervalId) async {
+    final interval =
+        await (_database.select(_database.adHocTimerIntervalRecords)..where(
+              (row) => row.id.equals(intervalId) & row.userId.equals(_userId),
+            ))
+            .getSingle();
+    await _syncQueue.enqueue(
+      entityType: 'ad_hoc_timer_intervals',
+      entityId: intervalId,
+      operation: SyncOperationType.upsert,
+      payload: {
+        'id': intervalId,
+        'updated_at': interval.updatedAt.toIso8601String(),
+      },
+      userId: _userId,
+    );
   }
 
   Stream<List<AdHocTimerDetails>> watchAdHocTimersForDate(

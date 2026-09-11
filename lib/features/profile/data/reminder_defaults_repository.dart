@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/sync/sync_queue_service.dart';
 
 class ReminderDefaults {
   const ReminderDefaults({
@@ -25,10 +26,15 @@ class ReminderDefaults {
 }
 
 class ReminderDefaultsRepository {
-  ReminderDefaultsRepository({required this.database, required this.userId});
+  ReminderDefaultsRepository({
+    required this.database,
+    required this.userId,
+    required this.syncQueue,
+  });
 
   final AppDatabase database;
   final String userId;
+  final SyncQueueService syncQueue;
 
   String get _key => 'reminder-defaults:$userId';
 
@@ -54,18 +60,32 @@ class ReminderDefaultsRepository {
     if (value.advanceMinutes < 0) {
       throw ArgumentError.value(value.advanceMinutes, 'advanceMinutes');
     }
+    final now = DateTime.now().toUtc();
+    final encoded = {
+      'advanceEnabled': value.advanceEnabled,
+      'advanceMinutes': value.advanceMinutes,
+      'atTimeEnabled': value.atTimeEnabled,
+    };
     await database
         .into(database.appSettings)
         .insertOnConflictUpdate(
           AppSettingsCompanion.insert(
             key: _key,
-            value: jsonEncode({
-              'advanceEnabled': value.advanceEnabled,
-              'advanceMinutes': value.advanceMinutes,
-              'atTimeEnabled': value.atTimeEnabled,
-            }),
-            updatedAt: DateTime.now().toUtc(),
+            value: jsonEncode(encoded),
+            updatedAt: now,
           ),
         );
+    await syncQueue.enqueue(
+      entityType: 'user_preferences',
+      entityId: userId,
+      operation: SyncOperationType.upsert,
+      payload: {
+        'id': userId,
+        'preference_key': 'reminder_defaults',
+        'value': encoded,
+        'updated_at': now.toIso8601String(),
+      },
+      userId: userId,
+    );
   }
 }
