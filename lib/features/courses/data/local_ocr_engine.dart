@@ -17,7 +17,11 @@ abstract interface class LocalOcrEngine {
 /// Native OCR is intentionally isolated behind a platform channel. No image is
 /// sent to Supabase, OpenAI, or any other remote service.
 class PlatformLocalOcrEngine implements LocalOcrEngine {
-  static const _channel = MethodChannel('check_d/local_ocr');
+  PlatformLocalOcrEngine({
+    MethodChannel channel = const MethodChannel('check_d/local_ocr'),
+  }) : _channel = channel;
+
+  final MethodChannel _channel;
 
   @override
   Future<OcrPageResult> recognize(Uint8List imageBytes) async {
@@ -43,7 +47,12 @@ class PlatformLocalOcrEngine implements LocalOcrEngine {
         ],
       );
     } on PlatformException catch (error) {
-      throw LocalOcrUnavailable(error.message ?? '本地 OCR 运行失败。');
+      throw LocalOcrUnavailable(switch (error.code) {
+        'image_decode_failed' => '无法读取所选图片，请重新选择 PNG 或 JPEG 图片。',
+        'ocr_initialization_failed' => '本地 OCR 初始化失败，请重启应用后重试。',
+        'ocr_failed' => error.message ?? '本地 OCR 识别失败。',
+        _ => error.message ?? '本地 OCR 运行失败。',
+      });
     } on MissingPluginException {
       throw const LocalOcrUnavailable('当前设备暂不支持本地课程表识别。');
     }

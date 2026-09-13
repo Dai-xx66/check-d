@@ -42,6 +42,34 @@ void main() {
     });
   });
 
+  test('untimed one-off stays on its own calendar date', () async {
+    final sep18 = DateTime(2026, 9, 18);
+    final taskId = await repository.saveOneTimeReminder(
+      OneTimeReminderDraft(
+        name: '时间未定事项',
+        colorValue: 0xFFE69545,
+        executionMode: OneTimeExecutionMode.untimed,
+      ),
+    );
+
+    final stored = await repository.getTask(taskId);
+    expect(stored, isNotNull);
+
+    // The current no-date form stores the item's ownership day as its
+    // creation day; use a direct local row update to model Sep 18 precisely.
+    await (database.update(database.localTasks)
+          ..where((row) => row.id.equals(taskId)))
+        .write(LocalTasksCompanion(createdAt: Value(sep18)));
+
+    expect(await repository.watchTasksForDate(sep18).first, hasLength(1));
+    expect(
+      await repository
+          .watchTasksForDate(sep18.add(const Duration(days: 1)))
+          .first,
+      isEmpty,
+    );
+  });
+
   test('untimed completion toggles without deleting history', () async {
     final day = DateTime(2026, 9, 2);
     final taskId = await repository.saveRecurringTask(_untimedDraft(day));

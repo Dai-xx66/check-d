@@ -28,9 +28,18 @@ class MainActivity : FlutterActivity() {
                     result.error("image_decode_failed", "无法读取图片", null)
                     return@setMethodCallHandler
                 }
-                val recognizer = TextRecognition.getClient(
-                    ChineseTextRecognizerOptions.Builder().build()
-                )
+                val recognizer = try {
+                    TextRecognition.getClient(
+                        ChineseTextRecognizerOptions.Builder().build()
+                    )
+                } catch (error: Exception) {
+                    result.error(
+                        "ocr_initialization_failed",
+                        error.message ?: "本地 OCR 初始化失败",
+                        null,
+                    )
+                    return@setMethodCallHandler
+                }
                 recognizer.process(InputImage.fromBitmap(bitmap, 0))
                     .addOnSuccessListener { text ->
                         val tokens = text.textBlocks.flatMap { block ->
@@ -46,7 +55,6 @@ class MainActivity : FlutterActivity() {
                                 }
                             }
                         }
-                        recognizer.close()
                         result.success(
                             mapOf(
                                 "imageWidth" to bitmap.width.toDouble(),
@@ -56,8 +64,10 @@ class MainActivity : FlutterActivity() {
                         )
                     }
                     .addOnFailureListener { error ->
-                        recognizer.close()
                         result.error("ocr_failed", error.message ?: "本地 OCR 失败", null)
+                    }
+                    .addOnCompleteListener {
+                        recognizer.close()
                     }
             }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "check_d/home_widget")

@@ -57,6 +57,12 @@ List<CalendarOccurrence> buildCalendarOccurrencesForDate({
   };
 
   for (final task in tasks) {
+    // A one-off item owns exactly one calendar day. Untimed one-off records
+    // predate an explicit date field, so their persisted creation day is the
+    // stable fallback used by the existing local model.
+    if (task.kind == TaskKind.oneTime && !_oneTimeBelongsToDate(task, day)) {
+      continue;
+    }
     final override = overrideByTask[task.id];
     if (override?.action == DayOverrideAction.skip) continue;
     final defaultMinute = task.kind == TaskKind.oneTime
@@ -91,6 +97,11 @@ List<CalendarOccurrence> buildCalendarOccurrencesForDate({
     return a.title.compareTo(b.title);
   });
   return result;
+}
+
+bool _oneTimeBelongsToDate(TaskDetails task, DateTime date) {
+  final ownerDate = task.scheduledAt ?? task.createdAt;
+  return localDateKey(ownerDate.toLocal()) == localDateKey(date);
 }
 
 List<CalendarOccurrence> buildCourseOccurrencesForDate({

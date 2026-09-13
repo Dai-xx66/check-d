@@ -82,8 +82,8 @@ class TaskRepository {
       final visible = await Future.wait(
         details.map((task) async {
           if (task.kind == TaskKind.oneTime) {
-            return task.scheduledAt == null ||
-                localDateKey(task.scheduledAt!.toLocal()) == localDateKey(date);
+            final ownerDate = task.scheduledAt ?? task.createdAt;
+            return localDateKey(ownerDate.toLocal()) == localDateKey(date);
           }
           return task.schedule != null &&
               await _isDueOn(task.schedule!, task.holidayPause, date);
