@@ -26,7 +26,8 @@ object LockScreenStatusNotifier {
 
     fun sync(context: Context, rawJson: String): Boolean {
         val snapshot = JSONObject(rawJson)
-        if (snapshot.optString("mode") == "idle") {
+        val nextCourse = snapshot.optJSONObject("nextCourse")
+        if (snapshot.optString("mode") == "idle" && nextCourse == null) {
             NotificationManagerCompat.from(context).cancel(notificationId)
             return false
         }
@@ -36,21 +37,23 @@ object LockScreenStatusNotifier {
         val mode = snapshot.optString("mode")
         val course = snapshot.optJSONObject("course")
         val timer = snapshot.optJSONObject("timer")
-        val nextCourse = snapshot.optJSONObject("nextCourse")
         val title = optionalString(course, "title")
             ?: optionalString(timer, "title")
+            ?: optionalString(nextCourse, "title")
             ?: "Check D"
         val stateLabel = when (mode) {
             "courseTeaching" -> "上课中"
             "courseBreak" -> "课间休息"
             "timerRunning" -> "专注进行中"
             "timerPaused" -> "已暂停"
+            "idle" -> if (nextCourse != null) "接下来" else "Check D"
             else -> "Check D"
         }
         val courseDetail = course?.let(::courseDetail)
         val primaryDetail = when {
             courseDetail != null -> courseDetail
             timer != null && mode == "timerPaused" -> "累计 ${duration(timer.optInt("elapsedSeconds"))}"
+            nextCourse != null -> nextCoursePrimaryDetail(nextCourse)
             else -> "正在记录专注时间"
         }
         val concurrentTimerDetail = if (course != null && timer != null) {
@@ -177,6 +180,11 @@ object LockScreenStatusNotifier {
         return detail.takeIf { it.isNotEmpty() }?.let { "下节课：$it" }
     }
 
+    private fun nextCoursePrimaryDetail(course: JSONObject): String {
+        val time = course.optLong("startAtEpochMs").takeIf { it > 0 }?.let(::clock)
+        return joinSegments(time, optionalString(course, "classroom"))
+    }
+
     private fun optionalString(object_: JSONObject?, key: String): String? {
         val value = object_?.opt(key) ?: return null
         if (value == JSONObject.NULL) return null
@@ -194,6 +202,7 @@ object LockScreenStatusNotifier {
         "courseTeaching" -> R.drawable.sheep_course
         "courseBreak" -> R.drawable.sheep_break
         "timerPaused" -> R.drawable.sheep_paused
+        "idle" -> R.drawable.sheep_idle
         else -> R.drawable.sheep_focus
     }
 

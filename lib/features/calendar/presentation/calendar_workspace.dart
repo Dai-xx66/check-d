@@ -665,8 +665,8 @@ class _TimetableView extends StatelessWidget {
       selectedDate: selectedDate,
       onSelectDate: onSelectDate,
       courseOnly: true,
-      startHour: 7,
-      endHour: 23,
+      startHour: 0,
+      endHour: 24,
       denseOnMobile: true,
     );
   }
@@ -694,12 +694,9 @@ class _TimeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hourHeight = denseOnMobile
-        ? timetableHourHeightForWidth(MediaQuery.sizeOf(context).width)
-        : 64.0;
-    final height = (endHour - startHour) * hourHeight;
-    final weekdayVerticalPadding =
-        denseOnMobile && MediaQuery.sizeOf(context).width < 980 ? 6.0 : 8.0;
+    final isMobileFullDay =
+        denseOnMobile && MediaQuery.sizeOf(context).width < 980;
+    final weekdayVerticalPadding = isMobileFullDay ? 6.0 : 8.0;
     return Column(
       children: [
         Row(
@@ -737,75 +734,100 @@ class _TimeGrid extends StatelessWidget {
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
-            child: SizedBox(
-              height: height,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 52,
-                    child: Stack(
-                      children: [
-                        for (var hour = startHour; hour < endHour; hour++)
-                          Positioned(
-                            top: (hour - startHour) * hourHeight - 7,
-                            right: 8,
-                            child: Text(
-                              '${hour.toString().padLeft(2, '0')}:00',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: AppColors.muted,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final colWidth = constraints.maxWidth / 7;
-                        return Stack(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hourHeight = isMobileFullDay
+                  ? timetableHourHeightForAvailableHeight(constraints.maxHeight)
+                  : 64.0;
+              final height = isMobileFullDay
+                  ? constraints.maxHeight
+                  : (endHour - startHour) * hourHeight;
+              return SingleChildScrollView(
+                physics: isMobileFullDay
+                    ? const NeverScrollableScrollPhysics()
+                    : null,
+                child: SizedBox(
+                  height: height,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 52,
+                        child: Stack(
                           children: [
-                            for (var h = 0; h <= endHour - startHour; h++)
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                top: h * hourHeight,
-                                child: const Divider(
-                                  height: 1,
-                                  color: Color(0x35D8C8C5),
-                                ),
-                              ),
-                            for (var d = 0; d <= 7; d++)
-                              Positioned(
-                                top: 0,
-                                bottom: 0,
-                                left: d * colWidth,
-                                child: const VerticalDivider(
-                                  width: 1,
-                                  color: Color(0x24D8C8C5),
-                                ),
-                              ),
                             for (
-                              var dayIndex = 0;
-                              dayIndex < days.length;
-                              dayIndex++
+                              var hour = startHour;
+                              hour <= (isMobileFullDay ? endHour : endHour - 1);
+                              hour++
                             )
-                              ..._buildPositionedEvents(
-                                dayIndex,
-                                colWidth,
-                                hourHeight,
+                              Positioned(
+                                top: isMobileFullDay
+                                    ? timetableHourLabelTop(
+                                        hour: hour,
+                                        startHour: startHour,
+                                        hourHeight: hourHeight,
+                                        availableHeight: height,
+                                      )
+                                    : (hour - startHour) * hourHeight - 7,
+                                right: 8,
+                                child: Text(
+                                  '${hour.toString().padLeft(2, '0')}:00',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.muted,
+                                  ),
+                                ),
                               ),
                           ],
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final colWidth = constraints.maxWidth / 7;
+                            return Stack(
+                              children: [
+                                for (var h = 0; h <= endHour - startHour; h++)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    top: h * hourHeight,
+                                    child: const Divider(
+                                      height: 1,
+                                      color: Color(0x35D8C8C5),
+                                    ),
+                                  ),
+                                for (var d = 0; d <= 7; d++)
+                                  Positioned(
+                                    top: 0,
+                                    bottom: 0,
+                                    left: d * colWidth,
+                                    child: const VerticalDivider(
+                                      width: 1,
+                                      color: Color(0x24D8C8C5),
+                                    ),
+                                  ),
+                                for (
+                                  var dayIndex = 0;
+                                  dayIndex < days.length;
+                                  dayIndex++
+                                )
+                                  ..._buildPositionedEvents(
+                                    context,
+                                    dayIndex,
+                                    colWidth,
+                                    hourHeight,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -813,6 +835,7 @@ class _TimeGrid extends StatelessWidget {
   }
 
   List<Widget> _buildPositionedEvents(
+    BuildContext context,
     int dayIndex,
     double colWidth,
     double hourHeight,
@@ -843,13 +866,20 @@ class _TimeGrid extends StatelessWidget {
               (layout.item.startMinute! - startHour * 60) / 60 * hourHeight,
             ),
             height: math.max(
-              24,
+              12,
               ((layout.item.endMinute ?? layout.item.startMinute! + 45) -
                       layout.item.startMinute!) /
                   60 *
                   hourHeight,
             ),
-            child: CalendarWeekEventBlock(item: layout.item),
+            child: CalendarWeekEventBlock(
+              item: layout.item,
+              onTap:
+                  denseOnMobile &&
+                      layout.item.type == CalendarOccurrenceType.course
+                  ? () => _showCourseOccurrenceActions(context, layout.item)
+                  : null,
+            ),
           ),
     ];
   }
@@ -858,9 +888,10 @@ class _TimeGrid extends StatelessWidget {
 /// Keeps a timed occurrence's real height while reducing detail for short
 /// durations. Courses and timed task occurrences share this renderer.
 class CalendarWeekEventBlock extends StatelessWidget {
-  const CalendarWeekEventBlock({required this.item, super.key});
+  const CalendarWeekEventBlock({required this.item, this.onTap, super.key});
 
   final CalendarOccurrence item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -869,7 +900,8 @@ class CalendarWeekEventBlock extends StatelessWidget {
       final showSubtitle = item.subtitle != null && height >= 52;
       final roomy = height >= 44;
       final compact = height < 32;
-      return Container(
+      final showTitle = height >= 20;
+      final block = Container(
         padding: EdgeInsets.all(
           compact
               ? 2
@@ -888,16 +920,17 @@ class CalendarWeekEventBlock extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              item.title,
-              maxLines: roomy ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: compact ? 8 : 10,
-                height: 1.05,
-                fontWeight: FontWeight.w700,
+            if (showTitle)
+              Text(
+                item.title,
+                maxLines: roomy ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: compact ? 8 : 10,
+                  height: 1.05,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
             if (showSubtitle)
               Text(
                 item.subtitle!,
@@ -912,6 +945,13 @@ class CalendarWeekEventBlock extends StatelessWidget {
           ],
         ),
       );
+      return onTap == null
+          ? block
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(7),
+              child: block,
+            );
     },
   );
 }
@@ -1399,7 +1439,18 @@ class _OverlapLayout {
 
 /// Vertical scale for the course timetable. Desktop keeps the original scale;
 /// mobile uses a denser grid so a typical day needs less scrolling.
-double timetableHourHeightForWidth(double width) => width < 980 ? 50.0 : 64.0;
+double timetableHourHeightForAvailableHeight(double availableHeight) =>
+    availableHeight / 24;
+
+double timetableHourLabelTop({
+  required int hour,
+  required int startHour,
+  required double hourHeight,
+  required double availableHeight,
+}) => ((hour - startHour) * hourHeight - 7).clamp(
+  0,
+  math.max(0, availableHeight - 14),
+);
 
 List<_OverlapLayout> _layoutOverlaps(List<CalendarOccurrence> input) {
   final items = [...input]

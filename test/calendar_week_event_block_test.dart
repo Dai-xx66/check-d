@@ -33,4 +33,36 @@ void main() {
     expect(find.text('英语'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('compact course block keeps its tap target', (tester) async {
+    var tapped = false;
+    final item = CalendarOccurrence(
+      id: 'compact-course',
+      type: CalendarOccurrenceType.course,
+      title: '数学',
+      date: DateTime(2026, 9, 8),
+      colorValue: 0xFF8BA9F0,
+      startMinute: 8 * 60,
+      endMinute: 8 * 60 + 20,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 42,
+            height: 12,
+            child: CalendarWeekEventBlock(
+              item: item,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(CalendarWeekEventBlock));
+    expect(tapped, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }

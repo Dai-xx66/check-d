@@ -15,6 +15,8 @@ enum LockScreenStatusMode {
   timerPaused,
 }
 
+const lockScreenNextCourseWindow = Duration(hours: 2);
+
 class LockScreenStatusSnapshot {
   const LockScreenStatusSnapshot({
     required this.generatedAt,
@@ -40,12 +42,11 @@ class LockScreenStatusSnapshot {
             : LockScreenStatusMode.courseTeaching,
         course: LockScreenCourseStatus.fromMini(currentCourse),
         timer: timer,
-        nextCourse: source.nextCourse == null
-            ? null
-            : LockScreenNextCourse.fromMini(source.nextCourse!),
         additionalTimerCount: additionalTimerCount,
       );
     }
+
+    final nextCourse = _nextCourseWithinWindow(source);
 
     if (primaryTimer != null) {
       return LockScreenStatusSnapshot(
@@ -54,9 +55,7 @@ class LockScreenStatusSnapshot {
             ? LockScreenStatusMode.timerRunning
             : LockScreenStatusMode.timerPaused,
         timer: timer,
-        nextCourse: source.nextCourse == null
-            ? null
-            : LockScreenNextCourse.fromMini(source.nextCourse!),
+        nextCourse: nextCourse,
         additionalTimerCount: additionalTimerCount,
       );
     }
@@ -64,9 +63,7 @@ class LockScreenStatusSnapshot {
     return LockScreenStatusSnapshot(
       generatedAt: source.now,
       mode: LockScreenStatusMode.idle,
-      nextCourse: source.nextCourse == null
-          ? null
-          : LockScreenNextCourse.fromMini(source.nextCourse!),
+      nextCourse: nextCourse,
     );
   }
 
@@ -77,7 +74,8 @@ class LockScreenStatusSnapshot {
   final LockScreenNextCourse? nextCourse;
   final int additionalTimerCount;
 
-  bool get isIdle => mode == LockScreenStatusMode.idle;
+  bool get isIdle =>
+      mode == LockScreenStatusMode.idle && nextCourse == null;
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': 1,
@@ -88,6 +86,15 @@ class LockScreenStatusSnapshot {
     'nextCourse': nextCourse?.toJson(),
     'additionalTimerCount': additionalTimerCount,
   };
+}
+
+LockScreenNextCourse? _nextCourseWithinWindow(MiniWindowSnapshot source) {
+  final course = source.nextCourse;
+  if (course == null) return null;
+  final next = LockScreenNextCourse.fromMini(course);
+  final wait = next.startAt.difference(source.now);
+  if (wait.isNegative || wait > lockScreenNextCourseWindow) return null;
+  return next;
 }
 
 class LockScreenCourseStatus {

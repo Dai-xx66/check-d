@@ -24,7 +24,7 @@ void main() {
     expect(snapshot.timer?.title, '背单词');
     expect(snapshot.timer?.status, TimerStatus.running);
     expect(snapshot.additionalTimerCount, 1);
-    expect(snapshot.nextCourse?.title, '数据库原理');
+    expect(snapshot.nextCourse, isNull);
   });
 
   test('multi-segment course exposes an actual derived break', () {
@@ -170,6 +170,79 @@ void main() {
     expect(timer.status, TimerStatus.running);
     expect(timer.elapsedSeconds, 25 * 60);
   });
+
+  test('next course in 30 minutes is visible without a current course', () {
+    final snapshot = LockScreenStatusSnapshot.fromMiniWindow(
+      MiniWindowSnapshot(
+        now: _now,
+        currentCourses: const [],
+        timers: const [],
+        nextCourse: _nextCourseAfter(_now, const Duration(minutes: 30)),
+      ),
+    );
+
+    expect(snapshot.mode, LockScreenStatusMode.idle);
+    expect(snapshot.isIdle, isFalse);
+    expect(snapshot.nextCourse?.title, '数据库原理');
+  });
+
+  test('next course at exactly two hours is visible', () {
+    final snapshot = LockScreenStatusSnapshot.fromMiniWindow(
+      MiniWindowSnapshot(
+        now: _now,
+        currentCourses: const [],
+        timers: const [],
+        nextCourse: _nextCourseAfter(_now, const Duration(hours: 2)),
+      ),
+    );
+
+    expect(snapshot.nextCourse, isNotNull);
+  });
+
+  test('next course after two hours and one minute is hidden', () {
+    final snapshot = LockScreenStatusSnapshot.fromMiniWindow(
+      MiniWindowSnapshot(
+        now: _now,
+        currentCourses: const [],
+        timers: const [],
+        nextCourse: _nextCourseAfter(
+          _now,
+          const Duration(hours: 2, minutes: 1),
+        ),
+      ),
+    );
+
+    expect(snapshot.isIdle, isTrue);
+    expect(snapshot.nextCourse, isNull);
+  });
+
+  test('active timer does not alter the next-course window', () {
+    final snapshot = LockScreenStatusSnapshot.fromMiniWindow(
+      MiniWindowSnapshot(
+        now: _now,
+        currentCourses: const [],
+        timers: [_runningTimer('数据库作业')],
+        nextCourse: _nextCourseAfter(_now, const Duration(minutes: 90)),
+      ),
+    );
+
+    expect(snapshot.mode, LockScreenStatusMode.timerRunning);
+    expect(snapshot.nextCourse?.title, '数据库原理');
+  });
+
+  test('next-course window is independent of reminder configuration', () {
+    final snapshot = LockScreenStatusSnapshot.fromMiniWindow(
+      MiniWindowSnapshot(
+        now: _now,
+        currentCourses: const [],
+        timers: const [],
+        nextCourse: _nextCourseAfter(_now, const Duration(minutes: 90)),
+      ),
+    );
+
+    expect(lockScreenNextCourseWindow, const Duration(hours: 2));
+    expect(snapshot.nextCourse, isNotNull);
+  });
 }
 
 MiniCourseItem _course(DateTime date, {required int atMinute}) {
@@ -226,6 +299,29 @@ MiniCourseItem _nextCourse(DateTime date) => MiniCourseItem(
   ).phaseAt(10 * 60),
   classroom: '教三 205',
 );
+
+MiniCourseItem _nextCourseAfter(DateTime now, Duration delay) {
+  final start = now.add(delay);
+  final startMinute = start.hour * 60 + start.minute;
+  return MiniCourseItem(
+    id: 'database',
+    title: '数据库原理',
+    date: start,
+    startMinute: startMinute,
+    endMinute: startMinute + 40,
+    phase: MiniCoursePhase.active,
+    progress: 0,
+    timing: CourseOccurrenceTiming.single(
+      startMinute: startMinute,
+      endMinute: startMinute + 40,
+    ),
+    currentPhase: CourseOccurrenceTiming.single(
+      startMinute: startMinute,
+      endMinute: startMinute + 40,
+    ).phaseAt(startMinute),
+    classroom: '教三 205',
+  );
+}
 
 MiniTimerItem _runningTimer(String title) => MiniTimerItem(
   id: title,
