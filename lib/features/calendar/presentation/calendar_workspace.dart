@@ -667,6 +667,7 @@ class _TimetableView extends StatelessWidget {
       courseOnly: true,
       startHour: 7,
       endHour: 23,
+      denseOnMobile: true,
     );
   }
 }
@@ -680,6 +681,7 @@ class _TimeGrid extends StatelessWidget {
     required this.courseOnly,
     required this.startHour,
     required this.endHour,
+    this.denseOnMobile = false,
   });
   final List<DateTime> days;
   final Map<String, List<CalendarOccurrence>> data;
@@ -688,11 +690,16 @@ class _TimeGrid extends StatelessWidget {
   final bool courseOnly;
   final int startHour;
   final int endHour;
+  final bool denseOnMobile;
 
   @override
   Widget build(BuildContext context) {
-    const hourHeight = 64.0;
+    final hourHeight = denseOnMobile
+        ? timetableHourHeightForWidth(MediaQuery.sizeOf(context).width)
+        : 64.0;
     final height = (endHour - startHour) * hourHeight;
+    final weekdayVerticalPadding =
+        denseOnMobile && MediaQuery.sizeOf(context).width < 980 ? 6.0 : 8.0;
     return Column(
       children: [
         Row(
@@ -703,7 +710,9 @@ class _TimeGrid extends StatelessWidget {
                 child: InkWell(
                   onTap: () => onSelectDate(day),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      vertical: weekdayVerticalPadding,
+                    ),
                     color: _sameDay(day, selectedDate)
                         ? AppColors.blush.withValues(alpha: .55)
                         : Colors.transparent,
@@ -1387,6 +1396,10 @@ class _OverlapLayout {
   final int lane;
   final int laneCount;
 }
+
+/// Vertical scale for the course timetable. Desktop keeps the original scale;
+/// mobile uses a denser grid so a typical day needs less scrolling.
+double timetableHourHeightForWidth(double width) => width < 980 ? 50.0 : 64.0;
 
 List<_OverlapLayout> _layoutOverlaps(List<CalendarOccurrence> input) {
   final items = [...input]
