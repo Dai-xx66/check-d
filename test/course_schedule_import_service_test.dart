@@ -3,6 +3,7 @@ import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/courses/application/course_schedule_import_service.dart';
 import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
+import 'package:check_d/features/courses/domain/course_import_models.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
 import 'package:check_d/features/courses/domain/course_schedule_import_models.dart';
 import 'package:drift/native.dart';
@@ -93,6 +94,9 @@ void main() {
       plan.courses.single.rules.single.mappedSegmentIds,
       template.segments.map((item) => item.id),
     );
+    expect(plan.normalizedDraft, isNotNull);
+    expect(plan.normalizedDraft!.sourceType, CourseImportSourceType.imageOcr);
+    expect(plan.normalizedDraft!.courses.single.title, '高等数学');
 
     await importer.confirm(plan: plan, createRecognizedTemplate: false);
     final saved = (await courses.loadCourses()).single;

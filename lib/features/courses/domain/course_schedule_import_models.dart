@@ -1,4 +1,5 @@
 import 'course_models.dart';
+import 'course_import_models.dart';
 import 'local_ocr_models.dart';
 
 enum CourseImportWarningKind {
@@ -132,6 +133,8 @@ class CourseImportPlan {
     required this.courses,
     this.templateDraft,
     this.templateTimeConflict = false,
+    this.normalizedDraft,
+    this.conflicts = const [],
   });
 
   final SemesterDetails semester;
@@ -139,6 +142,8 @@ class CourseImportPlan {
   final List<RecognizedCourseDraft> courses;
   final ScheduleTemplateDraft? templateDraft;
   final bool templateTimeConflict;
+  final CourseImportDraft? normalizedDraft;
+  final List<CourseImportConflict> conflicts;
 
   bool get needsTemplate => template == null && templateDraft == null;
   bool get canImport =>

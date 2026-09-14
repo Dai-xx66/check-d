@@ -1,7 +1,9 @@
 import '../data/course_repository.dart';
 import '../data/semester_repository.dart';
+import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
 import '../domain/course_schedule_import_models.dart';
+import 'course_import_pipeline.dart';
 
 /// Maps recognition output onto the user's actual semester/template and only
 /// persists it after the preview has explicitly been confirmed.
@@ -9,11 +11,14 @@ class CourseScheduleImportService {
   CourseScheduleImportService({
     required CourseRepository courses,
     required SemesterRepository semesters,
+    CourseImportPipeline? pipeline,
   }) : _courses = courses,
-       _semesters = semesters;
+       _semesters = semesters,
+       _pipeline = pipeline ?? CourseImportPipeline.standard();
 
   final CourseRepository _courses;
   final SemesterRepository _semesters;
+  final CourseImportPipeline _pipeline;
 
   Future<CourseImportPlan> prepare({
     required SemesterDetails semester,
@@ -85,7 +90,29 @@ class CourseScheduleImportService {
       templateTimeConflict: timeConflict,
     );
     await _applyExistingWarnings(plan);
-    return plan;
+    final normalized = await _pipeline.prepare(
+      source: CourseImportSource(
+        type: CourseImportSourceType.imageOcr,
+        payload: result,
+      ),
+      semester: CourseImportSemesterCandidate(
+        name: semester.name,
+        firstWeekStartDate: semester.firstWeekStartDate,
+        totalWeeks: semester.totalWeeks,
+        matchedLocalSemesterId: semester.id,
+      ),
+      targetTemplate: template,
+      existingCourses: await _courses.loadCourses(),
+    );
+    return CourseImportPlan(
+      semester: semester,
+      template: template,
+      courses: result.courses,
+      templateDraft: templateDraft,
+      templateTimeConflict: timeConflict,
+      normalizedDraft: normalized.draft,
+      conflicts: normalized.conflicts,
+    );
   }
 
   /// Creates a template only after the preview user chooses it, then binds the
@@ -231,8 +258,9 @@ class CourseScheduleImportService {
       if (index < 0 || index >= template.segments.length) continue;
       final current = template.segments[index];
       if (current.startsAtMinute != item.startsAtMinute ||
-          current.endsAtMinute != item.endsAtMinute)
+          current.endsAtMinute != item.endsAtMinute) {
         return true;
+      }
     }
     return false;
   }

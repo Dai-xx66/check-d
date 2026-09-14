@@ -295,3 +295,34 @@ class SemesterDetails {
     return week >= 1 && week <= totalWeeks;
   }
 }
+
+/// Shared validation used by interactive editing and every import source.
+void validateCourseScheduleRuleDraft(CourseScheduleRuleDraft draft) {
+  if (draft.weekday < DateTime.monday || draft.weekday > DateTime.sunday) {
+    throw ArgumentError.value(draft.weekday, 'weekday', '星期必须在 1 到 7 之间');
+  }
+  if (draft.startsAtMinute < 0 || draft.startsAtMinute > 1439) {
+    throw ArgumentError.value(draft.startsAtMinute, 'startsAtMinute', '开始时间无效');
+  }
+  if (draft.endsAtMinute < 1 ||
+      draft.endsAtMinute > 1440 ||
+      draft.endsAtMinute <= draft.startsAtMinute) {
+    throw ArgumentError.value(draft.endsAtMinute, 'endsAtMinute', '结束时间无效');
+  }
+  if (draft.timeMode == CourseScheduleTimeMode.periods &&
+      (draft.scheduleTemplateId == null || draft.sectionIds.isEmpty)) {
+    throw ArgumentError('节次排课需要选择作息模板和至少一个节次');
+  }
+  if (draft.weekRuleType == CourseWeekRuleType.everyNWeeks &&
+      (draft.intervalWeeks == null || draft.intervalWeeks! <= 0)) {
+    throw ArgumentError.value(
+      draft.intervalWeeks,
+      'intervalWeeks',
+      '每 N 周规则需要有效间隔',
+    );
+  }
+  if (draft.weekRuleType == CourseWeekRuleType.custom &&
+      draft.weekNumbers.isEmpty) {
+    throw ArgumentError.value(draft.weekNumbers, 'weekNumbers', '请选择周次');
+  }
+}
