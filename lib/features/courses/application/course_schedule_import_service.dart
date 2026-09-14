@@ -21,15 +21,12 @@ class CourseScheduleImportService {
   final SemesterRepository _semesters;
   final CourseImportPipeline _pipeline;
 
-  Future<CourseImportPipelineResult> prepareShare({
-    required SharePackage package,
+  Future<CourseImportPipelineResult> prepareDraftFromSource({
+    required CourseImportSource source,
     required SemesterDetails semester,
     required ScheduleTemplateDetails? template,
   }) async => _pipeline.prepare(
-    source: CourseImportSource(
-      type: CourseImportSourceType.shareCode,
-      payload: package,
-    ),
+    source: source,
     semester: CourseImportSemesterCandidate(
       name: semester.name,
       firstWeekStartDate: semester.firstWeekStartDate,
@@ -38,6 +35,19 @@ class CourseScheduleImportService {
     ),
     targetTemplate: template,
     existingCourses: await _courses.loadCourses(),
+  );
+
+  Future<CourseImportPipelineResult> prepareShare({
+    required SharePackage package,
+    required SemesterDetails semester,
+    required ScheduleTemplateDetails? template,
+  }) => prepareDraftFromSource(
+    source: CourseImportSource(
+      type: CourseImportSourceType.shareCode,
+      payload: package,
+    ),
+    semester: semester,
+    template: template,
   );
 
   Future<int> confirmDraft({

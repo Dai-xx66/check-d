@@ -1,5 +1,7 @@
 import '../data/ocr_course_import_adapter.dart';
 import '../data/share_package_import_adapter.dart';
+import '../data/course_spreadsheet_import_adapter.dart';
+import '../data/course_document_import_adapter.dart';
 import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
 
@@ -14,7 +16,12 @@ class CourseImportPipeline {
        _conflictChecker = conflictChecker;
 
   factory CourseImportPipeline.standard() => CourseImportPipeline(
-    adapters: const [OcrCourseImportAdapter(), SharePackageImportAdapter()],
+    adapters: const [
+      OcrCourseImportAdapter(),
+      SharePackageImportAdapter(),
+      CourseSpreadsheetImportAdapter(),
+      CourseDocumentImportAdapter(),
+    ],
   );
 
   final List<CourseImportAdapter> _adapters;

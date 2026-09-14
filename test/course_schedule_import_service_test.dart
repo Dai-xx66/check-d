@@ -1,8 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/courses/application/course_schedule_import_service.dart';
 import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
+import 'package:check_d/features/courses/data/course_spreadsheet_import_adapter.dart';
 import 'package:check_d/features/courses/domain/course_import_models.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
 import 'package:check_d/features/courses/domain/course_schedule_import_models.dart';
@@ -104,6 +108,68 @@ void main() {
     expect(saved.rules, hasLength(1));
     expect(
       saved.rules.single.sectionIds,
+      template.segments.map((item) => item.id),
+    );
+  });
+
+  test('spreadsheet import stays a draft until confirmation', () async {
+    final templateId = await courses.saveScheduleTemplate(
+      const ScheduleTemplateDraft(
+        name: '秋季作息',
+        segments: [
+          ScheduleTemplateSegmentDraft(
+            name: '第1节',
+            startsAtMinute: 480,
+            endsAtMinute: 525,
+          ),
+          ScheduleTemplateSegmentDraft(
+            name: '第2节',
+            startsAtMinute: 535,
+            endsAtMinute: 580,
+          ),
+        ],
+      ),
+    );
+    final semesterId = await semesters.saveSemester(
+      SemesterDraft(
+        name: '2026 秋',
+        firstWeekStartDate: DateTime(2026, 9, 7),
+        totalWeeks: 20,
+        scheduleTemplateId: templateId,
+        isCurrent: true,
+      ),
+    );
+    final semester = (await semesters.watchSemesters().first).singleWhere(
+      (item) => item.id == semesterId,
+    );
+    final template = (await courses.loadScheduleTemplate(templateId))!;
+    final result = await importer.prepareDraftFromSource(
+      source: CourseImportSource(
+        type: CourseImportSourceType.csv,
+        payload: CourseSpreadsheetFile(
+          bytes: Uint8List.fromList(
+            utf8.encode('课程,星期,节次,周次\n数据结构,周二,1-2节,1-16周'),
+          ),
+          filename: '课程.csv',
+        ),
+      ),
+      semester: semester,
+      template: template,
+    );
+
+    expect(result.draft.sourceType, CourseImportSourceType.csv);
+    expect(result.draft.canConfirm, isTrue);
+    expect(await courses.loadCourses(), isEmpty);
+
+    await importer.confirmDraft(
+      draft: result.draft,
+      semester: semester,
+      template: template,
+    );
+    final imported = (await courses.loadCourses()).single;
+    expect(imported.name, '数据结构');
+    expect(
+      imported.rules.single.sectionIds,
       template.segments.map((item) => item.id),
     );
   });

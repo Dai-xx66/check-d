@@ -6,6 +6,8 @@ import '../../../core/sync/sync_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../data/course_repository.dart';
 import '../data/course_share_repository.dart';
+import '../data/course_spreadsheet_import_adapter.dart';
+import '../data/course_document_import_adapter.dart';
 import '../data/semester_repository.dart';
 import '../data/supabase_course_share_remote_store.dart';
 import 'course_schedule_import_service.dart';
@@ -49,6 +51,16 @@ final courseShareRepositoryProvider = Provider<CourseShareRepository>((ref) {
     config: ref.watch(courseShareConfigProvider),
   );
 });
+
+final courseSpreadsheetImportAdapterProvider =
+    Provider<CourseSpreadsheetImportAdapter>(
+      (ref) => const CourseSpreadsheetImportAdapter(),
+    );
+
+final courseDocumentImportAdapterProvider =
+    Provider<CourseDocumentImportAdapter>(
+      (ref) => const CourseDocumentImportAdapter(),
+    );
 
 final courseScheduleRecognizerProvider = Provider<CourseScheduleRecognizer>((
   ref,

@@ -11,6 +11,8 @@ import 'schedule_template_page.dart';
 import 'semester_settings_page.dart';
 import 'course_share_import_page.dart';
 import 'course_share_scanner_page.dart';
+import 'course_spreadsheet_import_page.dart';
+import 'course_document_import_page.dart';
 
 class CourseScheduleImportPage extends ConsumerStatefulWidget {
   const CourseScheduleImportPage({super.key});
@@ -76,6 +78,48 @@ class _CourseScheduleImportPageState
                   onPressed: _openShareScanner,
                   icon: const Icon(Icons.qr_code_scanner_rounded),
                   label: const Text('扫描二维码'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => const CourseSpreadsheetImportPage(),
+              ),
+            ),
+            icon: const Icon(Icons.table_view_outlined),
+            label: const Text('Excel / CSV 课程文件'),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => const CourseDocumentImportPage(
+                        kind: CourseDocumentKind.html,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.language_rounded),
+                  label: const Text('HTML 网页课表'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => const CourseDocumentImportPage(
+                        kind: CourseDocumentKind.pdf,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('PDF 课程表'),
                 ),
               ),
             ],
