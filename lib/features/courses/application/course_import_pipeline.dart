@@ -1,4 +1,5 @@
 import '../data/ocr_course_import_adapter.dart';
+import '../data/share_package_import_adapter.dart';
 import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
 
@@ -12,8 +13,9 @@ class CourseImportPipeline {
        _validator = validator,
        _conflictChecker = conflictChecker;
 
-  factory CourseImportPipeline.standard() =>
-      CourseImportPipeline(adapters: const [OcrCourseImportAdapter()]);
+  factory CourseImportPipeline.standard() => CourseImportPipeline(
+    adapters: const [OcrCourseImportAdapter(), SharePackageImportAdapter()],
+  );
 
   final List<CourseImportAdapter> _adapters;
   final CourseImportValidator _validator;
@@ -186,6 +188,14 @@ abstract final class CourseImportTemplateResolver {
 
 class CourseImportValidator {
   const CourseImportValidator();
+
+  static CourseImportDraft validateForConfirm(
+    CourseImportDraft draft, {
+    ScheduleTemplateDetails? targetTemplate,
+  }) => const CourseImportValidator().validate(
+    draft,
+    targetTemplate: targetTemplate,
+  );
 
   CourseImportDraft validate(
     CourseImportDraft draft, {

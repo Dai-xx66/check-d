@@ -3,6 +3,7 @@ import '../data/semester_repository.dart';
 import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
 import '../domain/course_schedule_import_models.dart';
+import '../domain/course_share_schema.dart';
 import 'course_import_pipeline.dart';
 
 /// Maps recognition output onto the user's actual semester/template and only
@@ -19,6 +20,94 @@ class CourseScheduleImportService {
   final CourseRepository _courses;
   final SemesterRepository _semesters;
   final CourseImportPipeline _pipeline;
+
+  Future<CourseImportPipelineResult> prepareShare({
+    required SharePackage package,
+    required SemesterDetails semester,
+    required ScheduleTemplateDetails? template,
+  }) async => _pipeline.prepare(
+    source: CourseImportSource(
+      type: CourseImportSourceType.shareCode,
+      payload: package,
+    ),
+    semester: CourseImportSemesterCandidate(
+      name: semester.name,
+      firstWeekStartDate: semester.firstWeekStartDate,
+      totalWeeks: semester.totalWeeks,
+      matchedLocalSemesterId: semester.id,
+    ),
+    targetTemplate: template,
+    existingCourses: await _courses.loadCourses(),
+  );
+
+  Future<int> confirmDraft({
+    required CourseImportDraft draft,
+    required SemesterDetails semester,
+    required ScheduleTemplateDetails? template,
+  }) async {
+    final validated = CourseImportValidator.validateForConfirm(
+      CourseImportTemplateResolver.resolve(draft, template),
+      targetTemplate: template,
+    );
+    if (!validated.canConfirm) {
+      throw StateError('仍有课程信息需要确认。');
+    }
+    final savedIds = <String>[];
+    try {
+      for (final course in validated.courses.where((item) => item.selected)) {
+        final id = await _courses.saveCourse(
+          CourseDraft(
+            name: course.title,
+            colorValue: course.colorValue,
+            teacher: course.teacher,
+            classroom: course.classroom,
+            notes: course.note,
+            semesterId: semester.id,
+            semester: semester.name,
+            semesterStartsOn: semester.firstWeekStartDate,
+            semesterEndsOn: semester.endsOn,
+          ),
+        );
+        savedIds.add(id);
+        for (final rule in course.scheduleRules) {
+          final sectionIds = rule.segments
+              .map((segment) => segment.matchedLocalSegmentId)
+              .whereType<String>()
+              .toList();
+          final usePeriods =
+              template != null &&
+              sectionIds.length == rule.segments.length &&
+              sectionIds.isNotEmpty;
+          await _courses.saveScheduleRule(
+            CourseScheduleRuleDraft(
+              courseId: id,
+              weekday: rule.weekday!,
+              startsAtMinute: rule.startsAtMinute!,
+              endsAtMinute: rule.endsAtMinute!,
+              weekRuleType: rule.weekRuleType!,
+              startWeek: rule.startWeek,
+              endWeek: rule.endWeek,
+              intervalWeeks: rule.intervalWeeks,
+              weekNumbers: rule.customWeeks,
+              scheduleTemplateId: usePeriods ? template.id : null,
+              sectionIds: usePeriods ? sectionIds : const [],
+              timeMode: usePeriods
+                  ? CourseScheduleTimeMode.periods
+                  : CourseScheduleTimeMode.customTime,
+              classroomOverride: rule.classroomOverride,
+              notes: rule.note,
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      for (final id in savedIds) {
+        await _courses.archiveCourse(id);
+      }
+      rethrow;
+    }
+    return savedIds.length;
+  }
 
   Future<CourseImportPlan> prepare({
     required SemesterDetails semester,

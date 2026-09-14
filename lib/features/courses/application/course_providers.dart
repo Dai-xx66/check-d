@@ -5,11 +5,14 @@ import '../../../core/notifications/notification_providers.dart';
 import '../../../core/sync/sync_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../data/course_repository.dart';
+import '../data/course_share_repository.dart';
 import '../data/semester_repository.dart';
+import '../data/supabase_course_share_remote_store.dart';
 import 'course_schedule_import_service.dart';
 import '../data/course_schedule_recognizer.dart';
 import '../data/local_course_schedule_recognizer.dart';
 import '../domain/course_models.dart';
+import '../domain/course_share_models.dart';
 
 final courseRepositoryProvider = Provider<CourseRepository>((ref) {
   return CourseRepository(
@@ -35,6 +38,17 @@ final courseScheduleImportServiceProvider =
         semesters: ref.watch(semesterRepositoryProvider),
       );
     });
+
+final courseShareConfigProvider = Provider<CourseShareConfig>(
+  (ref) => const CourseShareConfig(),
+);
+
+final courseShareRepositoryProvider = Provider<CourseShareRepository>((ref) {
+  return DefaultCourseShareRepository(
+    remote: SupabaseCourseShareRemoteStore(ref.watch(supabaseClientProvider)),
+    config: ref.watch(courseShareConfigProvider),
+  );
+});
 
 final courseScheduleRecognizerProvider = Provider<CourseScheduleRecognizer>((
   ref,

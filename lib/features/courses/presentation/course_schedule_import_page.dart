@@ -9,6 +9,8 @@ import '../domain/course_models.dart';
 import '../domain/course_schedule_import_models.dart';
 import 'schedule_template_page.dart';
 import 'semester_settings_page.dart';
+import 'course_share_import_page.dart';
+import 'course_share_scanner_page.dart';
 
 class CourseScheduleImportPage extends ConsumerStatefulWidget {
   const CourseScheduleImportPage({super.key});
@@ -53,6 +55,30 @@ class _CourseScheduleImportPageState
           Text(
             '导入前先选择学期和课程表截图。识别结果会先进入可修改的草稿，不会自动保存课程。',
             style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => const CourseShareImportPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.password_rounded),
+                  label: const Text('分享口令'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openShareScanner,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: const Text('扫描二维码'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String?>(
@@ -150,6 +176,18 @@ class _CourseScheduleImportPageState
       return false;
     return plan.canImport ||
         (_createDetectedTemplate && plan.templateDraft != null);
+  }
+
+  Future<void> _openShareScanner() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const CourseShareScannerPage()),
+    );
+    if (code == null || !mounted) return;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CourseShareImportPage(initialCode: code),
+      ),
+    );
   }
 
   Future<void> _pickImage() async {

@@ -6,6 +6,7 @@ import '../application/course_providers.dart';
 import '../domain/course_models.dart';
 import 'course_form_page.dart';
 import 'course_schedule_import_page.dart';
+import 'course_share_page.dart';
 
 class CourseListPage extends ConsumerWidget {
   const CourseListPage({super.key});
@@ -17,6 +18,15 @@ class CourseListPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('课程管理'),
         actions: [
+          IconButton(
+            tooltip: '分享本学期课表',
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => const CourseSharePage.semester(),
+              ),
+            ),
+            icon: const Icon(Icons.ios_share_rounded),
+          ),
           IconButton(
             tooltip: '从课程表导入',
             onPressed: () => Navigator.of(context).push<bool>(
@@ -52,6 +62,12 @@ class CourseListPage extends ConsumerWidget {
                 itemBuilder: (context, index) => _CourseCard(
                   course: items[index],
                   onEdit: () => _openForm(context, items[index]),
+                  onShare: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CourseSharePage.single(courseId: items[index].id),
+                    ),
+                  ),
                   onArchive: () => _archive(context, ref, items[index]),
                 ),
               ),
@@ -106,11 +122,13 @@ class _CourseCard extends StatelessWidget {
   const _CourseCard({
     required this.course,
     required this.onEdit,
+    required this.onShare,
     required this.onArchive,
   });
 
   final CourseDetails course;
   final VoidCallback onEdit;
+  final VoidCallback onShare;
   final VoidCallback onArchive;
 
   @override
@@ -161,10 +179,12 @@ class _CourseCard extends StatelessWidget {
                   tooltip: '更多操作',
                   onSelected: (value) {
                     if (value == 'edit') onEdit();
+                    if (value == 'share') onShare();
                     if (value == 'archive') onArchive();
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'edit', child: Text('编辑')),
+                    PopupMenuItem(value: 'share', child: Text('分享课程')),
                     PopupMenuItem(value: 'archive', child: Text('归档')),
                   ],
                 ),
