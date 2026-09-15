@@ -27,14 +27,17 @@ class CourseListPage extends ConsumerWidget {
             ),
             icon: const Icon(Icons.ios_share_rounded),
           ),
-          IconButton(
-            tooltip: '从课程表导入',
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
             onPressed: () => Navigator.of(context).push<bool>(
               MaterialPageRoute(
                 builder: (_) => const CourseScheduleImportPage(),
               ),
             ),
             icon: const Icon(Icons.document_scanner_outlined),
+            label: const Text('导入课程'),
           ),
           IconButton(
             tooltip: '添加课程',

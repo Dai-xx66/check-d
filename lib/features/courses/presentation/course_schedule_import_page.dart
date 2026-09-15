@@ -15,7 +15,9 @@ import 'course_spreadsheet_import_page.dart';
 import 'course_document_import_page.dart';
 
 class CourseScheduleImportPage extends ConsumerStatefulWidget {
-  const CourseScheduleImportPage({super.key});
+  const CourseScheduleImportPage({super.key, this.showImageImporter = false});
+
+  final bool showImageImporter;
 
   @override
   ConsumerState<CourseScheduleImportPage> createState() =>
@@ -29,8 +31,15 @@ class _CourseScheduleImportPageState
   CourseImportPlan? _plan;
   bool _recognizing = false;
   bool _importing = false;
+  bool _showImageImporter = false;
   bool _createDetectedTemplate = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _showImageImporter = widget.showImageImporter;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,164 +59,168 @@ class _CourseScheduleImportPageState
               .where((item) => item.id == semester!.scheduleTemplateId)
               .firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: const Text('从课程表导入')),
+      appBar: AppBar(title: const Text('导入课程')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
         children: [
           Text(
-            '导入前先选择学期和课程表截图。识别结果会先进入可修改的草稿，不会自动保存课程。',
+            '选择导入方式后，课程都会先进入可修改的草稿；确认后才会写入课程。',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => const CourseShareImportPage(),
-                    ),
-                  ),
-                  icon: const Icon(Icons.password_rounded),
-                  label: const Text('分享口令'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _openShareScanner,
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
-                  label: const Text('扫描二维码'),
-                ),
-              ),
-            ],
+          Text('快速导入', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _ImportEntry(
+            icon: Icons.photo_library_outlined,
+            title: '课程表图片',
+            subtitle: '拍照或选择课程表截图识别',
+            onTap: () => setState(() => _showImageImporter = true),
           ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push<bool>(
+          _ImportEntry(
+            icon: Icons.password_rounded,
+            title: '分享口令',
+            subtitle: '输入其他 Check D 用户分享的口令',
+            onTap: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(builder: (_) => const CourseShareImportPage()),
+            ),
+          ),
+          _ImportEntry(
+            icon: Icons.qr_code_scanner_rounded,
+            title: '扫描二维码',
+            subtitle: '扫描或从相册选择 Check D 课程分享二维码',
+            onTap: _openShareScanner,
+          ),
+          const SizedBox(height: 16),
+          Text('文件导入', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _ImportEntry(
+            icon: Icons.table_view_outlined,
+            title: 'Excel / CSV',
+            subtitle: '导入课程表文件',
+            onTap: () => Navigator.of(context).push<bool>(
               MaterialPageRoute(
                 builder: (_) => const CourseSpreadsheetImportPage(),
               ),
             ),
-            icon: const Icon(Icons.table_view_outlined),
-            label: const Text('Excel / CSV 课程文件'),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => const CourseDocumentImportPage(
-                        kind: CourseDocumentKind.html,
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.language_rounded),
-                  label: const Text('HTML 网页课表'),
+          _ImportEntry(
+            icon: Icons.language_rounded,
+            title: 'HTML 网页课表',
+            subtitle: '导入已保存的教务系统网页',
+            onTap: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => const CourseDocumentImportPage(
+                  kind: CourseDocumentKind.html,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => const CourseDocumentImportPage(
-                        kind: CourseDocumentKind.pdf,
-                      ),
-                    ),
-                  ),
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('PDF 课程表'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String?>(
-            value: _semesterId,
-            decoration: const InputDecoration(labelText: '目标学期 *'),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('请选择学期'),
-              ),
-              ...semesters.map(
-                (item) => DropdownMenuItem(
-                  value: item.id,
-                  child: Text(item.isCurrent ? '${item.name}（当前）' : item.name),
-                ),
-              ),
-            ],
-            onChanged: _recognizing
-                ? null
-                : (value) => setState(() {
-                    _semesterId = value;
-                    _plan = null;
-                  }),
-          ),
-          if (semesters.isEmpty)
-            TextButton.icon(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SemesterSettingsPage()),
-              ),
-              icon: const Icon(Icons.school_outlined),
-              label: const Text('先创建学期'),
-            ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _recognizing ? null : _pickImage,
-            icon: const Icon(Icons.photo_library_outlined),
-            label: Text(_image == null ? '选择课程表图片' : _image!.name),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '本地识别 · 图片不会上传。支持 PNG、JPG、JPEG。',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _recognizing || _image == null || semester == null
-                ? null
-                : () => _recognize(semester, template),
-            icon: _recognizing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.auto_awesome_outlined),
-            label: Text(_recognizing ? '正在识别课程表…' : '开始识别'),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 14),
-            _Notice(icon: Icons.error_outline_rounded, text: _error!),
-          ],
-          if (_plan != null) ...[
-            const SizedBox(height: 26),
-            _Preview(
-              plan: _plan!,
-              createDetectedTemplate: _createDetectedTemplate,
-              onTemplateChoice: (value) =>
-                  setState(() => _createDetectedTemplate = value),
-              onChanged: () => setState(() {}),
-              onOpenTemplates: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ScheduleTemplatePage()),
               ),
             ),
-            const SizedBox(height: 18),
+          ),
+          _ImportEntry(
+            icon: Icons.picture_as_pdf_outlined,
+            title: 'PDF 课程表',
+            subtitle: '导入文本型 PDF 课程表',
+            onTap: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => const CourseDocumentImportPage(
+                  kind: CourseDocumentKind.pdf,
+                ),
+              ),
+            ),
+          ),
+          if (_showImageImporter) ...[
+            const SizedBox(height: 24),
+            Text('课程表图片', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String?>(
+              value: _semesterId,
+              decoration: const InputDecoration(labelText: '目标学期 *'),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('请选择学期'),
+                ),
+                ...semesters.map(
+                  (item) => DropdownMenuItem(
+                    value: item.id,
+                    child: Text(
+                      item.isCurrent ? '${item.name}（当前）' : item.name,
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: _recognizing
+                  ? null
+                  : (value) => setState(() {
+                      _semesterId = value;
+                      _plan = null;
+                    }),
+            ),
+            if (semesters.isEmpty)
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SemesterSettingsPage(),
+                  ),
+                ),
+                icon: const Icon(Icons.school_outlined),
+                label: const Text('先创建学期'),
+              ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _recognizing ? null : _pickImage,
+              icon: const Icon(Icons.photo_library_outlined),
+              label: Text(_image == null ? '选择课程表图片' : _image!.name),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '本地识别 · 图片不会上传。支持 PNG、JPG、JPEG。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _importing || !_canConfirm ? null : _confirm,
-              icon: _importing
+              onPressed: _recognizing || _image == null || semester == null
+                  ? null
+                  : () => _recognize(semester, template),
+              icon: _recognizing
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.check_rounded),
-              label: Text(_importing ? '正在导入…' : '确认导入'),
+                  : const Icon(Icons.auto_awesome_outlined),
+              label: Text(_recognizing ? '正在识别课程表…' : '开始识别'),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              _Notice(icon: Icons.error_outline_rounded, text: _error!),
+            ],
+            if (_plan != null) ...[
+              const SizedBox(height: 26),
+              _Preview(
+                plan: _plan!,
+                createDetectedTemplate: _createDetectedTemplate,
+                onTemplateChoice: (value) =>
+                    setState(() => _createDetectedTemplate = value),
+                onChanged: () => setState(() {}),
+                onOpenTemplates: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ScheduleTemplatePage(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: _importing || !_canConfirm ? null : _confirm,
+                icon: _importing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_importing ? '正在导入…' : '确认导入'),
+              ),
+            ],
           ],
         ],
       ),
@@ -333,6 +346,34 @@ class _CourseScheduleImportPageState
   };
 }
 
+class _ImportEntry extends StatelessWidget {
+  const _ImportEntry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        child: Icon(icon),
+      ),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: onTap,
+    ),
+  );
+}
+
 class _Preview extends StatelessWidget {
   const _Preview({
     required this.plan,
@@ -354,7 +395,7 @@ class _Preview extends StatelessWidget {
       Text('检查课程', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 4),
       Text(
-        '识别到 ${plan.courses.length} 门课程；确认导入前可以修改或取消。',
+        '来源：课程表图片 · 识别到 ${plan.courses.length} 门课程；确认导入前可以修改或取消。',
         style: Theme.of(context).textTheme.bodySmall,
       ),
       const SizedBox(height: 12),

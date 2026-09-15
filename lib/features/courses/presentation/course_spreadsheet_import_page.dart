@@ -7,6 +7,7 @@ import '../application/course_providers.dart';
 import '../data/course_spreadsheet_import_adapter.dart';
 import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
+import 'course_import_copy.dart';
 import 'semester_settings_page.dart';
 
 class CourseSpreadsheetImportPage extends ConsumerStatefulWidget {
@@ -137,7 +138,7 @@ class _CourseSpreadsheetImportPageState
             Text('检查课程', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              '来源：${_file!.name} · ${draft.courses.length} 门课程 · '
+              '来源：${courseImportSourceLabel(draft.sourceType)} · ${_file!.name} · ${draft.courses.length} 门课程 · '
               '${_warningCount(draft)} 个提示 · ${_conflicts.length} 个冲突',
             ),
             Row(
@@ -612,7 +613,7 @@ class _SpreadsheetCourseDraftCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                issue.message,
+                courseImportIssueLabel(issue),
                 style: TextStyle(
                   color: issue.state == CourseImportFieldState.conflict
                       ? Colors.orange.shade800

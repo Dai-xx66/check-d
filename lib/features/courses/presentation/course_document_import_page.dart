@@ -9,6 +9,8 @@ import '../application/course_providers.dart';
 import '../data/course_document_import_adapter.dart';
 import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
+import 'course_import_copy.dart';
+import 'course_schedule_import_page.dart';
 import 'semester_settings_page.dart';
 
 enum CourseDocumentKind { html, pdf }
@@ -134,7 +136,21 @@ class _CourseDocumentImportPageState
           ),
           if (_error case final error?) ...[
             const SizedBox(height: 14),
-            _DocumentNotice(text: error),
+            _DocumentNotice(
+              text: error,
+              action: error.contains('主要由图片组成')
+                  ? TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CourseScheduleImportPage(
+                            showImageImporter: true,
+                          ),
+                        ),
+                      ),
+                      child: const Text('使用课程表图片'),
+                    )
+                  : null,
+            ),
           ],
           if (_draft case final draft?) ...[
             const SizedBox(height: 24),
@@ -218,7 +234,7 @@ class _CourseDocumentImportPageState
         _error = null;
       });
     } on CourseImportException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _error = courseImportErrorLabel(error));
     } catch (_) {
       if (mounted) setState(() => _error = '无法读取课程文件，请稍后重试。');
     }
@@ -261,7 +277,7 @@ class _CourseDocumentImportPageState
           _conflicts = result.conflicts;
         });
     } on CourseImportException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _error = courseImportErrorLabel(error));
     } catch (_) {
       if (mounted) setState(() => _error = '解析课程文件时发生错误，请确认文件格式后重试。');
     } finally {
@@ -564,7 +580,7 @@ class _DocumentCourseCard extends StatelessWidget {
             ...course.scheduleRules.expand((rule) => rule.issues),
           ])
             Text(
-              issue.message,
+              courseImportIssueLabel(issue),
               style: TextStyle(
                 color: issue.state == CourseImportFieldState.conflict
                     ? Colors.orange.shade800
@@ -583,8 +599,9 @@ class _DocumentCourseCard extends StatelessWidget {
 }
 
 class _DocumentNotice extends StatelessWidget {
-  const _DocumentNotice({required this.text});
+  const _DocumentNotice({required this.text, this.action});
   final String text;
+  final Widget? action;
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -594,6 +611,7 @@ class _DocumentNotice extends StatelessWidget {
           const Icon(Icons.error_outline_rounded),
           const SizedBox(width: 10),
           Expanded(child: Text(text)),
+          if (action != null) action!,
         ],
       ),
     ),

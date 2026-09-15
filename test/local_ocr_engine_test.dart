@@ -65,6 +65,56 @@ void main() {
     );
   });
 
+  test('empty native OCR result remains a valid no-text result', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async {
+      return <String, Object>{
+        'imageWidth': 1200.0,
+        'imageHeight': 800.0,
+        'tokens': <Object>[],
+      };
+    });
+
+    final result = await PlatformLocalOcrEngine(
+      channel: channel,
+    ).recognize(Uint8List.fromList(const [1]));
+
+    expect(result.tokens, isEmpty);
+  });
+
+  test('Chinese multiline tokens preserve native reading order', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async {
+      return <String, Object>{
+        'imageWidth': 1200.0,
+        'imageHeight': 800.0,
+        'tokens': <Map<String, Object>>[
+          <String, Object>{
+            'text': '星期一',
+            'left': 10.0,
+            'top': 20.0,
+            'right': 110.0,
+            'bottom': 50.0,
+            'confidence': 0.98,
+          },
+          <String, Object>{
+            'text': '高等数学',
+            'left': 10.0,
+            'top': 80.0,
+            'right': 160.0,
+            'bottom': 110.0,
+            'confidence': 0.95,
+          },
+        ],
+      };
+    });
+
+    final result = await PlatformLocalOcrEngine(
+      channel: channel,
+    ).recognize(Uint8List.fromList(const [1]));
+
+    expect(result.tokens.map((token) => token.text), ['星期一', '高等数学']);
+    expect(result.tokens.last.confidence, 0.95);
+  });
+
   test('native recognizer initialization failure is distinguished', () async {
     messenger.setMockMethodCallHandler(channel, (_) async {
       throw PlatformException(
@@ -82,6 +132,50 @@ void main() {
           (error) => error.message,
           'message',
           contains('OCR 初始化失败'),
+        ),
+      ),
+    );
+  });
+
+  test('native recognition failure has a stable user-facing error', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async {
+      throw PlatformException(
+        code: 'ocr_recognition_failed',
+        message: 'Vision internal detail',
+      );
+    });
+
+    expect(
+      () => PlatformLocalOcrEngine(
+        channel: channel,
+      ).recognize(Uint8List.fromList(const [1])),
+      throwsA(
+        isA<LocalOcrUnavailable>().having(
+          (error) => error.message,
+          'message',
+          allOf(
+            contains('OCR 识别失败'),
+            isNot(contains('Vision internal detail')),
+          ),
+        ),
+      ),
+    );
+  });
+
+  test('unsupported native platform has a stable user-facing error', () async {
+    messenger.setMockMethodCallHandler(channel, (_) async {
+      throw PlatformException(code: 'unsupported_platform');
+    });
+
+    expect(
+      () => PlatformLocalOcrEngine(
+        channel: channel,
+      ).recognize(Uint8List.fromList(const [1])),
+      throwsA(
+        isA<LocalOcrUnavailable>().having(
+          (error) => error.message,
+          'message',
+          contains('当前设备暂不支持'),
         ),
       ),
     );

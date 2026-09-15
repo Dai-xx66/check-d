@@ -6,6 +6,7 @@ import '../domain/course_import_models.dart';
 import '../domain/course_models.dart';
 import '../domain/course_share_models.dart';
 import 'course_share_scanner_page.dart';
+import 'course_import_copy.dart';
 import 'semester_settings_page.dart';
 
 class CourseShareImportPage extends ConsumerStatefulWidget {
@@ -108,7 +109,7 @@ class _CourseShareImportPageState extends ConsumerState<CourseShareImportPage> {
             Text('分享内容', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
             Text(
-              '来源：Check D 分享 · ${share.package.payload.courses.length} 门课程\n'
+              '来源：${courseImportSourceLabel(CourseImportSourceType.shareCode)} · ${share.package.payload.courses.length} 门课程\n'
               '发送方学期：${share.package.payload.semester?.name ?? '未指定'}',
             ),
             const SizedBox(height: 16),
@@ -635,7 +636,7 @@ class _ShareCourseDraftCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                issue.message,
+                courseImportIssueLabel(issue),
                 style: TextStyle(
                   color: issue.state == CourseImportFieldState.conflict
                       ? Colors.orange.shade800

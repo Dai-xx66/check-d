@@ -14,6 +14,7 @@ import ActivityKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    LocalOcrPlugin.register(with: engineBridge.applicationRegistrar.messenger())
 
     let channel = FlutterMethodChannel(
       name: "check_d/home_widget",

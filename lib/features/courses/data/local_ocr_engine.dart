@@ -50,7 +50,9 @@ class PlatformLocalOcrEngine implements LocalOcrEngine {
       throw LocalOcrUnavailable(switch (error.code) {
         'image_decode_failed' => '无法读取所选图片，请重新选择 PNG 或 JPEG 图片。',
         'ocr_initialization_failed' => '本地 OCR 初始化失败，请重启应用后重试。',
+        'ocr_recognition_failed' => '本地 OCR 识别失败，请更换清晰完整的图片后重试。',
         'ocr_failed' => error.message ?? '本地 OCR 识别失败。',
+        'unsupported_platform' => '当前设备暂不支持本地课程表识别。',
         _ => error.message ?? '本地 OCR 运行失败。',
       });
     } on MissingPluginException {
