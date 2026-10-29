@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CheckD · 计划前后差异展示稿（M3）</title>
+<style>
+  :root{
+    --bg:#FFFBF7; --surface:#FFFEFC; --surface-soft:#FFF8F5;
+    --ink:#3F3435; --muted:#918588; --border:#F1E8E5;
+    --primary:#F47F9E; --primary-strong:#EA668A;
+    --purple:#A58AE2; --green:#7CBFA2; --orange:#F2AB79; --cyan:#78B9C7;
+    --blush:#FFE7ED; --lavender:#F0EBFF; --blue-mist:#E6F2FF; --mint:#E5F6EC; --cream:#FFF4E8;
+    --radius-l:24px; --radius-m:16px; --radius-s:10px;
+    --shadow:0 8px 24px rgba(180,150,150,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    padding:32px 20px 56px; line-height:1.6;
+  }
+  .wrap{max-width:1080px;margin:0 auto}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  h1{font-size:22px;font-weight:650;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+    font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);
+  }
+  .chip.pending{background:var(--cream);border-color:#F6E3CC;color:#9A6B3A}
+  .chip.applied{background:var(--mint);border-color:#CFEBDC;color:#3F7A61}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .stat{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);
+    padding:14px 16px;box-shadow:var(--shadow);
+  }
+  .stat .k{font-size:12px;color:var(--muted)}
+  .stat .v{font-size:24px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+  .stat.add .v{color:var(--primary-strong)}
+  .stat.move .v{color:var(--purple)}
+  .stat.keep .v{color:var(--green)}
+  .stat.gap .v{color:var(--muted)}
+
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .panel{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);
+    padding:16px;box-shadow:var(--shadow);position:relative;
+  }
+  .panel h2{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .panel h2 .tag{
+    font-size:11px;font-weight:600;color:var(--muted);background:var(--surface-soft);
+    border:1px solid var(--border);border-radius:999px;padding:2px 8px;
+  }
+  .timeline{position:relative;border-radius:var(--radius-m);background:linear-gradient(180deg,#FFFDFB,#FFFAF6);border:1px solid var(--border);overflow:hidden}
+  .hour{position:absolute;left:0;right:0;border-top:1px dashed #F3EBE8}
+  .hour span{position:absolute;left:8px;top:-9px;font-size:10px;color:#B6A9AC;background:transparent;padding:0 2px}
+  .block{
+    position:absolute;left:52px;right:10px;border-radius:var(--radius-s);
+    padding:7px 10px;font-size:12px;overflow:hidden;
+    border:1px solid transparent;
+  }
+  .block .t{font-weight:650;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .block .m{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .b-course{background:var(--blue-mist);border-color:#CFE4FA;color:#3F6884}
+  .b-course .m{color:#6E90A8}
+  .b-fixed{background:var(--lavender);border-color:#DED4F7;color:#5B4C8A}
+  .b-fixed .m{color:#8478AE}
+  .b-task{background:var(--surface-soft);border-color:var(--border);color:var(--ink)}
+  .b-new{
+    background:var(--blush);border:1.5px dashed var(--primary);color:#A8465F;
+    box-shadow:0 4px 14px rgba(244,127,158,.18);
+  }
+  .b-new.applied{border-style:solid;background:#FFDDE6}
+  .badge{
+    position:absolute;right:8px;top:7px;font-size:10px;font-weight:700;
+    background:var(--primary);color:#fff;border-radius:999px;padding:1px 7px;
+  }
+
+  .changes{margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);padding:16px;box-shadow:var(--shadow)}
+  .changes h3{font-size:13px;font-weight:650;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .chg{display:flex;gap:10px;padding:8px 0;border-top:1px dashed var(--border);font-size:13px}
+  .chg:first-of-type{border-top:none}
+  .chg .ico{flex:0 0 22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;font-weight:700}
+  .ico.add{background:var(--blush);color:var(--primary-strong)}
+  .ico.keep{background:var(--mint);color:#3F7A61}
+  .ico.info{background:var(--blue-mist);color:#3F6884}
+  .chg .txt{flex:1}
+  .chg .txt b{font-weight:650}
+  .chg .txt small{display:block;color:var(--muted);font-size:12px}
+
+  footer.bar{
+    margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);
+    padding:14px 18px;box-shadow:var(--shadow);flex-wrap:wrap;
+  }
+  .hint{font-size:12px;color:var(--muted)}
+  .btns{display:flex;gap:10px}
+  button{
+    font:inherit;font-size:13px;font-weight:650;border-radius:999px;padding:10px 20px;cursor:pointer;
+    border:1px solid var(--border);background:var(--surface);color:var(--ink);transition:.16s;
+  }
+  button:hover{transform:translateY(-1px)}
+  button.primary{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(244,127,158,.28)}
+  button.primary:hover{background:var(--primary-strong);border-color:var(--primary-strong)}
+  button:disabled{opacity:.5;cursor:default;transform:none}
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
+    background:var(--ink);color:#fff;font-size:13px;padding:10px 18px;border-radius:999px;
+    opacity:0;pointer-events:none;transition:.22s;z-index:9;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (max-width:820px){
+    .panels{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>明天的安排 · 计划提案</h1>
+      <div class="sub">学生A · <span id="dateLabel"></span> · 北京时间（Asia/Shanghai）</div>
+    </div>
+    <span class="chip pending" id="stateChip"><span class="dot"></span><span id="stateText">待你确认</span></span>
+  </header>
+
+  <section class="stats">
+    <div class="stat add"><div class="k">新增时间块</div><div class="v" id="sAdd">1</div></div>
+    <div class="stat move"><div class="k">移动已有</div><div class="v" id="sMove">0</div></div>
+    <div class="stat keep"><div class="k">保持不变</div><div class="v" id="sKeep">4</div></div>
+    <div class="stat gap"><div class="k">未安排</div><div class="v" id="sGap">0</div></div>
+  </section>
+
+  <section class="panels">
+    <div class="panel">
+      <h2>计划前 <span class="tag">只读快照</span></h2>
+      <div class="timeline" id="tlBefore"></div>
+    </div>
+    <div class="panel">
+      <h2>计划后 <span class="tag" id="afterTag">提案预览</span></h2>
+      <div class="timeline" id="tlAfter"></div>
+    </div>
+  </section>
+
+  <section class="changes">
+    <h3>变化说明 <span class="tag" style="font-size:11px;color:var(--muted);font-weight:600">由 Agent 生成，逐条可核对</span></h3>
+    <div id="changeList"></div>
+  </section>
+
+  <footer class="bar">
+    <div class="hint" id="hintText">批准前不会写入任何数据 · 确认后写回 CheckD 并回读核验</div>
+    <div class="btns">
+      <button id="btnReject">取消</button>
+      <button class="primary" id="btnApply">批准并写入</button>
+    </div>
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------------------------------------------------------
+   数据来自 fixtures/education/scenario_a_study_plan.json
+   minute = 当天 0 点起的分钟数，与 CheckD 的 plannedStartMinute 一致。
+   本页面是「计划前/后」差异展示稿，用于对齐 M1/M2 的返回结构：
+     proposal = { proposal_id, base_version, changes[], explanations[], unplanned_tasks[] }
+------------------------------------------------------------------ */
+const DAY_START = 8 * 60;   // 展示区间 08:00
+const DAY_END   = 23 * 60;  // 展示区间 23:00
+const PX_PER_MIN = 56 / 60; // 每小时 56px
+
+const before = [
+  { kind:'course', title:'数据结构', start:840,  end:940,  meta:'实验楼C102 · 王老师' },
+  { kind:'fixed',  title:'学生会例会', start:1140, end:1200, meta:'固定 · 不可移动' },
+  { kind:'task',   title:'高等数学第三章习题', start:1230, end:1320, meta:'已排 20:30-22:00 · 截止后天' },
+];
+
+const after = [
+  { kind:'course', title:'数据结构', start:840,  end:940,  meta:'实验楼C102 · 王老师' },
+  { kind:'fixed',  title:'学生会例会', start:1140, end:1200, meta:'固定 · 不可移动' },
+  { kind:'new',    title:'英语六级词汇复习', start:1200, end:1225, meta:'新增 20:00-20:25 · 25 分钟', badge:'新增' },
+  { kind:'task',   title:'高等数学第三章习题', start:1230, end:1320, meta:'保持原位 20:30-22:00' },
+];
+
+const explanations = [
+  { type:'add',  title:'新增：英语六级词汇复习 20:00-20:25',
+    detail:'例会 20:00 结束后到高数习题 20:30 之间有 30 分钟空档，完整放下 25 分钟目标时长，不需要拆分。' },
+  { type:'keep', title:'未改动：数据结构、学生会例会、高数习题',
+    detail:'例会属于固定事项不可移动；高数习题截止后天，位置当前无冲突，按「尽量少改」原则保留。' },
+  { type:'info', title:'选时依据',
+    detail:'课程 14:00-15:40 属于硬约束；晚上 19:00 之后是你历史专注记录较集中的时段，因此优先使用晚间空档。' },
+  { type:'info', title:'未安排任务：0 项',
+    detail:'其余待办（实验报告截止 4 天后、课外阅读 30 分钟）今天仍有剩余空档，本次提案不占用。' },
+];
+
+const $ = (id) => document.getElementById(id);
+const y = (minute) => (minute - DAY_START) * PX_PER_MIN;
+const hm = (m) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+function renderTimeline(el, items, applied){
+  el.innerHTML = '';
+  el.style.height = `${(DAY_END - DAY_START) * PX_PER_MIN}px`;
+  for (let m = DAY_START; m <= DAY_END; m += 60){
+    const line = document.createElement('div');
+    line.className = 'hour';
+    line.style.top = `${y(m)}px`;
+    line.innerHTML = `<span>${hm(m)}</span>`;
+    el.appendChild(line);
+  }
+  items.forEach(it=>{
+    const cls = it.kind === 'course' ? 'b-course'
+              : it.kind === 'fixed'  ? 'b-fixed'
+              : it.kind === 'new'    ? `b-new${applied ? ' applied' : ''}`
+              : 'b-task';
+    const div = document.createElement('div');
+    div.className = `block ${cls}`;
+    div.style.top = `${y(it.start)}px`;
+    div.style.height = `${(it.end - it.start) * PX_PER_MIN - 3}px`;
+    div.innerHTML = `${it.badge ? `<span class="badge">${it.badge}</span>` : ''}
+      <div class="t">${it.title}</div>
+      <div class="m">${hm(it.start)}-${hm(it.end)} · ${it.meta}</div>`;
+    el.appendChild(div);
+  });
+}
+
+function renderChanges(){
+  $('changeList').innerHTML = explanations.map(e=>{
+    const ico = e.type === 'add' ? '＋' : e.type === 'keep' ? '✓' : 'i';
+    return `<div class="chg"><div class="ico ${e.type}">${ico}</div>
+      <div class="txt"><b>${e.title}</b><small>${e.detail}</small></div></div>`;
+  }).join('');
+}
+
+let applied = false;
+function paint(){
+  renderTimeline($('tlBefore'), before, false);
+  renderTimeline($('tlAfter'), applied ? after : after, applied);
+  renderChanges();
+  const chip = $('stateChip');
+  chip.className = 'chip ' + (applied ? 'applied' : 'pending');
+  $('stateText').textContent = applied ? '已写入 · 已回读核验' : '待你确认';
+  $('afterTag').textContent = applied ? '已应用' : '提案预览';
+  $('hintText').textContent = applied
+    ? '已写入 1 条 override（overrideId 复用，非新增行）· 回读结果与提案一致'
+    : '批准前不会写入任何数据 · 确认后写回 CheckD 并回读核验';
+  $('btnApply').disabled = applied;
+  $('btnReject').textContent = applied ? '撤销演示' : '取消';
+}
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+$('btnApply').addEventListener('click', ()=>{
+  applied = true; paint();
+  toast('已应用 · override 已更新并回读核验通过');
+});
+$('btnReject').addEventListener('click', ()=>{
+  if (applied){ applied = false; paint(); toast('已回到提案预览状态'); }
+  else { toast('已取消，未写入任何数据'); }
+});
+
+// 明天日期（演示用，真实运行时由 CheckD 传入）
+const d = new Date(); d.setDate(d.getDate() + 1);
+const wk = ['周日','周一','周二','周三','周四','周五','周六'][d.getDay()];
+$('dateLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日 ${wk}`;
+
+paint();
+</script>
+</body>
+</html>

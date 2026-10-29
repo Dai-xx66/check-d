@@ -1,0 +1,165 @@
+{
+  "fixture_version": "1.0",
+  "scenario_id": "A",
+  "title": "学习计划：查看明天任务与课程，把英语复习排进空闲时间",
+  "owner_module": "M3",
+  "timezone": "Asia/Shanghai",
+  "anchor": {
+    "mode": "relative",
+    "today_offset": 0,
+    "target_offset": 1,
+    "note": "target_offset=1 即「明天」。任何一天演示都成立，不写死日历日期。"
+  },
+  "prompt": "帮我看看明天有哪些课和要做的事，然后把英语单词复习安排到有空的时间里。",
+  "prompt_variants": [
+    "明天需要做什么？顺便把英语复习塞到空档里。",
+    "看一下我明天的安排，帮我把背单词排进去，别撞课。"
+  ],
+  "courses": [
+    {
+      "id": "course-calc",
+      "name": "高等数学",
+      "weekdays": [1, 3],
+      "start_minute": 480,
+      "end_minute": 580,
+      "week_range": "1-16",
+      "classroom": "教学楼A301",
+      "teacher": "张老师",
+      "hardness": "hard"
+    },
+    {
+      "id": "course-eng",
+      "name": "大学英语",
+      "weekdays": [2, 4],
+      "start_minute": 600,
+      "end_minute": 700,
+      "week_range": "1-16",
+      "classroom": "外语楼B205",
+      "teacher": "李老师",
+      "hardness": "hard"
+    },
+    {
+      "id": "course-ds",
+      "name": "数据结构",
+      "weekdays": [5],
+      "start_minute": 840,
+      "end_minute": 940,
+      "week_range": "1-16",
+      "classroom": "实验楼C102",
+      "teacher": "王老师",
+      "hardness": "hard"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-eng-vocab",
+      "name": "英语六级词汇复习",
+      "kind": "recurring",
+      "execution": "timed",
+      "target_duration_minutes": 25,
+      "scheduled_minute_of_day": null,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "deadline": null,
+      "hardness": "soft",
+      "tag": "学习",
+      "note": "本场景主角：当前没有计划时间，需要被排进明天的空闲时段。"
+    },
+    {
+      "id": "task-calc-homework",
+      "name": "高等数学第三章习题",
+      "kind": "one_time",
+      "execution": "untimed",
+      "estimated_minutes": 90,
+      "deadline": { "day_offset": 2, "minute_of_day": 1439 },
+      "hardness": "soft",
+      "tag": "课程作业"
+    },
+    {
+      "id": "task-ds-report",
+      "name": "数据结构实验报告",
+      "kind": "one_time",
+      "execution": "untimed",
+      "estimated_minutes": 180,
+      "deadline": { "day_offset": 4, "minute_of_day": 1439 },
+      "hardness": "soft",
+      "tag": "课程作业"
+    },
+    {
+      "id": "task-reading",
+      "name": "课外阅读 30 分钟",
+      "kind": "recurring",
+      "execution": "timed",
+      "target_duration_minutes": 30,
+      "scheduled_minute_of_day": null,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "deadline": null,
+      "hardness": "soft",
+      "tag": "健康"
+    }
+  ],
+  "fixed_events": [
+    {
+      "id": "evt-union-meeting",
+      "name": "学生会例会",
+      "day_offset": 1,
+      "start_minute": 1140,
+      "end_minute": 1200,
+      "hardness": "hard",
+      "remind_mode": "due",
+      "note": "19:00-20:00，不可移动。"
+    }
+  ],
+  "existing_overrides": [
+    {
+      "item_type": "one_time",
+      "item_id": "task-calc-homework",
+      "day_offset": 1,
+      "action": "reschedule",
+      "planned_start_minute": 1230,
+      "planned_end_minute": 1320,
+      "note": "20:30-22:00，用户此前已排好，Agent 不得擅自挪动。"
+    }
+  ],
+  "expectations": {
+    "must_call_tools": ["list_tasks", "get_calendar_events"],
+    "must_read_before_propose": true,
+    "target_offset": 1,
+    "assertions": [
+      {
+        "id": "A1",
+        "desc": "提案新增块与所有 hard 块（课程、会议）零重叠",
+        "check": "no_overlap(proposal.new_blocks, hard_blocks)"
+      },
+      {
+        "id": "A2",
+        "desc": "提案新增块全部落在当天空闲区间内",
+        "check": "within(free_windows(target_date))"
+      },
+      {
+        "id": "A3",
+        "desc": "批准前不产生任何写入",
+        "check": "write_count_before_approval == 0"
+      },
+      {
+        "id": "A4",
+        "desc": "已存在的 override（高数习题 20:30-22:00）位置不变",
+        "check": "unchanged(existing_overrides)"
+      },
+      {
+        "id": "A5",
+        "desc": "英语复习 25 分钟完整排入，未被切成碎片",
+        "check": "block_duration(task-eng-vocab) == 25"
+      },
+      {
+        "id": "A6",
+        "desc": "没有排不下的任务",
+        "check": "unplanned_tasks is empty"
+      }
+    ],
+    "expected_state_after_approval": {
+      "new_overrides": 1,
+      "modified_overrides": 0,
+      "unplanned_tasks": []
+    }
+  }
+}
