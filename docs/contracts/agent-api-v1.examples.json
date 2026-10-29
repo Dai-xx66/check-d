@@ -1,0 +1,344 @@
+{
+  "document_type": "checkd_agent_api_v1_mock_examples",
+  "api_version": "checkd.agent.v1",
+  "timezone": "Asia/Shanghai",
+  "notice": "All identifiers, content, versions, and approval strings are fictional and invalid for production.",
+  "examples": [
+    {
+      "name": "list_tasks_with_recurring_and_one_time",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-10-29", "end": "2026-11-04"},
+          "kinds": ["recurring", "one_time"],
+          "statuses": ["active"],
+          "include_completed": false
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_001",
+        "trace_id": "trace_mock_tasks_001",
+        "status": "success",
+        "data": {
+          "query_version": "mock_task_query_v17_not_a_base_version",
+          "date_range": {"start": "2026-10-29", "end": "2026-11-04"},
+          "tasks": [
+            {
+              "task_id": "task_mock_recurring_reading",
+              "kind": "recurring",
+              "name": "英语阅读练习",
+              "status": "active",
+              "execution_mode": "timed",
+              "duration_target_seconds": 1800,
+              "recurrence": {
+                "preset": "weekdays",
+                "weekdays": [1, 2, 3, 4, 5],
+                "starts_on": "2026-09-01",
+                "ends_on": null,
+                "scheduled_minute_of_day": 1140
+              },
+              "updated_at": "2026-10-28T20:10:00+08:00"
+            },
+            {
+              "task_id": "task_mock_one_time_report",
+              "kind": "one_time",
+              "name": "完成课程报告初稿",
+              "status": "active",
+              "execution_mode": "untimed",
+              "duration_target_seconds": null,
+              "available_from": "2026-10-29",
+              "planned_date": "2026-11-01",
+              "scheduled_at": "2026-11-01T14:00:00+08:00",
+              "deadline": {"kind": "date_only", "date": "2026-11-02"},
+              "updated_at": "2026-10-28T20:15:00+08:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_calendar_with_course_and_unexpected_meeting",
+      "tool": "get_calendar_events",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-10-30", "end": "2026-10-30"},
+          "external_fixed_events": [
+            {
+              "external_event_id": "external_mock_meeting_001",
+              "title": "临时项目会议",
+              "start_at": "2026-10-30T15:00:00+08:00",
+              "end_at": "2026-10-30T16:00:00+08:00"
+            }
+          ]
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_001",
+        "trace_id": "trace_mock_calendar_001",
+        "status": "success",
+        "data": {
+          "query_version": "mock_calendar_query_v09_not_a_base_version",
+          "courses": [
+            {
+              "course_id": "course_mock_database",
+              "name": "数据库系统",
+              "status": "active",
+              "semester_starts_on": "2026-09-07",
+              "semester_ends_on": "2027-01-10",
+              "rules": [
+                {
+                  "rule_id": "course_rule_mock_friday",
+                  "weekday": 5,
+                  "week_rule_type": "every_week",
+                  "start_week": 1,
+                  "end_week": 18,
+                  "interval_weeks": null,
+                  "week_numbers": [],
+                  "start_minute": 480,
+                  "end_minute": 570
+                }
+              ]
+            }
+          ],
+          "daily_overrides": [],
+          "events": [
+            {
+              "event_id": "event_mock_course_001",
+              "event_type": "course",
+              "source_id": "course_mock_database",
+              "date": "2026-10-30",
+              "start_at": "2026-10-30T08:00:00+08:00",
+              "end_at": "2026-10-30T09:30:00+08:00",
+              "fixed": true,
+              "applied_override_id": null
+            },
+            {
+              "event_id": "event_mock_meeting_001",
+              "event_type": "external_fixed_event",
+              "source_id": "external_mock_meeting_001",
+              "date": "2026-10-30",
+              "start_at": "2026-10-30T15:00:00+08:00",
+              "end_at": "2026-10-30T16:00:00+08:00",
+              "fixed": true,
+              "applied_override_id": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty_task_list_is_success",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_empty",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-11-03", "end": "2026-11-03"},
+          "statuses": ["active"],
+          "include_completed": false
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_empty",
+        "trace_id": "trace_mock_tasks_empty",
+        "status": "success",
+        "data": {
+          "query_version": "mock_empty_task_query_not_a_base_version",
+          "date_range": {"start": "2026-11-03", "end": "2026-11-03"},
+          "tasks": []
+        }
+      }
+    },
+    {
+      "name": "empty_calendar_is_success",
+      "tool": "get_calendar_events",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_empty",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-11-03", "end": "2026-11-03"},
+          "external_fixed_events": []
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_empty",
+        "trace_id": "trace_mock_calendar_empty",
+        "status": "success",
+        "data": {
+          "query_version": "mock_empty_calendar_query_not_a_base_version",
+          "courses": [],
+          "daily_overrides": [],
+          "events": []
+        }
+      }
+    },
+    {
+      "name": "unauthorized_request",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_unauthorized",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-10-29", "end": "2026-10-29"}
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_unauthorized",
+        "trace_id": "trace_mock_unauthorized",
+        "status": "error",
+        "error": {
+          "code": "AUTH_REQUIRED",
+          "message": "需要有效的登录凭证。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "generate_schedule_proposal",
+      "tool": "generate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_generate_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-10-30", "end": "2026-10-30"},
+          "external_fixed_events": [
+            {
+              "external_event_id": "external_mock_meeting_001",
+              "title": "临时项目会议",
+              "start_at": "2026-10-30T15:00:00+08:00",
+              "end_at": "2026-10-30T16:00:00+08:00"
+            }
+          ],
+          "preferences": {
+            "day_start_minute": 480,
+            "day_end_minute": 1320,
+            "minimum_block_minutes": 30
+          }
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_generate_001",
+        "trace_id": "trace_mock_generate_001",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "snapshot_ref": "snapshot_ref_mock_001_not_production",
+          "base_version": "base_version_mock_001_not_production",
+          "input_digest": "sha256:mock_input_digest_001_not_production",
+          "status": "draft",
+          "expires_at": "2026-10-30T13:30:00+08:00",
+          "blocks": [
+            {
+              "block_id": "block_mock_report",
+              "task_id": "task_mock_one_time_report",
+              "task_kind": "one_time",
+              "start_at": "2026-10-30T10:00:00+08:00",
+              "end_at": "2026-10-30T11:30:00+08:00",
+              "source": "proposal",
+              "persistable_as": "one_time_schedule",
+              "duration_source": "scheduler_estimate",
+              "duration_seconds": 5400
+            }
+          ],
+          "changes": [
+            {
+              "change_id": "change_mock_report",
+              "type": "schedule_one_time",
+              "task_id": "task_mock_one_time_report",
+              "planned_date": "2026-10-30",
+              "scheduled_at": "2026-10-30T10:00:00+08:00"
+            }
+          ],
+          "unplanned_tasks": [
+            {
+              "task_id": "task_mock_recurring_reading",
+              "reason_code": "INSUFFICIENT_FREE_TIME",
+              "message": "固定事件之间没有满足最小时长的空闲区间。"
+            }
+          ],
+          "explanations": [
+            "保留了数据库系统课程和临时项目会议。",
+            "课程报告的 90 分钟来自调度器估算；现有单次事项只持久化 10:00 的计划开始时间，不持久化 11:30 的建议结束时间。",
+            "课程报告安排在截止日期之前，且没有修改任何计时或完成记录。"
+          ]
+        }
+      }
+    },
+    {
+      "name": "validate_schedule_pending_approval",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_validate_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_validate_001",
+        "trace_id": "trace_mock_validate_001",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "snapshot_ref": "snapshot_ref_mock_001_not_production",
+          "base_version": "base_version_mock_001_not_production",
+          "input_digest": "sha256:mock_input_digest_001_not_production",
+          "proposal_status": "pending_approval",
+          "validation_status": "valid",
+          "approval_status": "pending_approval",
+          "violations": [],
+          "validated_at": "2026-10-30T12:00:00+08:00",
+          "expires_at": "2026-10-30T13:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "apply_is_blocked_without_trusted_approval",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_blocked",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "approval_token": "mock_approval_string_not_valid",
+          "idempotency_key": "idem_mock_apply_001"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_blocked",
+        "trace_id": "trace_mock_apply_blocked",
+        "status": "error",
+        "error": {
+          "code": "WRITE_BLOCKED",
+          "message": "可信审批签发与原子写入能力尚未完成验证。",
+          "retryable": false,
+          "details": [
+            {"field": "input.approval_token", "reason": "approval_issuer_not_configured"}
+          ]
+        }
+      }
+    }
+  ]
+}
