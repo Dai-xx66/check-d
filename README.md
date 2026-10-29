@@ -38,6 +38,24 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 
 节假日数据源、通知、云端同步执行器尚未启用；已有排除记录可参与统计过滤。当前浏览器数据按设备本地时区划分，固定账号时区及跨时区迁移留待同步阶段。跨平台打包与签名要求见 [发布清单](docs/release-checklist.md)。
 
+## 校赛交付物（M3）
+
+大学生智能体应用大赛的验收与演示材料集中在以下位置，建议从本表进入：
+
+| 产出 | 位置 | 说明 |
+|---|---|---|
+| 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
+| 演示脚本 | [docs/contest/demo-script.md](docs/contest/demo-script.md) | 现场演示的逐步操作与口播要点 |
+| 开源与合规披露 | [docs/contest/oss-disclosure.md](docs/contest/oss-disclosure.md) | 第三方依赖、许可证、数据来源与隐私边界 |
+| 场景样本数据 | [fixtures/education/](fixtures/education/README.md) | 三条教育场景 JSON + 边界用例集，可脱敏、可复现 |
+| 样本自检 | [validate_fixtures.py](fixtures/education/validate_fixtures.py) | `python validate_fixtures.py --privacy` 校验字段完整性与隐私 |
+| 前后对比视觉稿 | [before-after-preview.html](docs/demo/before-after-preview.html) | 浏览器直接打开，可点击交互 |
+| 端到端演练 | [docs/demo/e2e-playbook.md](docs/demo/e2e-playbook.md) | 环境准备、录制流程与失败兜底 |
+| 评分证据映射 | [scoring-evidence-map.md](docs/submission/scoring-evidence-map.md) | 按官方 30/25/25/20 分值逐项对应证据 |
+| 提交材料清单 | [materials-checklist.md](docs/submission/materials-checklist.md) | 待提交文件与状态跟踪 |
+
+场景样本与真实代码存在字段偏差（计划文档的 `ScheduleBlock` 实际为 `DailyItemOverride`），细节见 [fixtures/education/README.md](fixtures/education/README.md) 与 [interface-notes-for-m0.md](docs/demo/interface-notes-for-m0.md)。
+
 ## 本地运行
 
 1. 安装 Flutter stable，并执行 `flutter doctor`。
