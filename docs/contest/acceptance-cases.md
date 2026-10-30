@@ -1,7 +1,7 @@
 # CheckD 智能体验收用例（Scenario & Boundary Acceptance）
 
 > 负责人：M3（同学 C）
-> 版本：v0.1（2026-10-29，契约冻结日）
+> 版本：v0.1（2026-10-29，契约 v1 CANDIDATE 评审日；契约尚未冻结）
 > 数据源：`fixtures/education/scenario_a_study_plan.json`、`scenario_b_report_breakdown.json`、`scenario_c_meeting_replan.json`、`boundary_cases.json`
 > 校验：`python fixtures/education/validate_fixtures.py --privacy` → 336 项检查 0 失败（含四类 PII 扫描）
 >
