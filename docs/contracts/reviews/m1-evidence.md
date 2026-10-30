@@ -12,7 +12,7 @@ python tools/m1-mock/run_evidence.py
 
 - 运行环境：Windows / Python 3.14.3 / MCP stdio（JSON-RPC 2.0）
 - 证据文件：`docs/contracts/reviews/m1-evidence.md`、`m1-evidence.json`
-- 代码提交：（见文末 commit 段）
+- 代码提交：`6683289891c7772b033deb23148a2c043f37c029`（short `6683289`）
 
 ## 用例与结果
 
@@ -42,4 +42,6 @@ python tools/m1-mock/run_evidence.py
 
 ## Commit
 
-见 `docs/contracts/reviews/m1-evidence.md` 末尾的 Commit 段（由提交后回填）。
+- 代码与用例提交：`6683289891c7772b033deb23148a2c043f37c029`
+- 本文件（回填 SHA）在其后一个提交中更新；分支 HEAD 以 `git log -1` 为准。
+- 提交身份为中性署名 `M1 WorkBuddy <m1@checkd.local>`，避免在公开仓库写入个人身份信息。
