@@ -5,6 +5,8 @@
 方式：逐条对照契约 + WorkBuddy 官方能力文档 + 用 MCP stdio mock 做了 14 条契约行为测试（`m1-evidence.md`，14/14 通过）
 结论：**契约在数据语义上可以保留；但「身份」和「确认/审批」两处按 WorkBuddy 现状无法落地，`apply_approved_changes` 会永久 BLOCKED。建议 v1.1 增加审批通道后再冻结。**
 
+> 边界声明：本评审只覆盖 MCP Server 与本地契约流程；**WorkBuddy 实机能力（stdio、env token、确认回调、外部分享）在本评审完成时仍为 BLOCKED**，mock 通过不构成平台能力证明。
+
 ---
 
 ## 1. 可以保留的设计
@@ -45,7 +47,7 @@
 
 **这两条互相矛盾**：WorkBuddy 的“确认”要么是模型在对话里问一句（不可信、可被提示词绕过），要么是 Workflow 的人工节点（是否可编程、是否带签名，均未证实）。没有第六条通道，审批服务永远收不到“人确认了”这个事件，`apply` 只能一直 BLOCKED。
 
-**建议改法（推荐 a）：**
+**建议改法（推荐 a，但需队长与 B/C 联合确认后才写入 v1.1）：**
 - **a. 增加第六个工具 `request_approval`**（或 `begin_approval`）：入参 `proposal_id`；服务端创建审批记录，返回 `approval_id` + `approval_url`（H5 页面或飞书卡片）；用户在**工具之外**点确认；审批服务校验登录主体与提案摘要后签发一次性 `approval_token`；Agent 再调 `apply_approved_changes`。模型拿不到“自签 token”的能力，安全性成立。
   - 已用 mock 证明完整链路可跑：`generate → validate → request_approval → apply → readback`，且同幂等键重放返回原结果（A9–A11）。
 - **b. 不增工具**：明确 v1 只读 + 提案，`apply` 不进入比赛演示。风险是比赛要求“执行操作 + 核验反馈”的闭环，只读会被判“没闭环”。
@@ -57,7 +59,7 @@
 
 契约 §6 只有文字描述，没有 JSON Schema。WorkBuddy 的 MCP 工具需要 `name/description/inputSchema`，否则模型只能靠自然语言猜参数。
 
-**建议**：契约仓库补 `tools.json`（每个工具的 `inputSchema`，`additionalProperties:false`，枚举/必填/格式写全）。我已按契约文本生成一份可直接用的版本：`work/m1/tools.json`（6 个工具，含扩展的 `request_approval`），可直接作为 v1.1 的附件；M0 只需确认字段名。
+**建议**：契约仓库补机器可读 schema。我已按契约文本生成 `docs/contracts/tools.candidate.json`——**状态为 candidate，未冻结**，仅供 M0/B/C 评审字段名与枚举；其中 `request_approval` 同属候选，待联合确认。
 
 ---
 
