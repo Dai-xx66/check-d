@@ -1,0 +1,1589 @@
+{
+ "server": {
+  "name": "checkd-agent-mock",
+  "version": "0.2.0"
+ },
+ "tools": [
+  "list_tasks",
+  "get_calendar_events",
+  "generate_schedule",
+  "validate_schedule",
+  "apply_approved_changes",
+  "request_approval",
+  "get_approval_status"
+ ],
+ "passed": 18,
+ "total": 18,
+ "results": [
+  {
+   "case": "A0 tools/list",
+   "expected": "7 tools (5 v1 + 2 candidate)",
+   "got": "7 tools",
+   "pass": true,
+   "note": "['list_tasks', 'get_calendar_events', 'generate_schedule', 'validate_schedule', 'apply_approved_changes', 'request_approval', 'get_approval_status']",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+     "tools": [
+      {
+       "name": "list_tasks",
+       "description": "读取当前用户的任务定义（不展开逐日 occurrence）。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "kinds": {
+            "type": "array",
+            "items": {
+             "enum": [
+              "recurring",
+              "one_time"
+             ]
+            }
+           },
+           "statuses": {
+            "type": "array",
+            "items": {
+             "enum": [
+              "active",
+              "paused",
+              "archived"
+             ]
+            }
+           },
+           "include_completed": {
+            "type": "boolean"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "get_calendar_events",
+       "description": "读取日期范围内生效的课程、任务与单日例外，支持传入外部固定事件。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "external_fixed_events": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "external_event_id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "start_at": {
+               "type": "string"
+              },
+              "end_at": {
+               "type": "string"
+              }
+             },
+             "additionalProperties": false,
+             "required": [
+              "external_event_id",
+              "title",
+              "start_at",
+              "end_at"
+             ]
+            }
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "generate_schedule",
+       "description": "基于服务端快照生成调度提案（只读，不写入）。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "external_fixed_events": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "external_event_id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "start_at": {
+               "type": "string"
+              },
+              "end_at": {
+               "type": "string"
+              }
+             },
+             "additionalProperties": false,
+             "required": [
+              "external_event_id",
+              "title",
+              "start_at",
+              "end_at"
+             ]
+            }
+           },
+           "preferences": {
+            "type": "object",
+            "properties": {
+             "day_start_minute": {
+              "type": "integer"
+             },
+             "day_end_minute": {
+              "type": "integer"
+             },
+             "minimum_block_minutes": {
+              "type": "integer"
+             }
+            },
+            "additionalProperties": false
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "validate_schedule",
+       "description": "按服务端快照重新校验提案，合法则进入 pending_approval。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "apply_approved_changes",
+       "description": "凭可信审批凭据原子应用变更并回读核验。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           },
+           "base_version": {
+            "type": "string"
+           },
+           "approval_token": {
+            "type": "string"
+           },
+           "idempotency_key": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id",
+           "base_version",
+           "approval_token",
+           "idempotency_key"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "request_approval",
+       "description": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "get_approval_status",
+       "description": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "approval_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "approval_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "case": "A1 list_tasks 正常读取",
+   "expected": "success",
+   "got": "success",
+   "pass": true,
+   "note": "3 tasks",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"query_version\": \"29f9ac52a8647654165c94004b6df21079c3a1914018908911188caabfd783f9\", \"tasks\": [{\"task_id\": \"t_1001\", \"kind\": \"one_time\", \"name\": \"完成实验报告\", \"status\": \"active\", \"execution_mode\": \"timed\", \"available_from\": \"2026-10-29\", \"planned_date\": null, \"scheduled_at\": null, \"deadline\": {\"kind\": \"exact\", \"at\": \"2026-10-31T18:00:00+08:00\"}, \"duration_target_seconds\": 5400, \"updated_at\": \"2026-10-29T09:00:00+08:00\"}, {\"task_id\": \"t_1002\", \"kind\": \"one_time\", \"name\": \"英语六级听力复习\", \"status\": \"active\", \"execution_mode\": \"timed\", \"available_from\": \"2026-10-29\", \"planned_date\": null, \"scheduled_at\": null, \"deadline\": {\"kind\": \"date_only\", \"date\": \"2026-11-02\"}, \"duration_target_seconds\": 3600, \"updated_at\": \"2026-10-29T09:00:00+08:00\"}, {\"task_id\": \"t_1003\", \"kind\": \"recurring\", \"name\": \"背单词\", \"status\": \"active\", \"execution_mode\": \"timed\", \"duration_target_seconds\": 1800, \"updated_at\": \"2026-10-29T09:00:00+08:00\", \"recurrence\": {\"preset\": \"daily\", \"weekdays\": [1, 2, 3, 4, 5, 6, 7], \"starts_on\": \"2026-10-20\", \"ends_on\": null, \"scheduled_minute_of_day\": null}}], \"date_range\": {\"start\": \"2026-10-29\", \"end\": \"2026-10-31\"}}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "query_version": "29f9ac52a8647654165c94004b6df21079c3a1914018908911188caabfd783f9",
+       "tasks": [
+        {
+         "task_id": "t_1001",
+         "kind": "one_time",
+         "name": "完成实验报告",
+         "status": "active",
+         "execution_mode": "timed",
+         "available_from": "2026-10-29",
+         "planned_date": null,
+         "scheduled_at": null,
+         "deadline": {
+          "kind": "exact",
+          "at": "2026-10-31T18:00:00+08:00"
+         },
+         "duration_target_seconds": 5400,
+         "updated_at": "2026-10-29T09:00:00+08:00"
+        },
+        {
+         "task_id": "t_1002",
+         "kind": "one_time",
+         "name": "英语六级听力复习",
+         "status": "active",
+         "execution_mode": "timed",
+         "available_from": "2026-10-29",
+         "planned_date": null,
+         "scheduled_at": null,
+         "deadline": {
+          "kind": "date_only",
+          "date": "2026-11-02"
+         },
+         "duration_target_seconds": 3600,
+         "updated_at": "2026-10-29T09:00:00+08:00"
+        },
+        {
+         "task_id": "t_1003",
+         "kind": "recurring",
+         "name": "背单词",
+         "status": "active",
+         "execution_mode": "timed",
+         "duration_target_seconds": 1800,
+         "updated_at": "2026-10-29T09:00:00+08:00",
+         "recurrence": {
+          "preset": "daily",
+          "weekdays": [
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7
+          ],
+          "starts_on": "2026-10-20",
+          "ends_on": null,
+          "scheduled_minute_of_day": null
+         }
+        }
+       ],
+       "date_range": {
+        "start": "2026-10-29",
+        "end": "2026-10-31"
+       }
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A2 请求体携带 user_id 被拒",
+   "expected": "error:INVALID_ARGUMENT",
+   "got": "error:INVALID_ARGUMENT",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"INVALID_ARGUMENT\", \"message\": \"请求体不得包含 user_id。\", \"retryable\": false, \"details\": [{\"field\": \"user_id\", \"reason\": \"identity_from_body\"}]}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "INVALID_ARGUMENT",
+       "message": "请求体不得包含 user_id。",
+       "retryable": false,
+       "details": [
+        {
+         "field": "user_id",
+         "reason": "identity_from_body"
+        }
+       ]
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A3 非 Asia/Shanghai 被拒",
+   "expected": "error:INVALID_ARGUMENT",
+   "got": "error:INVALID_ARGUMENT",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 6,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"INVALID_ARGUMENT\", \"message\": \"v1 只接受 Asia/Shanghai。\", \"retryable\": false, \"details\": [{\"field\": \"timezone\", \"reason\": \"unsupported\"}]}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "INVALID_ARGUMENT",
+       "message": "v1 只接受 Asia/Shanghai。",
+       "retryable": false,
+       "details": [
+        {
+         "field": "timezone",
+         "reason": "unsupported"
+        }
+       ]
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A4 日历包含固定课程与外部会议",
+   "expected": "success",
+   "got": "success",
+   "pass": true,
+   "note": "2 events, 2 fixed",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"query_version\": \"1c5ff1845d132fc315c65ff8de935f1557ba4f02e7589d2d3669e91d363cac5f\", \"courses\": [{\"course_id\": \"c_2001\", \"name\": \"离散数学\", \"status\": \"active\", \"rules\": [{\"rule_id\": \"r_1\", \"weekday\": 4, \"week_rule_type\": \"every_week\", \"start_week\": 1, \"end_week\": 16, \"start_minute\": 480, \"end_minute\": 580}]}], \"daily_overrides\": [], \"events\": [{\"event_id\": \"ev_c_2001_r_1_2026-10-29\", \"event_type\": \"course\", \"source_id\": \"c_2001\", \"date\": \"2026-10-29\", \"start_at\": \"2026-10-29T08:00:00+08:00\", \"end_at\": \"2026-10-29T09:40:00+08:00\", \"fixed\": true, \"applied_override_id\": null}, {\"event_id\": \"x_meeting_1\", \"event_type\": \"external_fixed_event\", \"source_id\": \"x_meeting_1\", \"date\": \"2026-10-30\", \"start_at\": \"2026-10-30T14:00:00+08:00\", \"end_at\": \"2026-10-30T15:00:00+08:00\", \"fixed\": true, \"applied_override_id\": null}]}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "query_version": "1c5ff1845d132fc315c65ff8de935f1557ba4f02e7589d2d3669e91d363cac5f",
+       "courses": [
+        {
+         "course_id": "c_2001",
+         "name": "离散数学",
+         "status": "active",
+         "rules": [
+          {
+           "rule_id": "r_1",
+           "weekday": 4,
+           "week_rule_type": "every_week",
+           "start_week": 1,
+           "end_week": 16,
+           "start_minute": 480,
+           "end_minute": 580
+          }
+         ]
+        }
+       ],
+       "daily_overrides": [],
+       "events": [
+        {
+         "event_id": "ev_c_2001_r_1_2026-10-29",
+         "event_type": "course",
+         "source_id": "c_2001",
+         "date": "2026-10-29",
+         "start_at": "2026-10-29T08:00:00+08:00",
+         "end_at": "2026-10-29T09:40:00+08:00",
+         "fixed": true,
+         "applied_override_id": null
+        },
+        {
+         "event_id": "x_meeting_1",
+         "event_type": "external_fixed_event",
+         "source_id": "x_meeting_1",
+         "date": "2026-10-30",
+         "start_at": "2026-10-30T14:00:00+08:00",
+         "end_at": "2026-10-30T15:00:00+08:00",
+         "fixed": true,
+         "applied_override_id": null
+        }
+       ]
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A5 generate_schedule 生成 draft 提案",
+   "expected": "success",
+   "got": "success",
+   "pass": true,
+   "note": "prop_0011 blocks=5 changes=5",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 8,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"proposal_id\": \"prop_0011\", \"snapshot_ref\": \"snap_90d2dc381c6f199e\", \"base_version\": \"90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b\", \"input_digest\": \"406862c704bfc643c3d8c3b07111d85f3331388f3ebe40a9ebf9fe50dff6f8d8\", \"status\": \"draft\", \"expires_at\": \"2026-10-30T23:59:00+08:00\", \"blocks\": [{\"block_id\": \"b_0001\", \"task_id\": \"t_1001\", \"task_kind\": \"one_time\", \"start_at\": \"2026-10-29T09:40:00+08:00\", \"end_at\": \"2026-10-29T11:10:00+08:00\", \"source\": \"proposal\", \"persistable_as\": \"one_time_schedule\", \"duration_source\": \"task_target\", \"duration_seconds\": 5400}, {\"block_id\": \"b_0003\", \"task_id\": \"t_1002\", \"task_kind\": \"one_time\", \"start_at\": \"2026-10-29T09:40:00+08:00\", \"end_at\": \"2026-10-29T10:40:00+08:00\", \"source\": \"proposal\", \"persistable_as\": \"one_time_schedule\", \"duration_source\": \"task_target\", \"duration_seconds\": 3600}, {\"block_id\": \"b_0005\", \"task_id\": \"t_1003\", \"task_kind\": \"recurring\", \"start_at\": \"2026-10-29T09:40:00+08:00\", \"end_at\": \"2026-10-29T10:10:00+08:00\", \"source\": \"proposal\", \"persistable_as\": \"daily_override\", \"duration_source\": \"scheduler_estimate\", \"duration_seconds\": 1800}, {\"block_id\": \"b_0007\", \"task_id\": \"t_1003\", \"task_kind\": \"recurring\", \"start_at\": \"2026-10-30T08:00:00+08:00\", \"end_at\": \"2026-10-30T08:30:00+08:00\", \"source\": \"proposal\", \"persistable_as\": \"daily_override\", \"duration_source\": \"scheduler_estimate\", \"duration_seconds\": 1800}, {\"block_id\": \"b_0009\", \"task_id\": \"t_1003\", \"task_kind\": \"recurring\", \"start_at\": \"2026-10-31T08:00:00+08:00\", \"end_at\": \"2026-10-31T08:30:00+08:00\", \"source\": \"proposal\", \"persistable_as\": \"daily_override\", \"duration_source\": \"scheduler_estimate\", \"duration_seconds\": 1800}], \"changes\": [{\"change_id\": \"ch_0002\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1001\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0004\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1002\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0006\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-29\", \"action\": \"reschedule\", \"planned_start_minute\": 580, \"planned_end_minute\": 610}, {\"change_id\": \"ch_0008\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-30\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 510}, {\"change_id\": \"ch_0010\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-31\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 510}], \"unplanned_tasks\": [], \"explanations\": [\"固定课程与外部会议不可移动。\", \"单次事项只持久化一个计划日期。\"], \"user\": \"u_alice\", \"_range\": [\"2026-10-29\", \"2026-10-31\"], \"_external_events\": [{\"external_event_id\": \"x_meeting_1\", \"title\": \"临时会议\", \"start_at\": \"2026-10-30T14:00:00+08:00\", \"end_at\": \"2026-10-30T15:00:00+08:00\"}]}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "proposal_id": "prop_0011",
+       "snapshot_ref": "snap_90d2dc381c6f199e",
+       "base_version": "90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b",
+       "input_digest": "406862c704bfc643c3d8c3b07111d85f3331388f3ebe40a9ebf9fe50dff6f8d8",
+       "status": "draft",
+       "expires_at": "2026-10-30T23:59:00+08:00",
+       "blocks": [
+        {
+         "block_id": "b_0001",
+         "task_id": "t_1001",
+         "task_kind": "one_time",
+         "start_at": "2026-10-29T09:40:00+08:00",
+         "end_at": "2026-10-29T11:10:00+08:00",
+         "source": "proposal",
+         "persistable_as": "one_time_schedule",
+         "duration_source": "task_target",
+         "duration_seconds": 5400
+        },
+        {
+         "block_id": "b_0003",
+         "task_id": "t_1002",
+         "task_kind": "one_time",
+         "start_at": "2026-10-29T09:40:00+08:00",
+         "end_at": "2026-10-29T10:40:00+08:00",
+         "source": "proposal",
+         "persistable_as": "one_time_schedule",
+         "duration_source": "task_target",
+         "duration_seconds": 3600
+        },
+        {
+         "block_id": "b_0005",
+         "task_id": "t_1003",
+         "task_kind": "recurring",
+         "start_at": "2026-10-29T09:40:00+08:00",
+         "end_at": "2026-10-29T10:10:00+08:00",
+         "source": "proposal",
+         "persistable_as": "daily_override",
+         "duration_source": "scheduler_estimate",
+         "duration_seconds": 1800
+        },
+        {
+         "block_id": "b_0007",
+         "task_id": "t_1003",
+         "task_kind": "recurring",
+         "start_at": "2026-10-30T08:00:00+08:00",
+         "end_at": "2026-10-30T08:30:00+08:00",
+         "source": "proposal",
+         "persistable_as": "daily_override",
+         "duration_source": "scheduler_estimate",
+         "duration_seconds": 1800
+        },
+        {
+         "block_id": "b_0009",
+         "task_id": "t_1003",
+         "task_kind": "recurring",
+         "start_at": "2026-10-31T08:00:00+08:00",
+         "end_at": "2026-10-31T08:30:00+08:00",
+         "source": "proposal",
+         "persistable_as": "daily_override",
+         "duration_source": "scheduler_estimate",
+         "duration_seconds": 1800
+        }
+       ],
+       "changes": [
+        {
+         "change_id": "ch_0002",
+         "type": "schedule_one_time",
+         "task_id": "t_1001",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0004",
+         "type": "schedule_one_time",
+         "task_id": "t_1002",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0006",
+         "type": "upsert_daily_override",
+         "item_type": "recurring",
+         "item_id": "t_1003",
+         "local_date": "2026-10-29",
+         "action": "reschedule",
+         "planned_start_minute": 580,
+         "planned_end_minute": 610
+        },
+        {
+         "change_id": "ch_0008",
+         "type": "upsert_daily_override",
+         "item_type": "recurring",
+         "item_id": "t_1003",
+         "local_date": "2026-10-30",
+         "action": "reschedule",
+         "planned_start_minute": 480,
+         "planned_end_minute": 510
+        },
+        {
+         "change_id": "ch_0010",
+         "type": "upsert_daily_override",
+         "item_type": "recurring",
+         "item_id": "t_1003",
+         "local_date": "2026-10-31",
+         "action": "reschedule",
+         "planned_start_minute": 480,
+         "planned_end_minute": 510
+        }
+       ],
+       "unplanned_tasks": [],
+       "explanations": [
+        "固定课程与外部会议不可移动。",
+        "单次事项只持久化一个计划日期。"
+       ],
+       "user": "u_alice",
+       "_range": [
+        "2026-10-29",
+        "2026-10-31"
+       ],
+       "_external_events": [
+        {
+         "external_event_id": "x_meeting_1",
+         "title": "临时会议",
+         "start_at": "2026-10-30T14:00:00+08:00",
+         "end_at": "2026-10-30T15:00:00+08:00"
+        }
+       ]
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A6 远程提交 tasks 被拒",
+   "expected": "error:INVALID_ARGUMENT",
+   "got": "error:INVALID_ARGUMENT",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"INVALID_ARGUMENT\", \"message\": \"远程调用不得提交 tasks/courses/base_version/snapshot_ref。\", \"retryable\": false, \"details\": []}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "INVALID_ARGUMENT",
+       "message": "远程调用不得提交 tasks/courses/base_version/snapshot_ref。",
+       "retryable": false,
+       "details": []
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A7 validate 通过并进入 pending_approval",
+   "expected": "success",
+   "got": "success",
+   "pass": true,
+   "note": "validation=valid approval=pending_approval",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 10,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"proposal_id\": \"prop_0011\", \"snapshot_ref\": \"snap_90d2dc381c6f199e\", \"base_version\": \"90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b\", \"input_digest\": \"406862c704bfc643c3d8c3b07111d85f3331388f3ebe40a9ebf9fe50dff6f8d8\", \"proposal_status\": \"pending_approval\", \"validation_status\": \"valid\", \"approval_status\": \"pending_approval\", \"violations\": [], \"validated_at\": \"2026-10-30T15:15:02+08:00\", \"expires_at\": \"2026-10-30T23:59:00+08:00\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "proposal_id": "prop_0011",
+       "snapshot_ref": "snap_90d2dc381c6f199e",
+       "base_version": "90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b",
+       "input_digest": "406862c704bfc643c3d8c3b07111d85f3331388f3ebe40a9ebf9fe50dff6f8d8",
+       "proposal_status": "pending_approval",
+       "validation_status": "valid",
+       "approval_status": "pending_approval",
+       "violations": [],
+       "validated_at": "2026-10-30T15:15:02+08:00",
+       "expires_at": "2026-10-30T23:59:00+08:00"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A8 未审批 apply 返回 APPROVAL_REQUIRED",
+   "expected": "error:APPROVAL_REQUIRED",
+   "got": "error:APPROVAL_REQUIRED",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"APPROVAL_REQUIRED\", \"message\": \"缺少可验证的审批凭据。\", \"retryable\": false, \"details\": []}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "APPROVAL_REQUIRED",
+       "message": "缺少可验证的审批凭据。",
+       "retryable": false,
+       "details": []
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A9 request_approval 只创建 pending 请求（不返回 token）",
+   "expected": "pending + approval_url, no token",
+   "got": "pending url=True token=False",
+   "pass": true,
+   "note": "appr_0012",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 12,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"approval_id\": \"appr_0012\", \"approval_url\": \"https://approval.mock.local/p/appr_0012\", \"status\": \"pending\", \"expires_at\": \"2026-10-30T23:59:00+08:00\", \"note\": \"mock placeholder: confirm via approval_url; this call is NOT an approval\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "approval_id": "appr_0012",
+       "approval_url": "https://approval.mock.local/p/appr_0012",
+       "status": "pending",
+       "expires_at": "2026-10-30T23:59:00+08:00",
+       "note": "mock placeholder: confirm via approval_url; this call is NOT an approval"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A10 外部确认后轮询才签发 token",
+   "expected": "approved + token",
+   "got": "approved token=True",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 13,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"approval_id\": \"appr_0012\", \"status\": \"approved\", \"approval_token\": \"tok_d7a2d8e5ccd5480fbe7e80c024f4c2c0\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "approval_id": "appr_0012",
+       "status": "approved",
+       "approval_token": "tok_d7a2d8e5ccd5480fbe7e80c024f4c2c0"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A11 审批后原子应用并回读",
+   "expected": "success",
+   "got": "success",
+   "pass": true,
+   "note": "readback_verified=True changes=5",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 14,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"proposal_id\": \"prop_0011\", \"base_version\": \"90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b\", \"result_version\": \"ver_0016\", \"idempotency_key\": \"k1\", \"applied_changes\": [{\"change_id\": \"ch_0002\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1001\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0004\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1002\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0006\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0013\"}, {\"change_id\": \"ch_0008\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0014\"}, {\"change_id\": \"ch_0010\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0015\"}], \"readback_verified\": true, \"applied_at\": \"2026-10-30T15:15:02+08:00\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "proposal_id": "prop_0011",
+       "base_version": "90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b",
+       "result_version": "ver_0016",
+       "idempotency_key": "k1",
+       "applied_changes": [
+        {
+         "change_id": "ch_0002",
+         "type": "schedule_one_time",
+         "task_id": "t_1001",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0004",
+         "type": "schedule_one_time",
+         "task_id": "t_1002",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0006",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0013"
+        },
+        {
+         "change_id": "ch_0008",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0014"
+        },
+        {
+         "change_id": "ch_0010",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0015"
+        }
+       ],
+       "readback_verified": true,
+       "applied_at": "2026-10-30T15:15:02+08:00"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A12 同幂等键重放返回原结果",
+   "expected": "same result_version",
+   "got": "same=True",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 15,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"proposal_id\": \"prop_0011\", \"base_version\": \"90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b\", \"result_version\": \"ver_0016\", \"idempotency_key\": \"k1\", \"applied_changes\": [{\"change_id\": \"ch_0002\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1001\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0004\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1002\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0006\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0013\"}, {\"change_id\": \"ch_0008\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0014\"}, {\"change_id\": \"ch_0010\", \"type\": \"upsert_daily_override\", \"override_id\": \"ov_0015\"}], \"readback_verified\": true, \"applied_at\": \"2026-10-30T15:15:02+08:00\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "proposal_id": "prop_0011",
+       "base_version": "90d2dc381c6f199e6288a3134bbdc84cd9272fb464405ffc46339bccc09d366b",
+       "result_version": "ver_0016",
+       "idempotency_key": "k1",
+       "applied_changes": [
+        {
+         "change_id": "ch_0002",
+         "type": "schedule_one_time",
+         "task_id": "t_1001",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0004",
+         "type": "schedule_one_time",
+         "task_id": "t_1002",
+         "planned_date": "2026-10-29",
+         "scheduled_at": "2026-10-29T09:40:00+08:00"
+        },
+        {
+         "change_id": "ch_0006",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0013"
+        },
+        {
+         "change_id": "ch_0008",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0014"
+        },
+        {
+         "change_id": "ch_0010",
+         "type": "upsert_daily_override",
+         "override_id": "ov_0015"
+        }
+       ],
+       "readback_verified": true,
+       "applied_at": "2026-10-30T15:15:02+08:00"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A13 已消费 token 再用被拒",
+   "expected": "error:APPROVAL_CONSUMED",
+   "got": "error:APPROVAL_CONSUMED",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 16,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"APPROVAL_CONSUMED\", \"message\": \"审批凭据已被使用。\", \"retryable\": false, \"details\": []}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "APPROVAL_CONSUMED",
+       "message": "审批凭据已被使用。",
+       "retryable": false,
+       "details": []
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A14 同幂等键不同请求被拒",
+   "expected": "error:IDEMPOTENCY_CONFLICT",
+   "got": "error:IDEMPOTENCY_CONFLICT",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 21,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"IDEMPOTENCY_CONFLICT\", \"message\": \"幂等键被用于不同请求。\", \"retryable\": false, \"details\": []}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "IDEMPOTENCY_CONFLICT",
+       "message": "幂等键被用于不同请求。",
+       "retryable": false,
+       "details": []
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A15 无效凭据被拒",
+   "expected": "error:AUTH_REQUIRED",
+   "got": "error:AUTH_REQUIRED",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 23,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"error\", \"error\": {\"code\": \"AUTH_REQUIRED\", \"message\": \"缺少或无法验证的身份凭证。\", \"retryable\": false, \"details\": []}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "error",
+      "error": {
+       "code": "AUTH_REQUIRED",
+       "message": "缺少或无法验证的身份凭证。",
+       "retryable": false,
+       "details": []
+      }
+     },
+     "isError": true
+    }
+   }
+  },
+  {
+   "case": "A16 固定事件冲突 → invalid + draft + FIXED_EVENT_CONFLICT",
+   "expected": "invalid/draft/FIXED_EVENT_CONFLICT",
+   "got": "invalid/draft/['FIXED_EVENT_CONFLICT', 'FIXED_EVENT_CONFLICT', 'FIXED_EVENT_CONFLICT']",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 25,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "{\"status\": \"success\", \"data\": {\"proposal_id\": \"prop_0039\", \"snapshot_ref\": \"snap_21ecbe8214e77a85\", \"base_version\": \"21ecbe8214e77a855a58339d00019429d87d57a13b0e9917ca2c0c8aad45f38f\", \"input_digest\": \"268527af38fd14dba055cd92a9dae165a96fac5fe4c5559d9125a469dfb2b708\", \"proposal_status\": \"draft\", \"validation_status\": \"invalid\", \"approval_status\": \"not_approvable\", \"violations\": [{\"code\": \"FIXED_EVENT_CONFLICT\", \"block_id\": \"b_0029\", \"event_id\": \"x_conflict_day\"}, {\"code\": \"FIXED_EVENT_CONFLICT\", \"block_id\": \"b_0031\", \"event_id\": \"x_conflict_day\"}, {\"code\": \"FIXED_EVENT_CONFLICT\", \"block_id\": \"b_0033\", \"event_id\": \"x_conflict_day\"}], \"validated_at\": \"2026-10-30T15:15:02+08:00\", \"expires_at\": \"2026-10-30T23:59:00+08:00\"}}"
+      }
+     ],
+     "structuredContent": {
+      "status": "success",
+      "data": {
+       "proposal_id": "prop_0039",
+       "snapshot_ref": "snap_21ecbe8214e77a85",
+       "base_version": "21ecbe8214e77a855a58339d00019429d87d57a13b0e9917ca2c0c8aad45f38f",
+       "input_digest": "268527af38fd14dba055cd92a9dae165a96fac5fe4c5559d9125a469dfb2b708",
+       "proposal_status": "draft",
+       "validation_status": "invalid",
+       "approval_status": "not_approvable",
+       "violations": [
+        {
+         "code": "FIXED_EVENT_CONFLICT",
+         "block_id": "b_0029",
+         "event_id": "x_conflict_day"
+        },
+        {
+         "code": "FIXED_EVENT_CONFLICT",
+         "block_id": "b_0031",
+         "event_id": "x_conflict_day"
+        },
+        {
+         "code": "FIXED_EVENT_CONFLICT",
+         "block_id": "b_0033",
+         "event_id": "x_conflict_day"
+        }
+       ],
+       "validated_at": "2026-10-30T15:15:02+08:00",
+       "expires_at": "2026-10-30T23:59:00+08:00"
+      }
+     },
+     "isError": false
+    }
+   }
+  },
+  {
+   "case": "A17 tools/list 与 tools.candidate.json 一致且各对象层 additionalProperties:false",
+   "expected": "identical schemas + no open objects",
+   "got": "names_equal=True schemas_equal=True open_objects=0",
+   "pass": true,
+   "note": "",
+   "response": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+     "tools": [
+      {
+       "name": "list_tasks",
+       "description": "读取当前用户的任务定义（不展开逐日 occurrence）。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "kinds": {
+            "type": "array",
+            "items": {
+             "enum": [
+              "recurring",
+              "one_time"
+             ]
+            }
+           },
+           "statuses": {
+            "type": "array",
+            "items": {
+             "enum": [
+              "active",
+              "paused",
+              "archived"
+             ]
+            }
+           },
+           "include_completed": {
+            "type": "boolean"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "get_calendar_events",
+       "description": "读取日期范围内生效的课程、任务与单日例外，支持传入外部固定事件。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "external_fixed_events": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "external_event_id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "start_at": {
+               "type": "string"
+              },
+              "end_at": {
+               "type": "string"
+              }
+             },
+             "additionalProperties": false,
+             "required": [
+              "external_event_id",
+              "title",
+              "start_at",
+              "end_at"
+             ]
+            }
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "generate_schedule",
+       "description": "基于服务端快照生成调度提案（只读，不写入）。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "date_range": {
+            "$ref": "#/$defs/date_range"
+           },
+           "external_fixed_events": {
+            "type": "array",
+            "items": {
+             "type": "object",
+             "properties": {
+              "external_event_id": {
+               "type": "string"
+              },
+              "title": {
+               "type": "string"
+              },
+              "start_at": {
+               "type": "string"
+              },
+              "end_at": {
+               "type": "string"
+              }
+             },
+             "additionalProperties": false,
+             "required": [
+              "external_event_id",
+              "title",
+              "start_at",
+              "end_at"
+             ]
+            }
+           },
+           "preferences": {
+            "type": "object",
+            "properties": {
+             "day_start_minute": {
+              "type": "integer"
+             },
+             "day_end_minute": {
+              "type": "integer"
+             },
+             "minimum_block_minutes": {
+              "type": "integer"
+             }
+            },
+            "additionalProperties": false
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "date_range"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "validate_schedule",
+       "description": "按服务端快照重新校验提案，合法则进入 pending_approval。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "apply_approved_changes",
+       "description": "凭可信审批凭据原子应用变更并回读核验。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           },
+           "base_version": {
+            "type": "string"
+           },
+           "approval_token": {
+            "type": "string"
+           },
+           "idempotency_key": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id",
+           "base_version",
+           "approval_token",
+           "idempotency_key"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "request_approval",
+       "description": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "proposal_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "proposal_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      },
+      {
+       "name": "get_approval_status",
+       "description": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "api_version": {
+          "type": "string",
+          "const": "checkd.agent.v1"
+         },
+         "request_id": {
+          "type": "string"
+         },
+         "timezone": {
+          "type": "string",
+          "const": "Asia/Shanghai"
+         },
+         "input": {
+          "type": "object",
+          "properties": {
+           "approval_id": {
+            "type": "string"
+           }
+          },
+          "additionalProperties": false,
+          "required": [
+           "approval_id"
+          ]
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "api_version",
+         "request_id",
+         "timezone",
+         "input"
+        ]
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

@@ -2,7 +2,7 @@
 
 评审人：M1 模块负责人（WorkBuddy / 工具编排）
 对象：`Dai-xx66/check-d` 分支 `feat/m0-api-contract` 的 `docs/contracts/agent-api-v1.md`（v1 CANDIDATE）
-方式：逐条对照契约 + WorkBuddy 官方能力文档 + 用 MCP stdio mock 做了 14 条契约行为测试（`m1-evidence.md`，14/14 通过）
+方式：逐条对照契约 + WorkBuddy 官方能力文档 + 用 MCP stdio mock 做了 18 条契约行为测试（`m1-evidence.md`，A0–A17，18/18 通过）
 结论：**契约在数据语义上可以保留；但「身份」和「确认/审批」两处按 WorkBuddy 现状无法落地，`apply_approved_changes` 会永久 BLOCKED。建议 v1.1 增加审批通道后再冻结。**
 
 > 边界声明：本评审只覆盖 MCP Server 与本地契约流程；**WorkBuddy 实机能力（stdio、env token、确认回调、外部分享）在本评审完成时仍为 BLOCKED**，mock 通过不构成平台能力证明。
@@ -12,7 +12,7 @@
 ## 1. 可以保留的设计
 
 1. **五工具边界**：读（`list_tasks` / `get_calendar_events`）、提案（`generate_schedule` / `validate_schedule`）、写（`apply_approved_changes`）分工清楚，M1 可以把它们一对一映射成 WorkBuddy 的 MCP 工具。
-2. **`api_version` / `request_id` / `timezone` 信封**：适合做工具入参的统一外壳，M1 可直接生成 JSON Schema（已产出 `tools.json`）。
+2. **`api_version` / `request_id` / `timezone` 信封**：适合做工具入参的统一外壳，M1 可直接生成 JSON Schema（已产出 `docs/contracts/tools.candidate.json`，候选、未冻结）。
 3. **请求体禁止 `user_id`**：方向正确。WorkBuddy 侧不应由模型决定“我是谁”，否则提示词注入即可越权。mock 已验证：带 `user_id` 返回 `INVALID_ARGUMENT`（A2）。
 4. **`query_version` 与 `base_version` 分离**：能防止 M1 把两次普通读取拼成“快照”。这对“模型自作聪明”是最有效的约束。
 5. **`generate_schedule` 不收客户端 tasks/courses**：契约写得很清楚，mock 也已按此拒绝（A6）。WorkBuddy 的工具 schema 应把 `additionalProperties` 设为 `false`，否则模型一定会往里塞数据。
@@ -48,8 +48,12 @@
 **这两条互相矛盾**：WorkBuddy 的“确认”要么是模型在对话里问一句（不可信、可被提示词绕过），要么是 Workflow 的人工节点（是否可编程、是否带签名，均未证实）。没有第六条通道，审批服务永远收不到“人确认了”这个事件，`apply` 只能一直 BLOCKED。
 
 **建议改法（推荐 a，但需队长与 B/C 联合确认后才写入 v1.1）：**
-- **a. 增加第六个工具 `request_approval`**（或 `begin_approval`）：入参 `proposal_id`；服务端创建审批记录，返回 `approval_id` + `approval_url`（H5 页面或飞书卡片）；用户在**工具之外**点确认；审批服务校验登录主体与提案摘要后签发一次性 `approval_token`；Agent 再调 `apply_approved_changes`。模型拿不到“自签 token”的能力，安全性成立。
-  - 已用 mock 证明完整链路可跑：`generate → validate → request_approval → apply → readback`，且同幂等键重放返回原结果（A9–A11）。
+- **a. 增加两个工具：`request_approval` 与 `get_approval_status`**（或 `begin_approval` / `poll_approval`）：
+  - `request_approval(proposal_id)` **只创建 pending 审批请求**，返回 `approval_id` + `approval_url`，**不返回 token，也不代表用户已批准**；
+  - 用户在**工具之外**（H5 / 飞书卡片）确认，审批服务校验登录主体与提案摘要后把记录标为 approved；
+  - `get_approval_status(approval_id)` 轮询：只有 approved 后才签发一次性 `approval_token`，pending 时拿不到 token；
+  - 这样模型既不能自签 token，也不能把“我调用了一次审批工具”当成“用户同意了”。
+  - mock 已按此实现并跑通：`generate → validate → request_approval(pending) → 外部确认 → get_approval_status(approved+token) → apply → readback`（A9–A11）；token 消费后再用返回 `APPROVAL_CONSUMED`（A13），同幂等键重放返回原结果（A12）。
 - **b. 不增工具**：明确 v1 只读 + 提案，`apply` 不进入比赛演示。风险是比赛要求“执行操作 + 核验反馈”的闭环，只读会被判“没闭环”。
 - **c. 用 WorkBuddy Workflow 的人工确认节点**：需要先证明该节点能把“确认”以带签名的回调送到你们的审批服务。**目前无证据**，不建议押注。
 
@@ -73,6 +77,7 @@
 | §3 | WorkBuddy 跑在学生本机，时区可能不是 +08:00 | 服务端忽略客户端 `timezone`、固定校验 `Asia/Shanghai`（mock A3 已按此拒绝 UTC） |
 | §6.3 | 模型天然想传 `tasks` | schema `additionalProperties:false` + 工具 description 明确“只传 date_range/external_fixed_events/preferences” |
 | §6.5 | 已 applied 的提案换幂等键再 apply，错误码未定义（C 也提了） | 固定为 `ALREADY_APPLIED`（或复用 `IDEMPOTENCY_CONFLICT`），别用 `WRITE_BLOCKED` 混过去 |
+| §6.5 | 审批凭据复用行为未定义 | token 需持久化 `consumed` 状态；同一 token 第二次使用固定 `APPROVAL_CONSUMED`（A13），且不得因重放而二次写入 |
 | §8 | “日志不记录任务名”只约束你们服务端，约束不了 WorkBuddy 平台侧 | 材料里披露“平台侧日志不可控”，演示统一用脱敏数据 |
 
 ---
@@ -83,16 +88,19 @@
 
 | 编号 | 用例 | 预期 |
 |---|---|---|
-| T-A1 | `tools/list` 的 schema 与契约字段逐一比对 | 字段名/必填/枚举一致，`additionalProperties:false` |
+| T-A1 | `tools/list` 与 `tools.candidate.json` 自动逐字段比对 | 完全一致；各对象层（含嵌套 items）`additionalProperties:false` |
 | T-A2 | 无 token 调 `list_tasks` | `AUTH_REQUIRED`，不泄露数据 |
 | T-A3 | 用户 B 的 token 调用户 A 的 `proposal_id` | `NOT_FOUND` 或 `FORBIDDEN`，且不泄露存在性 |
 | T-A4 | `apply` 超时后用同一 `idempotency_key` 重试 | 只写一次，返回原结果或安全回读 |
 | T-A5 | 31 天 + 200 条事件 | 返回 `truncated` 或分页，不静默截断 |
 | T-A6 | 触发 `INVALID_ARGUMENT`/`SNAPSHOT_CONFLICT` | WorkBuddy 对话里能读出错误码与可展示文案（不泄露 payload） |
-| T-A7 | 未 `request_approval` 直接 `apply` | `APPROVAL_REQUIRED`；确认后成功；token 复用第二次失败 |
+| T-A7 | 未审批直接 `apply`；审批后重放 | 未审批返回 `APPROVAL_REQUIRED`；确认后成功；token 复用返回 `APPROVAL_CONSUMED`；同幂等键重放返回原结果 |
 | T-A8 | 外部会议与固定课程重叠/提案冲突 | `validate` 返回 `valid=false` + `violations`，不得进入 `pending_approval` |
 
-已完成的：A1–A13（mock 层），14/14 通过，见 `m1-evidence.md`。其中 T-A8 的“冲突构造”mock 还没覆盖，需补。
+已完成的：A0–A17（mock 层），18/18 通过，见 `m1-evidence.md`。
+- T-A1 ← A17（tools/list 与 `tools.candidate.json` 逐字段比对，并递归检查 `additionalProperties:false`，`open_objects=0`）
+- T-A7 ← A8/A9/A10/A13（未审批 `APPROVAL_REQUIRED`；`request_approval` 只返回 pending 与 approval_url、无 token；外部确认后轮询才签发 token；复用 `APPROVAL_CONSUMED`）
+- T-A8 ← A16（排程后注入整日冲突事件 → `invalid + draft + FIXED_EVENT_CONFLICT`）
 
 ---
 
@@ -110,16 +118,16 @@
 ## 5. 给队长的三句话
 
 1. **契约数据语义我认可**，`query_version/base_version`、只回读 `planned_date/scheduled_at`、`readback_verified` 这三条请保留。
-2. **必须加审批通道**（`request_approval` + 外部 H5/飞书确认），否则 `apply` 永远是 BLOCKED；这不是实现问题，是五工具集合里没有“人确认”的入口。我已用 mock 跑通该链路。
+2. **必须加审批通道**：`request_approval` 只发 pending 请求并返回 `approval_url`（工具调用不等于用户确认），外部 H5/飞书确认后 `get_approval_status` 才签发一次性 token，`apply` 再消费。否则 `apply` 永远是 BLOCKED。mock 已按这个语义跑通。
 3. **身份先按“一人一 token 的演示模式”写进契约**，并在材料里披露；别在 v1 追求终端用户 SSO，WorkBuddy 给不了。
 
 ---
 
 ## 附：M1 交付物（可直接给 WorkBuddy 用）
 
-- `work/m1/tool_server.py`：MCP stdio mock server，实现 5 个 v1 工具 + 1 个扩展 `request_approval`，含契约校验、幂等、回读、错误码。
-- `work/m1/tools.json`：机器可读工具清单（可直接粘进契约或 WorkBuddy 配置）。
-- `work/m1/run_evidence.py` / `m1-evidence.md` / `m1-evidence.json`：14 条一致性测试与证据。
-- `work/m1/mcp.json.example`：WorkBuddy「自定义连接器」配置示例（stdio + env token）。
+- `tools/m1-mock/tool_server.py`：MCP stdio mock server，实现 5 个 v1 工具 + 2 个候选扩展（`request_approval` / `get_approval_status`），含契约校验、文件式外部审批、token 一次性消费、幂等与回读。
+- `docs/contracts/tools.candidate.json`：候选工具 schema（由 `tools/m1-mock/export_schema.py` 从 `tools/list` 导出，未冻结）。
+- `tools/m1-mock/run_evidence.py` → `docs/contracts/reviews/m1-evidence.md` / `m1-evidence.json`：18 条一致性测试与证据。
+- `tools/m1-mock/mcp.json.example`：WorkBuddy「自定义连接器」配置示例（stdio + env token）。
 
-WorkBuddy 侧验证步骤（装好后照做，并把截图/日志贴回群里）见 `work/m1/workbuddy-test-plan.md`。
+WorkBuddy 侧验证步骤（装好后照做，并把截图/日志贴回群里）见 `docs/contracts/reviews/workbuddy-test-plan.md`。

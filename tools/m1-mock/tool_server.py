@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
 """CheckD agent tool mock server (MCP over stdio) for contract v1 CANDIDATE review.
 
-Implements the five v1 tools plus one explicitly-marked extension
-(`request_approval`) used to demonstrate the missing approval channel.
-No third-party dependencies: JSON-RPC 2.0 over newline-delimited stdio.
+Implements the five v1 tools, two explicitly-marked candidate extensions, and a
+file-based external approval handoff that simulates a human confirming outside
+the tool channel. No third-party dependencies.
 
-Run:  python tool_server.py
+Environment:
+  CHECKD_TOKEN          bearer token for the demo user (default demo-token-alice)
+  MOCK_APPROVAL_FILE    JSON file used as the "approval page" store
 """
 import hashlib
 import json
 import os
 import sys
+import uuid
 from datetime import date, datetime, timedelta, timezone
 
 TZ = timezone(timedelta(hours=8))
 API_VERSION = "checkd.agent.v1"
 SERVER_NAME = "checkd-agent-mock"
-SERVER_VERSION = "0.1.0"
-
-# ---------------------------------------------------------------- mock data
+SERVER_VERSION = "0.2.0"
+HERE = os.path.dirname(os.path.abspath(__file__))
+APPROVAL_FILE = os.environ.get("MOCK_APPROVAL_FILE", os.path.join(HERE, "mock_approvals.json"))
 
 TASKS = [
     {
@@ -63,10 +66,10 @@ COURSES = [
 STATE = {
     "tasks": {t["task_id"]: t for t in TASKS},
     "courses": {c["course_id"]: c for c in COURSES},
-    "overrides": {},          # (item_id, local_date) -> override
-    "proposals": {},          # proposal_id -> proposal
-    "approvals": {},          # token -> approval record
-    "idempotency": {},        # (user, tool, key) -> {"digest":..., "result":...}
+    "overrides": {},
+    "proposals": {},
+    "tokens": {},
+    "idempotency": {},
     "applied_proposals": set(),
 }
 
@@ -77,8 +80,6 @@ def _next_id(prefix):
     _clock["n"] += 1
     return f"{prefix}_{_clock['n']:04d}"
 
-
-# ---------------------------------------------------------------- helpers
 
 class ToolError(Exception):
     def __init__(self, code, message, details=None):
@@ -163,12 +164,25 @@ def digest(obj):
 
 
 def user_from_token(token):
-    # In production: verify signature/owner. Mock maps two demo users.
     if token == "demo-token-alice":
         return "u_alice"
     if token == "demo-token-bob":
         return "u_bob"
     raise ToolError("AUTH_REQUIRED", "缺少或无法验证的身份凭证。")
+
+
+def read_approvals():
+    if not os.path.exists(APPROVAL_FILE):
+        return {}
+    try:
+        return json.load(open(APPROVAL_FILE, encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def write_approvals(data):
+    with open(APPROVAL_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
 
 
 def snapshot_for(user, start, end, external_events):
@@ -231,6 +245,11 @@ def _at_local(d, minute):
     return datetime(d.year, d.month, d.day, minute // 60, minute % 60, tzinfo=TZ)
 
 
+def deadline_key(t):
+    dl = t.get("deadline") or {}
+    return (dl.get("at") or (dl.get("date", "") + "T23:59:59+08:00") or "9999", t["task_id"])
+
+
 def schedule(payload, prefs):
     start = date.fromisoformat(payload["range"][0])
     end = date.fromisoformat(payload["range"][1])
@@ -243,10 +262,6 @@ def schedule(payload, prefs):
     ones = [t for t in payload["tasks"] if t["kind"] == "one_time" and t["status"] == "active"]
     recurring = [t for t in payload["tasks"] if t["kind"] == "recurring" and t["status"] == "active"]
 
-    def deadline_key(t):
-        dl = t.get("deadline") or {}
-        return (dl.get("at") or (dl.get("date", "") + "T23:59:59+08:00") or "9999", t["task_id"])
-
     for t in sorted(ones, key=deadline_key):
         need = int(t.get("duration_target_seconds") or 0)
         placed = False
@@ -256,8 +271,7 @@ def schedule(payload, prefs):
             cursor = day_start
             for bs, be in busy + [(day_end, day_end)]:
                 while cursor + min_block <= bs:
-                    free = bs - cursor
-                    if free * 60 >= need:
+                    if (bs - cursor) * 60 >= need:
                         b = {"block_id": _next_id("b"), "task_id": t["task_id"], "task_kind": "one_time",
                              "start_at": _at_local(d, cursor).isoformat(),
                              "end_at": _at_local(d, cursor + need // 60).isoformat(),
@@ -381,7 +395,6 @@ def tool_generate_schedule(args, user):
     base_version = digest({"snapshot": input_digest, "user": user})
     blocks, changes, unplanned = schedule(payload, prefs)
     stored_events = list(ext)
-    # test seam: inject an event AFTER scheduling so the proposal violates it
     if isinstance(prefs.get("__test_conflict_event"), dict):
         stored_events.append(prefs["__test_conflict_event"])
     proposal = {
@@ -425,7 +438,11 @@ def tool_validate_schedule(args, user):
 
 
 def tool_request_approval(args, user):
-    """Extension, NOT in v1. Demonstrates the missing trusted-confirmation channel."""
+    """Candidate extension. Creates a PENDING approval request only.
+
+    Never returns a token: a human must confirm through approval_url, out of
+    band. This is a flow placeholder, not a trusted-confirmation implementation.
+    """
     inp = validate_envelope(args)
     pid = inp.get("proposal_id")
     p = STATE["proposals"].get(pid)
@@ -433,43 +450,84 @@ def tool_request_approval(args, user):
         raise ToolError("NOT_FOUND", "找不到该提案。")
     if p["status"] != "pending_approval":
         raise ToolError("APPROVAL_REQUIRED", "提案尚未通过校验。")
-    token = _next_id("approval")
-    STATE["approvals"][token] = {
-        "user": user, "proposal_id": pid, "base_version": p["base_version"],
-        "input_digest": p["input_digest"],
+    aid = _next_id("appr")
+    url = f"https://approval.mock.local/p/{aid}"
+    approvals = read_approvals()
+    approvals[aid] = {
+        "approval_id": aid, "url": url,
+        "proposal_id": pid, "base_version": p["base_version"],
+        "input_digest": p["input_digest"], "user": user,
+        "status": "pending", "token_issued": False,
+        "created_at": datetime.now(TZ).isoformat(timespec="seconds"),
         "expires_at": "2026-10-30T23:59:00+08:00",
     }
-    return {"approval_token": token, "expires_at": STATE["approvals"][token]["expires_at"],
-            "note": "mock only: production token must be issued by a trusted approval service"}
+    write_approvals(approvals)
+    return {"approval_id": aid, "approval_url": url, "status": "pending",
+            "expires_at": approvals[aid]["expires_at"],
+            "note": "mock placeholder: confirm via approval_url; this call is NOT an approval"}
+
+
+def tool_get_approval_status(args, user):
+    """Candidate extension. Polls the external approval page; token only when approved."""
+    inp = validate_envelope(args)
+    aid = inp.get("approval_id")
+    approvals = read_approvals()
+    rec = approvals.get(aid)
+    if not rec or rec["user"] != user:
+        raise ToolError("NOT_FOUND", "找不到该审批请求。")
+    if rec["status"] == "expired":
+        return {"approval_id": aid, "status": "expired"}
+    if rec["status"] != "approved":
+        return {"approval_id": aid, "status": "pending"}
+    if not rec.get("token_issued"):
+        token = "tok_" + uuid.uuid4().hex
+        STATE["tokens"][token] = {
+            "approval_id": aid, "user": user,
+            "proposal_id": rec["proposal_id"],
+            "base_version": rec["base_version"],
+            "consumed": False,
+        }
+        rec["token_issued"] = True
+        approvals[aid] = rec
+        write_approvals(approvals)
+        return {"approval_id": aid, "status": "approved", "approval_token": token}
+    return {"approval_id": aid, "status": "approved", "approval_token": None,
+            "note": "token already issued; re-request is not supported"}
 
 
 def tool_apply(args, user):
     inp = validate_envelope(args)
     pid, base_version = inp.get("proposal_id"), inp.get("base_version")
     token, key = inp.get("approval_token"), inp.get("idempotency_key")
-    if not all(isinstance(x, str) and x for x in (pid, base_version, token, key)):
-        raise ToolError("INVALID_ARGUMENT", "proposal_id/base_version/approval_token/idempotency_key 必填。")
-    appr = STATE["approvals"].get(token)
-    if not appr or appr["user"] != user:
+    if not isinstance(pid, str) or not pid or not isinstance(base_version, str) or not base_version:
+        raise ToolError("INVALID_ARGUMENT", "proposal_id/base_version 必填。")
+    if not isinstance(key, str) or not key:
+        raise ToolError("INVALID_ARGUMENT", "idempotency_key 必填。")
+    if not isinstance(token, str) or not token:
+        raise ToolError("APPROVAL_REQUIRED", "缺少可验证的审批凭据。")
+    rec = STATE["tokens"].get(token)
+    if not rec or rec["user"] != user:
         raise ToolError("APPROVAL_UNTRUSTED", "审批凭据无效。")
-    if appr["proposal_id"] != pid or appr["base_version"] != base_version:
-        raise ToolError("APPROVAL_UNTRUSTED", "审批凭据与提案不匹配。")
     p = STATE["proposals"].get(pid)
     if not p or p["user"] != user:
         raise ToolError("NOT_FOUND", "找不到该提案。")
     if p["base_version"] != base_version:
         raise ToolError("SNAPSHOT_CONFLICT", "快照版本已变化。")
-    req_digest = digest({"proposal": pid, "base_version": base_version, "approval": token})
+    req_digest = digest({"proposal": pid, "base_version": base_version, "approval": token[:8]})
     idem = (user, "apply_approved_changes", key)
     if idem in STATE["idempotency"]:
-        rec = STATE["idempotency"][idem]
-        if rec["digest"] != req_digest:
+        cached = STATE["idempotency"][idem]
+        if cached["digest"] != req_digest:
             raise ToolError("IDEMPOTENCY_CONFLICT", "幂等键被用于不同请求。")
-        return rec["result"]
+        return cached["result"]
+    if rec["consumed"]:
+        raise ToolError("APPROVAL_CONSUMED", "审批凭据已被使用。")
+    if rec["proposal_id"] != pid or rec["base_version"] != base_version:
+        raise ToolError("APPROVAL_UNTRUSTED", "审批凭据与提案不匹配。")
     if p["status"] != "pending_approval":
         raise ToolError("APPROVAL_REQUIRED", "提案当前不可应用。")
     if pid in STATE["applied_proposals"]:
-        raise ToolError("WRITE_BLOCKED", "该提案已应用过，v1 需要固定错误码。")
+        raise ToolError("ALREADY_APPLIED", "该提案已应用过。")
 
     applied = []
     for ch in p["changes"]:
@@ -490,7 +548,6 @@ def tool_apply(args, user):
             applied.append({"change_id": ch["change_id"], "type": ch["type"],
                             "override_id": STATE["overrides"][(ch["item_id"], ch["local_date"])]["override_id"]})
 
-    # readback: only planned_date and scheduled_at for one-time changes
     for ch in p["changes"]:
         if ch["type"] == "schedule_one_time":
             t = STATE["tasks"][ch["task_id"]]
@@ -498,6 +555,7 @@ def tool_apply(args, user):
                 raise ToolError("READBACK_MISMATCH", "写后回读不一致。")
     STATE["applied_proposals"].add(pid)
     p["status"] = "applied"
+    rec["consumed"] = True
     result = {"proposal_id": pid, "base_version": base_version, "result_version": _next_id("ver"),
               "idempotency_key": key, "applied_changes": applied,
               "readback_verified": True, "applied_at": datetime.now(TZ).isoformat(timespec="seconds")}
@@ -511,7 +569,8 @@ TOOLS = {
     "generate_schedule": tool_generate_schedule,
     "validate_schedule": tool_validate_schedule,
     "apply_approved_changes": tool_apply,
-    "request_approval": tool_request_approval,  # extension
+    "request_approval": tool_request_approval,
+    "get_approval_status": tool_get_approval_status,
 }
 
 DESCRIPTIONS = {
@@ -520,33 +579,49 @@ DESCRIPTIONS = {
     "generate_schedule": "基于服务端快照生成调度提案（只读，不写入）。",
     "validate_schedule": "按服务端快照重新校验提案，合法则进入 pending_approval。",
     "apply_approved_changes": "凭可信审批凭据原子应用变更并回读核验。",
-    "request_approval": "[扩展，非 v1] 演示审批通道缺失：由受控审批服务签发一次性凭据。",
+    "request_approval": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
+    "get_approval_status": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
 }
 
+
+def obj(props, required=None):
+    d = {"type": "object", "properties": props, "additionalProperties": False}
+    if required:
+        d["required"] = required
+    return d
+
+
+EXT = {"request_approval", "get_approval_status"}
+
 SCHEMAS = {
-    "list_tasks": {"type": "object", "required": ["date_range"], "properties": {
+    "list_tasks": obj({
         "date_range": {"$ref": "#/$defs/date_range"},
         "kinds": {"type": "array", "items": {"enum": ["recurring", "one_time"]}},
         "statuses": {"type": "array", "items": {"enum": ["active", "paused", "archived"]}},
-        "include_completed": {"type": "boolean"}}},
-    "get_calendar_events": {"type": "object", "required": ["date_range"], "properties": {
+        "include_completed": {"type": "boolean"}}, ["date_range"]),
+    "get_calendar_events": obj({
         "date_range": {"$ref": "#/$defs/date_range"},
-        "external_fixed_events": {"type": "array", "items": {"type": "object",
-            "required": ["external_event_id", "title", "start_at", "end_at"],
-            "properties": {"external_event_id": {"type": "string"}, "title": {"type": "string"},
-                           "start_at": {"type": "string"}, "end_at": {"type": "string"}}}}}},
-    "generate_schedule": {"type": "object", "required": ["date_range"], "properties": {
+        "external_fixed_events": {"type": "array", "items": obj({
+            "external_event_id": {"type": "string"}, "title": {"type": "string"},
+            "start_at": {"type": "string"}, "end_at": {"type": "string"}},
+            ["external_event_id", "title", "start_at", "end_at"])}}, ["date_range"]),
+    "generate_schedule": obj({
         "date_range": {"$ref": "#/$defs/date_range"},
-        "external_fixed_events": {"type": "array", "items": {"type": "object"}},
-        "preferences": {"type": "object"}}},
-    "validate_schedule": {"type": "object", "required": ["proposal_id"],
-                          "properties": {"proposal_id": {"type": "string"}}},
-    "apply_approved_changes": {"type": "object",
-        "required": ["proposal_id", "base_version", "approval_token", "idempotency_key"],
-        "properties": {"proposal_id": {"type": "string"}, "base_version": {"type": "string"},
-                       "approval_token": {"type": "string"}, "idempotency_key": {"type": "string"}}},
-    "request_approval": {"type": "object", "required": ["proposal_id"],
-                         "properties": {"proposal_id": {"type": "string"}}},
+        "external_fixed_events": {"type": "array", "items": obj({
+            "external_event_id": {"type": "string"}, "title": {"type": "string"},
+            "start_at": {"type": "string"}, "end_at": {"type": "string"}},
+            ["external_event_id", "title", "start_at", "end_at"])},
+        "preferences": obj({
+            "day_start_minute": {"type": "integer"},
+            "day_end_minute": {"type": "integer"},
+            "minimum_block_minutes": {"type": "integer"}})}, ["date_range"]),
+    "validate_schedule": obj({"proposal_id": {"type": "string"}}, ["proposal_id"]),
+    "apply_approved_changes": obj({
+        "proposal_id": {"type": "string"}, "base_version": {"type": "string"},
+        "approval_token": {"type": "string"}, "idempotency_key": {"type": "string"}},
+        ["proposal_id", "base_version", "approval_token", "idempotency_key"]),
+    "request_approval": obj({"proposal_id": {"type": "string"}}, ["proposal_id"]),
+    "get_approval_status": obj({"approval_id": {"type": "string"}}, ["approval_id"]),
 }
 
 
@@ -556,24 +631,20 @@ def tool_defs():
         defs.append({
             "name": name,
             "description": DESCRIPTIONS[name],
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "api_version": {"type": "string", "const": API_VERSION},
-                    "request_id": {"type": "string"},
-                    "timezone": {"type": "string", "const": "Asia/Shanghai"},
-                    "input": schema,
-                },
-                "required": ["api_version", "request_id", "timezone", "input"],
-            },
+            "inputSchema": obj({
+                "api_version": {"type": "string", "const": API_VERSION},
+                "request_id": {"type": "string"},
+                "timezone": {"type": "string", "const": "Asia/Shanghai"},
+                "input": schema,
+            }, ["api_version", "request_id", "timezone", "input"]),
         })
     return defs
 
 
 # ---------------------------------------------------------------- MCP plumbing
 
-def send(obj):
-    sys.stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+def send(o):
+    sys.stdout.write(json.dumps(o, ensure_ascii=False) + "\n")
     sys.stdout.flush()
 
 
@@ -588,15 +659,14 @@ def err(rid, code, message):
 def call_tool(name, args, token):
     try:
         user = user_from_token(token)
-        fn = TOOLS[name]
-        data = fn(args, user)
+        data = TOOLS[name](args, user)
         return {"content": [{"type": "text", "text": json.dumps(
-            {"status": "success", "data": data}, ensure_ascii=False)}],
-            "structuredContent": {"status": "success", "data": data}, "isError": False}
+                    {"status": "success", "data": data}, ensure_ascii=False)}],
+                "structuredContent": {"status": "success", "data": data}, "isError": False}
     except ToolError as e:
         body = {"status": "error", "error": {"code": e.code, "message": e.message,
-                                            "retryable": e.code in ("DEPENDENCY_UNAVAILABLE",),
-                                            "details": e.details}}
+                                             "retryable": e.code in ("DEPENDENCY_UNAVAILABLE",),
+                                             "details": e.details}}
         return {"content": [{"type": "text", "text": json.dumps(body, ensure_ascii=False)}],
                 "structuredContent": body, "isError": True}
 
@@ -632,13 +702,13 @@ def main():
             name = params.get("name")
             args = params.get("arguments") or {}
             hdr = params.get("_meta") or {}
-            token = hdr.get("authorization", token)
-            if token.startswith("Bearer "):
-                token = token[7:]
+            tok = hdr.get("authorization", token)
+            if tok.startswith("Bearer "):
+                tok = tok[7:]
             if name not in TOOLS:
                 ok(rid, {"content": [{"type": "text", "text": "unknown tool"}], "isError": True})
             else:
-                ok(rid, call_tool(name, args, token))
+                ok(rid, call_tool(name, args, tok))
         else:
             err(rid, -32601, f"method not found: {method}")
 

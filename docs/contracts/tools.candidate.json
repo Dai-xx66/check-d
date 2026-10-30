@@ -1,8 +1,12 @@
 {
- "$comment": "候选 Schema，未冻结；仅按 agent-api-v1.md v1 CANDIDATE 文本整理，等待 M0/B/C 评审确认。",
+ "$comment": "候选 Schema，未冻结；由 tools/m1-mock/export_schema.py 生成，仅按 agent-api-v1.md v1 CANDIDATE 文本整理，等待 M0/B/C 评审确认。",
  "status": "candidate",
  "contract_version": "checkd.agent.v1",
  "source": "docs/contracts/agent-api-v1.md @ feat/m0-api-contract (503210c)",
+ "extensions": [
+  "request_approval",
+  "get_approval_status"
+ ],
  "tools": [
   {
    "name": "list_tasks",
@@ -23,9 +27,6 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "date_range"
-      ],
       "properties": {
        "date_range": {
         "$ref": "#/$defs/date_range"
@@ -52,9 +53,14 @@
        "include_completed": {
         "type": "boolean"
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
      }
     },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
@@ -82,9 +88,6 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "date_range"
-      ],
       "properties": {
        "date_range": {
         "$ref": "#/$defs/date_range"
@@ -93,12 +96,6 @@
         "type": "array",
         "items": {
          "type": "object",
-         "required": [
-          "external_event_id",
-          "title",
-          "start_at",
-          "end_at"
-         ],
          "properties": {
           "external_event_id": {
            "type": "string"
@@ -112,12 +109,24 @@
           "end_at": {
            "type": "string"
           }
-         }
+         },
+         "additionalProperties": false,
+         "required": [
+          "external_event_id",
+          "title",
+          "start_at",
+          "end_at"
+         ]
         }
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
      }
     },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
@@ -145,9 +154,6 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "date_range"
-      ],
       "properties": {
        "date_range": {
         "$ref": "#/$defs/date_range"
@@ -155,15 +161,53 @@
        "external_fixed_events": {
         "type": "array",
         "items": {
-         "type": "object"
+         "type": "object",
+         "properties": {
+          "external_event_id": {
+           "type": "string"
+          },
+          "title": {
+           "type": "string"
+          },
+          "start_at": {
+           "type": "string"
+          },
+          "end_at": {
+           "type": "string"
+          }
+         },
+         "additionalProperties": false,
+         "required": [
+          "external_event_id",
+          "title",
+          "start_at",
+          "end_at"
+         ]
         }
        },
        "preferences": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+         "day_start_minute": {
+          "type": "integer"
+         },
+         "day_end_minute": {
+          "type": "integer"
+         },
+         "minimum_block_minutes": {
+          "type": "integer"
+         }
+        },
+        "additionalProperties": false
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
      }
     },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
@@ -191,16 +235,18 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "proposal_id"
-      ],
       "properties": {
        "proposal_id": {
         "type": "string"
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id"
+      ]
      }
     },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
@@ -228,12 +274,6 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "proposal_id",
-       "base_version",
-       "approval_token",
-       "idempotency_key"
-      ],
       "properties": {
        "proposal_id": {
         "type": "string"
@@ -247,9 +287,17 @@
        "idempotency_key": {
         "type": "string"
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id",
+       "base_version",
+       "approval_token",
+       "idempotency_key"
+      ]
      }
     },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
@@ -260,7 +308,7 @@
   },
   {
    "name": "request_approval",
-   "description": "[扩展，非 v1] 演示审批通道缺失：由受控审批服务签发一次性凭据。",
+   "description": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -277,16 +325,57 @@
      },
      "input": {
       "type": "object",
-      "required": [
-       "proposal_id"
-      ],
       "properties": {
        "proposal_id": {
         "type": "string"
        }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id"
+      ]
      }
     },
+    "additionalProperties": false,
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "get_approval_status",
+   "description": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "approval_id": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "approval_id"
+      ]
+     }
+    },
+    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
