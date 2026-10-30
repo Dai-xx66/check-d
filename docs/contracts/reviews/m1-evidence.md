@@ -12,7 +12,7 @@ python tools/m1-mock/run_evidence.py
 
 - 运行环境：Windows / Python 3.14.3 / MCP stdio（JSON-RPC 2.0）
 - 证据文件：`docs/contracts/reviews/m1-evidence.md`、`m1-evidence.json`
-- 代码提交：`6683289`（首版）；后续修正提交见文末 Commit 段
+- 代码提交：首版 `6683289`；本次修正 `d2eace2`（详见文末 Commit 段）
 
 ## 用例与结果
 
@@ -47,4 +47,5 @@ python tools/m1-mock/run_evidence.py
 ## Commit
 
 - 首版用例代码：`6683289891c7772b033deb23148a2c043f37c029`
-- 本次修正（approval 占位、consumed、A17 schema 比对）提交后回填。
+- 本次修正（approval 占位、consumed、A17 schema 比对）：`d2eace2`
+- 回填本行的文档提交紧随其后；分支 HEAD 以 `git log -1` 为准。
