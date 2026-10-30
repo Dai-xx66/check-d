@@ -1,0 +1,299 @@
+{
+ "$comment": "候选 Schema，未冻结；仅按 agent-api-v1.md v1 CANDIDATE 文本整理，等待 M0/B/C 评审确认。",
+ "status": "candidate",
+ "contract_version": "checkd.agent.v1",
+ "source": "docs/contracts/agent-api-v1.md @ feat/m0-api-contract (503210c)",
+ "tools": [
+  {
+   "name": "list_tasks",
+   "description": "读取当前用户的任务定义（不展开逐日 occurrence）。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "date_range"
+      ],
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "kinds": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "recurring",
+          "one_time"
+         ]
+        }
+       },
+       "statuses": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "active",
+          "paused",
+          "archived"
+         ]
+        }
+       },
+       "include_completed": {
+        "type": "boolean"
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "get_calendar_events",
+   "description": "读取日期范围内生效的课程、任务与单日例外，支持传入外部固定事件。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "date_range"
+      ],
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "external_fixed_events": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "external_event_id",
+          "title",
+          "start_at",
+          "end_at"
+         ],
+         "properties": {
+          "external_event_id": {
+           "type": "string"
+          },
+          "title": {
+           "type": "string"
+          },
+          "start_at": {
+           "type": "string"
+          },
+          "end_at": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "generate_schedule",
+   "description": "基于服务端快照生成调度提案（只读，不写入）。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "date_range"
+      ],
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "external_fixed_events": {
+        "type": "array",
+        "items": {
+         "type": "object"
+        }
+       },
+       "preferences": {
+        "type": "object"
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "validate_schedule",
+   "description": "按服务端快照重新校验提案，合法则进入 pending_approval。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "proposal_id"
+      ],
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "apply_approved_changes",
+   "description": "凭可信审批凭据原子应用变更并回读核验。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "proposal_id",
+       "base_version",
+       "approval_token",
+       "idempotency_key"
+      ],
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       },
+       "base_version": {
+        "type": "string"
+       },
+       "approval_token": {
+        "type": "string"
+       },
+       "idempotency_key": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  },
+  {
+   "name": "request_approval",
+   "description": "[扩展，非 v1] 演示审批通道缺失：由受控审批服务签发一次性凭据。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "required": [
+       "proposal_id"
+      ],
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ]
+   }
+  }
+ ]
+}

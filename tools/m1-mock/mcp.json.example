@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "checkd-agent-mock": {
+      "command": "C:\\Users\\DREAMER\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "args": [
+        "E:\\DSHWP\\SmallCompetition\\work\\m1\\tool_server.py"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "CHECKD_TOKEN": "demo-token-alice"
+      }
+    }
+  }
+}
