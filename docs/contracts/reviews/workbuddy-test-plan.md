@@ -5,13 +5,13 @@
 
 ## 0. 准备
 
-1. 确认 Python 绝对路径：`where python`（示例：`C:\Users\DREAMER\AppData\Local\Python\pythoncore-3.14-64\python.exe`）。
+1. 确认 Python 绝对路径：`where python`（Windows）或 `which python`（macOS）。
 2. 确认 mock server 可跑：
    ```bash
-   echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' | python E:\DSHWP\SmallCompetition\work\m1\tool_server.py
+   echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' | python tools/m1-mock/tool_server.py
    ```
    应返回一行含 `serverInfo` 的 JSON。
-3. 复制 `mcp.json.example`，把 `command`/`args` 改成上一步的真实路径。
+3. 复制 `tools/m1-mock/mcp.json.example`，把 `command`/`args` 改成上一步的真实路径。
 
 ## 1. 接入 MCP（验证“WorkBuddy 是否支持自定义 stdio MCP”）
 
