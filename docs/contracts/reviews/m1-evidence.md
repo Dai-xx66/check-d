@@ -55,4 +55,5 @@ python tools/m1-mock/run_evidence.py
 
 ## Commit
 
-- 本文件在修复提交之后回填；分支 HEAD 以 `git log -1` 为准。
+- 修复提交（本轮 A0–A25）：`980458b`
+- 回填本行的提交紧随其后；分支 HEAD 以 `git log -1` 为准。
