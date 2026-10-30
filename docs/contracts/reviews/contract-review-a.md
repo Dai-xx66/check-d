@@ -2,23 +2,23 @@
 
 评审人：M1 模块负责人（WorkBuddy / 工具编排）
 对象：`Dai-xx66/check-d` 分支 `feat/m0-api-contract` 的 `docs/contracts/agent-api-v1.md`（v1 CANDIDATE）
-方式：逐条对照契约 + WorkBuddy 官方能力文档 + 用 MCP stdio mock 做了 18 条契约行为测试（`m1-evidence.md`，A0–A17，18/18 通过）
-结论：**契约在数据语义上可以保留；但「身份」和「确认/审批」两处按 WorkBuddy 现状无法落地，`apply_approved_changes` 会永久 BLOCKED。建议 v1.1 增加审批通道后再冻结。**
+证据：`m1-evidence.md`（MCP stdio mock，A0–A25，**26/26 通过**）
+状态：PR #3 已按 B/C 联合评审完成契约一致性修复；**暂不合并**，等待 M0 最终确认。
 
-> 边界声明：本评审只覆盖 MCP Server 与本地契约流程；**WorkBuddy 实机能力（stdio、env token、确认回调、外部分享）在本评审完成时仍为 BLOCKED**，mock 通过不构成平台能力证明。
+> 边界声明：本评审只覆盖 MCP Server 与本地契约流程；**WorkBuddy 实机能力（stdio、env token、确认回调、外部分享）仍为 BLOCKED**，mock 通过不构成平台能力证明。旧 18/18 为历史证据，本版为新 HEAD 重跑结果。
 
 ---
 
 ## 1. 可以保留的设计
 
-1. **五工具边界**：读（`list_tasks` / `get_calendar_events`）、提案（`generate_schedule` / `validate_schedule`）、写（`apply_approved_changes`）分工清楚，M1 可以把它们一对一映射成 WorkBuddy 的 MCP 工具。
-2. **`api_version` / `request_id` / `timezone` 信封**：适合做工具入参的统一外壳，M1 可直接生成 JSON Schema（已产出 `docs/contracts/tools.candidate.json`，候选、未冻结）。
-3. **请求体禁止 `user_id`**：方向正确。WorkBuddy 侧不应由模型决定“我是谁”，否则提示词注入即可越权。mock 已验证：带 `user_id` 返回 `INVALID_ARGUMENT`（A2）。
-4. **`query_version` 与 `base_version` 分离**：能防止 M1 把两次普通读取拼成“快照”。这对“模型自作聪明”是最有效的约束。
-5. **`generate_schedule` 不收客户端 tasks/courses**：契约写得很清楚，mock 也已按此拒绝（A6）。WorkBuddy 的工具 schema 应把 `additionalProperties` 设为 `false`，否则模型一定会往里塞数据。
-6. **`schedule_one_time` 只回读 `planned_date`/`scheduled_at`**：与现有模型一致，避免“写入成功、回读旧日期”的假成功（C 的 P0 也点到同一处）。
-7. **`readback_verified` 必须为 true 才算成功**：M1 在对话里可以如实转述“已核验/未核验”，这是比赛要求“过程可追溯”的直接素材。
-8. **§8 数据最小化与 §9 BLOCKED 清单**：BLOCKED 写得诚实，建议保留并把它变成可勾选的验证清单（见 §4）。
+1. **五工具边界**：读（`list_tasks` / `get_calendar_events`）、提案（`generate_schedule` / `validate_schedule`）、写（`apply_approved_changes`）分工清楚。
+2. **`api_version` / `request_id` / `timezone` 信封**：已落成可解析 schema（含 `$defs`，见 A25）。
+3. **请求体禁止 `user_id`**：mock 用 `INVALID_ARGUMENT` 拒绝（A2）。
+4. **`query_version` 与 `base_version` 分离**：`validate`/`apply` 都重算摘要，快照变化返 `SNAPSHOT_CONFLICT`（A19）。
+5. **`generate_schedule` 不收客户端 tasks/courses**：A6 拒绝。
+6. **`schedule_one_time` 只回读 `planned_date`/`scheduled_at`**：A13 覆盖。
+7. **`readback_verified` 必须为 true**：A13/A24 覆盖。
+8. **§8 数据最小化与 §9 BLOCKED 清单**：保留。
 
 ---
 
@@ -26,108 +26,108 @@
 
 ### P0-1　身份：WorkBuddy 没有“每用户已验证身份”的透传通道
 
-契约 §4 要求“身份凭证必须通过实际工具通道或 HTTPS Authorization 元数据传递，并由服务端验证”，§8 要求“服务端只使用已验证凭证得出的主体 ID”。
+契约 §4/§8 要求“已验证凭证”。WorkBuddy 的 MCP 只有静态 `headers`/`env` token 或 OAuth 连接，**没有把终端用户身份传给工具的机制**；stdio 下只能靠 `env`。
 
-**WorkBuddy 的 MCP 配置只有静态凭据**（官方文档/群内教程 7.3）：`headers` 或 `env` 里写死 Token，或走 OAuth 连接；它描述的是“这台 WorkBuddy 连接这个服务用哪个账号”，**没有把终端用户身份传给 MCP 工具的机制**。stdio 模式下更没有 header，只能靠 `env`。
+**建议**：v1 写明 `auth_mode=static_bearer_demo`（一人一 token，服务端 token→user），材料中披露“非终端用户 SSO”。**不要**把 `user_id` 放进请求体。
 
-后果：
-- 若评委用你们的 WorkBuddy 打开分享的 Agent，工具调用带的是**你们配置的那个 token**，服务端无法分辨“现在是评委在操作”还是“队长在操作”。
-- 契约里 `AUTH_REQUIRED`、跨用户 `FORBIDDEN/NOT_FOUND` 在平台层没有产生条件——不是实现问题，是通道不存在。
+### P0-2　确认/审批：五工具里没有“人确认”的入口
 
-**建议改法（按代价从低到高，任选其一并在契约写明）：**
-1. 增加 `auth_mode` 说明：`static_bearer_demo`（比赛演示，一人一 token，服务端 token→user 映射）与 `oauth_user`（生产）。v1 冻结 `static_bearer_demo`，并在材料里如实披露“演示环境身份由每个演示账号各自的 token 绑定，非终端用户 SSO”。
-2. 若坚持“终端用户身份”，则必须放弃 WorkBuddy 直连，改成 WorkBuddy 打开一个带登录态的 H5（你们自己的前端），由 H5 调后端——但这就不再是“工具调用”，而是“WorkBuddy 里嵌网页”，比赛的技术实现分会受影响。
-3. 最小改动：契约 §4 把“已验证凭证”降级为“服务端可验证的 bearer token”，并明确 token 的签发/轮换/演示边界；`user_id` 仍禁止出现在请求体。
+§7.1 说不新增接口，但又要求 `approval_token` 由可信审批服务签发，二者矛盾。建议两个候选扩展（**是否写入 v1 待 M0 最终确认，不预设 v1.1**）：
 
-> 我的判断：比赛场景选 1，别为了“真 SSO”把 M1 拖死。
+- `request_approval(proposal_id)`：只创建 **pending** 审批请求，返回 `approval_id` + `approval_url`；**不返回 token、不构成确认**；按提案幂等（A10）。
+- 用户在工具之外（H5/飞书卡片）确认，审批服务标记 approved。
+- `get_approval_status(approval_id)`：pending 时无 token；approved 后签发一次性 token；已签发后再轮询返回 `approved + token=null`（A11/A12）。
 
-### P0-2　确认/审批：五工具里没有任何通道能把“用户点了确认”变成服务端可验证的 `approval_token`
+### P0-3　工具入参缺机器可读 schema
 
-契约 §7.1 明确“五个工具中没有 `approve_schedule`，v1 不新增第六个接口”，同时又要求 `apply_approved_changes` 的 `approval_token` 必须“由可信审批服务签发、绑定 proposal/version/digest、未过期未撤销”。
-
-**这两条互相矛盾**：WorkBuddy 的“确认”要么是模型在对话里问一句（不可信、可被提示词绕过），要么是 Workflow 的人工节点（是否可编程、是否带签名，均未证实）。没有第六条通道，审批服务永远收不到“人确认了”这个事件，`apply` 只能一直 BLOCKED。
-
-**建议改法（推荐 a，但需队长与 B/C 联合确认后才写入 v1.1）：**
-- **a. 增加两个工具：`request_approval` 与 `get_approval_status`**（或 `begin_approval` / `poll_approval`）：
-  - `request_approval(proposal_id)` **只创建 pending 审批请求**，返回 `approval_id` + `approval_url`，**不返回 token，也不代表用户已批准**；
-  - 用户在**工具之外**（H5 / 飞书卡片）确认，审批服务校验登录主体与提案摘要后把记录标为 approved；
-  - `get_approval_status(approval_id)` 轮询：只有 approved 后才签发一次性 `approval_token`，pending 时拿不到 token；
-  - 这样模型既不能自签 token，也不能把“我调用了一次审批工具”当成“用户同意了”。
-  - mock 已按此实现并跑通：`generate → validate → request_approval(pending) → 外部确认 → get_approval_status(approved+token) → apply → readback`（A9–A11）；token 消费后再用返回 `APPROVAL_CONSUMED`（A13），同幂等键重放返回原结果（A12）。
-- **b. 不增工具**：明确 v1 只读 + 提案，`apply` 不进入比赛演示。风险是比赛要求“执行操作 + 核验反馈”的闭环，只读会被判“没闭环”。
-- **c. 用 WorkBuddy Workflow 的人工确认节点**：需要先证明该节点能把“确认”以带签名的回调送到你们的审批服务。**目前无证据**，不建议押注。
-
-> 我的判断：选 a。它多两个候选扩展（`request_approval` / `get_approval_status`，合计七个工具），但把“可信审批”这件事从“平台黑盒”变成“你们自己的服务”，答辩时也讲得清。联合确认前只到 mock 为止，不再继续扩展。
-
-### P0-3　工具入参缺机器可读 schema，M1 无法直接配置 WorkBuddy
-
-契约 §6 只有文字描述，没有 JSON Schema。WorkBuddy 的 MCP 工具需要 `name/description/inputSchema`，否则模型只能靠自然语言猜参数。
-
-**建议**：契约仓库补机器可读 schema。我已按契约文本生成 `docs/contracts/tools.candidate.json`——**状态为 candidate，未冻结**，仅供 M0/B/C 评审字段名与枚举；其中 `request_approval` 同属候选，待联合确认。
+已提供 `docs/contracts/tools.candidate.json`（**candidate，未冻结**，由 `export_schema.py` 生成）。修复后 `$ref` 可解析（`$defs.date_range`），各对象层 `additionalProperties:false`，与 `tools/list` 逐字段一致（A25）。
 
 ---
 
-## 2.1 必须修改（P1，可并行）
+## 3. 联合评审问题的处理结果
 
-| 位置 | 问题 | 建议 |
-|---|---|---|
-| §4 错误码 | 契约给的是 HTTP 建议码，但 MCP 工具返回没有 HTTP 状态；WorkBuddy 只看到 `isError` + 文本 | 明确 MCP 映射：`isError=true` + `structuredContent.error.code`；HTTP 码仅用于将来 HTTPS 直连。否则 409/403 在对话里不可区分 |
-| §6.2 | 31 天日历可能返回数百事件，WorkBuddy 工具返回长度上限未知 | 加 `max_events` + `truncated:true`；或 v1 把范围压到 ≤7 天 |
-| §6.5 | 工具超时行为未知；“超时”可能已写入 | 契约写明“超时≠未写入”，客户端必须用同一 `idempotency_key` 重试；服务端在 `readback_pending` 时提供查询 |
-| §3 | WorkBuddy 跑在学生本机，时区可能不是 +08:00 | 服务端忽略客户端 `timezone`、固定校验 `Asia/Shanghai`（mock A3 已按此拒绝 UTC） |
-| §6.3 | 模型天然想传 `tasks` | schema `additionalProperties:false` + 工具 description 明确“只传 date_range/external_fixed_events/preferences” |
-| §6.5 | 已 applied 的提案换幂等键再 apply，错误码未定义（C 也提了） | 固定为 `ALREADY_APPLIED`（或复用 `IDEMPOTENCY_CONFLICT`），别用 `WRITE_BLOCKED` 混过去 |
-| §6.5 | 审批凭据复用行为未定义 | token 需持久化 `consumed` 状态；同一 token 第二次使用固定 `APPROVAL_CONSUMED`（A13），且不得因重放而二次写入 |
-| §8 | “日志不记录任务名”只约束你们服务端，约束不了 WorkBuddy 平台侧 | 材料里披露“平台侧日志不可控”，演示统一用脱敏数据 |
+### 3.1 已修复并有回归用例
 
----
+| 来源 | 问题 | 修复 | 用例 |
+|---|---|---|---|
+| C | `ALREADY_APPLIED` 因判定顺序不可达 | 已应用判定提前到快照重算之前；**现在可达** | A15 |
+| C | `APPROVAL_REQUIRED` 一码三义 | 仅保留“缺少凭据”；状态问题→`PROPOSAL_NOT_APPROVABLE`；过期→`PROPOSAL_EXPIRED` | A8/A18 |
+| C | 幂等摘要含 token 前缀 | 改为绑定 `approval_id` | A14/A16 |
+| C | 审批与提案状态联动；过期提案不得建审批 | 已应用/未校验/过期分别拒绝；审批有效期 30 分钟且不跨当日 23:59 | A18 |
+| C | 同一 Proposal 重复 request 幂等 | 复用既有 `approval_id` | A10 |
+| C | 第三态（已签发后轮询） | `approved + token=null` | A12 |
+| B | `$defs` 缺失导致 schema 不可解析 | 补 `$defs.date_range`（含日期 pattern） | A25 |
+| B | `preferences` 注入冲突事件会失效 | 删除该注入；边界状态改由**测试专用 flag 文件**构造，请求 schema 保持闭合 | A22 |
+| B | `deadline_key` 把 `date_only` 拼成即时 | 排序只按 `(kind, 值)`，不再合成时间串 | A5 |
+| B | 周期任务忽略 `duration_target_seconds` | 按目标时长排块并标 `duration_source=task_target`；无目标才估算 | A5 |
+| B | `validate` 不重算 `input_digest` | `validate`/`apply` 均重算，变化→`SNAPSHOT_CONFLICT` | A19 |
+| B | 事项不存在时 `KeyError` 崩溃 | 存在性校验返回 `NOT_FOUND` | A20 |
+| B | 单日例外回读未覆盖 | 写入后回读 override 分钟数 | A13 |
+| C | `readback_pending` 零覆盖 | 回读失败标 pending；同幂等键只重试回读、不二次写入 | A23/A24 |
+| B | `unplanned_tasks` 缺 reason 枚举 | 固定 `reason_code`：`no_free_slot` / `insufficient_window` | A5 |
 
-## 3. 需要补充的测试（T-A）
+### 3.2 代码层已定，但需 M0/M2 冻结
 
-判定口径：**响应码 + 状态 + 数据 + 实际写入次数**（与 C 的口径一致）。
+- **`explanations` 形状**（字符串数组 vs 对象数组）：mock 暂用字符串数组，**未擅自改**；请 M0/M2 给结论后一次性对齐。
+- **新增错误码写入契约 §4.1**：`APPROVAL_REQUIRED`、`APPROVAL_UNTRUSTED`、`PROPOSAL_NOT_APPROVABLE`、`PROPOSAL_EXPIRED`、`ALREADY_APPLIED`、`SNAPSHOT_CONFLICT`、`READBACK_MISMATCH`、`IDEMPOTENCY_CONFLICT` 目前只在 mock 与本文档定义，**契约本体未改**（M1 不应改 M0 分支）。
+- **`APPROVAL_CONSUMED` 不再作为独立错误码**：`consumed` 状态仍记录在 token 上，但重复 apply 统一返回可达的 `ALREADY_APPLIED`，避免再产生不可达码。
 
-| 编号 | 用例 | 预期 |
-|---|---|---|
-| T-A1 | `tools/list` 与 `tools.candidate.json` 自动逐字段比对 | 完全一致；各对象层（含嵌套 items）`additionalProperties:false` |
-| T-A2 | 无 token 调 `list_tasks` | `AUTH_REQUIRED`，不泄露数据 |
-| T-A3 | 用户 B 的 token 调用户 A 的 `proposal_id` | `NOT_FOUND` 或 `FORBIDDEN`，且不泄露存在性 |
-| T-A4 | `apply` 超时后用同一 `idempotency_key` 重试 | 只写一次，返回原结果或安全回读 |
-| T-A5 | 31 天 + 200 条事件 | 返回 `truncated` 或分页，不静默截断 |
-| T-A6 | 触发 `INVALID_ARGUMENT`/`SNAPSHOT_CONFLICT` | WorkBuddy 对话里能读出错误码与可展示文案（不泄露 payload） |
-| T-A7 | 未审批直接 `apply`；审批后重放 | 未审批返回 `APPROVAL_REQUIRED`；确认后成功；token 复用返回 `APPROVAL_CONSUMED`；同幂等键重放返回原结果 |
-| T-A8 | 外部会议与固定课程重叠/提案冲突 | `validate` 返回 `valid=false` + `violations`，不得进入 `pending_approval` |
+### 3.3 明确未修复（BLOCKED / 未覆盖）
 
-已完成的：A0–A17（mock 层），18/18 通过，见 `m1-evidence.md`。
-- T-A1 ← A17（tools/list 与 `tools.candidate.json` 逐字段比对，并递归检查 `additionalProperties:false`，`open_objects=0`）
-- T-A7 ← A8/A9/A10/A13（未审批 `APPROVAL_REQUIRED`；`request_approval` 只返回 pending 与 approval_url、无 token；外部确认后轮询才签发 token；复用 `APPROVAL_CONSUMED`）
-- T-A8 ← A16（排程后注入整日冲突事件 → `invalid + draft + FIXED_EVENT_CONFLICT`）
-
----
-
-## 4. 尚未验证（BLOCKED，需要 WorkBuddy 实机）
-
-1. **WorkBuddy 是否接受自定义 stdio MCP server**：官方教程 7.3 说支持 stdio/http/sse；**本机未安装 WorkBuddy，未实测**。
-2. **工具调用能否把 `env`/`headers` 里的 token 传给 server**：stdio 下应走 `env`，但 WorkBuddy 是否透传、是否支持 `_meta`，未验证。
-3. **工具调用超时、最大返回长度、并发限制**：官方文档未写，需实测（直接影响 §6.2/§6.5）。
-4. **“专家/Agent”分享链接能否被外部账号打开**：教程只说“可分享给他人”，未说明是否要求对方安装 WorkBuddy 并登录。比赛硬指标是“评委可访问”，必须用另一个账号实测。
-5. **Workflow 是否有人工确认节点、能否回调**：决定 P0-2 的方案 c 是否可行。
-6. **ADP（腾讯云智能体开发平台）路线**：队友已用 ADP 在一天内做出综测智能体并称“可直接参赛”，说明 ADP 的发布/分享链路是通的。若 WorkBuddy 分享链路验证失败，建议全队评估“ADP 主建 + WorkBuddy 过程材料”的合规说法（需组委会确认）。
+- token **无签名、无 TTL**；审批文件**无访问控制**；**确认者身份未验证** → 保持 BLOCKED。
+- 审批级过期（`APPROVAL_EXPIRED`）**未单测**：当前只覆盖提案级过期。
+- 真实快照服务、事务内版本比较、原子批量写入、Supabase RLS → BLOCKED。
 
 ---
 
-## 5. 给队长的三句话
+## 4. 测试矩阵（A0–A25，26/26）
 
-1. **契约数据语义我认可**，`query_version/base_version`、只回读 `planned_date/scheduled_at`、`readback_verified` 这三条请保留。
-2. **必须加审批通道**：`request_approval` 只发 pending 请求并返回 `approval_url`（工具调用不等于用户确认），外部 H5/飞书确认后 `get_approval_status` 才签发一次性 token，`apply` 再消费。否则 `apply` 永远是 BLOCKED。mock 已按这个语义跑通。
-3. **身份先按“一人一 token 的演示模式”写进契约**，并在材料里披露；别在 v1 追求终端用户 SSO，WorkBuddy 给不了。
+| 需求 | 用例 |
+|---|---|
+| tools/list 与候选 schema 一致、`$ref` 可解析、闭合对象 | A0 / A25 |
+| 身份与越权 | A2 / A3 / A17 |
+| 日历与外部固定事件 | A4 |
+| 提案生成规则（deadline 不伪造、周期时长、排序） | A5 |
+| 远程不得提交 tasks/courses | A6 |
+| 校验与状态机 | A7 / A21 / A22 |
+| 未审批不得写入 | A8 |
+| 审批占位：pending、幂等、外部确认、第三态 | A9 / A10 / A11 / A12 |
+| 原子写入与回读（单次 + 单日例外） | A13 |
+| 幂等重放与冲突 | A14 / A16 |
+| 重复 apply 可达错误码 | A15 |
+| 过期提案 | A18 |
+| 快照冲突 | A19 |
+| 事项存在性 | A20 |
+| 回读失败与恢复 | A23 / A24 |
+
+判定口径：**响应码 + 状态 + 数据 + 实际写入次数**。
 
 ---
 
-## 附：M1 交付物（可直接给 WorkBuddy 用）
+## 5. 尚未验证（BLOCKED，需要 WorkBuddy 实机）
 
-- `tools/m1-mock/tool_server.py`：MCP stdio mock server，实现 5 个 v1 工具 + 2 个候选扩展（`request_approval` / `get_approval_status`），含契约校验、文件式外部审批、token 一次性消费、幂等与回读。
-- `docs/contracts/tools.candidate.json`：候选工具 schema（由 `tools/m1-mock/export_schema.py` 从 `tools/list` 导出，未冻结）。
-- `tools/m1-mock/run_evidence.py` → `docs/contracts/reviews/m1-evidence.md` / `m1-evidence.json`：18 条一致性测试与证据。
-- `tools/m1-mock/mcp.json.example`：WorkBuddy「自定义连接器」配置示例（stdio + env token）。
+1. 自定义 stdio MCP 是否可接入（本机未安装 WorkBuddy）。
+2. `env` token 是否透传；`_meta` 是否可用。
+3. 工具超时、最大返回长度、并发限制。
+4. 专家/Agent 分享链接能否被外部账号打开。
+5. Workflow 是否有人工确认节点、能否回调。
+6. ADP 路线作为兜底（队友已验证发布/分享链路，需组委会确认合规）。
 
-WorkBuddy 侧验证步骤（装好后照做，并把截图/日志贴回群里）见 `docs/contracts/reviews/workbuddy-test-plan.md`。
+---
+
+## 6. 给队长的三句话
+
+1. **契约数据语义保留**：`query_version/base_version` 分离、只回读 `planned_date/scheduled_at`、`readback_verified`。
+2. **审批通道是硬缺口**：`request_approval` 只发 pending 请求，外部确认后 `get_approval_status` 才签一次性 token；否则 `apply` 永远 BLOCKED。
+3. **身份按演示模式写**：`static_bearer_demo`，材料中披露；不在 v1 追 SSO。
+
+---
+
+## 附：交付物
+
+- `tools/m1-mock/tool_server.py`：MCP stdio mock（5 v1 + 2 候选扩展），含契约校验、外部审批占位、一次性 token、幂等、回读、`readback_pending` 恢复。
+- `tools/m1-mock/export_schema.py`：从 `tools/list` 导出候选 schema。
+- `docs/contracts/tools.candidate.json`：候选 schema（含 `$defs`，未冻结）。
+- `tools/m1-mock/run_evidence.py` → `docs/contracts/reviews/m1-evidence.md` / `.json`：26 条证据。
+- `tools/m1-mock/mcp.json.example`：WorkBuddy 自定义连接器示例。
+- `docs/contracts/reviews/workbuddy-test-plan.md`：实机 8 步验证清单（尚未执行）。

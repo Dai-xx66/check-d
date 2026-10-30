@@ -1,27 +1,32 @@
 #!/usr/bin/env python3
 """CheckD agent tool mock server (MCP over stdio) for contract v1 CANDIDATE review.
 
-Implements the five v1 tools, two explicitly-marked candidate extensions, and a
-file-based external approval handoff that simulates a human confirming outside
-the tool channel. No third-party dependencies.
+Implements the five v1 tools plus two candidate extensions, with a file-based
+external approval handoff that simulates a human confirming outside the tool
+channel. Contract-consistency fixes for the joint M0/B/C review are included;
+WorkBuddy platform behaviour is still unverified.
 
 Environment:
   CHECKD_TOKEN          bearer token for the demo user (default demo-token-alice)
   MOCK_APPROVAL_FILE    JSON file used as the "approval page" store
+  MOCK_TEST_FLAGS       optional JSON file used only by the evidence runner to
+                        create invalid/edge states that a closed input schema
+                        cannot express (never a tool parameter)
 """
 import hashlib
 import json
 import os
 import sys
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 TZ = timezone(timedelta(hours=8))
 API_VERSION = "checkd.agent.v1"
 SERVER_NAME = "checkd-agent-mock"
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVAL_FILE = os.environ.get("MOCK_APPROVAL_FILE", os.path.join(HERE, "mock_approvals.json"))
+FLAGS_FILE = os.environ.get("MOCK_TEST_FLAGS")
 
 TASKS = [
     {
@@ -44,6 +49,16 @@ TASKS = [
         "task_id": "t_1003", "kind": "recurring", "name": "背单词",
         "status": "active", "execution_mode": "timed",
         "duration_target_seconds": 1800,
+        "updated_at": "2026-10-29T09:00:00+08:00",
+        "recurrence": {
+            "preset": "daily", "weekdays": [1, 2, 3, 4, 5, 6, 7],
+            "starts_on": "2026-10-20", "ends_on": None, "scheduled_minute_of_day": None,
+        },
+    },
+    {
+        "task_id": "t_1004", "kind": "recurring", "name": "线性代数复习",
+        "status": "active", "execution_mode": "timed",
+        "duration_target_seconds": 3600,
         "updated_at": "2026-10-29T09:00:00+08:00",
         "recurrence": {
             "preset": "daily", "weekdays": [1, 2, 3, 4, 5, 6, 7],
@@ -87,6 +102,31 @@ class ToolError(Exception):
         self.code = code
         self.message = message
         self.details = details or []
+
+
+def read_flags():
+    if not FLAGS_FILE or not os.path.exists(FLAGS_FILE):
+        return {}
+    try:
+        return json.load(open(FLAGS_FILE, encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def set_flags(data):
+    if not FLAGS_FILE:
+        return
+    with open(FLAGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def take_flag(name):
+    flags = read_flags()
+    if name in flags:
+        value = flags.pop(name)
+        set_flags(flags)
+        return value
+    return None
 
 
 def parse_date(s, field):
@@ -199,6 +239,10 @@ def snapshot_for(user, start, end, external_events):
     return payload, digest(payload)
 
 
+def snapshot_digest(user, start, end, external_events):
+    return snapshot_for(user, start, end, external_events)[1]
+
+
 def calendar_events_for(payload):
     start = date.fromisoformat(payload["range"][0])
     end = date.fromisoformat(payload["range"][1])
@@ -246,8 +290,13 @@ def _at_local(d, minute):
 
 
 def deadline_key(t):
+    """Order by deadline kind and value only; never synthesise an instant."""
     dl = t.get("deadline") or {}
-    return (dl.get("at") or (dl.get("date", "") + "T23:59:59+08:00") or "9999", t["task_id"])
+    if dl.get("kind") == "exact":
+        return (0, dl.get("at") or "", t["task_id"])
+    if dl.get("kind") == "date_only":
+        return (1, dl.get("date") or "", t["task_id"])
+    return (2, "", t["task_id"])
 
 
 def schedule(payload, prefs):
@@ -290,31 +339,36 @@ def schedule(payload, prefs):
             if placed:
                 break
         if not placed:
-            unplanned.append({"task_id": t["task_id"], "reason": "no_free_slot"})
+            unplanned.append({"task_id": t["task_id"], "reason_code": "no_free_slot"})
 
     for t in recurring:
+        target = t.get("duration_target_seconds")
+        need = int(target) if target else min_block * 60
+        minutes = max(int((need + 59) // 60), min_block)
+        source = "task_target" if target else "scheduler_estimate"
         for d in iter_dates(start, end):
             busy = sorted((_hm(parse_instant(e["start_at"], "x")), _hm(parse_instant(e["end_at"], "x")))
                           for e in fixed if e["date"] == d.isoformat())
             cursor = day_start
             placed = False
             for bs, be in busy + [(day_end, day_end)]:
-                if bs - cursor >= min_block and not placed:
+                if not placed and bs - cursor >= minutes:
                     blocks.append({"block_id": _next_id("b"), "task_id": t["task_id"], "task_kind": "recurring",
                                    "start_at": _at_local(d, cursor).isoformat(),
-                                   "end_at": _at_local(d, cursor + min_block).isoformat(),
+                                   "end_at": _at_local(d, cursor + minutes).isoformat(),
                                    "source": "proposal", "persistable_as": "daily_override",
-                                   "duration_source": "scheduler_estimate",
-                                   "duration_seconds": min_block * 60})
+                                   "duration_source": source,
+                                   "duration_seconds": minutes * 60})
                     changes.append({"change_id": _next_id("ch"), "type": "upsert_daily_override",
                                     "item_type": "recurring", "item_id": t["task_id"],
                                     "local_date": d.isoformat(), "action": "reschedule",
                                     "planned_start_minute": cursor,
-                                    "planned_end_minute": cursor + min_block})
+                                    "planned_end_minute": cursor + minutes})
                     placed = True
                 cursor = max(cursor, be)
             if not placed:
-                unplanned.append({"task_id": t["task_id"], "reason": "no_free_slot"})
+                reason = "insufficient_window" if (day_end - day_start) < minutes else "no_free_slot"
+                unplanned.append({"task_id": t["task_id"], "reason_code": reason})
     return blocks, changes, unplanned
 
 
@@ -341,6 +395,31 @@ def check_hard_constraints(proposal, events):
         if n > 1:
             violations.append({"code": "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "task_id": tid})
     return violations
+
+
+def check_items_exist(proposal):
+    for ch in proposal["changes"]:
+        if ch["type"] == "schedule_one_time":
+            if ch.get("task_id") not in STATE["tasks"]:
+                raise ToolError("NOT_FOUND", f'任务不存在：{ch.get("task_id")}',
+                                [{"field": "changes.task_id", "reason": "missing"}])
+        elif ch["type"] == "upsert_daily_override":
+            if ch.get("item_id") not in STATE["tasks"]:
+                raise ToolError("NOT_FOUND", f'事项不存在：{ch.get("item_id")}',
+                                [{"field": "changes.item_id", "reason": "missing"}])
+
+
+def expires_in_30min():
+    now = datetime.now(TZ)
+    cap = datetime.combine(now.date(), time(23, 59), tzinfo=TZ)
+    return min(now + timedelta(minutes=30), cap).isoformat(timespec="seconds")
+
+
+def proposal_expired(p):
+    try:
+        return datetime.fromisoformat(p["expires_at"]) < datetime.now(TZ)
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------- tools
@@ -395,15 +474,20 @@ def tool_generate_schedule(args, user):
     base_version = digest({"snapshot": input_digest, "user": user})
     blocks, changes, unplanned = schedule(payload, prefs)
     stored_events = list(ext)
-    if isinstance(prefs.get("__test_conflict_event"), dict):
-        stored_events.append(prefs["__test_conflict_event"])
+    # test-only seam (never a request field): make a proposal that violates a
+    # fixed event, so the validator's rejection path is measurable.
+    extra = take_flag("conflict_event")
+    if isinstance(extra, dict):
+        stored_events.append(extra)
+        _, input_digest = snapshot_for(user, start, end, stored_events)
+        base_version = digest({"snapshot": input_digest, "user": user})
     proposal = {
         "proposal_id": _next_id("prop"),
         "snapshot_ref": "snap_" + base_version[:16],
         "base_version": base_version,
         "input_digest": input_digest,
         "status": "draft",
-        "expires_at": "2026-10-30T23:59:00+08:00",
+        "expires_at": expires_in_30min(),
         "blocks": blocks, "changes": changes, "unplanned_tasks": unplanned,
         "explanations": ["固定课程与外部会议不可移动。", "单次事项只持久化一个计划日期。"],
         "user": user, "_range": [start.isoformat(), end.isoformat()],
@@ -420,6 +504,21 @@ def tool_validate_schedule(args, user):
     if not p or p["user"] != user:
         raise ToolError("NOT_FOUND", "找不到该提案。")
     start, end = map(date.fromisoformat, p["_range"])
+
+    bump = take_flag("bump_task")
+    if isinstance(bump, str) and bump in STATE["tasks"]:
+        STATE["tasks"][bump]["updated_at"] = datetime.now(TZ).isoformat(timespec="seconds")
+
+    current = snapshot_digest(user, start, end, p.get("_external_events", []))
+    if current != p["input_digest"] or digest({"snapshot": current, "user": user}) != p["base_version"]:
+        raise ToolError("SNAPSHOT_CONFLICT", "快照已变化，需重新生成提案。")
+
+    injected = take_flag("inject_missing_change")
+    if isinstance(injected, dict):
+        p["changes"].append(injected)
+
+    check_items_exist(p)
+
     payload, _ = snapshot_for(user, start, end, p.get("_external_events", []))
     events = calendar_events_for(payload)
     violations = check_hard_constraints(p, events)
@@ -440,26 +539,39 @@ def tool_validate_schedule(args, user):
 def tool_request_approval(args, user):
     """Candidate extension. Creates a PENDING approval request only.
 
-    Never returns a token: a human must confirm through approval_url, out of
-    band. This is a flow placeholder, not a trusted-confirmation implementation.
+    Idempotent per proposal, never returns a token, and refuses expired or
+    already-applied proposals.
     """
     inp = validate_envelope(args)
     pid = inp.get("proposal_id")
     p = STATE["proposals"].get(pid)
     if not p or p["user"] != user:
         raise ToolError("NOT_FOUND", "找不到该提案。")
+    if take_flag("expire_proposal"):
+        p["expires_at"] = "2026-10-30T00:00:00+08:00"
+    if p["status"] == "applied" or pid in STATE["applied_proposals"]:
+        raise ToolError("PROPOSAL_NOT_APPROVABLE", "提案已应用，不能再次审批。")
     if p["status"] != "pending_approval":
-        raise ToolError("APPROVAL_REQUIRED", "提案尚未通过校验。")
+        raise ToolError("PROPOSAL_NOT_APPROVABLE", "提案尚未通过校验。")
+    if proposal_expired(p):
+        raise ToolError("PROPOSAL_EXPIRED", "提案已过期。")
+
+    approvals = read_approvals()
+    for rec in approvals.values():
+        if rec.get("proposal_id") == pid and rec.get("user") == user and rec.get("status") != "expired":
+            return {"approval_id": rec["approval_id"], "approval_url": rec["url"],
+                    "status": rec["status"], "expires_at": rec["expires_at"],
+                    "note": "idempotent: existing approval request reused"}
+
     aid = _next_id("appr")
     url = f"https://approval.mock.local/p/{aid}"
-    approvals = read_approvals()
     approvals[aid] = {
         "approval_id": aid, "url": url,
         "proposal_id": pid, "base_version": p["base_version"],
         "input_digest": p["input_digest"], "user": user,
         "status": "pending", "token_issued": False,
         "created_at": datetime.now(TZ).isoformat(timespec="seconds"),
-        "expires_at": "2026-10-30T23:59:00+08:00",
+        "expires_at": expires_in_30min(),
     }
     write_approvals(approvals)
     return {"approval_id": aid, "approval_url": url, "status": "pending",
@@ -475,7 +587,7 @@ def tool_get_approval_status(args, user):
     rec = approvals.get(aid)
     if not rec or rec["user"] != user:
         raise ToolError("NOT_FOUND", "找不到该审批请求。")
-    if rec["status"] == "expired":
+    if rec["status"] == "expired" or datetime.fromisoformat(rec["expires_at"]) < datetime.now(TZ):
         return {"approval_id": aid, "status": "expired"}
     if rec["status"] != "approved":
         return {"approval_id": aid, "status": "pending"}
@@ -492,7 +604,7 @@ def tool_get_approval_status(args, user):
         write_approvals(approvals)
         return {"approval_id": aid, "status": "approved", "approval_token": token}
     return {"approval_id": aid, "status": "approved", "approval_token": None,
-            "note": "token already issued; re-request is not supported"}
+            "note": "token already issued; polling again returns no new token"}
 
 
 def tool_apply(args, user):
@@ -513,21 +625,36 @@ def tool_apply(args, user):
         raise ToolError("NOT_FOUND", "找不到该提案。")
     if p["base_version"] != base_version:
         raise ToolError("SNAPSHOT_CONFLICT", "快照版本已变化。")
-    req_digest = digest({"proposal": pid, "base_version": base_version, "approval": token[:8]})
+
+    req_digest = digest({"proposal": pid, "base_version": base_version,
+                         "approval_id": rec["approval_id"]})
     idem = (user, "apply_approved_changes", key)
-    if idem in STATE["idempotency"]:
-        cached = STATE["idempotency"][idem]
+    cached = STATE["idempotency"].get(idem)
+    if cached:
         if cached["digest"] != req_digest:
             raise ToolError("IDEMPOTENCY_CONFLICT", "幂等键被用于不同请求。")
-        return cached["result"]
-    if rec["consumed"]:
-        raise ToolError("APPROVAL_CONSUMED", "审批凭据已被使用。")
+        if cached["state"] == "done":
+            return cached["result"]
+        result = cached["result"]
+        verify_readback(p)
+        cached["state"] = "done"
+        return result
+
+    if pid in STATE["applied_proposals"]:
+        raise ToolError("ALREADY_APPLIED", "该提案已应用过，不能重复写入。")
+
+    start, end = map(date.fromisoformat, p["_range"])
+    current = snapshot_digest(user, start, end, p.get("_external_events", []))
+    if current != p["input_digest"]:
+        raise ToolError("SNAPSHOT_CONFLICT", "快照已变化，需重新生成提案。")
     if rec["proposal_id"] != pid or rec["base_version"] != base_version:
         raise ToolError("APPROVAL_UNTRUSTED", "审批凭据与提案不匹配。")
-    if p["status"] != "pending_approval":
-        raise ToolError("APPROVAL_REQUIRED", "提案当前不可应用。")
-    if pid in STATE["applied_proposals"]:
-        raise ToolError("ALREADY_APPLIED", "该提案已应用过。")
+    if p.get("status") != "pending_approval":
+        raise ToolError("PROPOSAL_NOT_APPROVABLE", "提案当前不可应用。")
+    if proposal_expired(p):
+        raise ToolError("PROPOSAL_EXPIRED", "提案已过期。")
+
+    check_items_exist(p)
 
     applied = []
     for ch in p["changes"]:
@@ -546,21 +673,39 @@ def tool_apply(args, user):
                 "planned_end_minute": ch["planned_end_minute"],
             }
             applied.append({"change_id": ch["change_id"], "type": ch["type"],
-                            "override_id": STATE["overrides"][(ch["item_id"], ch["local_date"])]["override_id"]})
+                            "item_id": ch["item_id"], "local_date": ch["local_date"],
+                            "override_id": STATE["overrides"][(ch["item_id"], ch["local_date"])]["override_id"],
+                            "planned_start_minute": ch["planned_start_minute"],
+                            "planned_end_minute": ch["planned_end_minute"]})
 
-    for ch in p["changes"]:
-        if ch["type"] == "schedule_one_time":
-            t = STATE["tasks"][ch["task_id"]]
-            if t["planned_date"] != ch["planned_date"] or t.get("scheduled_at") != ch.get("scheduled_at"):
-                raise ToolError("READBACK_MISMATCH", "写后回读不一致。")
     STATE["applied_proposals"].add(pid)
     p["status"] = "applied"
     rec["consumed"] = True
     result = {"proposal_id": pid, "base_version": base_version, "result_version": _next_id("ver"),
               "idempotency_key": key, "applied_changes": applied,
               "readback_verified": True, "applied_at": datetime.now(TZ).isoformat(timespec="seconds")}
-    STATE["idempotency"][idem] = {"digest": req_digest, "result": result}
+
+    if take_flag("readback_mismatch"):
+        STATE["idempotency"][idem] = {"digest": req_digest, "state": "readback_pending", "result": result}
+        raise ToolError("READBACK_MISMATCH", "写后回读失败，已标记 readback_pending。",
+                        [{"field": "idempotency_key", "reason": "readback_pending"}])
+
+    verify_readback(p)
+    STATE["idempotency"][idem] = {"digest": req_digest, "state": "done", "result": result}
     return result
+
+
+def verify_readback(p):
+    for ch in p["changes"]:
+        if ch["type"] == "schedule_one_time":
+            t = STATE["tasks"].get(ch["task_id"])
+            if not t or t["planned_date"] != ch["planned_date"] or t.get("scheduled_at") != ch.get("scheduled_at"):
+                raise ToolError("READBACK_MISMATCH", "单次事项回读不一致。")
+        else:
+            o = STATE["overrides"].get((ch["item_id"], ch["local_date"]))
+            if not o or o["planned_start_minute"] != ch["planned_start_minute"] \
+                    or o["planned_end_minute"] != ch["planned_end_minute"]:
+                raise ToolError("READBACK_MISMATCH", "单日例外回读不一致。")
 
 
 TOOLS = {
@@ -579,7 +724,7 @@ DESCRIPTIONS = {
     "generate_schedule": "基于服务端快照生成调度提案（只读，不写入）。",
     "validate_schedule": "按服务端快照重新校验提案，合法则进入 pending_approval。",
     "apply_approved_changes": "凭可信审批凭据原子应用变更并回读核验。",
-    "request_approval": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
+    "request_approval": "[候选扩展] 创建 pending 审批请求（按提案幂等），返回 approval_id + approval_url；不构成用户确认。",
     "get_approval_status": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
 }
 
@@ -591,7 +736,8 @@ def obj(props, required=None):
     return d
 
 
-EXT = {"request_approval", "get_approval_status"}
+DATE_STR = {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}
+DATE_RANGE = obj({"start": DATE_STR, "end": DATE_STR}, ["start", "end"])
 
 SCHEMAS = {
     "list_tasks": obj({
@@ -631,12 +777,18 @@ def tool_defs():
         defs.append({
             "name": name,
             "description": DESCRIPTIONS[name],
-            "inputSchema": obj({
-                "api_version": {"type": "string", "const": API_VERSION},
-                "request_id": {"type": "string"},
-                "timezone": {"type": "string", "const": "Asia/Shanghai"},
-                "input": schema,
-            }, ["api_version", "request_id", "timezone", "input"]),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "api_version": {"type": "string", "const": API_VERSION},
+                    "request_id": {"type": "string"},
+                    "timezone": {"type": "string", "const": "Asia/Shanghai"},
+                    "input": schema,
+                },
+                "required": ["api_version", "request_id", "timezone", "input"],
+                "additionalProperties": False,
+                "$defs": {"date_range": DATE_RANGE},
+            },
         })
     return defs
 

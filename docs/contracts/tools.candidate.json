@@ -60,13 +60,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
@@ -126,13 +146,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
@@ -207,13 +247,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
@@ -246,13 +306,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
@@ -297,18 +377,38 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
    "name": "request_approval",
-   "description": "[候选扩展] 创建 pending 审批请求，返回 approval_id + approval_url；不构成用户确认。",
+   "description": "[候选扩展] 创建 pending 审批请求（按提案幂等），返回 approval_id + approval_url；不构成用户确认。",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -336,13 +436,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   },
   {
@@ -375,13 +495,33 @@
       ]
      }
     },
-    "additionalProperties": false,
     "required": [
      "api_version",
      "request_id",
      "timezone",
      "input"
-    ]
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
    }
   }
  ]
