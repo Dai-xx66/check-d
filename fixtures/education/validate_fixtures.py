@@ -305,6 +305,70 @@ def validate_boundary_cases() -> None:
                   f"{label}: {case.get('id')} 引用了不存在的 fixture {fixture}")
 
 
+def validate_decomposition_cases() -> None:
+    """校验拆解质量用例集（DA 系列，对应计划 D3）。
+
+    额外守一条纪律：status 必须为「未执行」。当前没有可复现的拆解编排，
+    任何把 status 改成「通过/失败」的提交都应在此处失败——防止把预期写成实测。
+    """
+    label = "拆解用例"
+    path = FIXTURE_DIR / "decomposition_cases.json"
+    if not path.exists():
+        check(False, f"{label}: 缺少 decomposition_cases.json")
+        return
+
+    data = load("decomposition_cases.json")
+    cases = data.get("cases", [])
+    dimensions = set((data.get("dimension_legend") or {}).keys())
+    categories = {"不合理拆解", "模糊截止", "写入安全"}
+    fixtures = set(SCENARIO_FILES.values()) | {
+        "scenario_a_study_plan",
+        "scenario_b_report_breakdown",
+        "scenario_c_meeting_replan",
+    }
+
+    check(len(cases) >= 12, f"{label}: 至少 12 条，当前 {len(cases)}")
+    ids = [c.get("id") for c in cases]
+    check(len(ids) == len(set(ids)), f"{label}: 用例 id 重复")
+    check(ids == [f"DA{i:02d}" for i in range(1, len(cases) + 1)], f"{label}: 编号需从 DA01 起连续")
+
+    seen_categories: set[str] = set()
+    p0_count = 0
+    for case in cases:
+        cid = case.get("id")
+        for key in ("id", "name", "dimension", "category", "severity", "inject",
+                    "prompt", "expected_behavior", "expected_assertions",
+                    "must_not", "write_count_expected", "status"):
+            check(key in case, f"{label}: {cid} 缺少字段 {key}")
+        check(case.get("severity") in {"P0", "P1", "P2"}, f"{label}: {cid} severity 非法")
+        check(case.get("dimension") in dimensions, f"{label}: {cid} dimension 未在 dimension_legend 中定义")
+        check(case.get("category") in categories, f"{label}: {cid} category 非法")
+        seen_categories.add(case.get("category"))
+        if case.get("severity") == "P0":
+            p0_count += 1
+
+        assertions = case.get("expected_assertions")
+        check(isinstance(assertions, list) and len(assertions) >= 2,
+              f"{label}: {cid} expected_assertions 至少 2 条")
+        check(isinstance(case.get("must_not"), list) and case["must_not"],
+              f"{label}: {cid} must_not 不能为空")
+        check(case.get("write_count_expected") == 0,
+              f"{label}: {cid} 拆解阶段写入次数必须为 0")
+        check(case.get("status") == "未执行",
+              f"{label}: {cid} status 必须为「未执行」——当前无可复现拆解编排，不得写入实测结论")
+
+        inject = case.get("inject")
+        check(isinstance(inject, dict), f"{label}: {cid} inject 必须为对象")
+        if isinstance(inject, dict):
+            check(bool(inject.get("mutation")), f"{label}: {cid} inject.mutation 不能为空")
+            check(inject.get("fixture") in fixtures,
+                  f"{label}: {cid} 引用了不存在的 fixture {inject.get('fixture')}")
+
+    check(categories <= seen_categories,
+          f"{label}: 未覆盖全部分类 {sorted(categories - seen_categories)}")
+    check(p0_count >= 4, f"{label}: P0 至少 4 条，当前 {p0_count}")
+
+
 def validate_privacy(verbose: bool) -> None:
     label = "隐私扫描"
     scanned = 0
@@ -344,6 +408,9 @@ def main() -> int:
 
     print("[E] boundary_cases.json")
     validate_boundary_cases()
+
+    print("[D] decomposition_cases.json")
+    validate_decomposition_cases()
 
     if args.privacy:
         print("[P] 隐私扫描")

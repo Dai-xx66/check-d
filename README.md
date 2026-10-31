@@ -47,10 +47,11 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
 | 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | T01–T22（T03 拆 a/b，共 23 项）的响应码/状态/数据/写入次数四元组断言；按 `2c48579` 重判，可判 16 / 部分 4 / 不可判 3 |
 | 契约机检脚本 | [tools/m3-checks/check_contract_consistency.py](tools/m3-checks/check_contract_consistency.py) | 静态比对正文枚举与示例，`python tools/m3-checks/check_contract_consistency.py 2c48579` → 越界 0 |
+| 拆解质量用例 | [docs/contest/decomposition-acceptance.md](docs/contest/decomposition-acceptance.md) | DA01–DA15 六维判据（覆盖率/原子性/时长守恒/依赖有序/截止继承/写入安全），对应计划 D3；当前零执行 |
 | 契约评审（M3） | [docs/reviews/](docs/reviews/) | 逐版只读评审与复核，最新为 [M0-1 固定基准 `2c48579` 增量对齐](docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md)（含文件指纹与机检） |
 | 演示脚本 | [docs/contest/demo-script.md](docs/contest/demo-script.md) | 现场演示的逐步操作与口播要点 |
 | 开源与合规披露 | [docs/contest/oss-disclosure.md](docs/contest/oss-disclosure.md) | 第三方依赖、许可证、数据来源与隐私边界 |
-| 场景样本数据 | [fixtures/education/](fixtures/education/README.md) | 三条教育场景 JSON + 边界用例集，可脱敏、可复现 |
+| 场景样本数据 | [fixtures/education/](fixtures/education/README.md) | 三条教育场景 JSON + 13 条边界用例 + 15 条拆解用例（DA），可脱敏、可复现 |
 | 样本自检 | [validate_fixtures.py](fixtures/education/validate_fixtures.py) | `python validate_fixtures.py --privacy` 校验字段完整性与隐私 |
 | 前后对比视觉稿 | [before-after-preview.html](docs/demo/before-after-preview.html) | 浏览器直接打开，可点击交互 |
 | 端到端演练 | [docs/demo/e2e-playbook.md](docs/demo/e2e-playbook.md) | 环境准备、录制流程与失败兜底 |

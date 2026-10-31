@@ -1,0 +1,402 @@
+{
+  "fixture_version": "1.0",
+  "suite": "decomposition",
+  "owner_module": "M3",
+  "timezone": "Asia/Shanghai",
+  "date": "2026-10-31",
+  "note": "对应团队计划 D3（10/31）C 的任务：检验任务拆解质量，覆盖不合理拆解、模糊截止日期等异常。作用于 Agent 输出的拆解提案，不作用于 M0 七个工具入参；故编号单列 DA，不并入验收矩阵 T01–T22。全部用例当前未执行。",
+  "dimension_legend": {
+    "coverage": "覆盖率：父任务的关键环节是否齐全，是否含收尾（校对/导出/提交）",
+    "atomicity": "原子性：每个子任务是否单一可执行，粒度落在 5–90 分钟",
+    "conservation": "时长守恒：Σ 子任务 estimated_minutes 与父任务估算偏差 ≤ ±10%",
+    "ordering": "依赖有序：前置产出必须排在依赖它的子任务之前",
+    "deadline": "截止继承：每条子任务 deadline ≤ 父任务 deadline，且不得凭空生成",
+    "executability": "可执行性：子任务含明确动作与产出物，不出现「研究一下」类空动词"
+  },
+  "tolerance": {
+    "duration_conservation": "父任务 360 分钟，子任务合计允许 324–396 分钟",
+    "granularity_min_minutes": 5,
+    "granularity_max_minutes": 90,
+    "child_count_range": "4–8 条（父任务 360 分钟）"
+  },
+  "cases": [
+    {
+      "id": "DA01",
+      "name": "父任务整块被直接排入",
+      "dimension": "atomicity",
+      "category": "不合理拆解",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "不做拆解，直接给父任务 task-research-report（estimated_minutes=360）生成一个 360 分钟的时间块"
+      },
+      "prompt": "我三天内要交一份科研报告，帮我拆成能直接动手的子任务，再按空闲时间排一排。",
+      "expected_behavior": "先输出 4–8 条子任务，各自 5–90 分钟；父任务本身不出现在任何 schedule_block 中，仅作为容器保留",
+      "expected_assertions": [
+        "proposal.blocks 中不存在 item_id = task-research-report 的块",
+        "子任务条数 ∈ [4, 8]",
+        "每条子任务 estimated_minutes ≤ 90",
+        "回复中明确列出子任务名称，而非只给一个总块"
+      ],
+      "must_not": [
+        "把 360 分钟整块塞进单个空档",
+        "只改父任务时间不做拆解",
+        "声称已拆解但提案里只有一条块"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA02",
+      "name": "子任务时长合计不守恒",
+      "dimension": "conservation",
+      "category": "不合理拆解",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "构造一份合计 480 分钟的拆解（超出父任务 33%）与一份合计 180 分钟的拆解（缺一半）"
+      },
+      "prompt": "帮我拆成能直接动手的子任务。",
+      "expected_behavior": "合计落在 324–396 分钟；若模型给出的拆解超出容差，应在生成提案前自我修正或明确说明「估算已调整」并给出调整后的合计",
+      "expected_assertions": [
+        "sum(child.estimated_minutes) ∈ [324, 396]",
+        "回复或提案中含子任务合计分钟数",
+        "调整估算时注明原估算与调整理由"
+      ],
+      "must_not": [
+        "合计 480 分钟仍直接排期",
+        "缺一半工作量却不说明",
+        "把差额静默塞进某条子任务"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA03",
+      "name": "拆解粒度失控",
+      "dimension": "atomicity",
+      "category": "不合理拆解",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "构造「1 条 300 分钟巨型子任务 + 5 条 3 分钟碎片」的拆解"
+      },
+      "prompt": "拆细一点，我要能直接开始做的那种。",
+      "expected_behavior": "拒绝该粒度分布，重拆为 4–8 条、每条 5–90 分钟的子任务；碎片不超过 2 条",
+      "expected_assertions": [
+        "不存在 estimated_minutes > 90 的子任务",
+        "estimated_minutes < 5 的子任务 ≤ 2 条",
+        "子任务条数 ∈ [4, 8]"
+      ],
+      "must_not": [
+        "保留 300 分钟巨型子任务",
+        "把 3 分钟碎片当作独立子任务批量产出",
+        "以「粒度由用户决定」为由不重拆"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA04",
+      "name": "子任务时间重叠或语义重复",
+      "dimension": "atomicity",
+      "category": "不合理拆解",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "构造两条子任务同时占用 day_offset=1 的 19:00–19:30；并加入「写引言」与「撰写绪论」两条同义子任务"
+      },
+      "prompt": "排进我这几天晚上的空档。",
+      "expected_behavior": "同一时间只被一条子任务占用；语义重复的子任务合并为一条",
+      "expected_assertions": [
+        "任意两条子任务的 [start, end) 区间不相交",
+        "不存在两条语义等价子任务（名称归一化后不重复）",
+        "所有块落在 study_windows 内"
+      ],
+      "must_not": [
+        "同一时段排两条子任务",
+        "重复计算同一份工作量",
+        "把重叠块标为不同 tag 规避检查"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA05",
+      "name": "拆解丢失收尾环节",
+      "dimension": "coverage",
+      "category": "不合理拆解",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "构造只有「查资料 / 写正文」两类、没有校对、格式整理、提交的子任务序列"
+      },
+      "prompt": "三天内要交，帮我拆。",
+      "expected_behavior": "拆解必须包含收尾环节（校对/格式/提交）中至少一项，且排在正文之后、父任务截止之前",
+      "expected_assertions": [
+        "子任务中存在名称或描述含「校对/检查/格式/提交/导出」之一的条目",
+        "该条目排在最后一条写作类子任务之后",
+        "该条目 end ≤ 父任务 deadline"
+      ],
+      "must_not": [
+        "只拆写作不拆收尾",
+        "把提交隐含在「完成报告」里不单列",
+        "收尾环节排在正文之前"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA06",
+      "name": "拆出与父任务无关的子任务",
+      "dimension": "coverage",
+      "category": "不合理拆解",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "在报告拆解结果中混入「背 50 个六级单词」「复习高数第三章」"
+      },
+      "prompt": "帮我拆科研报告。",
+      "expected_behavior": "子任务只来自父任务语义域；已有独立任务（英语词汇、课程复习）不得被并入本次拆解",
+      "expected_assertions": [
+        "所有子任务可追溯到父任务的一个交付环节",
+        "不出现与父任务无关的既有任务条目",
+        "若用户确需一并安排，必须另行确认，不默认合并"
+      ],
+      "must_not": [
+        "把无关任务塞进拆解结果",
+        "借拆解之机改动其他任务",
+        "重复安排已有独立任务"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA07",
+      "name": "子任务依赖顺序倒置",
+      "dimension": "ordering",
+      "category": "不合理拆解",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "把「提交终稿」排在 day_offset=1，把「撰写正文」排在 day_offset=2"
+      },
+      "prompt": "按顺序排一下，我要照着做。",
+      "expected_behavior": "依赖关系显式化并按时序排列：查资料 → 提纲 → 正文 → 校对 → 提交",
+      "expected_assertions": [
+        "存在显式依赖字段或明显的排序说明",
+        "对任意依赖对 (A → B)，A.end ≤ B.start",
+        "提交类子任务位于序列末尾"
+      ],
+      "must_not": [
+        "提交排在任何写作子任务之前",
+        "依赖关系不声明只给无序列表",
+        "用同一时间块承载前后依赖两条子任务"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA08",
+      "name": "子任务截止晚于父任务截止",
+      "dimension": "deadline",
+      "category": "不合理拆解",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "父任务 deadline=day_offset 3 的 23:59；构造一条子任务 deadline=day_offset 5"
+      },
+      "prompt": "拆完排进这三天。",
+      "expected_behavior": "每条子任务 deadline 继承父任务上限，不晚于 day_offset 3 23:59；超出可用窗口的子任务列入 unplanned 并说明原因",
+      "expected_assertions": [
+        "所有 child.deadline ≤ parent.deadline",
+        "全部 schedule_block.end ≤ parent.deadline",
+        "排不下的子任务出现在 unplanned 且带原因"
+      ],
+      "must_not": [
+        "子任务截止晚于父任务",
+        "把块排到父截止之后",
+        "为凑排期缩短父任务截止"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA09",
+      "name": "模糊截止「尽快」",
+      "dimension": "deadline",
+      "category": "模糊截止",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "把 prompt 改为「尽快把报告弄完，帮我拆一下」，不提供任何日期"
+      },
+      "prompt": "尽快把报告弄完，帮我拆一下。",
+      "expected_behavior": "先澄清「尽快」的具体期限（今天/本周/给个日期），或在用户不回应时采用保守默认（当天），并在回复中明示所用假设",
+      "expected_assertions": [
+        "回复中含澄清问句或明确的默认假设说明",
+        "若采用默认，deadline = anchor 当天 23:59 且被显式标注为假设",
+        "提案字段 deadline 不为编造的具体远日期"
+      ],
+      "must_not": [
+        "把「尽快」静默解析为下周",
+        "编造一个用户没说过的截止日",
+        "不澄清也不声明假设就排期"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA10",
+      "name": "模糊截止「这周找个时间」",
+      "dimension": "deadline",
+      "category": "模糊截止",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "prompt 改为「这周找个时间把报告写完」，anchor 为周六"
+      },
+      "prompt": "这周找个时间把报告写完。",
+      "expected_behavior": "解析为本周剩余时间（周六至周日 23:59）；若剩余窗口不足以完成 360 分钟，明确告知并给出跨周建议，由用户确认",
+      "expected_assertions": [
+        "deadline 落在本周最后一天 23:59，不跨周",
+        "当剩余可用时长 < 360 分钟时，回复给出不足提示",
+        "跨周安排必须经用户确认，不默认跨周"
+      ],
+      "must_not": [
+        "默认排到下周",
+        "把「这周」当成「七天内任意一天」",
+        "窗口不足却静默压缩工作量"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA11",
+      "name": "模糊截止「周五前」（相对星期解析）",
+      "dimension": "deadline",
+      "category": "模糊截止",
+      "severity": "P1",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "anchor 设为周六（2026-10-31），prompt 用「周五前」；另构造 anchor 为周五当天的同句"
+      },
+      "prompt": "周五前要交，帮我拆解并安排时间。",
+      "expected_behavior": "解析为「最近的未来周五 23:59」；当 anchor 本身是周五时，需澄清是今天还是下周五，不默认取当天已过时刻",
+      "expected_assertions": [
+        "解析结果的 weekday = 5",
+        "解析结果严格晚于 anchor 当前时刻（除非已澄清为今天且时刻未过）",
+        "跨月/跨年时日期计算正确"
+      ],
+      "must_not": [
+        "解析到过去的周五",
+        "把「周五前」当成「三天内」",
+        "跨月时算错日期"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA12",
+      "name": "模糊截止「月底前」（月末边界）",
+      "dimension": "deadline",
+      "category": "模糊截止",
+      "severity": "P2",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "anchor 为 2026-10-31（当月最后一天），prompt 用「月底前」；另测 2 月与闰年 2 月 29 日"
+      },
+      "prompt": "月底前把报告交掉，帮我排。",
+      "expected_behavior": "解析为当月最后一天 23:59；当 anchor 已是月末且当日剩余时间不足时，明确提示「仅剩今天」并请用户决定是否顺延",
+      "expected_assertions": [
+        "deadline 的日期 = 当月最后一天",
+        "2 月按 28/29 天正确处理",
+        "当日剩余不足时给出提示，不静默顺延到下月"
+      ],
+      "must_not": [
+        "固定按 30 天计算",
+        "把「月底」解析到下月",
+        "闰年 2 月算成 28 日"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA13",
+      "name": "完全无截止日期",
+      "dimension": "deadline",
+      "category": "模糊截止",
+      "severity": "P2",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "父任务 deadline 置为 null，prompt 不提任何时间"
+      },
+      "prompt": "帮我把报告拆一下，看着排。",
+      "expected_behavior": "允许拆解与排期，但 deadline 保持 null；回复不得声称某个截止日；排期只落在未来可用窗口内",
+      "expected_assertions": [
+        "所有子任务 deadline 为 null",
+        "回复不含「截止 X 月 X 日」类表述",
+        "所有块 start ≥ 当前时刻"
+      ],
+      "must_not": [
+        "凭空生成截止日",
+        "因无截止而排到过去时间",
+        "因无截止而拒绝拆解"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA14",
+      "name": "用户拒绝拆解提案后数据库保持不变",
+      "dimension": "executability",
+      "category": "写入安全",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "生成拆解提案后，用户回复「先不要动我的日程」"
+      },
+      "prompt": "（第二轮）先不要动我的日程。",
+      "expected_behavior": "确认未做任何写入；提案进入 rejected 或保持 draft；日程与 override 与提案前逐字段一致",
+      "expected_assertions": [
+        "override 行数与 apply 前一致",
+        "tasks.scheduled_at 全部未变",
+        "proposal.status ∈ {draft, rejected}",
+        "写入次数 = 0"
+      ],
+      "must_not": [
+        "以「已拆解」为名静默落库",
+        "部分写入后再回滚不干净",
+        "回复称已保存"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    },
+    {
+      "id": "DA15",
+      "name": "用户沉默未确认时数据库保持不变",
+      "dimension": "executability",
+      "category": "写入安全",
+      "severity": "P0",
+      "inject": {
+        "fixture": "scenario_b_report_breakdown",
+        "mutation": "生成拆解提案后无任何用户回复，等待超过 Proposal 30 分钟 TTL"
+      },
+      "prompt": "（无第二轮输入）",
+      "expected_behavior": "提案过期后进入 expired；全程零写入；再次进入对话时不自动应用旧提案",
+      "expected_assertions": [
+        "proposal.status = expired",
+        "override 行数不变",
+        "写入次数 = 0",
+        "新会话不引用已过期提案作为待确认项"
+      ],
+      "must_not": [
+        "超时后自动应用",
+        "把「用户没反对」当作同意",
+        "过期提案仍可 apply"
+      ],
+      "write_count_expected": 0,
+      "status": "未执行"
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 | `scenario_b_report_breakdown.json` | 周五前完成科研报告，拆成子任务并分配时间 | ② 复杂任务拆解 |
 | `scenario_c_meeting_replan.json` | 下午插入固定会议，尽量少改其他安排 | ③ 突发事件重排 |
 | `boundary_cases.json` | 13 条边界/异常用例（≥10 条要求） | §8 必测边界 |
+| `decomposition_cases.json` | 15 条拆解质量用例（DA01–DA15）：不合理拆解 8 条、模糊截止 5 条、写入安全 2 条 | D3 任务拆解与提案 |
 
 ## 2. 重要：与计划文档的字段偏差（必须让 M0/M1/M2 知道）
 
