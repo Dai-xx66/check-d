@@ -1,0 +1,353 @@
+{
+ "contract": "c53b1a91c17cd9acdee6d3937c093fcf97515ba0",
+ "core": {
+  "passed": 12,
+  "total": 12,
+  "results": [
+   {
+    "case": "C1 tools/list 与 examples 的 7 工具一致",
+    "expected": [
+     "list_tasks",
+     "get_calendar_events",
+     "generate_schedule",
+     "validate_schedule",
+     "request_approval",
+     "get_approval_status",
+     "apply_approved_changes"
+    ],
+    "got": [
+     "list_tasks",
+     "get_calendar_events",
+     "generate_schedule",
+     "validate_schedule",
+     "apply_approved_changes",
+     "request_approval",
+     "get_approval_status"
+    ],
+    "pass": true,
+    "note": "",
+    "raw": {
+     "count": 7
+    }
+   },
+   {
+    "case": "C2 explanations 属七码闭集",
+    "expected": [
+     "ALREADY_DONE_TODAY",
+     "AVAILABILITY_SATURATED",
+     "ESTIMATED_DURATION",
+     "FIXED_BLOCKS_OVERLAP",
+     "NO_AVAILABILITY_WINDOW",
+     "PRESERVED_FIXED_EVENTS",
+     "SCHEDULED"
+    ],
+    "got": [
+     "PRESERVED_FIXED_EVENTS",
+     "SCHEDULED"
+    ],
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "C3 响应信封字段",
+    "expected": "envelope",
+    "got": [
+     "api_version",
+     "data",
+     "request_id",
+     "status",
+     "trace_id"
+    ],
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "R1-1 Token 过期 → APPROVAL_EXPIRED 且零写入",
+    "expected": "APPROVAL_EXPIRED, writes 0",
+    "got": "APPROVAL_EXPIRED, writes=0",
+    "pass": true,
+    "note": "",
+    "raw": {
+     "writes_delta": 0
+    }
+   },
+   {
+    "case": "R1-2 旧 Approval 终结后新 approval_id",
+    "expected": "new id",
+    "got": "appr_0018->appr_0019",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "R1-3 新 Token 成功应用",
+    "expected": "success",
+    "got": "success",
+    "pass": true,
+    "note": "",
+    "raw": {
+     "applied": 8
+    }
+   },
+   {
+    "case": "X1-a 首次写入 → READBACK_PENDING",
+    "expected": "READBACK_PENDING",
+    "got": "READBACK_PENDING",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "X1-1 新幂等键 → READBACK_PENDING 且零写入",
+    "expected": "READBACK_PENDING, writes 0",
+    "got": "READBACK_PENDING, writes=0",
+    "pass": true,
+    "note": "",
+    "raw": {
+     "writes_delta": 0
+    }
+   },
+   {
+    "case": "T1 跨 Proposal 错绑 Token → APPROVAL_UNTRUSTED",
+    "expected": "APPROVAL_UNTRUSTED",
+    "got": "APPROVAL_UNTRUSTED",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "T2 failed+已消费 → APPROVAL_CONSUMED",
+    "expected": "APPROVAL_CONSUMED",
+    "got": "PROPOSAL_INVALID -> APPROVAL_CONSUMED",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable)",
+    "expected": "IDEMPOTENCY_IN_PROGRESS retryable",
+    "got": "READBACK_PENDING -> IDEMPOTENCY_IN_PROGRESS retryable=True",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   },
+   {
+    "case": "ORD-1 已应用 + 新键 → ALREADY_APPLIED",
+    "expected": "ALREADY_APPLIED",
+    "got": "ALREADY_APPLIED",
+    "pass": true,
+    "note": "",
+    "raw": {}
+   }
+  ]
+ },
+ "examples": {
+  "passed": 20,
+  "total": 20,
+  "results": [
+   {
+    "id": "EX-01",
+    "name": "list_tasks_with_recurring_and_one_time",
+    "status": "pass",
+    "note": "keys match=True; mock tasks=4 vs example=2 (fixture differs)",
+    "raw": {
+     "keys": [
+      "date_range",
+      "query_version",
+      "tasks"
+     ],
+     "expected_keys": [
+      "date_range",
+      "query_version",
+      "tasks"
+     ]
+    }
+   },
+   {
+    "id": "EX-02",
+    "name": "get_calendar_with_course_and_unexpected_meeting",
+    "status": "pass",
+    "note": "keys=['courses', 'daily_overrides', 'events', 'query_version'] events=1",
+    "raw": {
+     "keys": [
+      "courses",
+      "daily_overrides",
+      "events",
+      "query_version"
+     ]
+    }
+   },
+   {
+    "id": "EX-03",
+    "name": "empty_task_list_is_success",
+    "status": "pass",
+    "note": "empty tasks",
+    "raw": {}
+   },
+   {
+    "id": "EX-04",
+    "name": "empty_calendar_is_success",
+    "status": "pass",
+    "note": "empty calendar",
+    "raw": {}
+   },
+   {
+    "id": "EX-05",
+    "name": "unauthorized_request",
+    "status": "pass",
+    "note": "code=AUTH_REQUIRED",
+    "raw": {
+     "code": "AUTH_REQUIRED"
+    }
+   },
+   {
+    "id": "EX-06",
+    "name": "generate_schedule_proposal",
+    "status": "pass",
+    "note": "draft",
+    "raw": {
+     "keys": [
+      "base_version",
+      "blocks",
+      "changes",
+      "expires_at",
+      "explanations",
+      "generated_at",
+      "input_digest",
+      "proposal_id",
+      "snapshot_ref",
+      "status",
+      "unplanned_tasks"
+     ]
+    }
+   },
+   {
+    "id": "EX-07",
+    "name": "validate_schedule_pending_approval",
+    "status": "pass",
+    "note": "valid",
+    "raw": {}
+   },
+   {
+    "id": "EX-08",
+    "name": "request_approval_creates_pending_only",
+    "status": "pass",
+    "note": "pending only",
+    "raw": {
+     "approval_id": "appr_0018"
+    }
+   },
+   {
+    "id": "EX-09",
+    "name": "get_approval_status_pending_without_token",
+    "status": "pass",
+    "note": "pending",
+    "raw": {
+     "status": "pending"
+    }
+   },
+   {
+    "id": "EX-10",
+    "name": "get_approval_status_first_approved_delivery",
+    "status": "pass",
+    "note": "approved+token",
+    "raw": {
+     "status": "approved",
+     "has_token": true
+    }
+   },
+   {
+    "id": "EX-11",
+    "name": "get_approval_status_after_token_was_issued",
+    "status": "pass",
+    "note": "token_issued",
+    "raw": {
+     "status": "token_issued"
+    }
+   },
+   {
+    "id": "EX-12",
+    "name": "apply_while_external_approval_is_pending",
+    "status": "pass",
+    "note": "code=APPROVAL_PENDING",
+    "raw": {
+     "code": "APPROVAL_PENDING"
+    }
+   },
+   {
+    "id": "EX-13",
+    "name": "apply_approved_changes_success",
+    "status": "pass",
+    "note": "readback ok",
+    "raw": {
+     "changes": 8
+    }
+   },
+   {
+    "id": "EX-14",
+    "name": "same_idempotency_key_replays_original_result",
+    "status": "pass",
+    "note": "same result",
+    "raw": {
+     "result_version": "ver_0025"
+    }
+   },
+   {
+    "id": "EX-15",
+    "name": "already_applied_with_new_idempotency_key",
+    "status": "pass",
+    "note": "code=ALREADY_APPLIED",
+    "raw": {
+     "code": "ALREADY_APPLIED"
+    }
+   },
+   {
+    "id": "EX-16",
+    "name": "proposal_expired_before_approval",
+    "status": "pass",
+    "note": "code=PROPOSAL_EXPIRED",
+    "raw": {
+     "code": "PROPOSAL_EXPIRED"
+    }
+   },
+   {
+    "id": "EX-17",
+    "name": "consumed_token_cannot_authorize_another_apply",
+    "status": "pass",
+    "note": "code=APPROVAL_CONSUMED",
+    "raw": {
+     "code": "APPROVAL_CONSUMED"
+    }
+   },
+   {
+    "id": "EX-18",
+    "name": "approval_token_expired_before_apply",
+    "status": "pass",
+    "note": "code=APPROVAL_EXPIRED",
+    "raw": {
+     "code": "APPROVAL_EXPIRED"
+    }
+   },
+   {
+    "id": "EX-19",
+    "name": "base_version_changed_before_apply",
+    "status": "pass",
+    "note": "code=SNAPSHOT_CONFLICT",
+    "raw": {
+     "code": "SNAPSHOT_CONFLICT"
+    }
+   },
+   {
+    "id": "EX-20",
+    "name": "write_may_have_succeeded_but_readback_is_pending",
+    "status": "pass",
+    "note": "code=READBACK_PENDING",
+    "raw": {
+     "code": "READBACK_PENDING"
+    }
+   }
+  ]
+ }
+}
