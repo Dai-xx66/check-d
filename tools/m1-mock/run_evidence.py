@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Conformance evidence runner for the mock CheckD MCP tool server.
+"""LEGACY baseline runner (26/26, pre-2c48579 mock). Kept for history only;
+run_evidence_m0.py is the current runner.
+
+Conformance evidence runner for the mock CheckD MCP tool server.
 
 Spawns tool_server.py over stdio and exercises the v1 contract plus the two
 candidate extensions, then writes docs/contracts/reviews/m1-evidence.{md,json}.

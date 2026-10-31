@@ -408,7 +408,7 @@
   },
   {
    "name": "request_approval",
-   "description": "[候选扩展] 创建 pending 审批请求（按提案幂等），返回 approval_id + approval_url；不构成用户确认。",
+   "description": "[候选扩展] 创建 pending 审批请求（按提案与幂等键幂等），不批准、不签 Token。",
    "inputSchema": {
     "type": "object",
     "properties": {
@@ -428,11 +428,15 @@
       "properties": {
        "proposal_id": {
         "type": "string"
+       },
+       "idempotency_key": {
+        "type": "string"
        }
       },
       "additionalProperties": false,
       "required": [
-       "proposal_id"
+       "proposal_id",
+       "idempotency_key"
       ]
      }
     },
@@ -467,7 +471,7 @@
   },
   {
    "name": "get_approval_status",
-   "description": "[候选扩展] 轮询外部审批页；仅在用户确认后签发一次性 approval_token。",
+   "description": "[候选扩展] 轮询外部审批页；仅在批准后首次交付一次性 Token。",
    "inputSchema": {
     "type": "object",
     "properties": {

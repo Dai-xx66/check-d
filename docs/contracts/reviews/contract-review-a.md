@@ -5,6 +5,8 @@
 证据：`m1-evidence.md`（MCP stdio mock，A0–A25，**26/26 通过**）
 状态：PR #3 已按 B/C 联合评审完成契约一致性修复；**暂不合并**，等待 M0 最终确认。
 
+**增量对齐（基准 `2c48579`）：** Proposal 改为服务端公开字段（删除内部 DTO）、`explanations` 改为对象数组、Proposal 30 分钟 / Token 5 分钟 TTL、R1 重新审批、X1 `READBACK_PENDING`、响应信封与 examples 对齐。新增用例独立统计：`m1-evidence-m0-2c48579.md`（核心 13/13；EX 回放 19/20，EX-17 不可执行）。原 26/26 仅作历史基线。
+
 > 边界声明：本评审只覆盖 MCP Server 与本地契约流程；**WorkBuddy 实机能力（stdio、env token、确认回调、外部分享）仍为 BLOCKED**，mock 通过不构成平台能力证明。旧 18/18 为历史证据，本版为新 HEAD 重跑结果。
 
 ---
