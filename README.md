@@ -45,11 +45,13 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 产出 | 位置 | 说明 |
 |---|---|---|
 | 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
-| 证据索引 | [docs/contest/evidence-index.md](docs/contest/evidence-index.md) | 65 项（9 场景 / 13 边界 / 15 拆解 / 23 契约 / 5 本轮增量）逐条登记运行日期、版本、命令、证据位置；当前全部「未测」，结论须带证据级别 E0–E3 |
+| 证据索引 | [docs/contest/evidence-index.md](docs/contest/evidence-index.md) | 88 项（9 场景 / 13 边界 / 15 拆解 / 23 契约 / 8 本轮增量 / 20 EX 回放）逐条登记运行日期、版本、命令、证据位置；结论须带证据级别 E0–E3，未测 68 项 |
 | 初赛大纲 | [docs/contest/submission-outline.md](docs/contest/submission-outline.md) | ≤3 页骨架：需求价值 30 / 创新 25 / 技术 25 / 完成度 20，含填空位与提交前 8 项自检 |
-| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | 27 编号 / 28 项（T01–T22 + R1/X1/G1/G2/S1）的响应码/状态/数据/写入次数四元组断言；§6 定 E0–E3 四级证据与 W1–W4 四层写入次数；可判 19 / 部分 6 / 不可判 3 |
+| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | 30 编号 / 31 项（T01–T22 + R1/X1/G1–G5/S1）的响应码/状态/数据/写入次数四元组断言；§6 定 E0–E3 四级证据与 W1–W4 四层写入次数；可判 21 / 部分 7 / 不可判 3 |
 | 契约机检脚本 | [tools/m3-checks/check_contract_consistency.py](tools/m3-checks/check_contract_consistency.py) | 静态比对正文枚举与示例，`python tools/m3-checks/check_contract_consistency.py 2c48579` → 越界 0 |
-| 证据索引自检 | [tools/m3-checks/check_evidence_index.py](tools/m3-checks/check_evidence_index.py) | 校验 60 行齐全、结果枚举合法、非「未测」必须有证据位置；`python tools/m3-checks/check_evidence_index.py` → 0 失败 |
+| 证据索引自检 | [tools/m3-checks/check_evidence_index.py](tools/m3-checks/check_evidence_index.py) | 88 行齐全、结果枚举合法、**非「未测」必须带 E0–E3 级别且有证据位置**；→ 703 项检查 0 失败 |
+| EX 回放独立记录 | [docs/contest/ex-replay-evidence.md](docs/contest/ex-replay-evidence.md) | A 的 EX-01–EX-20 逐条独立复核：PASS 7 / 形状级 2 / 不可复核 10 / 不可执行 1；不转述 A 的 pass |
+| EX 回放复核脚本 | [tools/m3-checks/verify_ex_replay.py](tools/m3-checks/verify_ex_replay.py) | 只读证据里的原始响应，用 C 的断言重判；读不到就记 UNVERIFIABLE，并用 UNBACKED 抓「声称零写入但无计数」 |
 | 课表脱敏 | [tools/m3-checks/build_timetable_fixture.py](tools/m3-checks/build_timetable_fixture.py) | 真实课表 CSV → 去身份/教师教室占位 → `scenario_d_real_timetable.json`；`--demo` 可自测 |
 | 提交预检 | [tools/m3-checks/preflight_submission.py](tools/m3-checks/preflight_submission.py) | 扫描提交材料：学校/学院名、姓名/学号、手机/邮箱、API 密钥、真实用户路径，10 条规则；顺带统计未填占位符 |
 | 拆解质量用例 | [docs/contest/decomposition-acceptance.md](docs/contest/decomposition-acceptance.md) | DA01–DA15 六维判据（覆盖率/原子性/时长守恒/依赖有序/截止继承/写入安全），对应计划 D3；当前零执行 |

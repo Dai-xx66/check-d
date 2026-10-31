@@ -138,11 +138,46 @@
 | EV-X1 | 非终态 + 新幂等键 | `READBACK_PENDING` 且 **W4=0**；W4>0 直接 P0 | E2 | | | | 未测 |
 | EV-G1 | `remaining=0` | 无 block、且**不在** `unplanned_tasks` | E2 | | | | 未测 |
 | EV-G2 | `remaining=40` | `duration_seconds=2400` 精确、`task_target` | E2 | | | | 未测 |
+| EV-G3 | `remaining=null` | 用完整目标 `3600s`、`task_target`；与 G1/G2 三态对照 | E2 | | | | 未测 |
+| EV-G4 | 语义隔离 | `=0` 两处都不出现；窗口不足的另一任务入 `unplanned` + `WINDOW_INSUFFICIENT` | E2 | | | | 未测 |
+| EV-G5 | `remaining=20` < 最小块 | 不得成 20 分钟块；入 `unplanned` + `WINDOW_INSUFFICIENT` | E2 | | | | 未测 |
 | EV-S1 | 完整 Proposal Schema | 原始 JSON 逐字段校验；DTO 解析不算证据 | E2 | | | | 未测 |
 
 ---
 
+## 5C. A 侧 EX-01–EX-20 回放（C 独立复核）
+
+对象：PR #3 head `8a218020` 的 `docs/contracts/reviews/m1-evidence-m0-2c48579.json`。判定细则与依据见 [`ex-replay-evidence.md`](ex-replay-evidence.md)。
+**结果列口径**：C 可确证 → `PASS(E1)`；仅形状级 → `部分(E1)`；无原始响应不可复核 → `部分(E1)` 并在备注写明；契约使其不可执行 → `BLOCKED(E1)`。
+**这 20 行的结论不代表「示例回放通过」**——A 自称 19 条通过，C 可确证 7 条，其余为证据粒度不足。
+
+| ID | 示例 | C 判定 | 级别 | 备注 | 证据位置 | 结果 |
+|---|---|---|---|---|---|---|
+| EV-EX01 | list_tasks_with_recurring_and_one_time | SHAPE_ONLY | E1 | note 4 tasks，示例 2 条 → 未用示例 request | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX02 | get_calendar_with_course_and_unexpected_meeting | SHAPE_ONLY | E1 | note 1 events，示例 2 条 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX03 | empty_task_list_is_success | UNVERIFIABLE | E1 | 无响应、无可用 note | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX04 | empty_calendar_is_success | UNVERIFIABLE | E1 | 同上 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX05 | unauthorized_request | PASS（降级） | E1 | `code=AUTH_REQUIRED` 一致，未比全字段 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX06 | generate_schedule_proposal | UNVERIFIABLE | E1 | 「draft + ttl」无法比对具体值 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX07 | validate_schedule_pending_approval | UNVERIFIABLE | E1 | 「valid」同上 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX08 | request_approval_creates_pending_only | UNVERIFIABLE | E1 | 「pending only」；未取 token=null | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX09 | get_approval_status_pending_without_token | UNVERIFIABLE | E1 | 同上 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX10 | get_approval_status_first_approved_delivery | UNVERIFIABLE | E1 | TTL ≤300s 未取证 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX11 | get_approval_status_after_token_was_issued | UNVERIFIABLE | E1 | 不重复泄露未被取证 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX12 | apply_while_external_approval_is_pending | PASS（降级） | E1 | `code=APPROVAL_PENDING` 一致 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX13 | apply_approved_changes_success | UNVERIFIABLE | E1 | `applied_changes` 与库值未取证 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX14 | same_idempotency_key_replays_original_result | UNVERIFIABLE | E1 | 「same result」无对照物 | ex-replay-evidence.md §2 | 部分(E1) |
+| EV-EX15 | already_applied_with_new_idempotency_key | PASS（降级） | E1 | `code=ALREADY_APPLIED` 一致 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX16 | proposal_expired_before_approval | PASS（降级） | E1 | `code=PROPOSAL_EXPIRED` 一致 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX17 | consumed_token_cannot_authorize_another_apply | 不可执行 | E1 | 判定顺序使 `APPROVAL_CONSUMED` 不可达（P1-1） | ex-replay-evidence.md §2 | BLOCKED(E1) |
+| EV-EX18 | approval_token_expired_before_apply | PASS（降级） | E1 | `code=APPROVAL_EXPIRED` 一致 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX19 | base_version_changed_before_apply | PASS（降级） | E1 | `code=SNAPSHOT_CONFLICT` 一致 | ex-replay-evidence.md §2 | PASS(E1) |
+| EV-EX20 | write_may_have_succeeded_but_readback_is_pending | PASS（降级） | E1 | `code=READBACK_PENDING` 一致；写入次数未取证 | ex-replay-evidence.md §2 | PASS(E1) |
+
+---
+
 ## 6. 统计
+
 
 | 组 | 条数 | 已取证 | 未测 |
 |---|---:|---:|---:|
@@ -150,8 +185,9 @@
 | 边界 E | 13 | 0 | 13 |
 | 拆解 DA | 15 | 0 | 15 |
 | 契约 T | 23 | 0 | 23 |
-| 本轮增量 R1/X1/G1/G2/S1 | 5 | 0 | 5 |
-| **合计** | **65** | **0** | **65** |
+| 本轮增量 R1/X1/G1–G5/S1 | 8 | 0 | 8 |
+| A 侧 EX 回放（C 已复核） | 20 | 20 | 0 |
+| **合计** | **88** | **20** | **68** |
 
 **唯一已有的实测**是 `e7be8c9` 上的 Mock 探针（`docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md` §4、`2026-10-31-m1-incremental-recheck-M3.md` §三），针对的是旧提交，**不填进本表**——本表只登记固定基准 `2c48579` 之后的运行。
 
@@ -188,4 +224,4 @@
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
-| 2026-10-31 | 建立索引，60 项全部「未测」 | 规划 M3-2 要求；先定结构，等链路通了只填空 || 2026-10-31 | 追加 §5B 5 项（R1/X1/G1/G2/S1），合计 60→65；新增「证据级别上限」列，结果列改为 `PASS(E1)` 复合写法 | 对应队长本轮 6 项增量；全部仍「未测」，未新增任何实测 |
+| 2026-10-31 | 建立索引，60 项全部「未测」 | 规划 M3-2 要求；先定结构，等链路通了只填空 || 2026-10-31 | 追加 §5B 5 项（R1/X1/G1/G2/S1），合计 60→65；新增「证据级别上限」列，结果列改为 `PASS(E1)` 复合写法 | 对应队长本轮 6 项增量；全部仍「未测」，未新增任何实测 || 2026-10-31 | 补 B19 语义（EV-G3/G4/G5）+ 新增 §5C 的 20 条 EX 回放复核；合计 65→88，已取证 0→20 | EX 行结论为 C 独立判定，非转述 A 的 pass；级别 E1，不升 E2 |

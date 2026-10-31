@@ -1,10 +1,10 @@
-# M0 Agent API v1 验收矩阵（T01–T22 + R1/X1/G1/G2/S1）
+# M0 Agent API v1 验收矩阵（T01–T22 + R1/X1/G1–G5/S1）
 
 - **归属**：M3 / Evaluation（同学 C）
 - **固定基准**：`2c48579a6f0ab2b9181a9246f893c1c0a8dce7c6`（分支 `feat/m0-api-contract`，PR **M0-1 / #4** 的 head，`docs/contracts/agent-api-v1.md`，v1 CANDIDATE 最终决策稿）
 - **基准唯一性**：C 侧全部用例与判定只认上述 SHA；M0 再发新 commit 时按 §9 重跑一次，不混用旧版本结论
 - **状态**：**预期定义阶段，尚未执行任何一条**（含本轮新增的 5 条）
-- **本轮增量**（2026-10-31 队长 6 项）：新增 §3B 的 R1、X1、G1、G2、S1；第 6 项"写入次数"落为 §6.2 的四层口径。**只增量追加，未重审旧问题、未改 M0 契约本体、无新增实测**
+- **本轮增量**（2026-10-31 队长 6 项）：新增 §3B 的 R1、X1、G1、G2、S1；第 6 项"写入次数"落为 §6.2 的四层口径。队长第二次要求"补充 B19 语义验收"后，扩 G3（null）/G4（语义隔离）/G5（低于最小块长）三条，把 `remaining_minutes_today` 的四种预算值封成一组对照。**只增量追加，未重审旧问题、未改 M0 契约本体、无新增实测**
 - **纪律**：本文件只写"输入"与"预期"。所有预期列都是**待验证的断言**，不是实测结果。执行后再另开一节回填实测值，本文件在此之前不得被引用为"已通过"。
 - **复核时点**：`2c48579` 已完成一次增量复审（`docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md`）；M0 将其作为 Task 1 固定基准发布（PR M0-1）后，按 C 口径完成**增量对齐**（`docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md`），未重开全量审计、未重跑实测。
 
@@ -367,6 +367,40 @@
 - **判定要点**：契约 §5.6 只明文"`null` 用完整目标、`0` 不生成 block"，**未明文"非 0 值即上限"**——属单调性推断，记 **B19** 第二条。三个高频错误：① 仍按 3600s 成块（`duration_seconds` 不符）；② 用 `scheduler_estimate` 回填（`duration_source` 不符）；③ 把 40 分钟写回 `duration_target_seconds`（违反"估算不得写回持久化字段"）
 - **边界提示（不新增用例）**：若 `preferences.minimum_block_minutes=45`，40 分钟无法达到最小块长，此时应入 `unplanned_tasks`（`WINDOW_INSUFFICIENT`）而不是生成 40 分钟块——**与默认组结论相反**。执行前必须先固定该 preference 并写进证据，否则结果不可复现
 
+### G3 `remaining_minutes_today=null` → 使用完整目标 3600s（B19 语义对照）
+
+- **输入**：`T_RE_1`（`duration_target_seconds=3600`）当天 `remaining_minutes_today` 字段**缺失或为 `null`**；`preferences` 默认；`generate_schedule` → `validate_schedule`
+- **预期响应码**：两次均 `success`
+- **预期 Proposal 状态**：`draft`
+- **预期数据结果**：该 task **恰好 1 个 block**，`duration_seconds=3600`（精确），`duration_source=task_target`；`unplanned_tasks` 无该 task；`duration_target_seconds` 保持 3600
+- **预期写入次数（W4）**：**0**
+- **判定要点**：契约 §5.6 明文「该字段为 `null` 时使用完整目标」——**完全可判**，是本组唯一不需要推断的一条。它与 G1（0→不成块）、G2（40→截断）构成三态对照：**同一任务的三种预算值应产生三种不同 block 数/时长**，任何两种结果相同都说明预算字段未被真正消费
+- **与 S1 的关系**：G3 同时验证 `blocks[].duration_seconds` 与 `end_at - start_at` 一致，可作为 S1 的字段级交叉校验
+
+### G4 「无需安排」与「排不下」的语义隔离（B19 核心）
+
+- **输入**：同一 snapshot 内两个周期任务——`T_RE_1` 当天 `remaining_minutes_today=0`、`T_RE_3` 当天 `remaining_minutes_today=120` 但可用窗口只剩 30 分钟（不足 ≤ `minimum_block_minutes` 时可成的块）；一次 `generate_schedule`
+- **预期响应码**：`success`
+- **预期 Proposal 状态**：`draft`
+- **预期数据结果**：
+  - `T_RE_1`（=0）：**不在 `blocks`**，**不在 `unplanned_tasks`**，`explanations` 中不得出现任何"排不下"语义的 `code`
+  - `T_RE_3`（窗口不足）：**在 `unplanned_tasks`**，`reason_code=WINDOW_INSUFFICIENT`，且带 `remaining_minutes`
+  - 两者的处理**必须可直接区分**：一个"未出现"、一个"出现在未安排列表里"
+- **预期写入次数（W4）**：**0**
+- **判定要点**：这是 B19 的实质——`unplanned_tasks` 的语义是"**无法安排**"，`remaining=0` 是"**无需安排**"。若实现把两者都塞进 `unplanned_tasks`，统计上会把"今日已完成"记成"排不下"，`reason_code` 分布失真；若实现把 `T_RE_3` 也悄悄丢掉，则用户永远看不到"因为窗口不够没排上"。本条同时抓两种错
+- **可判性**：**可判**（`WINDOW_INSUFFICIENT` 是 §5.7 四值之一，语义明确；"=0 不入列"由队长口径 + B19 反证支撑）
+
+### G5 `remaining_minutes_today=20` < 最小块长 → 第三态（B19 边界）
+
+- **输入**：`T_RE_1` 当天 `remaining_minutes_today=20`；`preferences.minimum_block_minutes=30`（显式）；`generate_schedule`
+- **预期响应码**：`success`
+- **预期 Proposal 状态**：`draft`
+- **预期数据结果**：**不得**生成 20 分钟的 block（低于最小块长）；该 task 应进入 `unplanned_tasks`，`reason_code=WINDOW_INSUFFICIENT`，`remaining_minutes=20`；`duration_target_seconds` 不变
+- **预期写入次数（W4）**：**0**
+- **判定要点**：B19 的第三态。契约只写了 0（不成块）与 null（用完整目标），**没写"非 0 但低于最小块长"怎么办**——是"入 `unplanned_tasks`（排不下）"还是"按最小块长强行排 30 分钟（超预算）"还是"忽略该任务"，三种都说得通。C 侧按"不得超预算 + 不得静默丢弃"取最保守预期：入 `unplanned_tasks` 并给 `WINDOW_INSUFFICIENT`
+- **与 G2 的对照**：40 分钟 > 30 → 正常成块；20 分钟 < 30 → 不成块。两条一起才说明 `minimum_block_minutes` 真的生效，而不是被忽略
+- **可判性**：**部分可判**——"不得超预算"可判（预算语义），"必须入 `unplanned_tasks`"属推断，需 M0 在 B19 的第二句里明确
+
 ### S1 Proposal 序列化：只认服务端组装后的完整 Schema，不认 M2 DTO 解析成功
 
 - **输入**：抓取 `generate_schedule` 与 `validate_schedule` 的**原始 HTTP 响应体**（不经任何 SDK / DTO / ORM 中转），逐字段校验 `schedule_proposal`
@@ -403,13 +437,17 @@
 | A 侧 10-31 修订（9 项待处理） | T04-b、T08、T12-b、T05/T06、T09-b、T16、T10 | 判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md`；A 需按新契约重跑 |
 | Token 过期后重建凭据（本轮） | R1 | **可判**（§6.6 两句明文；仅"新 `approval_id`"属推断） |
 | 非终态 + 新幂等键（本轮） | X1 | **部分可判**——零写入可判，响应码属契约真空（B18）；W4>0 直接 FAIL |
-| `remaining_minutes_today=0`（本轮） | G1 | **可判**——不生成 block 明文；不进 `unplanned_tasks` 待 M0 补句（B19） |
+| `remaining_minutes_today=0`（本轮） | G1、G4 | **可判**——不生成 block 明文；"不入 `unplanned_tasks`"由队长口径 + `reason_code` 反证支撑（B19） |
 | `remaining_minutes_today=40`（本轮） | G2 | **部分可判**——「截断为上限」属推断（B19）；需先固定 `minimum_block_minutes` |
+| `remaining_minutes_today=null`（B19 扩展） | G3 | **可判**——§5.6 明文「`null` 用完整目标」，与 G1/G2 构成三态对照 |
+| `remaining_minutes_today=20`（B19 边界） | G5 | **部分可判**——「不得超预算」可判，「必须入 `unplanned_tasks`」属推断 |
 | Proposal 完整 Schema（本轮） | S1 | **可判**（§5.7 字段表完整）；须脱离 M2 DTO 取证 |
 
 附两条低成本用例：T13 请求体带 `user_id` → `INVALID_ARGUMENT`；T14 空任务/空日历 → `success` + 空数组（不得 404）。
 
-**统计（27 个编号 / 28 个用例项，T03 已拆 a/b）**：完全可判 **19**、部分可判 **6**（T03-a、T07、T10、T21、X1、G2）、不可判 **3**（T09-b、T18、T22）。相比上一轮（22 编号 / 23 项，16/4/3）：本轮新增 5 个编号——R1、G1、S1 入完全可判（16+3=19），X1 入部分可判（B18，P0 契约真空），G2 入部分可判（「非 0 即上限」属推断，B19）。**新增项同样零实测**。
+**统计（30 个编号 / 31 个用例项，T03 已拆 a/b）**：完全可判 **21**、部分可判 **7**（T03-a、T07、T10、T21、X1、G2、G5）、不可判 **3**（T09-b、T18、T22）。
+
+演进：`2c48579` 首轮 15/3/4 → 上轮 16/4/3（T03 拆分）→ 队长 6 项后 19/6/3 → 本轮补 B19 语义后 **21/7/3**。新增 R1、G1、G3、G4 入完全可判，X1、G2、G5 入部分可判。**全部 31 项零实测**。
 
 ### 4.1 队长 10-31 指定保留的 8 项 → 用例索引
 
@@ -468,7 +506,7 @@
 | B16 | `READBACK_MISMATCH` 之后的 Proposal 终态未定义（停留 `applying` / `failed` / `readback_pending` 三选一），且与 `failed` 的"safe failure"边界重叠 | P1 | T03-a | 明确"回读结论为不一致"→ 立即 `failed`（而非 `readback_pending`，后者仅限结论不确定）；或新增 `readback_failed` 状态。§10 Q5 只覆盖"`readback_pending` 恢复流程"，未覆盖本条 |
 | B17 | `approval_status` **同名双域**：§6.4 的 `validate_schedule.data.approval_status` 为 `not_requested` / `not_approvable`，与 §6.6 的 6 个审批状态零交集，同名不同义 | P2 | T16、全部含 `approval_status` 的响应 | 改名 `approvability` / `approval_hint`，或在 §5 声明为两个独立枚举、不得混用 |
 | B18 | **非终态 + 新幂等键的响应未定义**：§5.7 只约束"**同一**幂等请求继续回读"，§6.7 的"最多成功应用一次"只覆盖**已成功**的 Proposal。当 `status=applying` / `readback_pending` 且调用方**换新幂等键**时，判定顺序 §6.7 第 1–2 步（查同键记录、查是否 `applied`）均不命中，第 3 步之后的校验照旧通过 → 实现会**直接重新执行写入**。这是唯一一条"契约真空导致必写两次"的路径 | **P0** | X1 | §6.7 判定顺序插入一步：`status ∈ {applying, readback_pending}` 时**无论幂等键是否相同**一律返回 `READBACK_PENDING` 且零写入；同时明确"换新键不得产生新执行记录" |
-| B19 | **`remaining_minutes_today` 只定义了 0 与 null 两端**：§5.2/§5.6 写了"为 0 时当天不再排程、不生成 block""为 null 时使用完整目标"，但 ① `=0` 的任务**是否允许进入 `unplanned_tasks`** 未明文，而 §5.7 把该数组定义为"**无法安排**的 Task"、`reason_code` 四值也无"已完成"；② 非 0 值（如 40）**是否为时长上限**未明文，只能由两端单调性推断 | P1 | G1、G2 | §5.6 补两句：①"`remaining_minutes_today=0` 表示当日目标已完成，不生成 block，且**不得**进入 `unplanned_tasks`、不得使用任何 `reason_code`"；②"非 0 值即当日可排时长上限，`duration_seconds = min(remaining×60, 窗口可用时长)`，来源标记 `task_target`" |
+| B19 | **`remaining_minutes_today` 只定义了 0 与 null 两端**（本轮已扩 G3/G4/G5 三条语义验收，缺口收窄为"非 0 值语义"与"低于最小块长"两处）：§5.2/§5.6 写了"为 0 时当天不再排程、不生成 block""为 null 时使用完整目标"，但 ① `=0` 的任务**是否允许进入 `unplanned_tasks`** 未明文，而 §5.7 把该数组定义为"**无法安排**的 Task"、`reason_code` 四值也无"已完成"；② 非 0 值（如 40）**是否为时长上限**未明文，只能由两端单调性推断 | P1 | G1、G2、G3、G4、G5 | §5.6 补两句：①"`remaining_minutes_today=0` 表示当日目标已完成，不生成 block，且**不得**进入 `unplanned_tasks`、不得使用任何 `reason_code`"；②"非 0 值即当日可排时长上限，`duration_seconds = min(remaining×60, 窗口可用时长)`，来源标记 `task_target`"；③"非 0 但低于 `minimum_block_minutes` 时进入 `unplanned_tasks` 并标记 `WINDOW_INSUFFICIENT`，不得超预算强行成块" |
 
 ### 5.4 环境性阻塞（不变）
 
@@ -602,6 +640,7 @@
 | 2026-10-31 | **M0-1 固定基准增量对齐**：头部固定 SHA 与 PR；T03 拆为 T03-a（`READBACK_MISMATCH`，终态待定）/ T03-b（`READBACK_PENDING`，同键只回读）；新增 B16；B11 补"消费时点"缺失；统计改 22 编号 / 23 用例项（16/4/3） | 未改契约本体、未重跑实测；只做 C 侧用例口径对齐，明细见 `docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md` |
 | 2026-10-31 | **按 `2c48579` 最终稿全量重判**：§2.1/2.2 状态迁移改判（6 闭合/2 部分）、§2.3 错误码表扩至 20 个、T12-b 枚举修正、T15 改为负向用例、新增 T19–T22、§5 阻塞结算（B1–B4/B8/B10 闭合，新增 B11–B15）、§7 注明新契约无 Mock、§9 标注已执行 | **纯文档级复审，无任何实测**；结论见 `docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md` |
 | 2026-10-31 | 新增 §4.2：声明任务拆解质量（DA01–DA15）**不属于本矩阵**，契约无拆解工具；判据另立 `docs/contest/decomposition-acceptance.md` | 对应计划 D3 的 C 侧任务；DA 系列零执行，不新增任何实测 |
+| 2026-10-31 | 按队长第二次指示补 **B19 语义验收**：新增 G3（`=null` 用完整目标）/ G4（「无需安排」与「排不下」隔离）/ G5（20 < 最小块长）；G1–G5 五种预算值组成对照；统计改 30 编号 / 31 项（21/7/3）；B19 解除条件补第三句 | **仍零实测**；G3 为唯一完全由契约明文支撑的一条 |
 | 2026-10-31 | **按队长 6 项增量追加 §3B**：R1（Token 过期后重建须换 `approval_id`、旧 Token 永久失效）、X1（非终态换新幂等键 → `READBACK_PENDING`、零写入）、G1（`remaining_minutes_today=0` 不成块且不入 `unplanned_tasks`）、G2（=40 只排 40 分钟）、S1（只认服务端完整 Schema，不认 M2 DTO）；§6 重写为 **E0–E3 四级证据** + **W1–W4 四层写入次数**；新增 B18（P0，契约真空）/ B19（P1）；§2.1/§2.2 各补 1 行映射；统计改 27 编号 / 28 项 | **只增量追加，未重审旧问题、未改契约本体、无新增实测**；B18 是首条"契约真空必写两次"的 P0 |
 
 ## 9. 单次增量复审清单（已于 `2c48579` 执行一次）
