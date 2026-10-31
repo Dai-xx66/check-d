@@ -45,7 +45,8 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 产出 | 位置 | 说明 |
 |---|---|---|
 | 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
-| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | T01–T12 的响应码/状态/数据/写入次数四元组断言，预期定义阶段 |
+| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | T01–T22 的响应码/状态/数据/写入次数四元组断言；按 `2c48579` 重判，可判 15 / 部分 3 / 不可判 4 |
+| 契约评审（M3） | [docs/reviews/](docs/reviews/) | 逐版只读评审与复核，最新为 [v1 最终稿 `2c48579` 增量复审](docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md) |
 | 演示脚本 | [docs/contest/demo-script.md](docs/contest/demo-script.md) | 现场演示的逐步操作与口播要点 |
 | 开源与合规披露 | [docs/contest/oss-disclosure.md](docs/contest/oss-disclosure.md) | 第三方依赖、许可证、数据来源与隐私边界 |
 | 场景样本数据 | [fixtures/education/](fixtures/education/README.md) | 三条教育场景 JSON + 边界用例集，可脱敏、可复现 |
