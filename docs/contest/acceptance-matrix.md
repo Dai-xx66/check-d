@@ -276,6 +276,19 @@
 | T05 审批过期 | 部分 | 轮询返回 `expired`，无 `APPROVAL_EXPIRED` 错误码路径 |
 | T12-b 时长来源 | 部分 | 优先级正确，枚举命名与契约不一致 |
 
+**2026-10-31 增量复审补充实测（队长 10 项清单）**：
+
+| 用例 | 结果 | 关键观测 |
+|---|---|---|
+| T11 旧 `scheduled_at` 只改 planned_date | **FAIL** | change 缺 `scheduled_at` → 旧值被**静默清空**，回读仍判 PASS；`tool_server.py:663-664` 无条件覆盖，`:702` 两侧皆 None 故通过 |
+| T09-c 既有 override 再次写入 | 需契约定义 | `override_id` 被替换（`ov_0038→ov_0063`）；真实库唯一键下必撞。回读未校验 `action`/`item_type`/`override_id` |
+| T04 版本冲突零写入 | PASS | 冲突后 tasks/overrides 全量深比较无变化 |
+| T01/T02 回读重试零重写 | PASS | `override_id` 与条目数均不变，仅重跑回读 |
+| T17 过期审批重建 | FAIL | 复用死记录（F1） |
+| Token 5 分钟边界 | **未实现** | token 记录无过期字段，永久有效 |
+
+明细见 `docs/reviews/2026-10-31-m1-incremental-recheck-M3.md`。
+
 明细与根因见 `docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md`。
 
 ---
