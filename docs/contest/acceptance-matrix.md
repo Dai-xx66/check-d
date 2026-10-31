@@ -571,10 +571,10 @@ R1、T17、T19 与本节的分工：R1 验证"过期后重建"的凭证隔离；
 
 | 编号 | 问题 | 级别 | 影响用例 | 解除条件 |
 |---|---|---|---|---|
-| **B20** | **契约内部硬冲突（机检可判）**：§4.1 明文"READBACK_PENDING 错误详情**必须**包含 `proposal_status=readback_pending`"，而 §6.7 规定新键 + `applying` 也返回 `READBACK_PENDING`；示例 31 的详情实际为 `proposal_status=applying`——同一响应码在合法路径下不可能同时满足两句 | **P1** | X1、T03-b、Y1 | 二选一：§4.1 放宽为 `proposal_status ∈ {applying, readback_pending}`，或 `applying` 分支另给码（不建议，破坏零写入统一语义）。**B20 未定前，相关断言写"容忍两种状态值"，不写死** |
-| B21 | 零写入证据形状不对称：`readback_pending → applied` 用 `data.recovery_evidence` 对象（示例 44），`→ failed` 把同三字段塞进 `error.details`（示例 45），无 `recovery_evidence` 对象 | P2 | T02、T03-a | failed 分支也返回 `recovery_evidence`；W4 断言暂需两套解析分支 |
-| B22 | `failed` 终态 + 无有效凭据时无码：步骤 4 只规定"`failed` + 同 Proposal 已消费 Token → `APPROVAL_CONSUMED`"；`failed` + 缺 Token / 他提案 Token 的响应码未定义 | P2 | T18、T22 | 补一句优先级（建议：绑定核验在前 → `APPROVAL_UNTRUSTED`；缺凭据 → `APPROVAL_REQUIRED`） |
-| B23 | 判定顺序步骤 3（幂等摘要）与步骤 4（Proposal 状态）优先级未声明：已 `applied` + 同键不同摘要，按步骤 3 → `IDEMPOTENCY_CONFLICT`，按 §6.7 末段 → `ALREADY_APPLIED`；两者都零写入但响应码不同 | P2 | T08、T07 | 一句优先级声明（建议：终态检查先于摘要冲突，`applied` 优先返回 `ALREADY_APPLIED`） |
+| **B20** | **契约内部硬冲突（机检可判）**：§4.1 明文"READBACK_PENDING 错误详情**必须**包含 `proposal_status=readback_pending`"，而 §6.7 规定新键 + `applying` 也返回 `READBACK_PENDING`；示例 31 的详情实际为 `proposal_status=applying`——同一响应码在合法路径下不可能同时满足两句 | **P1（M0 已裁定方向，待修订 SHA 落笔）** | X1、T03-b、Y1 | **M0 裁定（2026-11-01 邮件，E2）**：冲突成立，采纳最小一致性修正——§4.1 放宽为 `proposal_status ∈ {applying, readback_pending}`，具体值必须反映实际 Proposal 状态；两种情形均零业务写入、不得第二次 apply；不新增错误码、不改状态机。**c53b1a9 文本尚未修订：B20 保持 P1 未闭合，新 SHA 发布前不把建议当生效契约**；相关断言继续"容忍两种状态值" |
+| B21 | 零写入证据形状不对称：`readback_pending → applied` 用 `data.recovery_evidence` 对象（示例 44），`→ failed` 把同三字段塞进 `error.details`（示例 45），无 `recovery_evidence` 对象 | P2（M0 已定方向：不强行统一形状） | T02、T03-a | **M0 裁定（同上，E2）**：成功响应的 `data.recovery_evidence` 与错误响应的 `error.details` 可分别校验，暂不强行把错误证据塞入成功 `data`；零写入语义不变。W4 断言按两套解析分支实现即可，不再要求 failed 分支返回 `recovery_evidence` 对象 |
+| B22 | `failed` 终态 + 无有效凭据时无码：步骤 4 只规定"`failed` + 同 Proposal 已消费 Token → `APPROVAL_CONSUMED`"；`failed` + 缺 Token / 他提案 Token 的响应码未定义 | P2（M0 已定方向，待契约明确后升硬断言） | T18、T22 | **M0 裁定（同上，E2）**：缺 Token → `APPROVAL_REQUIRED`；跨 Proposal Token → `APPROVAL_UNTRUSTED`；`failed` 终态始终禁止再次写入。契约中明确优先级前不升为验收硬断言 |
+| B23 | 判定顺序步骤 3（幂等摘要）与步骤 4（Proposal 状态）优先级未声明：已 `applied` + 同键不同摘要，按步骤 3 → `IDEMPOTENCY_CONFLICT`，按 §6.7 末段 → `ALREADY_APPLIED`；两者都零写入但响应码不同 | P2（M0 已裁定优先级，待落笔） | T08、T07 | **M0 裁定（同上，E2，与 M3 原建议相反，以 M0 为准）**：同键不同摘要的 `IDEMPOTENCY_CONFLICT` **优先于** `ALREADY_APPLIED`（保护幂等键完整性）；已 `applied` + **新**幂等键仍返回 `ALREADY_APPLIED`。待 M0 文档明确前，T08 断言不写死顺序 |
 
 ### 5.4 环境性阻塞（不变）
 
