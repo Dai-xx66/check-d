@@ -45,11 +45,15 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 产出 | 位置 | 说明 |
 |---|---|---|
 | 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
+| 证据索引 | [docs/contest/evidence-index.md](docs/contest/evidence-index.md) | 60 项（9 场景 / 13 边界 / 15 拆解 / 23 契约）逐条登记运行日期、版本、命令、证据位置；当前全部「未测」 |
+| 初赛大纲 | [docs/contest/submission-outline.md](docs/contest/submission-outline.md) | ≤3 页骨架：需求价值 30 / 创新 25 / 技术 25 / 完成度 20，含填空位与提交前 8 项自检 |
 | 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | T01–T22（T03 拆 a/b，共 23 项）的响应码/状态/数据/写入次数四元组断言；按 `2c48579` 重判，可判 16 / 部分 4 / 不可判 3 |
 | 契约机检脚本 | [tools/m3-checks/check_contract_consistency.py](tools/m3-checks/check_contract_consistency.py) | 静态比对正文枚举与示例，`python tools/m3-checks/check_contract_consistency.py 2c48579` → 越界 0 |
 | 拆解质量用例 | [docs/contest/decomposition-acceptance.md](docs/contest/decomposition-acceptance.md) | DA01–DA15 六维判据（覆盖率/原子性/时长守恒/依赖有序/截止继承/写入安全），对应计划 D3；当前零执行 |
 | 契约评审（M3） | [docs/reviews/](docs/reviews/) | 逐版只读评审与复核，最新为 [M0-1 固定基准 `2c48579` 增量对齐](docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md)（含文件指纹与机检） |
 | 演示脚本 | [docs/contest/demo-script.md](docs/contest/demo-script.md) | 现场演示的逐步操作与口播要点 |
+| 界面走查 | [docs/contest/ui-review-checklist.md](docs/contest/ui-review-checklist.md) | 用词一致性、前后差异、失败态文案、390px 手机宽度，共 19 项；未执行 |
+| 盲测包 | [docs/contest/blind-test-kit.md](docs/contest/blind-test-kit.md) | 给非开发者的 10 步操作单 + 观察记录表 + 判定规则；未执行 |
 | 开源与合规披露 | [docs/contest/oss-disclosure.md](docs/contest/oss-disclosure.md) | 第三方依赖、许可证、数据来源与隐私边界 |
 | 场景样本数据 | [fixtures/education/](fixtures/education/README.md) | 三条教育场景 JSON + 13 条边界用例 + 15 条拆解用例（DA），可脱敏、可复现 |
 | 样本自检 | [validate_fixtures.py](fixtures/education/validate_fixtures.py) | `python validate_fixtures.py --privacy` 校验字段完整性与隐私 |
