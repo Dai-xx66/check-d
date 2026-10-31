@@ -1,0 +1,146 @@
+{
+  "fixture_version": "1.0",
+  "scenario_id": "B",
+  "title": "复杂任务拆解：周五前完成科研报告，拆成子任务并分配时间",
+  "owner_module": "M3",
+  "timezone": "Asia/Shanghai",
+  "anchor": {
+    "mode": "relative",
+    "today_offset": 0,
+    "target_offset": 3,
+    "note": "target_offset=3 表示三天后到期（对应「周五前」的相对表达）。"
+  },
+  "prompt": "我三天内要交一份科研报告，现在完全没头绪，帮我拆成能直接动手的子任务，再按我的空闲时间排一排。",
+  "prompt_variants": [
+    "周五前要交科研报告，帮我拆解并安排时间。",
+    "科研报告还没动，帮我拆成小任务，排进这几天的空档。"
+  ],
+  "courses": [
+    {
+      "id": "course-calc",
+      "name": "高等数学",
+      "weekdays": [1, 3],
+      "start_minute": 480,
+      "end_minute": 580,
+      "week_range": "1-16",
+      "classroom": "教学楼A301",
+      "teacher": "张老师",
+      "hardness": "hard"
+    },
+    {
+      "id": "course-eng",
+      "name": "大学英语",
+      "weekdays": [2, 4],
+      "start_minute": 600,
+      "end_minute": 700,
+      "week_range": "1-16",
+      "classroom": "外语楼B205",
+      "teacher": "李老师",
+      "hardness": "hard"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-research-report",
+      "name": "科研报告",
+      "kind": "one_time",
+      "execution": "untimed",
+      "estimated_minutes": 360,
+      "deadline": { "day_offset": 3, "minute_of_day": 1439 },
+      "hardness": "soft",
+      "tag": "科研",
+      "note": "父任务。Agent 需要拆成子任务，父任务本身不直接被排入时间块。"
+    },
+    {
+      "id": "task-eng-vocab",
+      "name": "英语六级词汇复习",
+      "kind": "recurring",
+      "execution": "timed",
+      "target_duration_minutes": 25,
+      "scheduled_minute_of_day": null,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "deadline": null,
+      "hardness": "soft",
+      "tag": "学习"
+    }
+  ],
+  "fixed_events": [
+    {
+      "id": "evt-group-meeting",
+      "name": "课题组组会",
+      "day_offset": 2,
+      "start_minute": 1200,
+      "end_minute": 1260,
+      "hardness": "hard",
+      "remind_mode": "due",
+      "note": "第二天 20:00-21:00，占用当晚学习窗口。"
+    }
+  ],
+  "existing_overrides": [],
+  "study_windows": {
+    "note": "该学生的有效学习时段只有晚上 20:00-22:00。排程只能在窗口内切分，不能排到白天上课时间或深夜。",
+    "applies_to_day_offsets": [1, 2, 3],
+    "start_minute": 1200,
+    "end_minute": 1320
+  },
+  "expected_breakdown": {
+    "note": "子任务命名与时长是参考值，允许 Agent 用不同措辞；但总时长必须等于父任务预估 360 分钟。",
+    "subtasks": [
+      { "id": "sub-1", "name": "文献检索与综述", "estimated_minutes": 90, "depends_on": [] },
+      { "id": "sub-2", "name": "数据清洗", "estimated_minutes": 45, "depends_on": ["sub-1"] },
+      { "id": "sub-3", "name": "结果分析", "estimated_minutes": 75, "depends_on": ["sub-2"] },
+      { "id": "sub-4", "name": "图表制作", "estimated_minutes": 60, "depends_on": ["sub-3"] },
+      { "id": "sub-5", "name": "正文撰写与校对", "estimated_minutes": 90, "depends_on": ["sub-3"] }
+    ]
+  },
+  "expectations": {
+    "must_call_tools": ["list_tasks", "get_calendar_events", "propose_task_breakdown"],
+    "must_read_before_propose": true,
+    "assertions": [
+      {
+        "id": "B1",
+        "desc": "输出结构化子任务，数量 ≥4",
+        "check": "len(subtasks) >= 4"
+      },
+      {
+        "id": "B2",
+        "desc": "子任务时长合计等于父任务预估 360 分钟（不允许偷偷缩水）",
+        "check": "sum(subtask.minutes) == 360"
+      },
+      {
+        "id": "B3",
+        "desc": "可用总时长不足时，明确列出未安排量与原因，而不是静默丢弃",
+        "check": "unplanned_minutes == 60 && unplanned_tasks non-empty"
+      },
+      {
+        "id": "B4",
+        "desc": "排入的时间块不超出学习窗口 20:00-22:00，也不覆盖组会",
+        "check": "within(study_windows) && no_overlap(hard_blocks)"
+      },
+      {
+        "id": "B5",
+        "desc": "每个子任务的完成时间早于父任务截止时间",
+        "check": "subtask.end <= deadline"
+      },
+      {
+        "id": "B6",
+        "desc": "批准前不写库：父任务与子任务都不应出现在任务表",
+        "check": "write_count_before_approval == 0"
+      }
+    ],
+    "expected_state_after_approval": {
+      "created_subtasks": ">=4",
+      "new_overrides": "已排子任务数",
+      "unplanned_minutes": 60,
+      "unplanned_tasks": ["正文撰写与校对（部分）"]
+    },
+    "free_minutes_by_window": {
+      "note": "供校验脚本核对：3 天 × 120 分钟窗口 = 360，减去组会占用的 60 分钟 = 300。",
+      "total_study_minutes": 360,
+      "hard_block_minutes": 60,
+      "available_minutes": 300,
+      "required_minutes": 360,
+      "shortfall_minutes": 60
+    }
+  }
+}
