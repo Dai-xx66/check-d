@@ -1,10 +1,11 @@
 # M0 Agent API v1 验收矩阵（T01–T22）
 
 - **归属**：M3 / Evaluation（同学 C）
-- **对象**：`docs/contracts/agent-api-v1.md` @ `2c48579`（v1 CANDIDATE 最终决策稿）
+- **固定基准**：`2c48579a6f0ab2b9181a9246f893c1c0a8dce7c6`（分支 `feat/m0-api-contract`，PR **M0-1 / #4** 的 head，`docs/contracts/agent-api-v1.md`，v1 CANDIDATE 最终决策稿）
+- **基准唯一性**：C 侧全部用例与判定只认上述 SHA；M0 再发新 commit 时按 §9 重跑一次，不混用旧版本结论
 - **状态**：**预期定义阶段，尚未执行任何一条**
 - **纪律**：本文件只写"输入"与"预期"。所有预期列都是**待验证的断言**，不是实测结果。执行后再另开一节回填实测值，本文件在此之前不得被引用为"已通过"。
-- **复核时点**：已于 `2c48579` 完成一次增量复审（见 `docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md`）；本轮只更新预期，未执行。
+- **复核时点**：`2c48579` 已完成一次增量复审（`docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md`）；M0 将其作为 Task 1 固定基准发布（PR M0-1）后，按 C 口径完成**增量对齐**（`docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md`），未重开全量审计、未重跑实测。
 
 判定口径统一为四元组：**响应码 + Proposal 状态 + 数据结果 + 实际写入次数**。四项全部吻合才算 PASS。
 
@@ -42,7 +43,7 @@
 | `applied` → `applied` | 换幂等键再次 apply | T08 | 已定义（§6.7 第 2 步 → `ALREADY_APPLIED`） |
 | `pending_approval` → `expired` | 超过 30 分钟 TTL | T06 | 已定义（§5.7 状态机 + §6.7） |
 | `pending_approval` → `rejected` | 用户在外部界面拒绝 | T16 | 已定义（§6.6 `status=rejected`） |
-| `applying` → `failed` | "safe failure" | T03 | **部分**：有箭头但"safe"未定义、无对应错误码（P2-3） |
+| `applying` → `failed` | "safe failure"（写入确证未发生） | T03-a | **部分**：有箭头但"safe"未定义、无对应错误码、且与 `READBACK_MISMATCH` 后终态未区分（B14、B16） |
 
 ### 2.2 Approval（6 个状态值）
 
@@ -79,8 +80,8 @@
 | `ALREADY_APPLIED` | Proposal 已 applied | 14 | T08 | 可判 |
 | `IDEMPOTENCY_CONFLICT` | 同键异摘要/异提案 | 无 | T07 | 可判 |
 | `WRITE_BLOCKED` | 无法证明原子性 | 无 | — | 可判（依赖 BLOCKED 项） |
-| `READBACK_PENDING` | 写入可能已提交、回读未决 | 19 | T01、T02 | 可判 |
-| `READBACK_MISMATCH` | 写后回读不一致 | 无 | T01 | 可判 |
+| `READBACK_PENDING` | 写入可能已提交、回读未决 | 19 | T01、T02、T03-b | 可判 |
+| `READBACK_MISMATCH` | 写后回读不一致 | **无示例** | T03-a | 可判（终态另行待定，B16） |
 | `INTERNAL_ERROR` | 脱敏未知错误 | 无 | — | 部分 |
 
 ---
@@ -105,14 +106,23 @@
 - **预期写入次数**：**累计仍为 1**（重试只做回读，不得二次写入）
 - **判定要点**：这是幂等能力的核心断言。写入次数若变 2，本用例直接 FAIL
 
-### T03 回读持续不一致 → 终局
+### T03-a 写后回读不一致 → `READBACK_MISMATCH`（新增拆分）
 
-- **输入**：T01 之后同键重试 N 次（N 由 M0 定义，建议 3），回读始终不一致
-- **预期响应码**：**`[待定]`** —— 契约未定义终局错误码；建议沿用 `READBACK_MISMATCH` 但附终局标记，或新增 `READBACK_UNRESOLVED`
-- **预期 Proposal 状态**：**`[待定]`** —— 建议 `failed`，需与"写入明确失败"的 `failed` 可区分
-- **预期数据结果**：不得自动回滚（契约未授权回滚）；应留下可审计的终局记录供人工复核
-- **预期写入次数**：**仍为 1**
-- **判定要点**：本用例当前**不可判**，依赖 M0 定义终局语义；见 §5 阻塞项 B1
+- **输入**：`T_RE_1` 的 `reschedule` 提案已批准并 apply；注入"写入成功但回读值不同"（回读返回 `planned_start_minute` 比批准值多 5）
+- **预期响应码**：`READBACK_MISMATCH`（502），**不得返回 `success`**（§4.1 + §6.7「任何缺失或不一致返回 `READBACK_MISMATCH`，不得返回成功」）
+- **预期 Proposal 状态**：**`[待定]`** —— 契约只规定"不得返回成功"，未规定此后状态（停留 `applying` / `failed` / `readback_pending` 三选一），见 **B16**
+- **预期数据结果**：已写入数据**不得自动回滚**（契约未授权回滚）；须留可审计记录（`override_id`、批准值、回读值）；`readback_verified` 不得为 `true`
+- **预期写入次数**：**1**（写入已发生，不因回读失败消失；重试不得产生第 2 次写入）
+- **判定要点**：`e7be8c9` 实测的 F3 是此条反例——回读失败仍 `readback_verified=true` 且 `proposal_status=applied`。断言必须同时查"响应码 + `readback_verified` + 库中实际值"，只看响应码会被假成功骗过
+
+### T03-b 回读无法完成（不确定）→ `READBACK_PENDING`，同键只回读
+
+- **输入**：apply 已完成写入，但回读通道故障（超时 / 依赖不可用），无法给出"一致"或"不一致"的结论
+- **预期响应码**：`READBACK_PENDING`（503）
+- **预期 Proposal 状态**：`readback_pending`
+- **预期数据结果**：幂等记录被标为 `readback_pending`；**同一幂等键重试只能重新回读/核验，不得再次写入**；通道恢复且回读一致后，返回原 apply 结果（`applied_changes`、`result_version`、`readback_verified=true`），Proposal 转 `applied`
+- **预期写入次数**：**恒为 1**（同键重试 N 次仍为 1）
+- **判定要点**：这是"只能安全回读、不得重写"唯一可执行的断言，须用目标表行数 + `override_id` 双重确认。§10 Q5 把「`readback_pending` 的恢复流程」列为 open，但 §6.7「同键只回读」已是确定语义——本条**可判**，恢复上限与超时值不影响本条判定
 
 ### T04 apply 阶段版本冲突
 
@@ -254,6 +264,7 @@
 - **预期数据结果**：旧审批标记 `expired`（落库，不只是计算）；新审批可再次走确认 → 签发 → apply
 - **预期写入次数**：审批表 **+1 条**
 - **判定要点**：`e7be8c9` 实测**不通过**——`request_approval` 复用条件写的是 `rec["status"] != "expired"`（`tool_server.py:561`），但代码从不把 `status` 写成 `expired`（`:590` 仅即时计算），导致过期审批被永久复用，提案**再也无法获得可用凭据**，形成锁死。属 F2 实现缺陷
+- **可判性说明**：「返回**新** `approval_id`」是**推断**而非明文——§6.5 的幂等返回同一 ID 仅限"已有**未终结**审批"，过期属已终结，故应新建。建议 M0 在 §6.6 补一句"审批过期后重建必须产生新 `approval_id`，旧 ID 永久不可用"，本条即从推断转为明文判定
 
 ### T18 token 已消费（APPROVAL_CONSUMED 可达性，新增）
 
@@ -306,7 +317,8 @@
 
 | 重点 | 覆盖用例 | 当前可判性（`2c48579`） |
 |---|---|---|
-| `readback_pending` | T01、T02、T03 | **T01/T02 可判**（状态值 + 错误码 + 同键只回读）；T03 不可判（`failed` 终局未定义，P2-3） |
+| `readback_pending` | T01、T02、T03-b | **均可判**（状态值 + `READBACK_PENDING` 错误码 + 同键只回读、写入次数恒为 1） |
+| 回读失败（不一致） | T03-a | **部分可判**——响应码/写入次数可判，Proposal 终态 `[待定]`（B16） |
 | 版本冲突 | T04、T04-b | **可判**（§6.7"以上均为零写入" + §6.4 摘要重算） |
 | 并发 apply | T07 | 部分可判——执行中响应仍未定义（B6） |
 | 重复 apply | T08 | **可判**（判定顺序第 2 步 → `ALREADY_APPLIED`） |
@@ -323,14 +335,14 @@
 
 附两条低成本用例：T13 请求体带 `user_id` → `INVALID_ARGUMENT`；T14 空任务/空日历 → `success` + 空数组（不得 404）。
 
-**统计（22 条）**：完全可判 **15**、部分可判 **3**（T07、T10、T21）、不可判 **4**（T03、T09-b、T18、T22）。上一轮为「可判 3 / 部分 5 / 不可判 4」，本轮可判数由 3 升至 15。
+**统计（22 个编号 / 23 个用例项，T03 已拆 a/b）**：完全可判 **16**、部分可判 **4**（T03-a、T07、T10、T21）、不可判 **3**（T09-b、T18、T22）。相比 `2c48579` 首轮复审（15/3/4），本轮把回读失败拆开后新增 1 条可判项（T03-b），T03-a 由"完全不可判"降级为"部分可判"。
 
 ### 4.1 队长 10-31 指定保留的 8 项 → 用例索引
 
 | 指定项 | 用例 | 状态机位置 | 当前可判性（`2c48579`） |
 |---|---|---|---|
 | Proposal / Approval 状态机 | §2.1、§2.2 全表；T16、T18 | — | 8 个 Proposal 状态、6 个 Approval 状态**已全部定义**；仅 2 处迁移条件待补（`failed`、过期后重建） |
-| `readback_pending` | T01、T02、T03 | §2.1 第 4 行 | T01/T02 可判；T03 待 `failed` 判定条件 |
+| `readback_pending` | T01、T02、T03-b | §2.1 第 4 行 | **可判**；回读不一致另见 T03-a（终态待 B16） |
 | `PROPOSAL_EXPIRED` | T06 | §2.1 第 6 行 | **可判**（状态值 + 错误码 + 示例 15） |
 | `APPROVAL_EXPIRED` | T05、T17、T19 | §2.2 第 5 行 | **可判**（§6.6 区分仅 Token 过期 / 提案也过期） |
 | `ALREADY_APPLIED` | T08 | §2.1 第 5 行 | **可判**（判定顺序第 2 步） |
@@ -368,11 +380,12 @@
 
 | 编号 | 问题 | 级别 | 影响用例 | 解除条件 |
 |---|---|---|---|---|
-| B11 | `APPROVAL_CONSUMED` 按 §6.7 判定顺序不可达；示例 16 走"他提案 + 旧 Token"路径，按正文应判 `APPROVAL_UNTRUSTED`，示例与正文冲突 | P1 | T18、T22 | 二选一：①定义"apply 开始即消费"（则写入失败后可命中该码）；②删除该码、状态保留、重复 apply 统一 `ALREADY_APPLIED`。并改写示例 16 |
+| B11 | `APPROVAL_CONSUMED` 可达性取决于**消费时点**，契约未定义：§6.6 把 `consumed` 释为"已成功消费"（成功即 `applied` → §6.7 第 2 步先命中 `ALREADY_APPLIED`）；唯 apply 前消费且写入失败（`failed`/`readback_pending`）时可达。另示例 16 走"他提案 + 旧 Token"路径，按 §6.7 绑定核验应判 `APPROVAL_UNTRUSTED`，示例与正文优先级冲突 | P1 | T18、T22、T03-a | 二选一：①明写"apply 进入 `applying` 时即消费 Token"，则失败路径可达；②删码保状态、重复 apply 统一 `ALREADY_APPLIED`。并改写示例 16、补消费时点一句 |
 | B12 | `APPROVAL_UNTRUSTED` 全文零触发条件 | P1 | T22 | 把 §6.7 五条核验逐条绑定错误码 |
 | B13 | `approved → token_issued` 未声明原子 | P2 | T21 | 契约补"该迁移原子，并发轮询仅一个响应可携带 Token" |
 | B14 | `failed` 无判定条件、无错误码 | P2 | T03 | 定义"safe failure"（写入确证未发生）与对应码 |
 | B15 | apply 成功响应缺 `proposal_status` | P2 | 全部（"状态"取证列） | 成功响应增加 `proposal_status=applied`；`readback_pending` 时正式字段而非仅 `details` |
+| B16 | `READBACK_MISMATCH` 之后的 Proposal 终态未定义（停留 `applying` / `failed` / `readback_pending` 三选一），且与 `failed` 的"safe failure"边界重叠 | P1 | T03-a | 明确"回读结论为不一致"→ 立即 `failed`（而非 `readback_pending`，后者仅限结论不确定）；或新增 `readback_failed` 状态。§10 Q5 只覆盖"`readback_pending` 恢复流程"，未覆盖本条 |
 
 ### 5.4 环境性阻塞（不变）
 
@@ -452,6 +465,7 @@
 | 2026-10-31 | 新增 T04-b、T12-b、T16 | 对应 A 侧 10-31 九项修订，判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md` |
 | 2026-10-31 | 新增 T17（过期审批重建）；新增 §7 Mock 实测记录 | 在 e7be8c9 上实测：T08/T04-b/T09-b 通过，T16/T17 失败，明细见 recheck 文档 |
 | 2026-10-31 | 新增 §2 状态机与用例映射、T18（APPROVAL_CONSUMED 可达性）、§4.1 八项索引；T09 回读字段扩至 7 项；章节重排 | 仅定义预期与可达性，无新增实测；按队长要求保留 8 项重点 |
+| 2026-10-31 | **M0-1 固定基准增量对齐**：头部固定 SHA 与 PR；T03 拆为 T03-a（`READBACK_MISMATCH`，终态待定）/ T03-b（`READBACK_PENDING`，同键只回读）；新增 B16；B11 补"消费时点"缺失；统计改 22 编号 / 23 用例项（16/4/3） | 未改契约本体、未重跑实测；只做 C 侧用例口径对齐，明细见 `docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md` |
 | 2026-10-31 | **按 `2c48579` 最终稿全量重判**：§2.1/2.2 状态迁移改判（6 闭合/2 部分）、§2.3 错误码表扩至 20 个、T12-b 枚举修正、T15 改为负向用例、新增 T19–T22、§5 阻塞结算（B1–B4/B8/B10 闭合，新增 B11–B15）、§7 注明新契约无 Mock、§9 标注已执行 | **纯文档级复审，无任何实测**；结论见 `docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md` |
 
 ## 9. 单次增量复审清单（已于 `2c48579` 执行一次）
