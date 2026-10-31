@@ -51,6 +51,7 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 契约机检脚本 | [tools/m3-checks/check_contract_consistency.py](tools/m3-checks/check_contract_consistency.py) | 静态比对正文枚举与示例，`python tools/m3-checks/check_contract_consistency.py 2c48579` → 越界 0 |
 | 证据索引自检 | [tools/m3-checks/check_evidence_index.py](tools/m3-checks/check_evidence_index.py) | 校验 60 行齐全、结果枚举合法、非「未测」必须有证据位置；`python tools/m3-checks/check_evidence_index.py` → 0 失败 |
 | 课表脱敏 | [tools/m3-checks/build_timetable_fixture.py](tools/m3-checks/build_timetable_fixture.py) | 真实课表 CSV → 去身份/教师教室占位 → `scenario_d_real_timetable.json`；`--demo` 可自测 |
+| 提交预检 | [tools/m3-checks/preflight_submission.py](tools/m3-checks/preflight_submission.py) | 扫描提交材料：学校/学院名、姓名/学号、手机/邮箱、API 密钥、真实用户路径，10 条规则；顺带统计未填占位符 |
 | 拆解质量用例 | [docs/contest/decomposition-acceptance.md](docs/contest/decomposition-acceptance.md) | DA01–DA15 六维判据（覆盖率/原子性/时长守恒/依赖有序/截止继承/写入安全），对应计划 D3；当前零执行 |
 | 契约评审（M3） | [docs/reviews/](docs/reviews/) | 逐版只读评审与复核，最新为 [M0-1 固定基准 `2c48579` 增量对齐](docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md)（含文件指纹与机检） |
 | 演示脚本 | [docs/contest/demo-script.md](docs/contest/demo-script.md) | 现场演示的逐步操作与口播要点 |
