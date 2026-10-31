@@ -48,7 +48,7 @@
 | 技术架构（一图） | WorkBuddy Agent → 7 个工具（v1 契约）→ Mock/真实数据 → CheckD | 图：`docs/demo/` 现有架构图，或按 `architecture.md` 重绘 | `docs/architecture.md` | 可填 |
 | 契约冻结 | v1 固定 SHA `2c48579`：7 工具 / 20 错误码 / 8 Proposal 状态 / 6 Approval 状态 | 「契约冻结后四人并行开发，字段不再改名」 | `agent-api-v1.md`、矩阵 | 可填 |
 | 平台功能应用 | WorkBuddy 的知识库、工作流、工具调用分别用在哪 | 「知识库提供专业术语解释；工作流串联读取→拆解→调度→解释→审批」 | A 的 `docs/workbuddy/`（待 A 提供） | **待补** |
-| 工程质量 | 60 项验收（9 场景 + 13 边界 + 15 拆解 + 23 契约）；`validate_fixtures.py` 671 项自检 | 「每条结论都有编号，可追溯到一次运行」 | 本仓库 | 可填 |
+| 工程质量 | 65 项验收（9 场景 + 13 边界 + 15 拆解 + 23 契约 + 5 增量）；`validate_fixtures.py` 671 项自检 | 「每条结论都有编号，可追溯到一次运行」 | 本仓库 | 可填 |
 | 与开源的关系 | 平台 WorkBuddy；客户端 Flutter/Drift/Riverpod；调度思路参考 Horolog（MIT，**未复制代码**） | 照抄 `oss-disclosure.md` 表格 | `oss-disclosure.md` | 可填 |
 
 **本页自检**：把「创新」那三段读给一个没参与项目的人听，他能否复述出「它不会偷偷改我的日程」？不能就是没讲清。
@@ -63,7 +63,7 @@
 |---|---|---|---|---|
 | 演示场景 | 三场景：查明天 / 拆报告排程 / 插会重排；各连续 3 次 | 「每条场景 3 次连续运行，第 __ 次失败即整场景记 FAIL」 | `evidence-index.md` §2 | **待补** |
 | 边界与异常 | 13 条边界（P0 8 条）+ 15 条拆解质量 | 「P0 任一不通过视为重大缺陷，不得宣称完成」 | `boundary_cases.json`、`decomposition_cases.json` | 部分可填（定义已有，结果未测） |
-| 证据索引 | 60 项编号 + 每次运行的版本/命令/结果/文件位置 | 「所有结论可在 `evidence-index.md` 逐条核对」 | `evidence-index.md` | 可填（结构已就绪） |
+| 证据索引 | 65 项编号 + 每次运行的版本/命令/结果/文件位置 | 「所有结论可在 `evidence-index.md` 逐条核对」 | `evidence-index.md` | 可填（结构已就绪） |
 | 契约一致性 | 机检脚本：正文枚举与 20 条示例比对，越界 0 | 「`python tools/m3-checks/check_contract_consistency.py 2c48579`」 | `tools/m3-checks/` | 可填 |
 | 已知局限 1 | 真实写入与回读仍 BLOCKED（缺 WorkBuddy 认证与审批服务） | 「当前写入链路未打通，演示止于提案；不以截图代替」 | 矩阵 §5、规划 §8 | 可填（如实写） |
 | 已知局限 2 | 拆解质量用例未执行（缺模型输出样本） | 「15 条拆解用例已定义判据，尚未获得可复现输出」 | `decomposition-acceptance.md` §6 | 可填（如实写） |

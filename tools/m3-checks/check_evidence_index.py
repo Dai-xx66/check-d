@@ -3,7 +3,7 @@
 
 只依赖标准库。校验 docs/contest/evidence-index.md：
 
-1. 60 个证据 ID 是否齐全（9 场景 / 13 边界 / 15 拆解 / 23 契约）
+1. 65 个证据 ID 是否齐全（9 场景 / 13 边界 / 15 拆解 / 23 契约 / 5 本轮增量）
 2. 结果列是否只用允许的枚举（未测 / PASS / FAIL / BLOCKED / 部分）
 3. 任何非「未测」的行，证据位置是否非空——防止填了结论却没有证据
 4. 文末统计表的合计与明细是否自洽
@@ -27,7 +27,9 @@ REPO = Path(__file__).resolve().parents[2]
 INDEX = REPO / "docs/contest/evidence-index.md"
 
 ALLOWED_RESULTS = {"未测", "PASS", "FAIL", "BLOCKED", "部分"}
+ALLOWED_LEVELS = {"E0", "E1", "E2", "E3"}
 VAGUE = ["基本通过", "差不多", "大概通过", "应该没问题", "已优化"]
+RESULT_RE = re.compile(r"^(未测|PASS|FAIL|BLOCKED|部分)(?:\((E[0-3])\))?$")
 
 EXPECTED_IDS: list[str] = []
 for scenario in ("A", "B", "C"):
@@ -40,6 +42,8 @@ EXPECTED_IDS += [
     "EV-T05", "EV-T06", "EV-T07", "EV-T08", "EV-T09", "EV-T10", "EV-T11",
     "EV-T12", "EV-T12-b", "EV-T15", "EV-T16", "EV-T17", "EV-T18", "EV-T19",
     "EV-T20", "EV-T21", "EV-T22",
+    # 2026-10-31 本轮增量（M0 契约调整后，见矩阵 §3B）
+    "EV-R1", "EV-X1", "EV-G1", "EV-G2", "EV-S1",
 ]
 
 failures: list[str] = []
@@ -91,11 +95,18 @@ def main() -> int:
         # 最后一列为结果，倒数第二列为证据位置
         result = cells[-1].replace("*", "").strip()
         evidence = cells[-2].strip() if len(cells) >= 2 else ""
-        check(result in ALLOWED_RESULTS, f"{rid} 结果「{result}」不在允许枚举内")
-        if result != "未测":
-            tested += 1
-            check(bool(evidence), f"{rid} 已给结论「{result}」但证据位置为空")
-            check(len(evidence) > 3, f"{rid} 证据位置过短：{evidence}")
+        m = RESULT_RE.match(result)
+        check(bool(m), f"{rid} 结果「{result}」不在允许枚举内（允许：未测/PASS/FAIL/BLOCKED/部分，非未测须带级别如 PASS(E1)）")
+        if m:
+            verdict, level = m.group(1), m.group(2)
+            check(verdict in ALLOWED_RESULTS, f"{rid} 结论枚举非法：{verdict}")
+            if level:
+                check(level in ALLOWED_LEVELS, f"{rid} 证据级别非法：{level}")
+            if verdict != "未测":
+                check(bool(level), f"{rid} 结论「{verdict}」未标证据级别（E0–E3），不接受")
+                tested += 1
+                check(bool(evidence), f"{rid} 已给结论「{result}」但证据位置为空")
+                check(len(evidence) > 3, f"{rid} 证据位置过短：{evidence}")
         for word in VAGUE:
             check(word not in " ".join(cells), f"{rid} 出现模糊结论「{word}」，不接受")
 

@@ -1,13 +1,14 @@
-# M0 Agent API v1 验收矩阵（T01–T22）
+# M0 Agent API v1 验收矩阵（T01–T22 + R1/X1/G1/G2/S1）
 
 - **归属**：M3 / Evaluation（同学 C）
 - **固定基准**：`2c48579a6f0ab2b9181a9246f893c1c0a8dce7c6`（分支 `feat/m0-api-contract`，PR **M0-1 / #4** 的 head，`docs/contracts/agent-api-v1.md`，v1 CANDIDATE 最终决策稿）
 - **基准唯一性**：C 侧全部用例与判定只认上述 SHA；M0 再发新 commit 时按 §9 重跑一次，不混用旧版本结论
-- **状态**：**预期定义阶段，尚未执行任何一条**
+- **状态**：**预期定义阶段，尚未执行任何一条**（含本轮新增的 5 条）
+- **本轮增量**（2026-10-31 队长 6 项）：新增 §3B 的 R1、X1、G1、G2、S1；第 6 项"写入次数"落为 §6.2 的四层口径。**只增量追加，未重审旧问题、未改 M0 契约本体、无新增实测**
 - **纪律**：本文件只写"输入"与"预期"。所有预期列都是**待验证的断言**，不是实测结果。执行后再另开一节回填实测值，本文件在此之前不得被引用为"已通过"。
 - **复核时点**：`2c48579` 已完成一次增量复审（`docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md`）；M0 将其作为 Task 1 固定基准发布（PR M0-1）后，按 C 口径完成**增量对齐**（`docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md`），未重开全量审计、未重跑实测。
 
-判定口径统一为四元组：**响应码 + Proposal 状态 + 数据结果 + 实际写入次数**。四项全部吻合才算 PASS。
+判定口径统一为四元组：**响应码 + Proposal 状态 + 数据结果 + 实际写入次数**。四项全部吻合才算 PASS。每条结论还必须带**证据级别**（E0–E3，见 §6.1）——"通过"不带级别不接受。
 
 ---
 
@@ -44,6 +45,7 @@
 | `pending_approval` → `expired` | 超过 30 分钟 TTL | T06 | 已定义（§5.7 状态机 + §6.7） |
 | `pending_approval` → `rejected` | 用户在外部界面拒绝 | T16 | 已定义（§6.6 `status=rejected`） |
 | `applying` → `failed` | "safe failure"（写入确证未发生） | T03-a | **部分**：有箭头但"safe"未定义、无对应错误码、且与 `READBACK_MISMATCH` 后终态未区分（B14、B16） |
+| `applying` / `readback_pending` 保持原状态 | **换新幂等键**再 apply → `READBACK_PENDING`、零写入 | X1 | **未定义（B18，P0）**：判定顺序第 1–2 步均不命中，契约未约束"新键"，实现会重写 |
 
 ### 2.2 Approval（6 个状态值）
 
@@ -54,7 +56,7 @@
 | `approved` → `token_issued` | 首次安全交付 Token | T19、T21 | 已定义（§6.6）；**并发交付原子性未写**（P2-2） |
 | `token_issued` → `consumed` | apply 成功消费 | T18 | 状态已定义，但对应错误码不可达（P1-1） |
 | `pending` → `expired` | 审批或 Token 过期 | T05 | 已定义（§6.6，区分"仅 Token 过期"与"Proposal 也过期"） |
-| `expired` → 新审批 | 再次 `request_approval` | T17 | **部分**：允许重建，但未定返回新/旧 `approval_id` |
+| `expired` → 新审批 | 再次 `request_approval` | T17、**R1** | **部分**：允许重建（§6.6 明文"可以重新创建审批，但旧 Token 永远无效"），但未定返回新/旧 `approval_id` |
 | 任意 → `rejected` | 用户拒绝 | T16 | 已定义（§6.6） |
 
 > **注意同名双域**：本节 6 个状态仅指 `get_approval_status.data.status`。`validate_schedule.data.approval_status` 是**另一套**枚举（`not_requested` / `not_approvable`，§6.4），两者零交集，见 B17。
@@ -315,6 +317,71 @@
 - **预期写入次数**：**0**（三路）
 - **判定要点**：`APPROVAL_UNTRUSTED` 在 `2c48579` 全文（除 §4.1 表格）**零次出现**，§6.7 要求核验"凭证绑定完全相同的 `proposal_id`、`base_version` 和变更摘要"却没有给这条核验分配错误码（P1-2）。当前**不可判**：同一个"他提案 + 旧 Token"场景，示例 16 判给 `APPROVAL_CONSUMED`，按 §6.7 第 2 条应判 `APPROVAL_UNTRUSTED`，两者互斥
 
+## 3B. 本轮增量用例（M0 契约调整后，2026-10-31 队长 6 项）
+
+> 来源：队长本轮同步的 6 条。编号前 2 条由队长指定（`R1`、`X1`），后 3 项按语义另编（`G`=generate 排程预算，`S`=Schema 序列化）。第 6 项（写入次数）不是用例，是取证口径，见 §6.2。
+> 本轮**只增量追加**，不重审旧问题、不改 M0 契约本体；全部为预期定义，**零实测**。
+
+### R1 Token 过期但 Proposal 仍有效 → 重建审批必须换 `approval_id`，旧 Token 永久失效
+
+- **输入**：`P_1` 于 `T0` 生成（TTL 30 分钟）；`T0+2min` 外部批准并**首次交付** Token `TK_1`（`token_expires_at=T0+7min`）。在 `T0+8min`（Token 已过期、Proposal 仍剩 22 分钟）依次执行：(a) 用 `TK_1` apply；(b) `get_approval_status(A_1)`；(c) 对 `P_1` 再次 `request_approval` 得 `A_2` 并交付 `TK_2`；(d) 再用 `TK_1` apply；(e) 用 `TK_2` apply
+- **预期响应码**：(a) `APPROVAL_EXPIRED`（403）；(b) `success` + `status=expired`；(c) `success` + `approval_id=A_2`（`≠A_1`）+ `status=pending` + `expires_at` 在未来；(d) `APPROVAL_EXPIRED`（403）——**旧 Token 不得因新审批而复活**；(e) `success`
+- **预期 Proposal 状态**：全程 `pending_approval`，仅 (e) 后转 `applied`；**不得**因 Token 过期而进入 `expired`
+- **预期数据结果**：`A_1` 落库为 `expired`（**持久化值**，不是查询时即时计算）；`A_1.token_expires_at` 保持 `T0+7min`，不被 `A_2` 继承或延长；`TK_2` 与 `TK_1` 值不同；审批表 `A_1`、`A_2` **两条并存**（不是覆盖同一行）
+- **预期写入次数（W4）**：(a)(b)(d) 目标表 **0**；(c) 审批表 **+1 行**；(e) 目标表 **1**
+- **判定要点**：契约 §6.6 有两句明文支撑——「若仅 5 分钟 Token 过期而 Proposal 仍有效，Proposal 保持 `pending_approval`，可以重新创建审批，**但旧 Token 永远无效**」。故本条**大部分可判**；唯一推断项是 `A_2 ≠ A_1`（§6.5 的幂等只约束"已有**未终结**审批"，过期属已终结）。`e7be8c9` 在 (c) 会复用 `A_1`（F1/F2 的根因），导致 (d) 仍报过期、(e) 无可用凭据 → 提案锁死，是本条最真实的反例
+- **与 T17 / T19 的边界**：T17 是**审批记录**过期后重建；T19(a) 只验"Token 过期时 Proposal 不进 `expired`"；R1 验的是**过期后重建的凭据隔离**——三者断言不重叠，不可互相替代
+- **可顺带取证的分支（不计入本条判定）**：§6.6 另规定"若交付响应丢失，v1 不重新显示原 Token，必须废止旧审批并在 Proposal 仍有效时重新走审批"。执行 `get_approval_status` 时应确认 `status=token_issued` 且 `approval_token=null`，与 (c)(d) 属同一断言族
+
+### X1 Proposal 处于 `applying` / `readback_pending`，换新幂等键 → `READBACK_PENDING`，零写入
+
+- **输入**：`P_1` 已 approve 并 apply，写入可能已提交但回读未决（由 T01 / T03-b 构造 `readback_pending`；另注入写入未返回以构造 `applying`）。在两个时点各发起一次 apply，**每次都换全新的 `idempotency_key`**：(a) `status=readback_pending` 时用 `K_new1`；(b) `status=applying` 时用 `K_new2`
+- **预期响应码**：(a)(b) 均为 `READBACK_PENDING`（503）；**不得** `ALREADY_APPLIED`（Proposal 并未 `applied`）、**不得** `success`、**不得** `INTERNAL_ERROR`
+- **预期 Proposal 状态**：分别保持 `readback_pending` / `applying`，不回退、不因新键请求跳入 `applied`
+- **预期数据结果**：目标表零新增、零修改；`override_id` 集合与字段指纹完全不变；**幂等记录不得因新键新增执行条目**（新键只允许被登记为"被拒"，不得产生执行记录）
+- **预期写入次数（W4）**：**0**（这是本条唯一不可让步的断言）
+- **分级判定**：
+  - (i) 码 = `READBACK_PENDING` 且 W4 = 0 → **PASS**
+  - (ii) 码为其他但 W4 = 0 → **部分**（安全性守住、码不符，记 B18）
+  - (iii) W4 > 0 → **FAIL（P0）**，无论返回什么码。这是"同一 Proposal 被二次应用"，直接违反 §6.7「换一个幂等键也不能再次应用同一 Proposal」
+- **判定要点**：契约 §5.7 只约束「**同一**幂等请求继续回读」，§6.7 的"最多成功应用一次"只覆盖**已成功**的 Proposal——`applying`/`readback_pending` 属于"尚未成功"，两条都不覆盖，是**契约真空（B18）**。队长本轮补的口径正好补上这个洞
+- **风险提示**：新幂等键天然**绕过**幂等缓存。实现若把"查幂等记录"当作唯一的重放防线，本条必挂——这是 `e7be8c9` 完全没有走过的新路径
+
+### G1 `remaining_minutes_today=0` → 不生成 block，且不进入 `unplanned_tasks`
+
+- **输入**：`T_RE_1`（周期 `daily`，`duration_target_seconds=3600`）当天 `remaining_minutes_today=0`；`generate_schedule`（服务端可信快照）→ `validate_schedule`
+- **预期响应码**：两次均 `success`
+- **预期 Proposal 状态**：`draft`（validate 通过后 `pending_approval`）
+- **预期数据结果**：`blocks` 中**无该 task**；`unplanned_tasks` 中**也无该 task**；`explanations` 若提及该 task，`code` 不得使用 `WINDOW_INSUFFICIENT` / `NO_AVAILABILITY` 等"排不下"语义；同 snapshot 内其他 task 正常成块
+- **预期写入次数（W4）**：**0**（`generate_schedule` 与 `validate_schedule` 均不写库）
+- **判定要点**：契约 §5.2「为 `0` 时当天不再排程」、§5.6「为 `0` 时不生成 block」——**前半句明文可判**。**后半句（不进 `unplanned_tasks`）未明文**：§5.7 把 `unplanned_tasks` 定义为"**无法安排**的 Task"，且写明"未安排不等于完成或跳过"；`remaining=0` 的语义是"今日目标已完成/无需再排"，不是"排不下"。塞进 `unplanned_tasks` 会把"已完成"误报为"失败"，并污染 `reason_code` 统计——记 **B19**。反证也成立：`reason_code` 四个枚举值没有一个是"已完成"
+- **可判性**：**可判**（队长口径与契约语义双向支持；B19 只影响 M0 是否补一句明文，不影响本条判定）
+
+### G2 `remaining_minutes_today=40` → 只生成 40 分钟排程
+
+- **输入**：同上，`remaining_minutes_today=40`（`duration_target_seconds=3600`）；`preferences` 两组：默认（不传 `minimum_block_minutes`）与显式 `30`
+- **预期响应码**：`success`
+- **预期 Proposal 状态**：`draft`
+- **预期数据结果**：该 task **恰好 1 个 block**，`duration_seconds=2400`（**精确值，不设容差**；`task_target` 来源不存在估算误差），`duration_source=task_target`，`end_at - start_at = 2400s` 且同属一个上海本地日；`unplanned_tasks` 无该 task；可持久化时 `planned_end_minute - planned_start_minute = 40`；`duration_target_seconds` 保持 3600（**不得被 40 覆盖**）
+- **预期写入次数（W4）**：**0**
+- **判定要点**：契约 §5.6 只明文"`null` 用完整目标、`0` 不生成 block"，**未明文"非 0 值即上限"**——属单调性推断，记 **B19** 第二条。三个高频错误：① 仍按 3600s 成块（`duration_seconds` 不符）；② 用 `scheduler_estimate` 回填（`duration_source` 不符）；③ 把 40 分钟写回 `duration_target_seconds`（违反"估算不得写回持久化字段"）
+- **边界提示（不新增用例）**：若 `preferences.minimum_block_minutes=45`，40 分钟无法达到最小块长，此时应入 `unplanned_tasks`（`WINDOW_INSUFFICIENT`）而不是生成 40 分钟块——**与默认组结论相反**。执行前必须先固定该 preference 并写进证据，否则结果不可复现
+
+### S1 Proposal 序列化：只认服务端组装后的完整 Schema，不认 M2 DTO 解析成功
+
+- **输入**：抓取 `generate_schedule` 与 `validate_schedule` 的**原始 HTTP 响应体**（不经任何 SDK / DTO / ORM 中转），逐字段校验 `schedule_proposal`
+- **预期响应码**：`success`
+- **预期 Proposal 状态**：`draft`
+- **预期数据结果**：按 §5.7 逐字段核验——
+  - 必填齐全：`proposal_id`、`snapshot_ref`、`base_version`、`input_digest`、`status`、`generated_at`、`expires_at`、`blocks`、`changes`、`unplanned_tasks`、`explanations`
+  - `status` ∈ 8 值；`blocks[].source` 固定 `proposal`；`persistable_as` ∈ 2 值；`duration_source` ∈ 2 值；`duration_seconds` 为正整数且等于 `end_at - start_at`
+  - `unplanned_tasks[].reason_code` ∈ 4 值；`explanations` 每项为**对象**（不得字符串与对象混用），含机器可读 `code` + 安全 `message`
+  - 所有时间均为带明确偏移的 RFC 3339；`input_digest` 为小写十六进制 SHA-256
+- **预期写入次数（W4）**：**0**
+- **判定要点**：**M2 内部 DTO 反序列化成功，不得作为 Schema 合规证据**。Dart 的 `fromJson` 通常给字段默认值、容忍缺失、忽略未知字段，服务端漏 `input_digest` 也可能解析通过——这类"DTO 宽松解析"会把契约缺字段藏成"看起来正常"
+- **负向对照（必做，否则本条的取证方式不成立）**：人为从响应中删掉一个必填字段（如 `input_digest`）或把一个 `explanations` 项改成字符串，若 M2 DTO 仍解析成功且界面无报错 → 证明 DTO 校验无效，本条只能用"原始 JSON + 独立校验器"取证
+- **附 E0 静态证据（不混入本条执行结果）**：契约 §5.7 字段表 vs M2 DTO 字段名/枚举做一次逐项比对，差异单列
+
 ## 4. 覆盖对照（按 `2c48579` 重新判定）
 
 | 重点 | 覆盖用例 | 当前可判性（`2c48579`） |
@@ -334,10 +401,15 @@
 | 凭证绑定篡改 | T22 | **不可判**——`APPROVAL_UNTRUSTED` 无触发条件（P1-2） |
 | `APPROVAL_CONSUMED` | T18 | **不可判**——判定顺序使其不可达（P1-1） |
 | A 侧 10-31 修订（9 项待处理） | T04-b、T08、T12-b、T05/T06、T09-b、T16、T10 | 判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md`；A 需按新契约重跑 |
+| Token 过期后重建凭据（本轮） | R1 | **可判**（§6.6 两句明文；仅"新 `approval_id`"属推断） |
+| 非终态 + 新幂等键（本轮） | X1 | **部分可判**——零写入可判，响应码属契约真空（B18）；W4>0 直接 FAIL |
+| `remaining_minutes_today=0`（本轮） | G1 | **可判**——不生成 block 明文；不进 `unplanned_tasks` 待 M0 补句（B19） |
+| `remaining_minutes_today=40`（本轮） | G2 | **部分可判**——「截断为上限」属推断（B19）；需先固定 `minimum_block_minutes` |
+| Proposal 完整 Schema（本轮） | S1 | **可判**（§5.7 字段表完整）；须脱离 M2 DTO 取证 |
 
 附两条低成本用例：T13 请求体带 `user_id` → `INVALID_ARGUMENT`；T14 空任务/空日历 → `success` + 空数组（不得 404）。
 
-**统计（22 个编号 / 23 个用例项，T03 已拆 a/b）**：完全可判 **16**、部分可判 **4**（T03-a、T07、T10、T21）、不可判 **3**（T09-b、T18、T22）。相比 `2c48579` 首轮复审（15/3/4），本轮把回读失败拆开后新增 1 条可判项（T03-b），T03-a 由"完全不可判"降级为"部分可判"。
+**统计（27 个编号 / 28 个用例项，T03 已拆 a/b）**：完全可判 **19**、部分可判 **6**（T03-a、T07、T10、T21、X1、G2）、不可判 **3**（T09-b、T18、T22）。相比上一轮（22 编号 / 23 项，16/4/3）：本轮新增 5 个编号——R1、G1、S1 入完全可判（16+3=19），X1 入部分可判（B18，P0 契约真空），G2 入部分可判（「非 0 即上限」属推断，B19）。**新增项同样零实测**。
 
 ### 4.1 队长 10-31 指定保留的 8 项 → 用例索引
 
@@ -395,6 +467,8 @@
 | B15 | apply 成功响应缺 `proposal_status` | P2 | 全部（"状态"取证列） | 成功响应增加 `proposal_status=applied`；`readback_pending` 时正式字段而非仅 `details` |
 | B16 | `READBACK_MISMATCH` 之后的 Proposal 终态未定义（停留 `applying` / `failed` / `readback_pending` 三选一），且与 `failed` 的"safe failure"边界重叠 | P1 | T03-a | 明确"回读结论为不一致"→ 立即 `failed`（而非 `readback_pending`，后者仅限结论不确定）；或新增 `readback_failed` 状态。§10 Q5 只覆盖"`readback_pending` 恢复流程"，未覆盖本条 |
 | B17 | `approval_status` **同名双域**：§6.4 的 `validate_schedule.data.approval_status` 为 `not_requested` / `not_approvable`，与 §6.6 的 6 个审批状态零交集，同名不同义 | P2 | T16、全部含 `approval_status` 的响应 | 改名 `approvability` / `approval_hint`，或在 §5 声明为两个独立枚举、不得混用 |
+| B18 | **非终态 + 新幂等键的响应未定义**：§5.7 只约束"**同一**幂等请求继续回读"，§6.7 的"最多成功应用一次"只覆盖**已成功**的 Proposal。当 `status=applying` / `readback_pending` 且调用方**换新幂等键**时，判定顺序 §6.7 第 1–2 步（查同键记录、查是否 `applied`）均不命中，第 3 步之后的校验照旧通过 → 实现会**直接重新执行写入**。这是唯一一条"契约真空导致必写两次"的路径 | **P0** | X1 | §6.7 判定顺序插入一步：`status ∈ {applying, readback_pending}` 时**无论幂等键是否相同**一律返回 `READBACK_PENDING` 且零写入；同时明确"换新键不得产生新执行记录" |
+| B19 | **`remaining_minutes_today` 只定义了 0 与 null 两端**：§5.2/§5.6 写了"为 0 时当天不再排程、不生成 block""为 null 时使用完整目标"，但 ① `=0` 的任务**是否允许进入 `unplanned_tasks`** 未明文，而 §5.7 把该数组定义为"**无法安排**的 Task"、`reason_code` 四值也无"已完成"；② 非 0 值（如 40）**是否为时长上限**未明文，只能由两端单调性推断 | P1 | G1、G2 | §5.6 补两句：①"`remaining_minutes_today=0` 表示当日目标已完成，不生成 block，且**不得**进入 `unplanned_tasks`、不得使用任何 `reason_code`"；②"非 0 值即当日可排时长上限，`duration_seconds = min(remaining×60, 窗口可用时长)`，来源标记 `task_target`" |
 
 ### 5.4 环境性阻塞（不变）
 
@@ -417,13 +491,63 @@
 
 ## 6. 执行与取证规则（留给后续执行时使用）
 
-1. **写入次数**必须三路取证并一致：目标表行数差、幂等记录的执行计数、服务端应用日志的写入次数。三者不一致时以行数为准并记录差异。
-2. **响应码**以实际 HTTP 状态 + `error.code` 双重记录，两者不一致视为契约缺陷（F1）。
-3. 失败分三类归因，不得混为一谈：
-   - **F1 契约缺陷**：契约未定义或自相矛盾，用例无法判定 → 提交 M0
-   - **F2 实现缺陷**：契约明确但实现不符 → 提缺陷单
-   - **F3 夹具缺陷**：前置数据或故障注入不成立 → 修用例，不计入实现质量
-4. 只有在真实执行后，才允许在本文件追加"实测"列；执行依据须注明环境（Mock / 真实服务）与时间。当前环境为 **BLOCKED**，故严格执行"零实测记录"。
+### 6.1 证据分级（E0–E3，只升不跳）
+
+> 队长本轮明确要求：**必须区分静态结论、Mock 证据、隔离测试证据和真实服务端证据**。任何"通过"都必须带级别，例如 `PASS(E1)`。
+
+| 级别 | 名称 | 定义 | 能证明 | 不能证明 |
+|---|---|---|---|---|
+| **E0** | 静态结论 | 读契约 / 读代码 / 算哈希 / 引用行号，**无任何运行** | 文档存在、枚举值域、代码分支存在 | 分支**能否被触发**、行为正确性 |
+| **E1** | Mock 证据 | 进程内直接调用 mock 工具函数或 M2 纯调度函数，无传输层 | 函数级分支逻辑、返回结构 | HTTP 层、鉴权、真实持久化、并发 |
+| **E2** | 隔离测试证据 | 真实 HTTP 或 MCP stdio + 真实（隔离库）存储，**无生产依赖** | 错误码真实可达、写入真实落库、幂等真实生效 | 生产认证、可信审批回调、生产回读、生产并发 |
+| **E3** | 真实服务端证据 | 真实认证 + 真实外部确认回调 + 生产回读 + 原子写入 | 生产可用性 | — |
+
+**五条硬规则**：
+
+1. 结论必须写级别；不带级别的"通过"一律不接受。
+2. **E0 不得升格**：读代码看到"有这条分支"不等于"能触发"（G1 闸门，三轮"码在路不通"的教训）。
+3. **E1 不得升格为 E2/E3**：进程内通过不能证明传输层、鉴权、持久化、并发。
+4. **E2 不得升格为 E3**：隔离环境全绿不能证明生产。
+5. **BLOCKED 项即使 E2 全绿，结论只能是"生产未验收（E2 通过 / E3 BLOCKED）"，不得写"验收通过"**，也不得因 Mock 通过而修改本文件头部的「状态」行。
+
+**当前可得上限**：`2c48579` 尚无对应 Mock 实现 → 全部用例目前最高 **E0**；`e7be8c9` 的历史探针属 **E1**，且只对旧契约有效，不得迁移。
+
+### 6.2 写入次数：四层口径（本轮第 6 项）
+
+> 队长要求区分「`changes.length` 算出的预期写入数」「`applied_changes` 回执」「实际持久化证据」。落为四层，必须全等。
+
+| 层 | 名称 | 取值来源 | 典型陷阱 |
+|---|---|---|---|
+| **W1** | 声明值 | `len(changes)` | 声明数 ≠ 生效数（同 target 重复、同键已存在） |
+| **W2** | 预期值 | 按持久化目标去重后的数量 | `schedule_one_time` 每 task 最多 1 条、`upsert_daily_override` 每 `(item_type,item_id,local_date)` 最多 1 条；**W1 > W2 本身即缺陷** |
+| **W3** | 回执值 | `len(applied_changes)` | 回执可虚报：`e7be8c9` 的 F3 就是回读失败仍 `readback_verified=true` |
+| **W4** | 持久化值 | 逐目标直接查库：该行是否新增 / 字段是否变更 | **不能用 `count(*)` 差**：更新不改行数 |
+
+**判定**：
+
+- `W1 = W2 = W3 = W4` 才 PASS。本文件每条用例的"预期写入次数"一律指 **W4**，W1–W3 作佐证列。
+- `W3 < W4` → **静默多写**（最严重，用户看不到）。
+- `W3 > W4` → **回执虚报**（界面显示"已安排"但库未变）。
+- `W4` 必须附**主键稳定性**与**字段指纹**：`count(*)` 差为 0 但 `override_id` 从 `ov_0038` 变成 `ov_0063`，仍算 1 次写入且属语义错误（T09-c 的实测形态）。
+- 三路以上不一致时**以 W4 为准**记录，并把差异写进备注，不得取平均或"多数一致"。
+
+### 6.3 响应码
+
+以实际 HTTP 状态 + `error.code` **双重记录**，两者不一致视为契约缺陷（F1）。`details` 中的 `proposal_id`、`approval_status` 也要抄录——`2c48579` 的 `readback_pending` 只出现在 `details` 里。
+
+### 6.4 失败归因三类（不得混为一谈）
+
+- **F1 契约缺陷**：契约未定义或自相矛盾，用例无法判定 → 提交 M0（如 B16、B18、B19）
+- **F2 实现缺陷**：契约明确但实现不符 → 提缺陷单
+- **F3 夹具缺陷**：前置数据或故障注入不成立 → 修用例，不计入实现质量
+
+### 6.5 回填规则
+
+只有在真实执行后，才允许在本文件追加"实测"列；执行依据须注明**环境（E0–E3）+ 时间 + SHA**。当前环境为 **BLOCKED**，故严格执行"零实测记录"。
+
+### 6.6 本轮 4 个 BLOCKED 硬边界
+
+`base_version` 生成与事务内比较、可信审批与 Token 签名/TTL、原子写入与幂等存储、生产回读——这 4 项仍未实现。**任何用例只要判定依赖其中之一，最高只能给 E2**；契约里写明了不等于已具备，Mock 通过也不等于生产可用。
 
 ---
 
@@ -478,6 +602,7 @@
 | 2026-10-31 | **M0-1 固定基准增量对齐**：头部固定 SHA 与 PR；T03 拆为 T03-a（`READBACK_MISMATCH`，终态待定）/ T03-b（`READBACK_PENDING`，同键只回读）；新增 B16；B11 补"消费时点"缺失；统计改 22 编号 / 23 用例项（16/4/3） | 未改契约本体、未重跑实测；只做 C 侧用例口径对齐，明细见 `docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md` |
 | 2026-10-31 | **按 `2c48579` 最终稿全量重判**：§2.1/2.2 状态迁移改判（6 闭合/2 部分）、§2.3 错误码表扩至 20 个、T12-b 枚举修正、T15 改为负向用例、新增 T19–T22、§5 阻塞结算（B1–B4/B8/B10 闭合，新增 B11–B15）、§7 注明新契约无 Mock、§9 标注已执行 | **纯文档级复审，无任何实测**；结论见 `docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md` |
 | 2026-10-31 | 新增 §4.2：声明任务拆解质量（DA01–DA15）**不属于本矩阵**，契约无拆解工具；判据另立 `docs/contest/decomposition-acceptance.md` | 对应计划 D3 的 C 侧任务；DA 系列零执行，不新增任何实测 |
+| 2026-10-31 | **按队长 6 项增量追加 §3B**：R1（Token 过期后重建须换 `approval_id`、旧 Token 永久失效）、X1（非终态换新幂等键 → `READBACK_PENDING`、零写入）、G1（`remaining_minutes_today=0` 不成块且不入 `unplanned_tasks`）、G2（=40 只排 40 分钟）、S1（只认服务端完整 Schema，不认 M2 DTO）；§6 重写为 **E0–E3 四级证据** + **W1–W4 四层写入次数**；新增 B18（P0，契约真空）/ B19（P1）；§2.1/§2.2 各补 1 行映射；统计改 27 编号 / 28 项 | **只增量追加，未重审旧问题、未改契约本体、无新增实测**；B18 是首条"契约真空必写两次"的 P0 |
 
 ## 9. 单次增量复审清单（已于 `2c48579` 执行一次）
 

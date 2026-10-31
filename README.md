@@ -45,9 +45,9 @@ Phase 1 基础架构、Phase 2 任务核心、Phase 3 计时系统、Phase 4 日
 | 产出 | 位置 | 说明 |
 |---|---|---|
 | 验收用例 | [docs/contest/acceptance-cases.md](docs/contest/acceptance-cases.md) | 三条必演示场景 + 13 条边界用例，附需求覆盖对照表 |
-| 证据索引 | [docs/contest/evidence-index.md](docs/contest/evidence-index.md) | 60 项（9 场景 / 13 边界 / 15 拆解 / 23 契约）逐条登记运行日期、版本、命令、证据位置；当前全部「未测」 |
+| 证据索引 | [docs/contest/evidence-index.md](docs/contest/evidence-index.md) | 65 项（9 场景 / 13 边界 / 15 拆解 / 23 契约 / 5 本轮增量）逐条登记运行日期、版本、命令、证据位置；当前全部「未测」，结论须带证据级别 E0–E3 |
 | 初赛大纲 | [docs/contest/submission-outline.md](docs/contest/submission-outline.md) | ≤3 页骨架：需求价值 30 / 创新 25 / 技术 25 / 完成度 20，含填空位与提交前 8 项自检 |
-| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | T01–T22（T03 拆 a/b，共 23 项）的响应码/状态/数据/写入次数四元组断言；按 `2c48579` 重判，可判 16 / 部分 4 / 不可判 3 |
+| 验收矩阵 | [docs/contest/acceptance-matrix.md](docs/contest/acceptance-matrix.md) | 27 编号 / 28 项（T01–T22 + R1/X1/G1/G2/S1）的响应码/状态/数据/写入次数四元组断言；§6 定 E0–E3 四级证据与 W1–W4 四层写入次数；可判 19 / 部分 6 / 不可判 3 |
 | 契约机检脚本 | [tools/m3-checks/check_contract_consistency.py](tools/m3-checks/check_contract_consistency.py) | 静态比对正文枚举与示例，`python tools/m3-checks/check_contract_consistency.py 2c48579` → 越界 0 |
 | 证据索引自检 | [tools/m3-checks/check_evidence_index.py](tools/m3-checks/check_evidence_index.py) | 校验 60 行齐全、结果枚举合法、非「未测」必须有证据位置；`python tools/m3-checks/check_evidence_index.py` → 0 失败 |
 | 课表脱敏 | [tools/m3-checks/build_timetable_fixture.py](tools/m3-checks/build_timetable_fixture.py) | 真实课表 CSV → 去身份/教师教室占位 → `scenario_d_real_timetable.json`；`--demo` 可自测 |
