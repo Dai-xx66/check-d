@@ -162,7 +162,8 @@ Agent 链接的不同访问者，也不得描述为真实用户认证。真实�
 | `INTERNAL_ERROR` | 500 | 已脱敏的未知服务错误 |
 
 `IDEMPOTENCY_IN_PROGRESS` 的 HTTP 建议码固定为 409，且 `retryable=true`。
-`READBACK_PENDING` 的错误详情必须包含 `proposal_status=readback_pending`；
+`READBACK_PENDING` 的错误详情必须包含 `proposal_status`，其值只能为
+`applying` 或 `readback_pending`，并必须准确反映当前 Proposal 的真实状态；
 `READBACK_MISMATCH` 必须包含 `proposal_status=failed`。错误详情不得包含原始 Token、
 任务内容或完整 payload。
 
