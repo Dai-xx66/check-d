@@ -140,9 +140,9 @@ Agent 链接的不同访问者，也不得描述为真实用户认证。真实�
 | code | HTTP 建议 | 含义 |
 |---|---:|---|
 | `AUTH_REQUIRED` | 401 | 缺少、过期或无法验证的身份凭证 |
-| `FORBIDDEN` | 403 | 已认证但无权访问目标资源 |
+| `FORBIDDEN` | 403 | 与具体资源存在性无关的操作级权限拒绝 |
 | `INVALID_ARGUMENT` | 400 | 字段、日期、时区或联合类型无效 |
-| `NOT_FOUND` | 404 | 已授权范围内找不到资源 |
+| `NOT_FOUND` | 404 | 资源不存在或属于其他用户；两种响应必须不可区分 |
 | `DEPENDENCY_UNAVAILABLE` | 503 | 读取、调度或持久化依赖不可用 |
 | `PROPOSAL_INVALID` | 422 | Proposal JSON 结构、类型、未知字段或 change 类型无效 |
 | `PROPOSAL_EXPIRED` | 409 | Proposal 的 30 分钟有效期已结束，必须重新生成 |
@@ -154,11 +154,21 @@ Agent 链接的不同访问者，也不得描述为真实用户认证。真实�
 | `APPROVAL_UNTRUSTED` | 403 | 审批签名、主体或提案绑定无效 |
 | `APPROVAL_CONSUMED` | 409 | 一次性审批 Token 已被成功消费 |
 | `ALREADY_APPLIED` | 409 | Proposal 已成功应用；换幂等键也不得再次写入 |
+| `IDEMPOTENCY_IN_PROGRESS` | 409 | 同作用域同摘要请求正在 `applying`；可稍后重试，不得启动第二次写入 |
 | `IDEMPOTENCY_CONFLICT` | 409 | 相同幂等键被用于不同请求 |
 | `WRITE_BLOCKED` | 503 | 原子写入、RLS、同步收敛或审批链尚未实证 |
 | `READBACK_PENDING` | 503 | 写入可能已发生但回读尚无终局；只允许安全回读，不得重写 |
 | `READBACK_MISMATCH` | 502 | 写后回读与批准内容不一致；不得返回成功 |
 | `INTERNAL_ERROR` | 500 | 已脱敏的未知服务错误 |
+
+`IDEMPOTENCY_IN_PROGRESS` 的 HTTP 建议码固定为 409，且 `retryable=true`。
+`READBACK_PENDING` 的错误详情必须包含 `proposal_status=readback_pending`；
+`READBACK_MISMATCH` 必须包含 `proposal_status=failed`。错误详情不得包含原始 Token、
+任务内容或完整 payload。
+
+资源级防枚举规则适用于 Task、Course、Override、Proposal、Approval 等全部资源：
+资源不存在与资源属于其他用户统一返回完全相同的 `NOT_FOUND`。`FORBIDDEN` 仅用于
+“该演示主体没有执行某类操作的权限”等不依赖具体资源是否存在的拒绝。
 
 ## 5. 共享 DTO
 
@@ -202,6 +212,16 @@ Agent 链接的不同访问者，也不得描述为真实用户认证。真实�
 
 单次事项不得包含 `recurrence`。周期任务不得包含单次事项的
 `available_from/planned_date/scheduled_at/deadline`。
+
+#### 内部调度 Fixture（不是远程工具请求）
+
+`remaining_minutes_today` 只由服务端快照适配层传给 M2 内部纯函数，禁止出现在
+`generate_schedule` 的远程请求参数中。必须固定以下两个独立 Fixture：
+
+1. `remaining_minutes_today=0`：不生成 block、不进入 `unplanned_tasks`，仅产生
+   `ALREADY_DONE_TODAY` explanation；不得进入最低时长兜底。
+2. `remaining_minutes_today=40` 且完整 `duration_target_seconds=7200`：只生成
+   40 分钟 block，`duration_seconds=2400`，`duration_source=task_target`。
 
 ### 5.3 `course` 与课程规则
 
@@ -293,7 +313,18 @@ v1 不把一个 Task 的多个 block 假装成现有能力。
   `WINDOW_INSUFFICIENT`、`PAST_DEADLINE`、`OVERLAPS_FIXED`、
   `NO_AVAILABILITY`。未安排不等于完成或跳过。
 - `explanations`：对象数组；每项包含机器可读 `code` 和安全的 `message`，可选
-  `related_task_ids`。不再允许字符串与对象混用。
+  `related_task_ids`。不再允许字符串与对象混用。公开 `code` 是封闭枚举：
+  `SCHEDULED`、`ESTIMATED_DURATION`、`ALREADY_DONE_TODAY`、
+  `FIXED_BLOCKS_OVERLAP`、`NO_AVAILABILITY_WINDOW`、
+  `AVAILABILITY_SATURATED`、`PRESERVED_FIXED_EVENTS`。
+
+`DISPLACED_BY_FIXED` 与 `REPAIR_SUMMARY` 仅供 M2 内部 repair 逻辑使用，禁止出现在
+v1 公开 Proposal、Mock 或远程响应中。
+
+完整 Proposal 的服务端序列化采用方案 A：M2 纯调度函数只输出内部调度结果，
+不得生成或输出 `proposal_id`、`snapshot_ref`、`base_version`、`input_digest`、
+`generated_at`、`expires_at` 或 `status`。服务端包装层负责生成并持久化这些字段，
+再把内部 blocks/changes/unplanned/explanations 组装成完整 Proposal。
 
 状态机固定为：
 
@@ -303,6 +334,9 @@ draft ──validate(valid)──→ pending_approval ──apply──→ apply
   │                              ├─external reject──────→ rejected    └─safe failure→ failed
   └─30 min / base changed───────→ expired
                                  └─30 min───────────────→ expired
+readback_pending ──authoritative match──→ applied
+readback_pending ──authoritative mismatch─→ failed
+readback_pending ──still unknown───────→ readback_pending
 ```
 
 结构合法但硬约束校验失败时 Proposal 保持 `draft`，通过修改输入重新生成，而不是
@@ -331,7 +365,10 @@ draft ──validate(valid)──→ pending_approval ──apply──→ apply
 `input_digest` 的规范算法固定为：对一次服务端一致性快照映射出的调度输入进行
 规范化 JSON 编码（对象键按字典序、数组按契约规定的稳定键排序、时间统一为带
 偏移 RFC 3339、不包含仅展示用空白差异），再计算 SHA-256 并输出小写十六进制。
-普通 `list_tasks` 与 `get_calendar_events` 响应不得由客户端拼接后计算该摘要。
+摘要输入必须覆盖可信 Task、Course、有效 Calendar Event、Daily Override、外部
+固定事件、调度偏好、调度 horizon 的起止 instant 和固定时区
+`Asia/Shanghai`。其他输入完全相同时，只要 horizon 不同，摘要就必须不同。普通
+`list_tasks` 与 `get_calendar_events` 响应不得由客户端拼接后计算该摘要。
 
 远程服务执行单日例外时还必须验证：`item_id` 属于当前已认证用户、资源真实
 存在、`item_type` 与实际资源类型一致、`existing_override_id`（若有）属于同一
@@ -353,6 +390,28 @@ TimerSession、修改完成记录、修改统计、写入多个单次事项未�
 
 `skip` 不属于 v1 change 白名单。排不下的任务只能留在 `unplanned_tasks` 中作为
 非持久化建议，不写入单日例外，不修改完成状态、TimerSession 或周期规则。
+
+### 5.8 `violation`
+
+`validate_schedule.violations` 使用统一对象结构：
+
+- `code`：必填，机器可读封闭枚举。
+- `message`：必填，安全且可展示。
+- `related_task_ids`、`related_block_ids`、`related_event_ids`：可选字符串数组。
+- `field`：可选，指向规范字段路径。
+
+公开 `code` 的 v1 完整闭集仅为：`PLANNED_BEFORE_AVAILABLE_FROM`、
+`PLANNED_AFTER_DATE_ONLY_DEADLINE`、`BLOCK_AFTER_EXACT_DEADLINE`、
+`BLOCK_TIME_INVALID`、`FIXED_EVENT_CONFLICT`、
+`MULTIPLE_CHANGES_FOR_ONE_TIME_TASK`、
+`MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY`。未知 `code` 必须以 `PROPOSAL_INVALID`
+拒绝，不得作为“扩展解释”透传给远程调用方。
+
+结构或联合类型错误（例如 `scheduled_at` 与 `planned_date` 跨上海本地日）返回
+`PROPOSAL_INVALID`，不放入 violations。结构合法但计划日期早于 `available_from`
+使用 `PLANNED_BEFORE_AVAILABLE_FROM`；晚于 date-only deadline 使用
+`PLANNED_AFTER_DATE_ONLY_DEADLINE`；block 结束晚于精确截止使用
+`BLOCK_AFTER_EXACT_DEADLINE`。
 
 ## 6. 工具契约
 
@@ -433,7 +492,8 @@ TimerSession、修改完成记录、修改统计、写入多个单次事项未�
 日期范围和外部事件创建服务端快照，规范化为 M2 DTO，再调用纯调度函数。
 
 M2 的进程内纯函数仍可直接接收 Task/Course/Event/Override DTO，以便确定性单元
-测试；这是内部接口，不等于远程工具可以信任这些 DTO。
+测试；这是内部接口，不等于远程工具可以信任这些 DTO。M2 只返回内部调度结果，
+不得返回 Proposal 服务端信封字段；服务端包装层按 5.7 的方案 A 完成序列化。
 
 成功 `data`：完整 `schedule_proposal`，含服务端产生的 `snapshot_ref`、
 `base_version` 和 `input_digest`。生成器必须保留固定课程和会议，区分
@@ -458,8 +518,9 @@ M2 的进程内纯函数仍可直接接收 Task/Course/Event/Override DTO，以�
 - `proposal_id`、`snapshot_ref`、`base_version`、`input_digest`。
 - `proposal_status`：合法提案进入 `pending_approval`；约束失败时保持 `draft`。
 - `validation_status`：`valid` 或 `invalid`。
-- `approval_status`：合法但尚未调用 `request_approval` 的提案为
-  `not_requested`；约束失败为 `not_approvable`。
+- `approval_readiness`：合法但尚未调用 `request_approval` 的提案为
+  `not_requested`；约束失败为 `not_approvable`。该字段只表达“能否进入审批”，
+  不表达真实 Approval 生命周期。
 - `violations`：结构化约束错误数组。
 - `validated_at`、`expires_at`：带偏移 instant。
 
@@ -498,6 +559,25 @@ M2 的进程内纯函数仍可直接接收 Task/Course/Event/Override DTO，以�
 Proposal 已过期返回 `PROPOSAL_EXPIRED`，已应用返回 `ALREADY_APPLIED`，不得创建
 新的审批。审批服务及页面尚未实现，真实调用保持 **BLOCKED**。
 
+一个 Proposal 同时最多有一个有效 Approval。有效状态包括 `pending`、`approved`
+和 `token_issued`；终结状态包括 `consumed`、`rejected`、`expired`。Token 过期但
+Proposal 仍有效时，旧 Approval 转为 `expired`，允许下一次
+`request_approval` 创建新的 `approval_id`；旧 Token 永远无效。Approval 的
+`expires_at` 不得晚于 Proposal 的 `expires_at`。
+
+若 Token 已签发但交付响应丢失或结果不确定，v1 保留原 Approval
+的 `token_issued` 状态：Agent 不得自行推断 Token 丢失，不得撤销、替换或
+重新签发 Token。`get_approval_status` 可以查询现有状态，但必须返回
+`approval_token=null`，不再泄露原 Token。旧 Token 在 `now >= token_expires_at`
+时过期，旧 Approval 进入 `expired`，旧 Token 永久无效。
+
+只有在 Proposal 仍有效、旧 Approval 已终结，并且用户明确要求“重新
+审批”后，Agent 才能调用普通 `request_approval`。该调用必须创建新的
+`approval_id`，并完整重走外部用户确认流程。普通 Agent 请求、模型
+推断、超时或布尔字段都不是用户授权。如何由服务端验证该明确
+用户意图属于未来可信恢复机制，v1 真实实现保持 **BLOCKED**；不引入
+recovery token、OAuth 或未实测的 WorkBuddy 回调。
+
 ### 6.6 `get_approval_status`
 
 **用途：** 查询外部确认结果。它不能替用户批准或拒绝；模型轮询不会改变用户
@@ -516,7 +596,8 @@ Proposal 已过期返回 `PROPOSAL_EXPIRED`，已应用返回 `ALREADY_APPLIED`�
 - `status=token_issued`：Token 已签发但尚未成功消费；后续轮询返回
   `approval_token=null`，防止重复泄露。
 - `status=consumed`：Token 已成功消费。
-- `status=rejected`：用户拒绝；Proposal 同步进入 `rejected`。
+- `status=rejected`：用户拒绝或在 Token 消费前撤回批准；Proposal 同步进入
+  `rejected`，已签发但未消费的 Token 必须在同一原子操作中撤销。
 - `status=expired`：该审批或 Token 已过期；若 Proposal 的 30 分钟 TTL 也已结束，
   Proposal 同步进入 `expired`。若仅 5 分钟 Token 过期而 Proposal 仍有效，Proposal
   保持 `pending_approval`，可以重新创建审批，但旧 Token 永远无效。
@@ -524,9 +605,26 @@ Proposal 已过期返回 `PROPOSAL_EXPIRED`，已应用返回 `ALREADY_APPLIED`�
 审批 Token 由服务端签发，模型不得构造。Token 必须绑定认证主体、
 `approval_id`、`proposal_id`、`base_version`、change 摘要及有效期；TTL 固定为
 签发后 5 分钟，并且 `token_expires_at` 不得晚于 Proposal 的 `expires_at`。Token
-只能安全交付一次；若交付响应丢失，v1 不重新显示原 Token，必须废止旧审批并在
-Proposal 仍有效时重新走审批。真实签名、存储、撤销和外部确认身份仍为
+只能安全交付一次；若交付响应丢失，v1 不重新显示、撤销或替换原
+Token，而是等待其按既定 TTL 过期。仅用户明确要求后才能在 Proposal
+仍有效时重新走普通审批。真实签名、存储、恢复授权和外部确认身份仍为
 **BLOCKED**。
+
+Approval 生命周期固定为：
+
+```text
+pending ──external approve──→ approved ──atomic token claim──→ token_issued
+   ├─external reject────────→ rejected                         ├─apply claim──→ consumed
+   └─expiry─────────────────→ expired                          ├─token expiry→ expired
+                                                               └─external revoke→ rejected
+```
+
+并发 `get_approval_status` 必须对 Token 交付做原子认领：最多一个请求取得非空
+`approval_token`；其他并发请求返回 `status=token_issued` 且
+`approval_token=null`。
+
+Proposal、Approval 和 Token 的统一过期边界为 `now >= expires_at`。等于
+`expires_at` 的瞬间已经过期，不再允许校验、签发或写入。
 
 ### 6.7 `apply_approved_changes`
 
@@ -552,10 +650,14 @@ Proposal 仍有效时重新走审批。真实签名、存储、撤销和外部�
 成功 `data`：
 
 - `proposal_id`、`base_version`、`result_version`。
+- `proposal_status`：固定为 `applied`。
 - `idempotency_key`。
 - `applied_changes`：实际持久化 ID 和规范化后的日期/时间。
 - `readback_verified`：必须为 `true`。
 - `applied_at`。
+- `recovery_evidence`：仅当请求从 `readback_pending` 收敛时返回；固定包含
+  `operation=readback_only`、`business_write_count_delta=0` 和
+  `second_apply_executed=false`，用于证明这是状态恢复而非第二次应用。
 
 `schedule_one_time` 的回读只核验 `planned_date` 和可选 `scheduled_at`；不得用
 提案 block 的 `end_at` 作为现有模型的持久化断言。
@@ -564,28 +666,75 @@ Proposal 仍有效时重新走审批。真实签名、存储、撤销和外部�
 `local_date`、`action`、`planned_start_minute` 和 `planned_end_minute`；任何字段缺失
 或不同均不得返回成功。
 
-写后必须通过授权读取路径回读。任何缺失或不一致返回
-`READBACK_MISMATCH`，不得返回成功。若写入可能已提交但回读失败，服务端必须把
-幂等记录标为 `readback_pending` 或等价的不确定状态；同一幂等键重试只能重新
-回读/核验，不能再次写入。
+写后必须通过授权读取路径回读。若暂时无法完成权威回读且写入结果未知，返回
+`READBACK_PENDING`，Proposal 状态为 `readback_pending`；同一幂等键重试只能
+重新回读，不能再次写入。若已完成权威回读并确认内容不一致，返回
+`READBACK_MISMATCH`，Proposal 转为终态 `failed`，不允许再次写入。只有能够确认
+事务未提交的确定性失败才可直接进入 `failed`；无法确认时必须保留
+`readback_pending`。
 
-判定顺序必须保证错误可达且不二次写入：先查询相同幂等作用域的既有记录并处理
-同摘要重放；再检查 Proposal 是否已经 `applied`（不同幂等键返回
-`ALREADY_APPLIED`）；再验证 Proposal TTL、当前 `base_version` 和审批 Token。
-Token 已消费且不存在相同幂等记录时返回 `APPROVAL_CONSUMED`；Proposal 过期返回
-`PROPOSAL_EXPIRED`；Token 过期返回 `APPROVAL_EXPIRED`；版本变化返回
-`SNAPSHOT_CONFLICT`，以上均为零写入。
+`readback_pending` 恢复只能执行权威回读和状态收敛：回读一致时转为
+`applied` 并返回原幂等结果；回读确认不一致时转为 `failed` 并返回
+`READBACK_MISMATCH`；结果仍未知时保持 `readback_pending` 并返回
+`READBACK_PENDING` (`retryable=true`)。三条路径的业务写入增量都必须为零。
+
+判定顺序必须保证错误可达、防资源枚举且不二次写入：
+
+1. 验证当前认证主体对 Proposal 的访问权；不存在与其他用户资源统一返回
+   `NOT_FOUND`。
+2. 验证 Token 的格式/签名、认证主体及 `approval_id/proposal_id/`
+   `base_version/change_digest` 绑定。本步只判定信任与绑定，不暴露
+   不属于当前 Proposal 的 Token 是否已消费。
+3. 验证幂等作用域和规范请求摘要。
+4. 检查 Proposal 当前状态，先处理
+   `applying/readback_pending/applied/rejected/expired/failed` 的终止或收敛语义。
+5. 对“绑定完全正确但已消费”的 Token：Proposal 已 `applied` 时返回
+   `ALREADY_APPLIED`；Proposal 尚未 `applied`（包括 `failed`）时返回
+   `APPROVAL_CONSUMED`。
+6. 验证 Proposal/Approval/Token TTL 和当前 `base_version`。通过全部前置
+   条件后，才能以一个原子操作消费 Token 并将 Proposal 转入
+   `applying`。
+
+- 同键不同摘要：`IDEMPOTENCY_CONFLICT`，零业务写入。
+- 同键同摘要且记录正在 `applying`：HTTP 409、
+  `IDEMPOTENCY_IN_PROGRESS`、`retryable=true`，零业务写入且不得无限等待。
+- 同键同摘要且 Proposal 为 `readback_pending`：只继续回读；若仍无终局返回
+  `READBACK_PENDING`，不得再次写入。
+- 新键但 Proposal 为 `applying` 或 `readback_pending`：统一返回
+  `READBACK_PENDING`，零业务写入。
+- 新键但 Proposal 为 `applied`：返回 `ALREADY_APPLIED`，零业务写入。
+- Proposal 为 `failed`、`rejected` 或 `expired`：均为终态，不允许再次写入。
+  `failed` 且携带同 Proposal 已消费 Token 时返回 `APPROVAL_CONSUMED`；
+  `retryable=false`、零业务写入，且不得重新签发 Token。按正常状态
+  不变式，Proposal 只能在 Token 已原子消费并进入 `applying` 后转为
+  `failed`，因此不新增一个与 `APPROVAL_CONSUMED` 重叠的 failed 错误码。
+
+Proposal 过期返回 `PROPOSAL_EXPIRED`；Token 过期返回 `APPROVAL_EXPIRED`；版本
+变化返回 `SNAPSHOT_CONFLICT`，以上均为零写入。
 
 若 apply 时没有审批记录，返回 `APPROVAL_REQUIRED`；已有审批但仍为 pending，
 返回 `APPROVAL_PENDING`；用户拒绝返回 `APPROVAL_REJECTED`。这些情况不得进入
 `applying`，写入次数必须为零。
 
+Token 在服务端通过全部前置校验后，以原子操作同时完成两件事时消费：认领该
+Token，并将 Proposal 转入 `applying`。一旦消费不得恢复，即使随后发生确定性
+失败。若 Proposal 已 `applied`，优先返回 `ALREADY_APPLIED`；若 Token 已消费但
+Proposal 未成功应用，返回 `APPROVAL_CONSUMED`；若结果未知，返回
+`READBACK_PENDING`。这保证 `APPROVAL_CONSUMED` 有独立可达路径。
+
+`APPROVAL_UNTRUSTED` 仅用于：Token 不存在或格式无效、签名验证失败、认证主体
+不匹配、`proposal_id/base_version/change_digest` 绑定不匹配，或 Token 因安全/管理
+原因撤销。用户在 Token 消费前撤回批准时，绑定仍可验证，但返回
+`APPROVAL_REJECTED`，不是 `APPROVAL_UNTRUSTED`。
+缺少凭据使用 `APPROVAL_REQUIRED`，过期使用 `APPROVAL_EXPIRED`，已消费使用
+`APPROVAL_CONSUMED`。
+
 幂等作用域固定为 `authenticated_user_id + tool_name + idempotency_key`。服务端对
 规范化的 `proposal_id/base_version/approval_id` 和白名单 change 摘要生成请求摘要；
 不得把 Token 本身或 Token 前缀写入摘要或日志：
 
-- 同一作用域、同一摘要：并发请求共享同一执行结果；后续请求返回原结果或继续
-  安全回读，不重复写入。
+- 同一作用域、同一摘要：已完成时返回原结果；执行中返回
+  `IDEMPOTENCY_IN_PROGRESS`；回读待定时只继续安全回读，不重复写入。
 - 同一作用域、不同摘要：返回 `IDEMPOTENCY_CONFLICT`。
 - Proposal 还必须具备“最多成功应用一次”的唯一约束，换一个幂等键也不能再次
   应用同一 Proposal。
@@ -631,8 +780,9 @@ Mock 只能证明协议状态流转，不得描述为生产审批。
 - 演示只允许 `static_bearer_demo` 映射出的专用演示主体；服务端只使用该映射主体
   查询数据，不信任请求体身份。
 - 所有目标 Task、Course、Override 和 Proposal 都要再次核验 owner。
-- 对其他用户的资源统一返回安全的 `FORBIDDEN` 或不泄露存在性的 `NOT_FOUND`，
-  最终策略由安全评审冻结。
+- 资源不存在与资源属于其他用户均返回 `NOT_FOUND`；两者的
+  `code/message/details` 必须完全不可区分。`FORBIDDEN` 仅用于与某个具体
+  资源是否存在无关的操作级权限拒绝。
 - 日志只记录工具名、trace ID、安全错误码、耗时和表/阶段标识；不记录 token、
   任务名称、notes、完整 payload 或个人日历内容。
 - Mock 必须使用虚构 ID、课程、任务和会议。
@@ -680,9 +830,10 @@ Mock 只能证明协议状态流转，不得描述为生产审批。
    两条路径最终收敛且不会覆盖离线修改？
 4. **M1 + M3：** 无可信审批能力时，比赛演示是否接受只读 + 提案 + 明确阻断，
    还是必须调整架构后再宣称闭环？
-5. **全员：** 31 天读取上限、幂等记录保留期、`readback_pending` 的恢复流程和
-   跨用户资源的
-   `FORBIDDEN/NOT_FOUND` 策略应采用哪些最终值？
+5. **全员：** 31 天读取上限、幂等记录保留期，以及
+   `readback_pending` 恢复作业的执行者/重试间隔尚需决定。恢复只读和
+   `applied/failed/readback_pending` 收敛语义已在 5.7/6.7 冻结；跨用户资源
+   的防枚举策略已在 4.1 冻结。
 
 这些问题阻塞 Task 2 的生产身份/版本设计及 Task 3 的全部真实写入，但不阻塞
 M1 使用 Mock 验证工具映射，也不阻塞 M2 使用 DTO 开发纯函数调度器。
