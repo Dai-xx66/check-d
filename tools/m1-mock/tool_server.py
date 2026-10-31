@@ -90,6 +90,7 @@ STATE = {
     "tokens": {},        # token -> binding
     "idempotency": {},
     "applied_proposals": set(),
+    "writes": 0,
 }
 
 _clock = {"n": 0}
@@ -101,11 +102,12 @@ def _next_id(prefix):
 
 
 class ToolError(Exception):
-    def __init__(self, code, message, details=None):
+    def __init__(self, code, message, details=None, retryable=False):
         super().__init__(message)
         self.code = code
         self.message = message
         self.details = details or []
+        self.retryable = retryable
 
 
 def read_flags():
@@ -122,6 +124,14 @@ def set_flags(data):
         return
     with open(FLAGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+
+
+def record_write(count=1):
+    STATE["writes"] = STATE.get("writes", 0) + count
+    if FLAGS_FILE:
+        flags = read_flags()
+        flags["writes"] = STATE["writes"]
+        set_flags(flags)
 
 
 def take_flag(name):
@@ -417,9 +427,33 @@ def check_hard_constraints(proposal, events):
     for ch in proposal["changes"]:
         if ch["type"] == "schedule_one_time":
             seen[ch["task_id"]] = seen.get(ch["task_id"], 0) + 1
-    for tid, n in seen.items():
-        if n > 1:
-            violations.append({"code": "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "task_id": tid})
+        elif ch["type"] == "upsert_daily_override":
+            key = (ch["item_id"], ch["local_date"])
+            seen[key] = seen.get(key, 0) + 1
+    for key, n in seen.items():
+        if isinstance(key, tuple):
+            if n > 1:
+                violations.append({"code": "MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
+                                   "task_id": key[0]})
+        elif n > 1:
+            violations.append({"code": "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "task_id": key})
+    for ch in proposal["changes"]:
+        if ch["type"] != "schedule_one_time":
+            continue
+        t = STATE["tasks"].get(ch["task_id"]) or {}
+        avail = t.get("available_from")
+        if avail and ch["planned_date"] < avail:
+            violations.append({"code": "PLANNED_BEFORE_AVAILABLE_FROM",
+                               "task_id": ch["task_id"]})
+        dl = t.get("deadline") or {}
+        if dl.get("kind") == "date_only" and ch["planned_date"] > dl.get("date", ""):
+            violations.append({"code": "PLANNED_AFTER_DATE_ONLY_DEADLINE",
+                               "task_id": ch["task_id"]})
+        if dl.get("kind") == "exact" and ch.get("scheduled_at"):
+            at = parse_instant(ch["scheduled_at"], "scheduled_at")
+            if at > parse_instant(dl["at"], "deadline"):
+                violations.append({"code": "BLOCK_AFTER_EXACT_DEADLINE",
+                                   "task_id": ch["task_id"]})
     return violations
 
 
@@ -539,11 +573,26 @@ def tool_generate_schedule(args, user):
         _, input_digest = snapshot_for(user, start, end, stored_events)
         base_version = digest({"snapshot": input_digest, "user": user})
 
-    explanations = [{"code": "PRESERVED_FIXED_EVENTS",
-                     "message": "固定课程与外部固定事件不可移动。"}]
+    explanations = []
+    fixed_events = [e for e in calendar_events_for(payload) if e["fixed"]]
+    if fixed_events:
+        explanations.append({"code": "PRESERVED_FIXED_EVENTS",
+                             "message": "固定课程与外部固定事件不可移动。"})
     if any(b["duration_source"] == "scheduler_estimate" for b in blocks):
         explanations.append({"code": "ESTIMATED_DURATION",
                              "message": "存在按估算时长排布的块。"})
+    if blocks:
+        explanations.append({"code": "SCHEDULED",
+                             "message": "已生成可执行的排期块。"})
+    if any(u["reason_code"] in ("NO_AVAILABILITY",) for u in unplanned):
+        explanations.append({"code": "NO_AVAILABILITY_WINDOW",
+                             "message": "部分任务在可用窗口内排不下。"})
+    if any(u["reason_code"] == "OVERLAPS_FIXED" for u in unplanned):
+        explanations.append({"code": "FIXED_BLOCKS_OVERLAP",
+                             "message": "固定块占满了可用窗口。"})
+    if any(u["reason_code"] == "WINDOW_INSUFFICIENT" for u in unplanned):
+        explanations.append({"code": "AVAILABILITY_SATURATED",
+                             "message": "可用时长不足以覆盖目标时长。"})
 
     pid = _next_id("proposal")
     created = now()
@@ -722,8 +771,14 @@ def tool_apply(args, user):
         raise ToolError("INVALID_ARGUMENT", "proposal_id/base_version 必填。")
     if not isinstance(key, str) or not key:
         raise ToolError("INVALID_ARGUMENT", "idempotency_key 必填。")
+
+    p = STATE["proposals"].get(pid)
+    internal = STATE["internal"].get(pid)
+    if not p or not internal or internal["user"] != user:
+        raise ToolError("NOT_FOUND", "找不到该提案。")
+
     if not isinstance(token, str) or not token:
-        rec = find_approval_for_proposal(pid, user) if isinstance(pid, str) else None
+        rec = find_approval_for_proposal(pid, user)
         if not rec:
             raise ToolError("APPROVAL_REQUIRED", "没有可用的审批记录。")
         st = apply_approval_status(rec)
@@ -734,13 +789,12 @@ def tool_apply(args, user):
         if st == "expired":
             raise ToolError("APPROVAL_EXPIRED", "审批或 Token 已过期。")
         raise ToolError("APPROVAL_REQUIRED", "审批尚未签发 Token。")
+
     trec = STATE["tokens"].get(token)
     if not trec or trec["user"] != user:
         raise ToolError("APPROVAL_UNTRUSTED", "审批 Token 无效。")
-    p = STATE["proposals"].get(pid)
-    internal = STATE["internal"].get(pid)
-    if not p or not internal or internal["user"] != user:
-        raise ToolError("NOT_FOUND", "找不到该提案。")
+    if trec["proposal_id"] != pid or trec["base_version"] != p["base_version"]:
+        raise ToolError("APPROVAL_UNTRUSTED", "审批 Token 与提案绑定不匹配。")
 
     idem = (user, "apply_approved_changes", key)
     req_digest = digest({"proposal": pid, "base_version": base_version,
@@ -751,27 +805,43 @@ def tool_apply(args, user):
             raise ToolError("IDEMPOTENCY_CONFLICT", "幂等键被用于不同请求。")
         if cached["state"] == "done":
             return cached["result"]
+        if cached["state"] == "applying":
+            raise ToolError("IDEMPOTENCY_IN_PROGRESS", "同一请求正在处理中。", retryable=True)
         verify_readback(p)
         cached["state"] = "done"
         return cached["result"]
 
     if p["status"] in ("applying", "readback_pending"):
         raise ToolError("READBACK_PENDING", "写入可能已发生，只能用同一幂等键继续回读。",
-                        [{"field": "proposal.status", "reason": "readback_pending"},
-                         {"field": "input.idempotency_key", "reason": "reuse_same_key_for_readback_only"}])
-
+                        [{"field": "proposal.status", "reason": "readback_pending"}])
     if pid in STATE["applied_proposals"]:
         raise ToolError("ALREADY_APPLIED", "该提案已成功应用。")
-
+    if p["status"] == "failed":
+        if trec["consumed"]:
+            raise ToolError("APPROVAL_CONSUMED", "Token 已消费且提案未成功应用。")
+        raise ToolError("PROPOSAL_INVALID", "提案处于失败终态。")
+    if p["status"] == "rejected":
+        raise ToolError("APPROVAL_REJECTED", "用户已拒绝该提案。")
+    if p["status"] == "expired":
+        raise ToolError("PROPOSAL_EXPIRED", "提案已过期。")
+    if p["base_version"] != base_version:
+        raise ToolError("SNAPSHOT_CONFLICT", "请求的 base_version 不是当前版本。")
+    if trec["consumed"]:
+        raise ToolError("APPROVAL_CONSUMED", "Token 已消费。")
     if parse_instant(p["expires_at"], "expires_at") < now():
         raise ToolError("PROPOSAL_EXPIRED", "提案已过期。")
+    if take_flag("expire_token"):
+        trec["expires_at"] = iso(now() - timedelta(minutes=1))
+    if parse_instant(trec["expires_at"], "expires_at") < now():
+        raise ToolError("APPROVAL_EXPIRED", "审批 Token 已过期。")
 
     start, end = map(date.fromisoformat, internal["range"])
     current = snapshot_digest(user, start, end, internal["events"])
     if current != p["input_digest"] or p["base_version"] != base_version:
         raise ToolError("SNAPSHOT_CONFLICT", "快照或版本已变化。")
 
-    if rec := refresh_approval(trec["approval_id"]):
+    rec = refresh_approval(trec["approval_id"])
+    if rec:
         st = apply_approval_status(rec)
         if st == "pending":
             raise ToolError("APPROVAL_PENDING", "外部审批尚未通过。")
@@ -779,20 +849,20 @@ def tool_apply(args, user):
             raise ToolError("APPROVAL_REJECTED", "用户已拒绝该提案。")
         if st == "expired":
             raise ToolError("APPROVAL_EXPIRED", "审批或 Token 已过期。")
-
-    if trec["consumed"]:
-        raise ToolError("APPROVAL_CONSUMED", "Token 已消费。")
-    if take_flag("expire_token"):
-        trec["expires_at"] = iso(now() - timedelta(minutes=1))
-    if parse_instant(trec["expires_at"], "expires_at") < now():
-        raise ToolError("APPROVAL_EXPIRED", "审批 Token 已过期。")
-    if trec["proposal_id"] != pid or trec["base_version"] != base_version:
-        raise ToolError("APPROVAL_UNTRUSTED", "审批 Token 与提案不匹配。")
     if p["status"] != "pending_approval":
         raise ToolError("PROPOSAL_INVALID", "提案当前不可应用。")
 
     check_items_exist(p)
+    trec["consumed"] = True
     p["status"] = "applying"
+
+    if take_flag("simulate_applying_crash"):
+        STATE["idempotency"][idem] = {"digest": req_digest, "state": "applying", "result": None}
+        raise ToolError("READBACK_PENDING", "结果未知，请用同一幂等键重试。", retryable=True)
+
+    if take_flag("fail_after_consume"):
+        p["status"] = "failed"
+        raise ToolError("PROPOSAL_INVALID", "写入确定性失败。")
 
     applied = []
     for ch in p["changes"]:
@@ -800,6 +870,7 @@ def tool_apply(args, user):
             t = STATE["tasks"][ch["task_id"]]
             t["planned_date"] = ch["planned_date"]
             t["scheduled_at"] = ch.get("scheduled_at")
+            record_write()
             applied.append({"change_id": ch["change_id"], "type": ch["type"],
                             "task_id": ch["task_id"], "planned_date": t["planned_date"],
                             "scheduled_at": t["scheduled_at"]})
@@ -811,6 +882,7 @@ def tool_apply(args, user):
                 "action": ch["action"], "planned_start_minute": ch["planned_start_minute"],
                 "planned_end_minute": ch["planned_end_minute"],
             }
+            record_write()
             applied.append({"change_id": ch["change_id"], "type": ch["type"],
                             "item_type": ch["item_type"], "item_id": ch["item_id"],
                             "local_date": ch["local_date"], "action": ch["action"],
@@ -819,11 +891,9 @@ def tool_apply(args, user):
                             "override_id": oid})
 
     STATE["applied_proposals"].add(pid)
-    trec["consumed"] = True
     rec = STATE["approvals"].get(trec["approval_id"])
     if rec:
         rec["token_consumed"] = True
-
     result = {"proposal_id": pid, "base_version": base_version,
               "result_version": _next_id("ver"), "idempotency_key": key,
               "applied_changes": applied, "readback_verified": True,
@@ -958,7 +1028,7 @@ def call_tool(name, args, token):
                 "structuredContent": body, "isError": False}
     except ToolError as e:
         body = envelope(rid, "error", {"error": {
-            "code": e.code, "message": e.message, "retryable": False, "details": e.details}})
+            "code": e.code, "message": e.message, "retryable": getattr(e, "retryable", False), "details": e.details}})
         return {"content": [{"type": "text", "text": json.dumps(body, ensure_ascii=False)}],
                 "structuredContent": body, "isError": True}
 
