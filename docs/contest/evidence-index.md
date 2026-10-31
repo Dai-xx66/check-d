@@ -3,7 +3,8 @@
 - **归属**：M3 / Evaluation（同学 C）
 - **建立日期**：2026-10-31
 - **用途**：把「哪条用例、在哪次运行、用什么版本、得到什么结果、证据存在哪」固定成一张可核对的表。评委或队长问「这个结论凭什么」时，只查这张表。
-- **当前状态**：**全部 65 项均为「未测」**。本文件不含任何执行结果，只定义登记位置。
+- **当前基准**：`c53b1a91c17cd9acdee6d3937c093fcf97515ba0`（2026-11-01 换基准；`2c48579` 只作历史）
+- **当前状态**：90 项中 20 项为 E1 历史复核、70 项「未测」。本文件不含任何新执行结果。
 - **纪律**：空着比编好。未运行的行保持「未测」，不得预填 PASS；截图/日志与代码版本必须能对应；一条记录对应一次运行，不合并多次。
 
 ---
@@ -110,21 +111,21 @@
 | EV-T04-b | validate 摘要不符 | `SNAPSHOT_CONFLICT`；零写入 | | | 未测 |
 | EV-T05 | 审批凭据过期 | `APPROVAL_EXPIRED` 403；零写入 | | | 未测 |
 | EV-T06 | 提案过期 | `PROPOSAL_EXPIRED` 409；零写入 | | | 未测 |
-| EV-T07 | 并发 apply | 同键只执行一次（B6 未定义响应形态） | | | 未测 |
+| EV-T07 | 并发 apply | 同键只执行一次；执行中重试 → `IDEMPOTENCY_IN_PROGRESS`（c53b1a9 已定） | | | 未测 |
 | EV-T08 | 换键重复 apply | `ALREADY_APPLIED` 409；无二次写入 | | | 未测 |
-| EV-T09 | override 唯一键 | T09-a/c 可判；T09-b 待 B7 | | | 未测 |
-| EV-T10 | available_from/deadline | `PROPOSAL_INVALID`（B5 影响明细） | | | 未测 |
+| EV-T09 | override 唯一键 | T09-a/c 可判；T09-b 防枚举 NOT_FOUND（B7 已闭合） | | | 未测 |
+| EV-T10 | available_from/deadline | violations 七值闭集（§5.8，B5 已闭合） | | | 未测 |
 | EV-T11 | 只改 planned_date | 旧 `scheduled_at` 保留（F6 回归） | | | 未测 |
 | EV-T12 | end_at 不持久化 | 库中无 end_at；不影响判定 | | | 未测 |
 | EV-T12-b | 时长来源 | `task_target` / `scheduler_estimate` 二选一 | | | 未测 |
 | EV-T15 | `skip` 负向 | 落库即 FAIL | | | 未测 |
 | EV-T16 | 审批第三态 | `token_issued` 独立可观测 | | | 未测 |
 | EV-T17 | 过期审批重建 | 换新 `approval_id`；旧 token 永久失效 | | | 未测 |
-| EV-T18 | token 已消费 | `APPROVAL_CONSUMED` 可达（P1-1） | | | 未测 |
+| EV-T18 | token 已消费 | `APPROVAL_CONSUMED` 可达（B11 已解除；对应新示例 consumed_token_after_failed_apply_is_reachable） | | | 未测 |
 | EV-T19 | Token TTL | ≤300s 且 ≤ proposal.expires_at；一次性 | | | 未测 |
 | EV-T20 | scheduled_at 三态 | 省略=保留、null=清除、跨日=INVALID | | | 未测 |
-| EV-T21 | 并发 Token 交付 | 仅一次交付 token（原子性未声明） | | | 未测 |
-| EV-T22 | 凭证篡改 | `APPROVAL_UNTRUSTED`（P1-2 无触发条件） | | | 未测 |
+| EV-T21 | 并发 Token 交付 | 原子认领：仅一个非空 token，其余 null（B13 已解除） | | | 未测 |
+| EV-T22 | 凭证篡改 | `APPROVAL_UNTRUSTED` 五类触发已列全（B12 已解除；对应新示例 untrusted_token_binding_is_rejected） | | | 未测 |
 
 ---
 
@@ -137,11 +138,20 @@
 | EV-R1 | Token 过期后重建审批 | 新 `approval_id`、旧 Token 仍 403、Proposal 不进 `expired` | E2 | | | | 未测 |
 | EV-X1 | 非终态 + 新幂等键 | `READBACK_PENDING` 且 **W4=0**；W4>0 直接 P0 | E2 | | | | 未测 |
 | EV-G1 | `remaining=0` | 无 block、且**不在** `unplanned_tasks` | E2 | | | | 未测 |
-| EV-G2 | `remaining=40` | `duration_seconds=2400` 精确、`task_target` | E2 | | | | 未测 |
+| EV-G2 | `remaining=40` | `duration_seconds=2400` 精确、`task_target`；fixture 目标时长换 7200 | E2 | | | | 未测 |
 | EV-G3 | `remaining=null` | 用完整目标 `3600s`、`task_target`；与 G1/G2 三态对照 | E2 | | | | 未测 |
 | EV-G4 | 语义隔离 | `=0` 两处都不出现；窗口不足的另一任务入 `unplanned` + `WINDOW_INSUFFICIENT` | E2 | | | | 未测 |
 | EV-G5 | `remaining=20` < 最小块 | 不得成 20 分钟块；入 `unplanned` + `WINDOW_INSUFFICIENT` | E2 | | | | 未测 |
 | EV-S1 | 完整 Proposal Schema | 原始 JSON 逐字段校验；DTO 解析不算证据 | E2 | | | | 未测 |
+
+---
+
+### 5B2. 第三轮新增（`c53b1a9`，2026-11-01）
+
+| ID | 用例 | 断言要点 | 证据级别上限 | 运行日期/执行人 | 代码版本 | 证据位置 | 结果 |
+|---|---|---|---|---|---|---|---|
+| EV-V1 | violations 七值闭集 | 合法违规项按 §5.8 结构返回；未知 code → `PROPOSAL_INVALID` 整体拒绝；零写入 | E2 | | | | 未测 |
+| EV-Y1 | 同键执行中重试 | 409 + `IDEMPOTENCY_IN_PROGRESS` + `retryable=true`；W4 增量 0；不无限等待 | E2 | | | | 未测 |
 
 ---
 
@@ -186,10 +196,11 @@
 | 拆解 DA | 15 | 0 | 15 |
 | 契约 T | 23 | 0 | 23 |
 | 本轮增量 R1/X1/G1–G5/S1 | 8 | 0 | 8 |
+| 第三轮新增 V1/Y1 | 2 | 0 | 2 |
 | A 侧 EX 回放（C 已复核） | 20 | 20 | 0 |
-| **合计** | **88** | **20** | **68** |
+| **合计** | **90** | **20** | **70** |
 
-**唯一已有的实测**是 `e7be8c9` 上的 Mock 探针（`docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md` §4、`2026-10-31-m1-incremental-recheck-M3.md` §三），针对的是旧提交，**不填进本表**——本表只登记固定基准 `2c48579` 之后的运行。
+**唯一已有的实测**是 `e7be8c9` 上的 Mock 探针（`docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md` §4、`2026-10-31-m1-incremental-recheck-M3.md` §三），针对的是旧提交，**不填进本表**——本表只登记固定基准 `c53b1a9` 之后的运行（2026-11-01 前 `2c48579` 上的记录已作历史）。
 
 ---
 
@@ -225,3 +236,4 @@
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-10-31 | 建立索引，60 项全部「未测」 | 规划 M3-2 要求；先定结构，等链路通了只填空 || 2026-10-31 | 追加 §5B 5 项（R1/X1/G1/G2/S1），合计 60→65；新增「证据级别上限」列，结果列改为 `PASS(E1)` 复合写法 | 对应队长本轮 6 项增量；全部仍「未测」，未新增任何实测 || 2026-10-31 | 补 B19 语义（EV-G3/G4/G5）+ 新增 §5C 的 20 条 EX 回放复核；合计 65→88，已取证 0→20 | EX 行结论为 C 独立判定，非转述 A 的 pass；级别 E1，不升 E2 |
+| 2026-11-01 | 换基准 `c53b1a9`：T07/T09/T10/T18/T21/T22 行注记更新（B5/B6/B7/B11/B12/B13 解除）、G2 注记 7200、新增 §5B2（EV-V1/EV-Y1），合计 88→90；已取证 20（E1 历史）/未测 70 | 全部为登记位更新，无新增实测 |
