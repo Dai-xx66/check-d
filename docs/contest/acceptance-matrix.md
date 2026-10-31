@@ -1,4 +1,4 @@
-# M0 Agent API v1 验收矩阵（T01–T16）
+# M0 Agent API v1 验收矩阵（T01–T17）
 
 - **归属**：M3 / Evaluation（同学 C）
 - **对象**：`docs/contracts/agent-api-v1.md` @ `503210c`（v1 CANDIDATE）
@@ -190,6 +190,15 @@
 - **预期写入次数**：审批记录 **1 条**（重复 request 不新增）；Proposal 表 **0 次变更**
 - **判定要点**：旧实现把"已批准未签发"和"已签发"混成一个 `approved`，客户端无法判断能否 apply。第三态缺失属 F1（契约缺陷），状态枚举不在契约中则本条不可判（B8 相关）
 
+### T17 审批过期后重新发起（新增，e7be8c9 实测发现）
+
+- **输入**：`P_1` 已创建审批 `A_1`，等到 `A_1.expires_at` 之后（或注入时钟），再次对 `P_1` 调用 `request_approval`
+- **预期响应码**：`success`，且返回**新的** `approval_id`（`≠ A_1`）、`status=pending`、`expires_at` 在未来
+- **预期 Proposal 状态**：`pending_approval`（不变）
+- **预期数据结果**：旧审批标记 `expired`（落库，不只是计算）；新审批可再次走确认 → 签发 → apply
+- **预期写入次数**：审批表 **+1 条**
+- **判定要点**：`e7be8c9` 实测**不通过**——`request_approval` 复用条件写的是 `rec["status"] != "expired"`（`tool_server.py:561`），但代码从不把 `status` 写成 `expired`（`:590` 仅即时计算），导致过期审批被永久复用，提案**再也无法获得可用凭据**，形成锁死。属 F2 实现缺陷
+
 ---
 
 ## 3. 覆盖对照（队长点名的 7 个重点）
@@ -250,10 +259,32 @@
 
 ---
 
-## 6. 变更记录
+## 6. Mock 侧实测记录（2026-10-31 · e7be8c9）
+
+> **环境：仅 Mock**（直接调用 mock 工具函数，非 MCP stdio、非实机）。执行人 C，脚本 `probe_m1_e7be8c9.py`。不得据此声称实机通过。
+
+| 用例 | 结果 | 关键观测 |
+|---|---|---|
+| T08 换幂等键重复 apply | PASS | `ALREADY_APPLIED`，无二次写入 |
+| T08 同键重试 | PASS | 返回缓存结果，写入次数不变 |
+| T04-b validate 摘要重算 | PASS | 任务 `updated_at` 变更 → `SNAPSHOT_CONFLICT` |
+| T09-b 缺事项 | PASS | `NOT_FOUND`，进程存活，后续调用正常 |
+| T01/T02 回读失败与同键重试 | PASS（部分） | 标记 `readback_pending`；同键重试只重跑回读 |
+| T03 回读终局 | 不可判 | 无终局状态，`readback_pending` 可无限停留 |
+| T16 审批第三态 | **FAIL** | `status` 只有 `pending/approved/expired`，无第三值 |
+| T17 过期审批重建 | **FAIL** | 复用死记录，提案锁死 |
+| T05 审批过期 | 部分 | 轮询返回 `expired`，无 `APPROVAL_EXPIRED` 错误码路径 |
+| T12-b 时长来源 | 部分 | 优先级正确，枚举命名与契约不一致 |
+
+明细与根因见 `docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md`。
+
+---
+
+## 7. 变更记录
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-10-30 | 初版，定义 T01–T12 预期 | 仅预期，未执行；待 M0 修订状态机与错误码后复核 |
 | 2026-10-30 | 追加 T15 条件式占位（单日 skip，分支 A/B）；新增 B10；补 §4.1 PR #3 评审增量 | T15 在 skip 语义定稿前不可执行；无实测记录 |
-| 2026-10-31 | 新增 T04-b（validate 摘要重算）、T12-b（时长来源优先级）、T16（审批第三态与重复 request 幂等） | 对应 A 侧 10-31 九项修订，判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md`；仍无实测记录 |
+| 2026-10-31 | 新增 T04-b、T12-b、T16 | 对应 A 侧 10-31 九项修订，判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md` |
+| 2026-10-31 | 新增 T17（过期审批重建）；新增 §6 Mock 实测记录 | 在 e7be8c9 上实测：T08/T04-b/T09-b 通过，T16/T17 失败，明细见 recheck 文档 |
