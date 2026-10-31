@@ -99,6 +99,8 @@
 ```
 
 > 脱敏完跑一次：`python fixtures/education/validate_fixtures.py --privacy`，必须 0 失败才能进仓库。
+>
+> **已有现成脚本**：`python tools/m3-checks/build_timetable_fixture.py 课表.csv` —— 自动删身份列、课程名去括号与等级、教师统一 `X老师`、教室替换占位、时间转 `minute_of_day`，输出字段与 `scenario_a/b/c` 对齐；先跑 `--demo` 可看效果。
 
 ---
 
