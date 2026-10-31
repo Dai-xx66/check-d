@@ -16,7 +16,49 @@
 | 新增实测证据 | **否**。仓库内 Mock 对应旧契约（`e7be8c9`），对 `2c48579` 无可用实现，本轮**零实测** |
 | 解除 BLOCKED | **否**。WorkBuddy 真实认证、可信审批、原子写入、生产回读仍 BLOCKED |
 
-> 结论定位：**以 `2c48579` 为基准，C 侧同意进入冻结前最后一步**；剩余 6 项均为纯文档缺口（B5–B7、B11、B12、B16），不依赖任何 BLOCKED 能力即可关闭。
+> 结论定位：**以 `2c48579` 为基准，C 侧同意进入冻结前最后一步**；剩余 7 项均为纯文档缺口（B5–B7、B11、B12、B16、B17），不依赖任何 BLOCKED 能力即可关闭。
+
+## 0.1 固定文件指纹（可独立验证）
+
+任何人拿到 `2c48579` 都可以用下列值与 Git blob 比对，确认审的就是这两份文件、且内容未漂移。
+
+| 文件 | Git blob | 字节 | SHA-256 |
+|---|---|---:|---|
+| `docs/contracts/agent-api-v1.md` | `42274a2e682674158fe2a8a4162997b7b40e8116` | 36798 | `05a87d7a335b618c7ec222531f9d94bbd5f915ec0792355cff31c6d240ab3177` |
+| `docs/contracts/agent-api-v1.examples.json` | `cc0832e4c3014ccdbdf2c675895b34d2ed236275` | 23813 | `db6a774687757ec26cad0c4b71b9045e66d53904c67670055bec019df6df34f0` |
+
+校验命令（仓库根目录）：
+
+```bash
+git rev-parse 2c48579:docs/contracts/agent-api-v1.md          # 应为 42274a2e…
+git show 2c48579:docs/contracts/agent-api-v1.md | sha256sum    # 应为 05a87d7a…
+```
+
+## 0.2 两份文件的机检结果（可复算，不是实测）
+
+对 `agent-api-v1.md` 与 `agent-api-v1.examples.json` 做结构化解析，结果如下：
+
+| 检查项 | 结果 |
+|---|---|
+| 示例 JSON 可解析、`examples` 数组 | 通过（20 条） |
+| 请求信封字段 `api_version`/`request_id`/`timezone`/`input` 齐全 | 通过（20/20） |
+| 响应信封字段 `api_version`/`request_id`/`trace_id`/`status` 齐全 | 通过（20/20） |
+| 错误响应含 `code`/`message`/`retryable` | 通过（8/8） |
+| 示例中的 `error.code` 均在 §4.1 表内 | 通过（8 个码，0 越界） |
+| `duration_source` / `reason_code` 取值 ⊆ 契约枚举 | 通过（2 值 / 4 值） |
+| 示例引用的工具 ⊆ 7 工具 | 通过 |
+| §4.1 错误码表条目 / 唯一性 | 20 / 20（无重复） |
+| Proposal 状态值 / Approval 状态值 | 8 / 6（与正文枚举一致） |
+
+复算命令（脚本已入库，不依赖任何 Mock 实现，纯静态解析）：
+
+```bash
+python tools/m3-checks/check_contract_consistency.py 2c48579
+# 期望输出：§4.1 错误码 20/20、Proposal 8 态、Approval 6 态、工具 7、示例 20（错误响应 8）、结构/枚举问题 0
+# 退出码 0 = 无越界且结构完整；1 = 有越界或结构缺失
+```
+
+**一处疑似越界经复核为误报**：示例 `validate_schedule_pending_approval` 返回 `approval_status="not_requested"`，不在 §6.6 的 6 个审批状态内；但该值由 §6.4 明确定义，并非越界。**由此发现一个真实文档缺陷，见 B17。**
 
 ## 1. 错误码对齐（20 个）
 
@@ -73,7 +115,7 @@
 | 用例编号 | T01–T22 | T01–T22（T03 拆 a/b → **23 个用例项**） |
 | 可判性 | 15 可判 / 3 部分 / 4 不可判 | **16 可判 / 4 部分 / 3 不可判** |
 | 回读失败覆盖 | 1 条（不可判） | 2 条（1 可判、1 部分可判） |
-| 阻塞项 | B1–B15 | B1–B16（新增 B16；B11 补"消费时点"缺失） |
+| 阻塞项 | B1–B15 | B1–B17（新增 B16、B17；B11 补"消费时点"缺失） |
 | 契约本体 | 未改 | 未改 |
 | 实测 | 无 | 无 |
 
@@ -87,6 +129,7 @@
 | B11 | `APPROVAL_CONSUMED` 消费时点未定义 → 不可达 | T18、T22 | 明写"进入 `applying` 即消费"，或删码保状态 |
 | B12 | `APPROVAL_UNTRUSTED` 正文零触发条件 | T22 | §6.7 五条核验逐条绑错误码（主体、绑定、未过期/未撤销/未消费、快照一致、幂等） |
 | B16 | `READBACK_MISMATCH` 后终态未定义 | T03-a | 见 §4 |
+| B17 | **`approval_status` 同名双域**：§6.4 的 `validate_schedule.data.approval_status` 只有 `not_requested` / `not_approvable`，与 §6.6 的 6 个审批状态**零交集**；同名不同义，客户端无法用同一套状态机解释 | 全部含 `approval_status` 的响应 | 改名（`approvability` / `approval_hint`），或在 §5 声明"两个独立枚举、不得混用" |
 
 **已闭合（不再讨论）**：`readback_pending` 状态位与同键只回读（T01/T02/T03-b）、apply 阶段 `SNAPSHOT_CONFLICT`、`PROPOSAL_EXPIRED`、`ALREADY_APPLIED`、Token 一次性 5 分钟且不越过提案到期、`skip` 不持久化、`duration_source` 双值枚举、`scheduled_at` 省略/null/跨日三态。
 
@@ -94,10 +137,10 @@
 
 ## 7. 下一步
 
-1. **M0**：处理 B5、B6、B7、B11、B12、B16（六项纯文档），发布新 commit。
+1. **M0**：处理 B5、B6、B7、B11、B12、B16、B17（七项纯文档），发布新 commit。
 2. **A**：按 `2c48579` 重建 candidate JSON 与 Mock 证据（旧 26/26 对应旧契约，不可复用）。
 3. **C**：A 的新 Mock 落地后，按矩阵 §9 跑一次增量验收，回填实测列，输出冻结建议。在此之前不提交任何"已通过"结论。
 
 ---
 
-**一句话结论**：C 侧已按 `2c48579` 完成错误码、审批状态、过期、回读失败四类验收对齐，可判用例由 15 增至 16（共 23 项）；**建议在 B5–B7、B11、B12、B16 六项文档缺口关闭后冻结 v1**，六项均不依赖 BLOCKED 能力。
+**一句话结论**：C 侧已按 `2c48579` 完成错误码、审批状态、过期、回读失败四类验收对齐，可判用例由 15 增至 16（共 23 项）；**建议在 B5–B7、B11、B12、B16、B17 七项文档缺口关闭后冻结 v1**，七项均不依赖 BLOCKED 能力。

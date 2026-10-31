@@ -57,6 +57,8 @@
 | `expired` → 新审批 | 再次 `request_approval` | T17 | **部分**：允许重建，但未定返回新/旧 `approval_id` |
 | 任意 → `rejected` | 用户拒绝 | T16 | 已定义（§6.6） |
 
+> **注意同名双域**：本节 6 个状态仅指 `get_approval_status.data.status`。`validate_schedule.data.approval_status` 是**另一套**枚举（`not_requested` / `not_approvable`，§6.4），两者零交集，见 B17。
+
 ### 2.3 错误码 × 可达性（§4.1 共 20 个）
 
 > 判定口径 G1：**只认"能触发"，不认"文档里有"**。`2c48579` 的 20 个示例中只有 8 个是错误响应。
@@ -386,6 +388,7 @@
 | B14 | `failed` 无判定条件、无错误码 | P2 | T03 | 定义"safe failure"（写入确证未发生）与对应码 |
 | B15 | apply 成功响应缺 `proposal_status` | P2 | 全部（"状态"取证列） | 成功响应增加 `proposal_status=applied`；`readback_pending` 时正式字段而非仅 `details` |
 | B16 | `READBACK_MISMATCH` 之后的 Proposal 终态未定义（停留 `applying` / `failed` / `readback_pending` 三选一），且与 `failed` 的"safe failure"边界重叠 | P1 | T03-a | 明确"回读结论为不一致"→ 立即 `failed`（而非 `readback_pending`，后者仅限结论不确定）；或新增 `readback_failed` 状态。§10 Q5 只覆盖"`readback_pending` 恢复流程"，未覆盖本条 |
+| B17 | `approval_status` **同名双域**：§6.4 的 `validate_schedule.data.approval_status` 为 `not_requested` / `not_approvable`，与 §6.6 的 6 个审批状态零交集，同名不同义 | P2 | T16、全部含 `approval_status` 的响应 | 改名 `approvability` / `approval_hint`，或在 §5 声明为两个独立枚举、不得混用 |
 
 ### 5.4 环境性阻塞（不变）
 
@@ -465,6 +468,7 @@
 | 2026-10-31 | 新增 T04-b、T12-b、T16 | 对应 A 侧 10-31 九项修订，判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md` |
 | 2026-10-31 | 新增 T17（过期审批重建）；新增 §7 Mock 实测记录 | 在 e7be8c9 上实测：T08/T04-b/T09-b 通过，T16/T17 失败，明细见 recheck 文档 |
 | 2026-10-31 | 新增 §2 状态机与用例映射、T18（APPROVAL_CONSUMED 可达性）、§4.1 八项索引；T09 回读字段扩至 7 项；章节重排 | 仅定义预期与可达性，无新增实测；按队长要求保留 8 项重点 |
+| 2026-10-31 | 依 M0 再次确认的固定 SHA 复核两份契约文件：加入 Git blob / SHA-256 指纹与机检结果（20 示例、8 错误响应、8/20 码覆盖、0 结构缺失）；新增 B17（`approval_status` 同名双域） | 机检可复算，非实测；误报项已复核并说明 |
 | 2026-10-31 | **M0-1 固定基准增量对齐**：头部固定 SHA 与 PR；T03 拆为 T03-a（`READBACK_MISMATCH`，终态待定）/ T03-b（`READBACK_PENDING`，同键只回读）；新增 B16；B11 补"消费时点"缺失；统计改 22 编号 / 23 用例项（16/4/3） | 未改契约本体、未重跑实测；只做 C 侧用例口径对齐，明细见 `docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md` |
 | 2026-10-31 | **按 `2c48579` 最终稿全量重判**：§2.1/2.2 状态迁移改判（6 闭合/2 部分）、§2.3 错误码表扩至 20 个、T12-b 枚举修正、T15 改为负向用例、新增 T19–T22、§5 阻塞结算（B1–B4/B8/B10 闭合，新增 B11–B15）、§7 注明新契约无 Mock、§9 标注已执行 | **纯文档级复审，无任何实测**；结论见 `docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md` |
 
