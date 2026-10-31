@@ -20,7 +20,7 @@
 | 7 | `readback_pending` 是否只允许回读、禁止重写 | **通过** | 实测：首次 apply 写 override `ov_0038`、条目数 6 → 同键重试返回成功，`override_id` 不变、条目数不变，未发生二次写入 |
 | 8 | 单次事项旧 `scheduled_at` 冲突防护 | **不通过（最严重）** | 见 F6：change 不带 `scheduled_at` 时，旧值被**静默清空**，且回读判 PASS |
 | 9 | daily override 唯一键与完整回读字段 | **部分** | 见 F7：mock 用 dict 覆盖并换新 `override_id`（实测 `ov_0038 → ov_0063`），真实库 `(userId,itemType,itemId,localDate)` 唯一键下必撞；回读只校验 `planned_start/end_minute`，未校验 `action`/`item_type`/`override_id` |
-| 10 | 四元组验收口径 | **保持** | 本轮全部用例均按四元组记录，与矩阵 §5 一致 |
+| 10 | 四元组验收口径 | **保持** | 本轮全部用例均按四元组记录，与矩阵 §6（执行与取证规则）一致 |
 
 ---
 

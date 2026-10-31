@@ -1,10 +1,10 @@
-# M0 Agent API v1 验收矩阵（T01–T17）
+# M0 Agent API v1 验收矩阵（T01–T18）
 
 - **归属**：M3 / Evaluation（同学 C）
 - **对象**：`docs/contracts/agent-api-v1.md` @ `503210c`（v1 CANDIDATE）
 - **状态**：**预期定义阶段，尚未执行任何一条**
 - **纪律**：本文件只写"输入"与"预期"。所有预期列都是**待验证的断言**，不是实测结果。执行后再另开一节回填实测值，本文件在此之前不得被引用为"已通过"。
-- **复核时点**：M0 修订状态机与错误码之后，逐条复核 §5「待 M0 定义」中的占位项。
+- **复核时点**：M0 修订状态机与错误码之后，逐条复核 §5「阻塞与待 M0 定义」中的占位项。
 
 判定口径统一为四元组：**响应码 + Proposal 状态 + 数据结果 + 实际写入次数**。四项全部吻合才算 PASS。
 
@@ -27,7 +27,48 @@
 
 ---
 
-## 2. 主矩阵
+## 2. 状态机与用例映射（先看这张表）
+
+> 目的：让"某个错误码在什么状态下可达"可被直接检查。标 `[未定义]` 的是契约 §5.7 当前没有的状态值——这正是 B1 的根因。
+
+### 2.1 Proposal
+
+| 迁移 | 触发 | 对应用例 | 契约是否已定义 |
+|---|---|---|---|
+| `draft` → `pending_approval` | validate 通过 | T01 前置 | 是 |
+| `draft` 保持 `draft` | validate 发现硬约束违反 | T10、T11 | 是（`validation_status=invalid`） |
+| `pending_approval` → `applied` | apply 成功 | T02、T12 | 是 |
+| `pending_approval` → `applied` | apply 写成功但**回读失败** | T01 | **`[未定义]`**：需要 `readback_pending`，当前只能写 `applied` |
+| `applied` → `applied` | 换幂等键再次 apply | T08 | 是（`ALREADY_APPLIED`） |
+| `pending_approval` → `expired` | 超过 `expires_at` | T06 | **`[未定义]`**：过期只是运行时判断，无状态值 |
+| `applied` → `failed` | 回读持续不一致 | T03 | **`[未定义]`**：无终局态 |
+
+### 2.2 Approval
+
+| 迁移 | 触发 | 对应用例 | 契约是否已定义 |
+|---|---|---|---|
+| `pending` → `approved` | 外部确认 | T16 | 是 |
+| `approved` → `token_issued` | 轮询签发 token | T16 | **`[未定义]`**：与 `approved` 同值，仅靠 `token` 是否为 null 区分 |
+| `token_issued` → `consumed` | apply 使用该 token | T18 | **`[未定义]`**：实现只把 `consumed` 写在 token 记录，审批记录无此状态 |
+| `pending` → `expired` | 超过 `expires_at` | T05 | **`[未定义]`**：仅在轮询时即时计算并返回 |
+| `expired` → 新 `pending` | 再次 `request_approval` | T17 | **`[未定义]`**，且实现有缺陷（复用死记录，F1） |
+
+### 2.3 错误码 × 状态可达性
+
+| 错误码 | 可达前提状态 | 对应用例 | 当前判定 |
+|---|---|---|---|
+| `ALREADY_APPLIED` | Proposal `applied` + token 有效 | T08 | 可达（实测） |
+| `PROPOSAL_EXPIRED` | Proposal 已过期 | T06 | 可达（实测） |
+| `APPROVAL_EXPIRED` | Approval 已过期 | T05 | **契约有、实现无此码** |
+| `APPROVAL_CONSUMED` | token 已使用 | T18 | **双方均无**（实现已按 A 的说明删除该码） |
+| `APPROVAL_REQUIRED` | 缺失 token | — | 可达 |
+| `SNAPSHOT_CONFLICT` | validate/apply 摘要不符 | T04、T04-b | 可达（实测） |
+| `READBACK_MISMATCH` | 写入成功、回读不符 | T01 | 可达（实测） |
+| `NOT_FOUND` | item / proposal / approval 不存在 | T09-b | 可达（实测） |
+
+---
+
+## 3. 主矩阵
 
 ### T01 写后回读不可见 → 进入 readback_pending
 
@@ -36,7 +77,7 @@
 - **预期 Proposal 状态**：**`[待定]`** —— 契约 §5.7 无此状态；按 P0-1 建议应为 `readback_pending`
 - **预期数据结果**：库中已有 1 条变更（可能已提交），但响应**不得**声称成功、不得回填 `applied_changes`
 - **预期写入次数**：**1**（第一次写入发生且只发生一次）
-- **判定要点**：`READBACK_MISMATCH` 与「写入真的失败了」不可混淆；见 §4 阻塞项 B1
+- **判定要点**：`READBACK_MISMATCH` 与「写入真的失败了」不可混淆；见 §5 阻塞项 B1
 
 ### T02 同键重试，回读恢复
 
@@ -54,7 +95,7 @@
 - **预期 Proposal 状态**：**`[待定]`** —— 建议 `failed`，需与"写入明确失败"的 `failed` 可区分
 - **预期数据结果**：不得自动回滚（契约未授权回滚）；应留下可审计的终局记录供人工复核
 - **预期写入次数**：**仍为 1**
-- **判定要点**：本用例当前**不可判**，依赖 M0 定义终局语义；见 §4 阻塞项 B1
+- **判定要点**：本用例当前**不可判**，依赖 M0 定义终局语义；见 §5 阻塞项 B1
 
 ### T04 apply 阶段版本冲突
 
@@ -120,6 +161,7 @@
 | T09-b | 带一个属于其他用户 / 其他 item 的 `existing_override_id` | `FORBIDDEN` 或 `NOT_FOUND`（策略待定） | `draft` | 不新增、不修改他人数据 | **0** |
 | T09-c | 带正确的 `OV_1` ID | `success` | `applied` | 该行被更新，`local_date=2026-11-03` 上**仍只有 1 行** | **1（更新）** |
 
+- **回读字段断言（F7 补充）**：三个子例的"更新"都必须校验**完整字段**——`action`、`item_type`、`item_id`、`local_date`、`planned_start_minute`、`planned_end_minute`、`override_id` 七项全部一致。`e7be8c9` 只校验起止分钟，若实现把 `reschedule` 写成 `skip` 而分钟相同，回读仍会 PASS。
 - **判定要点**：真实库对 `(userId, itemType, itemId, localDate)` 建了唯一键（`app_database.dart:366-368`），而写入实现在无 `overrideId` 时生成新 uuid（`day_schedule_repository.dart:57-80`）——**不校验 `existing_override_id` 就必然撞唯一约束**。T09-a 就是把这个撞库点变成契约行为。行数断言必须直接查表，不能只看接口返回。
 
 ### T10 available_from / deadline 冲突
@@ -199,9 +241,18 @@
 - **预期写入次数**：审批表 **+1 条**
 - **判定要点**：`e7be8c9` 实测**不通过**——`request_approval` 复用条件写的是 `rec["status"] != "expired"`（`tool_server.py:561`），但代码从不把 `status` 写成 `expired`（`:590` 仅即时计算），导致过期审批被永久复用，提案**再也无法获得可用凭据**，形成锁死。属 F2 实现缺陷
 
+### T18 token 已消费（APPROVAL_CONSUMED 可达性，新增）
+
+- **输入**：`P_1` 正常 apply 成功后，分别执行三件事：① 用同一 token 再 apply（换幂等键）；② 轮询该审批；③ 对 `P_1` 再次 `request_approval`
+- **预期响应码**：① `ALREADY_APPLIED`（409）；② `success` 且 `status=consumed`；③ `PROPOSAL_NOT_APPROVABLE`
+- **预期 Proposal 状态**：`applied`，不因上述调用改变
+- **预期数据结果**：审批记录进入 `consumed`，`consumed_at` 有值；不得再签发新 token；不得新建审批
+- **预期写入次数**：三件事合计 **0**
+- **判定要点**：`APPROVAL_CONSUMED` 当前**双方都没有**——契约 §4.1 无该码，实现已按 A 的说明删除（重复 apply 统一走 `ALREADY_APPLIED`）。本用例的价值在于把「consumed 是可观察状态」与「consumed 不是独立错误码」两件事分开：状态必须有，错误码可以复用。若 M0 决定不恢复该错误码，② 的 `status=consumed` 仍需成立，否则审计无法区分"已用"与"未用"
+
 ---
 
-## 3. 覆盖对照（队长点名的 7 个重点）
+## 4. 覆盖对照（队长点名项 + 本轮 8 项）
 
 | 重点 | 覆盖用例 | 当前可判性 |
 |---|---|---|
@@ -217,9 +268,23 @@
 
 另附两条非重点但成本低的用例：T13 请求体携带 `user_id` → `INVALID_ARGUMENT`；T14 空任务/空日历 → `success` + 空数组（不得 404）。
 
+### 4.1 队长 10-31 指定保留的 8 项 → 用例索引
+
+| 指定项 | 用例 | 状态机位置 | 当前可判性 |
+|---|---|---|---|
+| Proposal / Approval 状态机 | §2.1、§2.2 全表；T16、T18 | — | 表已建；5 个迁移标 `[未定义]` |
+| `readback_pending` | T01、T02、T03 | §2.1 第 4 行 | 部分不可判（无状态值，B1） |
+| `PROPOSAL_EXPIRED` | T06 | §2.1 第 6 行 | 可达性已实测通过；状态值 `[未定义]` |
+| `APPROVAL_EXPIRED` | T05、T17 | §2.2 第 4 行 | 契约有码、实现无码（B8/F1） |
+| `ALREADY_APPLIED` | T08 | §2.1 第 5 行 | 已实测可达（e7be8c9） |
+| `APPROVAL_CONSUMED` | T18 | §2.2 第 3 行 | 状态未定义、码双方均无 |
+| daily override 回读 | T09-a/b/c（含七字段断言） | — | 部分（回读字段需扩到 7 项，F7） |
+| item 不存在 | T09-b | — | 已实测 `NOT_FOUND` 且进程存活 |
+| 四项判定（码/状态/数据/写入次数） | 全部用例 | — | 保持，§6 已固化取证规则 |
+
 ---
 
-## 4. 阻塞与待 M0 定义
+## 5. 阻塞与待 M0 定义
 
 | 编号 | 待定义项 | 影响用例 | 解除条件 |
 |---|---|---|---|
@@ -234,7 +299,7 @@
 | B9 | 真实服务可用性 | 全部 | 快照服务、审批、原子写入、远程 API 仍 BLOCKED |
 | B10 | 单日 skip 语义（仅当天 / 顺延后续） | T15 | 契约 open question 5 定稿：选定分支 A 或 B，并给出顺延终止条件与写入口径 |
 
-### 4.1 来自 PR #3 评审（@bbf0992）的增量阻塞与解锁项
+### 5.1 来自 PR #3 评审（@bbf0992）的增量阻塞与解锁项
 
 详见 `docs/reviews/2026-10-30-m1-pr3-review-M3.md`（本地暂存，是否入库待队长安排）：
 
@@ -247,7 +312,7 @@
 
 ---
 
-## 5. 执行与取证规则（留给后续执行时使用）
+## 6. 执行与取证规则（留给后续执行时使用）
 
 1. **写入次数**必须三路取证并一致：目标表行数差、幂等记录的执行计数、服务端应用日志的写入次数。三者不一致时以行数为准并记录差异。
 2. **响应码**以实际 HTTP 状态 + `error.code` 双重记录，两者不一致视为契约缺陷（F1）。
@@ -259,7 +324,7 @@
 
 ---
 
-## 6. Mock 侧实测记录（2026-10-31 · e7be8c9）
+## 7. Mock 侧实测记录（2026-10-31 · e7be8c9）
 
 > **环境：仅 Mock**（直接调用 mock 工具函数，非 MCP stdio、非实机）。执行人 C，脚本 `probe_m1_e7be8c9.py`。不得据此声称实机通过。
 
@@ -293,11 +358,12 @@
 
 ---
 
-## 7. 变更记录
+## 8. 变更记录
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-10-30 | 初版，定义 T01–T12 预期 | 仅预期，未执行；待 M0 修订状态机与错误码后复核 |
 | 2026-10-30 | 追加 T15 条件式占位（单日 skip，分支 A/B）；新增 B10；补 §4.1 PR #3 评审增量 | T15 在 skip 语义定稿前不可执行；无实测记录 |
 | 2026-10-31 | 新增 T04-b、T12-b、T16 | 对应 A 侧 10-31 九项修订，判据见 `docs/reviews/2026-10-31-a-fix-verification-checklist-M3.md` |
-| 2026-10-31 | 新增 T17（过期审批重建）；新增 §6 Mock 实测记录 | 在 e7be8c9 上实测：T08/T04-b/T09-b 通过，T16/T17 失败，明细见 recheck 文档 |
+| 2026-10-31 | 新增 T17（过期审批重建）；新增 §7 Mock 实测记录 | 在 e7be8c9 上实测：T08/T04-b/T09-b 通过，T16/T17 失败，明细见 recheck 文档 |
+| 2026-10-31 | 新增 §2 状态机与用例映射、T18（APPROVAL_CONSUMED 可达性）、§4.1 八项索引；T09 回读字段扩至 7 项；章节重排 | 仅定义预期与可达性，无新增实测；按队长要求保留 8 项重点 |
