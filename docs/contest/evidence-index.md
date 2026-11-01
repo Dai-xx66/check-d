@@ -159,7 +159,7 @@
 |---|---|---|---|---|---|---|---|
 | EV-B20 | 契约内部一致性（B20） | §4.1 允许 `proposal_status ∈ {applying, readback_pending}` 且与 §6.7 全部 `READBACK_*` 路径一致；示例 #21/#31/#34 取值准确；两条新键路径零写入、无二次 apply | E1 | 2026-11-01 / C（M3） | `c9dda83195a9af4b9ca762d8556fdd0e8d43010a` | `docs/reviews/2026-11-01-m0-c9dda831-b20-incremental-M3.md`；机检 `tools/m3-checks/check_contract_consistency.py c9dda83`（0 问题；`c53b1a9` 同命令 1 问题） | **PASS(E1)** |
 
-| EV-BRAIL | B 轨（Mock）链路与 `READBACK_PENDING` 响应体 | 7 工具握手；list→generate→validate→approve→apply 全链路可达；三条 `READBACK_PENDING` 路径的 `details` / `retryable` / 服务端写入增量实测。**结论：字段名 `proposal.status` ≠ 契约 `proposal_status`、预存路径 `retryable=false`、`applying` 分支无值 → 镜头 6 断言不可达成** | E1 | 2026-11-01 / C（M3） | mock `36ab22e`（PR #3）@ 契约 `c9dda83` | `docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`；命令 `tools/m3-checks/probe_brail_chain.py` / `probe_brail_pending.py` | 部分(E1) |
+| EV-BRAIL | B 轨（Mock）链路与 `READBACK_PENDING` 响应体 | 7 工具握手；list→generate→validate→approve→apply 全链路可达；四条 `READBACK_PENDING` 路径（崩溃后 / 回读未收敛 / 预存 pending+新键 / 预存 applying+新键）的 `details` / `retryable` / 服务端写入增量实测。**结论：`36ab22e` 字段名 `proposal.status`、`retryable` 3 条 false、`applying` 无值；`1d4f3f2` 已修好前两项与两条新键路径，唯崩溃路径 `details` 仍为空（`applying` 分支无值）→ 镜头 6 断言仍不可达成** | E1 | 2026-11-01 / C（M3） | mock `36ab22e` → `1d4f3f2`（PR #3）@ 契约 `c9dda83` | `docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`；命令 `tools/m3-checks/probe_brail_chain.py` / `probe_brail_pending.py` / `assert_brail_contract.py` | 部分(E1) |
 
 > EV-B20 是**契约静态一致性**证据，不是用例执行：它证明"文本自洽、断言可定值"，不证明任何实现在 `applying` 路径上真的返回 `applying`。X1/T03-b/Y1 的实测行仍为「未测」。
 
@@ -259,5 +259,6 @@
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-10-31 | 建立索引，60 项全部「未测」 | 规划 M3-2 要求；先定结构，等链路通了只填空 || 2026-10-31 | 追加 §5B 5 项（R1/X1/G1/G2/S1），合计 60→65；新增「证据级别上限」列，结果列改为 `PASS(E1)` 复合写法 | 对应队长本轮 6 项增量；全部仍「未测」，未新增任何实测 || 2026-10-31 | 补 B19 语义（EV-G3/G4/G5）+ 新增 §5C 的 20 条 EX 回放复核；合计 65→88，已取证 0→20 | EX 行结论为 C 独立判定，非转述 A 的 pass；级别 E1，不升 E2 |
+| 2026-11-01 | EV-BRAIL 更新：M1 `1d4f3f2` 复测（闸门 4/7 通过，崩溃路径 `details` 空）；仅更新既有行，合计不变 93/23 | 闸门为机器判据（exit code），非肉眼结论 |
 | 2026-11-01 | **B20 复审 PASS(E1)**：新增 §5B3（EV-B20），基准换 `c9dda83`，合计 90→91，已取证 20→21 | 契约静态一致性证据，非用例执行；X1/T03-b/Y1 仍「未测」 |
 | 2026-11-01 | 换基准 `c53b1a9`：T07/T09/T10/T18/T21/T22 行注记更新（B5/B6/B7/B11/B12/B13 解除）、G2 注记 7200、新增 §5B2（EV-V1/EV-Y1），合计 88→90；已取证 20（E1 历史）/未测 70 | 全部为登记位更新，无新增实测 |

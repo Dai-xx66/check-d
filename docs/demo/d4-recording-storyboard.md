@@ -155,7 +155,7 @@
 | 镜头 6（`proposal_status` 断言） | **BLOCKED** | Mock 返回 `details=[]` 或字段名 `proposal.status`，与 c9dda83 不符 |
 | 镜头 7 收敛 | **部分** | `readback_pending` 路径可收敛；`applying` 崩溃路径永远 `IDEMPOTENCY_IN_PROGRESS` |
 | 镜头 8 零写入 | **可录** | `IDEMPOTENCY_IN_PROGRESS` + 服务端写入计数增量 0 |
-| 实际开录 | **未开始（等 M1 修复过闸门）** | M0 已选甲方案，见 §6.2 |
+| 实际开录 | **未开始（M1 `1d4f3f2` 复测 3/7 不通过，崩溃路径未修）** | M0 已选甲方案，见 §6.2 |
 
 实测明细与复现命令：`docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`（E1）。
 
@@ -174,6 +174,7 @@ python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server
 
 | 闸门 | 判据（全部来自 c9dda83 明文） |
 |---|---|
+| G0 | 四条 `READBACK_PENDING` 的 `details` 均非空（空 details 不得算通过） |
 | G1 | `details` 条目字段名为 `proposal_status`，不是 `proposal.status` |
 | G2 | 真实状态为 `applying` 时，值必须是 `applying`（崩溃路径 + 预存 applying 两处都查） |
 | G3 | 真实状态为 `readback_pending` 时，值必须是 `readback_pending` |
@@ -181,7 +182,14 @@ python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server
 | G5 | 写前路径的 `details` 含 `business_write_count_delta=0` |
 | G6 | 写前路径服务端写入增量 = 0（不得触发第二次 apply） |
 
-**当前基线（M1 mock `36ab22e`，2026-11-01 13:00 实测）：4/6 不通过** —— G1、G2、G4、G5 失败，G3、G6 通过。即 M0 要求的 4 项修复尚未落地。
+**基线演进（同一命令，可复现）**：
+
+| 日期 | mock 版本 | 结果 | 说明 |
+|---|---|---|---|
+| 11-01 13:00 | `36ab22e` | 5/7 不通过 | G1/G2/G4/G5 全败，字段名 `proposal.status`、`retryable` 三条 false |
+| 11-01 22:50 | `1d4f3f2` | **3/7 不通过** | 字段名、`retryable`、两条新键路径的 delta 均已修好；**仅崩溃路径 `details: []` 未修** |
+
+新基线三项失败（G0 / G2 / G5）同源于一处：`tool_server.py` L862-866 的 `simulate_applying_crash` 分支抛 `READBACK_PENDING` 时未传 `details`。补一句 `proposal_status=applying` + `business_write_count_delta=0` 即可全绿。**镜头 6 仍 BLOCKED，不得开录。**
 
 > 本闸门只判 Mock 行为，判过也不等于真实端点通过；A 轨证据仍需真实服务。
 

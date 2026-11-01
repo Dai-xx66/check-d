@@ -137,3 +137,67 @@ python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server
 注意最后一行：Proposal 真实处于 `applying`，Mock 仍返回 `readback_pending` —— 与 B20 当初指出的"值不反映真实状态"是同一类问题，只是这次落在实现而非契约。
 
 **闸门通过后的动作**：一次性录 8 镜（§6.3 归档），仍须满足 4 条 MOCK 标识；闸门通过只代表 Mock 行为合契约，不代表真实端点通过。
+
+## 8. 复测结果：mock `1d4f3f2`（2026-11-01 22:41Z 邮件后实跑）
+
+**结论：4 项修复到位 3 项；崩溃路径（`simulate_applying_crash`）仍不合契约 → 闸门 4/7 通过（3 项不通过），镜头 6 继续 BLOCKED。**
+
+外部核实：PR #3 状态 `open`/未合并，`head_sha = 1d4f3f2964e457933df48de8b0c2ca751e4296a9`（与邮件自述一致）；`36ab22e..1d4f3f2` 仅动 M1 自有文件（`tool_server.py`、`run_evidence_c53.py`、两份证据），无越界。
+
+### 8.1 逐项对照
+
+| 闸门 | 判据 | 旧 `36ab22e` | 新 `1d4f3f2` | 说明 |
+|---|---|---|---|---|
+| G0 | 四条 `READBACK_PENDING` 的 `details` 均非空 | FAIL | **FAIL** | `crash_applying` 返回 `details: []` |
+| G1 | 字段名 = `proposal_status` | FAIL（`proposal.status`） | **PASS** | 三处已改；空 details 不参与本项判定 |
+| G2 | `applying` 路径值 = `applying` | FAIL | **FAIL** | 预存路径已修好（`applying`）；崩溃路径无值 |
+| G3 | `readback_pending` 路径值 = `readback_pending` | PASS | PASS | 两条均正确 |
+| G4 | 四条 `retryable=true` | FAIL（3 条 false） | **PASS** | 四条均 true |
+| G5 | 写前路径含 `business_write_count_delta=0` | FAIL | **FAIL** | 崩溃路径缺失；另两条已补 |
+| G6 | 写前路径服务端写入增量 = 0 | PASS | PASS | 崩溃路径与两条新键路径 `writes_delta` 实测均为 0 |
+
+合计：旧 5/7 不通过 → 新 **3/7 不通过**，且 3 项同源于一处：崩溃路径未传 `details`。
+
+### 8.2 唯一剩余缺陷（一处，位置明确）
+
+`tools/m1-mock/tool_server.py` L862-866：
+
+```python
+p["status"] = "applying"
+if take_flag("simulate_applying_crash"):
+    STATE["idempotency"][idem] = {"digest": req_digest, "state": "applying", "result": None}
+    raise ToolError("READBACK_PENDING", "结果未知，请用同一幂等键重试。", retryable=True)
+```
+
+此处 Proposal 已被置为 `applying`，但 `ToolError` 第三个位置参数（`details`）未传 → 响应 `details: []`。按 c9dda83 §4.1 与示例 #31，此时必须：
+
+```python
+raise ToolError("READBACK_PENDING", "结果未知，请用同一幂等键重试。",
+                [{"field": "proposal_status", "reason": "applying"},
+                 {"field": "business_write_count_delta", "reason": "0"}],
+                retryable=True)
+```
+
+一处改动即可同时消掉 G0 / G2 / G5 三项失败。**这是 `applying` 分支的唯一实测样本**：其余三支真实状态都不是 `applying`，所以此前"新键遇到 applying 返回 applying"的修复虽已生效，却没有一条路径能验证它——崩溃路径就是那条路径。
+
+### 8.3 随附证据核验（`m1-evidence-c9dda83.json`）
+
+`python tools/m3-checks/verify_m1_evidence.py --evidence 1d4f3f2:docs/contracts/reviews/m1-evidence-c9dda83.json --contract c9dda83`
+
+- 34 条（core 14 + examples 20），自述 34/34；**契约冲突 0**（错误码全在 21 码闭集内）。
+- **3 条证据不足**：
+  1. `X1-a 首次写入` 无 `raw`，未记录 `proposal_status` → 不可判定；
+  2. `T3 applying 同键` 无 `raw`，且 `got` 为 `READBACK_PENDING -> IDEMPOTENCY_IN_PROGRESS` 两步序列；
+  3. `X1-2 同键只读` 有 `details` 但无独立 `writes_delta`，零写入仅由响应自述。
+- **正面**：`X1-1`、`X1-2`、`X2` 三条均有 `raw`，`proposal_status` / `business_write_count_delta` / `operation` / `second_apply_executed` 字段名与取值正确；`X1-1` 另有 `writes_delta: 0`。
+- **结构性缺口**：14 条核心结果中**没有任何一条**的 `proposal_status` 为 `applying`，与 §8.2 的实测缺陷互相印证——证据集覆盖不到崩溃后状态。
+
+### 8.4 处置
+
+镜头 6 保持 **BLOCKED**，不录、不标 PASS（依 M0 2026-11-01 04:46Z 裁定）。M1 补 §8.2 一处 + `X1-a`/`T3` 的 `raw` 后，重跑：
+
+```bash
+python tools/m3-checks/assert_brail_contract.py <新mock>/tool_server.py   # 需 exit 0
+```
+
+闸门全绿才开录 8 镜。

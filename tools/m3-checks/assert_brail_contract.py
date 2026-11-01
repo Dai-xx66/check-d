@@ -156,6 +156,7 @@ def err_of(k):
     return cases[k]["error"] or {}
 
 
+empty_details = []
 for k, label in (("crash_applying", "崩溃后 applying"),
                  ("mismatch_readback_pending", "回读未收敛"),
                  ("pending_newkey", "预存 readback_pending + 新键"),
@@ -163,17 +164,25 @@ for k, label in (("crash_applying", "崩溃后 applying"),
     e = err_of(k)
     if not e:
         check("G0", label + " 是否返回 READBACK_PENDING", False, "未返回错误：" + json.dumps(cases[k])[:200])
+    elif not (e.get("details") or []):
+        empty_details.append(k)
+check("G0", "四条 READBACK_PENDING 的 details 均非空",
+      not empty_details,
+      "details 为空：%s（缺 proposal_status 与 business_write_count_delta）"
+      % json.dumps(empty_details, ensure_ascii=False))
 
 e1, e2, e3, e4 = (err_of("crash_applying"), err_of("mismatch_readback_pending"),
                   err_of("pending_newkey"), err_of("applying_newkey"))
 
-# G1 字段名
+# G1 字段名：只在 details 非空的响应上判（details 为空由 G0 负责，避免同一根因重复计分）
 bad_names = sorted({f for e in (e1, e2, e3, e4) for f in details_map(e)
                     if f in ("proposal.status", "proposal_status", "status")})
+nonempty = [e for e in (e1, e2, e3, e4) if e and (e.get("details") or [])]
 check("G1", "details 使用 proposal_status 字段名",
-      all("proposal_status" in details_map(e) for e in (e1, e2, e3, e4) if e)
+      bool(nonempty) and all("proposal_status" in details_map(e) for e in nonempty)
       and not any("proposal.status" in details_map(e) for e in (e1, e2, e3, e4)),
-      "实测字段名：" + json.dumps(bad_names, ensure_ascii=False))
+      "非空 details 条数=%d；实测字段名：%s"
+      % (len(nonempty), json.dumps(bad_names, ensure_ascii=False)))
 
 # G2/G3 值必须反映真实状态
 def reason_of(e):
