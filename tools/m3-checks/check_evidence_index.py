@@ -46,6 +46,8 @@ EXPECTED_IDS += [
     "EV-R1", "EV-X1", "EV-G1", "EV-G2", "EV-G3", "EV-G4", "EV-G5", "EV-S1",
     # 2026-11-01 第三轮增量（c53b1a9，见矩阵 §3C.2）
     "EV-V1", "EV-Y1",
+    # 2026-11-01 第四轮：B20 契约一致性复审（c9dda83，见矩阵 §3C.4 / §5.3B）
+    "EV-B20",
     # A 侧 EX-01–EX-20 回放，C 独立复核（见 docs/contest/ex-replay-evidence.md）
 ] + [f"EV-EX{i:02d}" for i in range(1, 21)]
 

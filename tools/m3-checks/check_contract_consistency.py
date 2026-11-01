@@ -45,10 +45,25 @@ VIOLATION_CODES = {
     "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
 }
 APPROVAL_READINESS = {"not_requested", "not_approvable"}
+# c9dda831（B20 修复）：READBACK_* 的 error.details 必须携带真实的 proposal_status
+READBACK_PS = {
+    "READBACK_PENDING": {"applying", "readback_pending"},
+    "READBACK_MISMATCH": {"failed"},
+}
+
 
 
 def git(*args):
     return subprocess.run(["git"] + list(args), capture_output=True, check=False).stdout.decode("utf-8")
+
+
+def detail_map(err):
+    """契约的 error.details 是 [{field, reason}] 数组（见 §4.1 示例 line 130），转成字典便于断言。"""
+    out = {}
+    for item in err.get("details") or []:
+        if isinstance(item, dict) and "field" in item:
+            out[item["field"]] = item.get("reason")
+    return out
 
 
 def load(sha):
@@ -104,6 +119,16 @@ def main():
     print("工具: %d  %s" % (len(tools), sorted(tools)))
 
     used, issues = [], []
+
+    # B20 专项（正文侧）：§4.1 必须允许 applying 与 readback_pending 两种取值
+    m410 = re.search(r"`READBACK_PENDING` 的错误详情必须包含(.+?)。", md, re.S)
+    if not m410:
+        issues.append("§4.1: 找不到 READBACK_PENDING 详情规则句")
+    else:
+        allowed = set(re.findall(r"`(applying|readback_pending|readback_only)`", m410.group(1)))
+        if not {"applying", "readback_pending"} <= allowed:
+            issues.append("§4.1: READBACK_PENDING 未同时允许 applying/readback_pending（B20 未闭合）")
+
     for e in examples:
         n = e.get("name", "?")
         req, resp = e.get("request") or {}, e.get("response") or {}
@@ -122,6 +147,16 @@ def main():
             for k in ("message", "retryable"):
                 if k not in err:
                     issues.append("%s: error 缺 %s" % (n, k))
+
+            # B20 专项（示例侧）：READBACK_* 详情里的 proposal_status 必须存在且取值合法
+            if err.get("code") in READBACK_PS:
+                dm = detail_map(err)
+                ps = dm.get("proposal_status")
+                if ps is None:
+                    issues.append("%s: %s 缺 details.proposal_status（§4.1 强制）" % (n, err.get("code")))
+                elif ps not in READBACK_PS[err["code"]]:
+                    issues.append("%s: %s 的 proposal_status=%s 越界（允许 %s）"
+                                  % (n, err.get("code"), ps, "/".join(sorted(READBACK_PS[err["code"]]))))
 
         blob = json.dumps(e, ensure_ascii=False)
         for st in set(re.findall(r'"proposal_status":\s*"(\w+)"', blob)):

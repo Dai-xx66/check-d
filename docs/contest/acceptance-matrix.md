@@ -1,12 +1,14 @@
 # M0 Agent API v1 验收矩阵（T01–T22 + R1/X1/G1–G5/S1 + V1/Y1）
 
 - **归属**：M3 / Evaluation（同学 C）
-- **固定基准（现行）**：`c53b1a91c17cd9acdee6d3937c093fcf97515ba0`（分支 `feat/m0-api-contract`，PR **#4** 当前 head，2026-10-31 23:24 由队长提交，7 工具 / 21 错误码 / 45 个远程示例）
+- **固定基准（现行）**：`c9dda83195a9af4b9ca762d8556fdd0e8d43010a`（分支 `feat/m0-api-contract`，PR **#4** 当前 head，2026-11-01 01:49 由队长提交，B20 最小一致性修复：仅 `agent-api-v1.md` 2 增 1 删；7 工具 / 21 错误码 / 45 个远程示例不变）
+- **上一基准**：`c53b1a91c17cd9acdee6d3937c093fcf97515ba0` —— 自 `c9dda83` 发布起只作历史证据，不再标记为当前 HEAD（其上的第三轮对齐结论继续有效，仅 §4.1 一句被修订）
 - **历史基准**：`2c48579…` 及其上的全部判定自 2026-11-01 起只作历史证据，不再作为现行契约引用（队长邮件指令）
 - **基准唯一性**：C 侧全部用例与判定只认现行 SHA；M0 再发新 commit 时按 §9 重跑一次，不混用旧版本结论
 - **状态**：**预期定义阶段，尚未执行任何一条**（含本轮新增的 5 条）
 - **本轮增量**（2026-10-31 队长 6 项）：新增 §3B 的 R1、X1、G1、G2、S1；第 6 项"写入次数"落为 §6.2 的四层口径。队长第二次要求"补充 B19 语义验收"后，扩 G3（null）/G4（语义隔离）/G5（低于最小块长）三条，把 `remaining_minutes_today` 的四种预算值封成一组对照。**只增量追加，未重审旧问题、未改 M0 契约本体、无新增实测**
 - **第三轮增量**（2026-11-01，新 SHA `c53b1a9`）：按队长邮件 7 项要求做增量对齐——B5/B6/B7/B11–B18 全部解除（见 §5），T03-a/T07/T09-b/T10/T18/T21/T22/X1/G2 改判可判，EX-17 改判可执行，新增 V1/Y1 两条；**仍未执行任何一条，全部结论为 E0 静态判据**
+- **第四轮增量**（2026-11-01，新 SHA `c9dda83`）：**B20 复审 PASS（已闭合）**，见 §3C.4 与 `docs/reviews/2026-11-01-m0-c9dda831-b20-incremental-M3.md`；按队长指令本轮**只审 B20**，未重跑 33 项全量、未扩范围到 B21–B23
 - **纪律**：本文件只写"输入"与"预期"。所有预期列都是**待验证的断言**，不是实测结果。执行后再另开一节回填实测值，本文件在此之前不得被引用为"已通过"。
 - **复核时点**：`2c48579` 已完成一次增量复审（`docs/reviews/2026-10-31-m0-final-2c48579-incremental-M3.md`）；M0 将其作为 Task 1 固定基准发布（PR M0-1）后，按 C 口径完成**增量对齐**（`docs/reviews/2026-10-31-c-incremental-alignment-2c48579.md`），未重开全量审计、未重跑实测。
 
@@ -465,6 +467,20 @@
 
 R1、T17、T19 与本节的分工：R1 验证"过期后重建"的凭证隔离；T17 验证审批记录过期后可重建；本节验证"**交付丢失**"路径——三者入口不同，不得互相替代。
 
+### 3C.4 B20 修复后（`c9dda83`）：断言由"容忍两值"收紧为"按路径定值"
+
+`c9dda83` 修好 §4.1 后，`READBACK_PENDING` 的 `error.details` 不再需要宽容断言，三处断言按下表定值（默认 `details` 为 `[{field, reason}]` 数组，取 `field=proposal_status` 的 `reason`）：
+
+| 路径（§6.7 位置） | 响应码 | 断言 `proposal_status` | 断言零写入 | 示例 |
+|---|---|---|---|---|
+| 新幂等键 + Proposal `applying`（§6.7 第 704–705 行） | `READBACK_PENDING`（503，`retryable=true`） | **`applying`** | `business_write_count_delta=0`，无第二次 apply | #31 |
+| 新幂等键 + Proposal `readback_pending`（同行） | `READBACK_PENDING` | **`readback_pending`** | 同上 | #21 |
+| 同键同摘要 + `readback_pending`，回读仍无终局（§6.7 第 702–703 行） | `READBACK_PENDING` | **`readback_pending`** | 只回读：`operation=readback_only`，`business_write_count_delta=0` | #34 |
+| 回读确认不一致（§6.7 第 677–679 行） | `READBACK_MISMATCH`（502） | **`failed`** | 转终态 `failed`，不得再次写入 | #25、#45 |
+
+- **判定要点**：X1 / T03-b / Y1 不再写"容忍两种状态值"；若实现把 `applying` 路径的详情写成 `readback_pending`（或反之）→ **FAIL**，因为新 §4.1 要求"必须准确反映当前 Proposal 的真实状态"。
+- **机检锚点**：`tools/m3-checks/check_contract_consistency.py` 新增 B20 专项规则（正文须同时允许两值 + 示例 `READBACK_*` 详情须携带合法 `proposal_status`）；`c53b1a9` 报 1 个问题、`c9dda83` 报 0 个问题（E1 可复现）。
+
 ---
 
 ## 4. 覆盖对照（`2c48579` 首判，`c53b1a9` 改判——见 §3C 改判表）
@@ -571,7 +587,7 @@ R1、T17、T19 与本节的分工：R1 验证"过期后重建"的凭证隔离；
 
 | 编号 | 问题 | 级别 | 影响用例 | 解除条件 |
 |---|---|---|---|---|
-| **B20** | **契约内部硬冲突（机检可判）**：§4.1 明文"READBACK_PENDING 错误详情**必须**包含 `proposal_status=readback_pending`"，而 §6.7 规定新键 + `applying` 也返回 `READBACK_PENDING`；示例 31 的详情实际为 `proposal_status=applying`——同一响应码在合法路径下不可能同时满足两句 | **P1（M0 已裁定方向，待修订 SHA 落笔）** | X1、T03-b、Y1 | **M0 裁定（2026-11-01 邮件，E2）**：冲突成立，采纳最小一致性修正——§4.1 放宽为 `proposal_status ∈ {applying, readback_pending}`，具体值必须反映实际 Proposal 状态；两种情形均零业务写入、不得第二次 apply；不新增错误码、不改状态机。**c53b1a9 文本尚未修订：B20 保持 P1 未闭合，新 SHA 发布前不把建议当生效契约**；相关断言继续"容忍两种状态值" |
+| **B20** | **契约内部硬冲突（机检可判）**：§4.1 明文"READBACK_PENDING 错误详情**必须**包含 `proposal_status=readback_pending`"，而 §6.7 规定新键 + `applying` 也返回 `READBACK_PENDING`；示例 31 的详情实际为 `proposal_status=applying`——同一响应码在合法路径下不可能同时满足两句 | **已闭合（PASS @ `c9dda83`，E1 机检 + E2 提交核实）** | X1、T03-b、Y1 | **修复**：`c9dda83` §4.1 改为"`proposal_status` 只能为 `applying` 或 `readback_pending`，且必须准确反映当前 Proposal 真实状态"，与 §6.7 第 704–705 行（新键 + `applying`/`readback_pending` → `READBACK_PENDING` 零写入）一致。**本侧复审结论**：四条检查点全 PASS（§4.1↔§6.7 一致、示例 #21/#31/#34 取值准确、两条新键路径均 `business_write_count_delta=0` 且无二次 apply、范围未扩），证据 `docs/reviews/2026-11-01-m0-c9dda831-b20-incremental-M3.md`。断言已按 §3C.4 收紧为按路径定值 |
 | B21 | 零写入证据形状不对称：`readback_pending → applied` 用 `data.recovery_evidence` 对象（示例 44），`→ failed` 把同三字段塞进 `error.details`（示例 45），无 `recovery_evidence` 对象 | P2（M0 已定方向：不强行统一形状） | T02、T03-a | **M0 裁定（同上，E2）**：成功响应的 `data.recovery_evidence` 与错误响应的 `error.details` 可分别校验，暂不强行把错误证据塞入成功 `data`；零写入语义不变。W4 断言按两套解析分支实现即可，不再要求 failed 分支返回 `recovery_evidence` 对象 |
 | B22 | `failed` 终态 + 无有效凭据时无码：步骤 4 只规定"`failed` + 同 Proposal 已消费 Token → `APPROVAL_CONSUMED`"；`failed` + 缺 Token / 他提案 Token 的响应码未定义 | P2（M0 已定方向，待契约明确后升硬断言） | T18、T22 | **M0 裁定（同上，E2）**：缺 Token → `APPROVAL_REQUIRED`；跨 Proposal Token → `APPROVAL_UNTRUSTED`；`failed` 终态始终禁止再次写入。契约中明确优先级前不升为验收硬断言 |
 | B23 | 判定顺序步骤 3（幂等摘要）与步骤 4（Proposal 状态）优先级未声明：已 `applied` + 同键不同摘要，按步骤 3 → `IDEMPOTENCY_CONFLICT`，按 §6.7 末段 → `ALREADY_APPLIED`；两者都零写入但响应码不同 | P2（M0 已裁定优先级，待落笔） | T08、T07 | **M0 裁定（同上，E2，与 M3 原建议相反，以 M0 为准）**：同键不同摘要的 `IDEMPOTENCY_CONFLICT` **优先于** `ALREADY_APPLIED`（保护幂等键完整性）；已 `applied` + **新**幂等键仍返回 `ALREADY_APPLIED`。待 M0 文档明确前，T08 断言不写死顺序 |
@@ -699,6 +715,7 @@ R1、T17、T19 与本节的分工：R1 验证"过期后重建"的凭证隔离；
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
+| 2026-11-01 | **第四次增量：B20 复审 PASS，基准换 `c9dda83`**：头部基准更新；§5.3B 的 B20 由"P1 待修订"改为**已闭合**；新增 §3C.4（`READBACK_*` 断言由"容忍两值"收紧为按路径定值）；机检脚本新增 B20 专项规则 | 队长指定只审 B20 四条检查点；`c53b1a9` 报 1 问题 / `c9dda83` 报 0 问题（E1）；提交差异 API + git 双核实 2 增 1 删；未重跑 33 项全量、未扩至 B21–B23 |
 | 2026-11-01 | **第三轮增量对齐到 `c53b1a9`**：基准换 SHA；§3C 改判表（9 条升可判 + R1/G1/S1 口径更新）；新增 V1/Y1；§5 的 B5–B18 全部结算解除、B19 收窄（G5 残留）；统计 30/31 → **32/33（32 可判 / 1 部分 / 0 不可判）** | 对应队长邮件 7 项；零执行，全部 E0；EX-17 改判可执行见 §3C.1 |
 | 2026-10-30 | 初版，定义 T01–T12 预期 | 仅预期，未执行；待 M0 修订状态机与错误码后复核 |
 | 2026-10-30 | 追加 T15 条件式占位（单日 skip，分支 A/B）；新增 B10；补 §4.1 PR #3 评审增量 | T15 在 skip 语义定稿前不可执行；无实测记录 |
