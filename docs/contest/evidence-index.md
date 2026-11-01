@@ -4,7 +4,7 @@
 - **建立日期**：2026-10-31
 - **用途**：把「哪条用例、在哪次运行、用什么版本、得到什么结果、证据存在哪」固定成一张可核对的表。评委或队长问「这个结论凭什么」时，只查这张表。
 - **当前基准**：`c9dda83195a9af4b9ca762d8556fdd0e8d43010a`（2026-11-01 换基准；`c53b1a9` 及其前序只作历史）
-- **当前状态**：92 项中 22 项为已取证（20 项 E1 历史复核 + 1 项 B20 契约一致性 E1）、70 项「未测」。本文件不含任何新执行结果。
+- **当前状态**：93 项中 23 项为已取证（20 项 E1 历史复核 + 1 项 B20 契约一致性 E1）、70 项「未测」。本文件不含任何新执行结果。
 - **纪律**：空着比编好。未运行的行保持「未测」，不得预填 PASS；截图/日志与代码版本必须能对应；一条记录对应一次运行，不合并多次。
 
 ---
@@ -159,6 +159,8 @@
 |---|---|---|---|---|---|---|---|
 | EV-B20 | 契约内部一致性（B20） | §4.1 允许 `proposal_status ∈ {applying, readback_pending}` 且与 §6.7 全部 `READBACK_*` 路径一致；示例 #21/#31/#34 取值准确；两条新键路径零写入、无二次 apply | E1 | 2026-11-01 / C（M3） | `c9dda83195a9af4b9ca762d8556fdd0e8d43010a` | `docs/reviews/2026-11-01-m0-c9dda831-b20-incremental-M3.md`；机检 `tools/m3-checks/check_contract_consistency.py c9dda83`（0 问题；`c53b1a9` 同命令 1 问题） | **PASS(E1)** |
 
+| EV-BRAIL | B 轨（Mock）链路与 `READBACK_PENDING` 响应体 | 7 工具握手；list→generate→validate→approve→apply 全链路可达；三条 `READBACK_PENDING` 路径的 `details` / `retryable` / 服务端写入增量实测。**结论：字段名 `proposal.status` ≠ 契约 `proposal_status`、预存路径 `retryable=false`、`applying` 分支无值 → 镜头 6 断言不可达成** | E1 | 2026-11-01 / C（M3） | mock `36ab22e`（PR #3）@ 契约 `c9dda83` | `docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`；命令 `tools/m3-checks/probe_brail_chain.py` / `probe_brail_pending.py` | 部分(E1) |
+
 > EV-B20 是**契约静态一致性**证据，不是用例执行：它证明"文本自洽、断言可定值"，不证明任何实现在 `applying` 路径上真的返回 `applying`。X1/T03-b/Y1 的实测行仍为「未测」。
 
 ---
@@ -217,8 +219,9 @@
 | 第三轮新增 V1/Y1 | 2 | 0 | 2 |
 | 第四轮新增 EV-B20（契约一致性） | 1 | 1 | 0 |
 | 第四轮新增 EV-EX-R2（M1 新证据核验） | 1 | 1 | 0 |
+| 第四轮新增 EV-BRAIL（Mock 链路实测） | 1 | 1 | 0 |
 | A 侧 EX 回放（C 已复核） | 20 | 20 | 0 |
-| **合计** | **92** | **22** | **70** |
+| **合计** | **93** | **23** | **70** |
 
 **唯一已有的实测**是 `e7be8c9` 上的 Mock 探针（`docs/reviews/2026-10-31-m1-e7be8c9-recheck-M3.md` §4、`2026-10-31-m1-incremental-recheck-M3.md` §三），针对的是旧提交，**不填进本表**——本表只登记固定基准 `c9dda83` / `c53b1a9` 之后的运行（2026-11-01 前 `2c48579` 上的记录已作历史）。
 

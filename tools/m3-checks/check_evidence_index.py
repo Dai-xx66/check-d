@@ -50,6 +50,8 @@ EXPECTED_IDS += [
     "EV-B20",
     # 2026-11-01 第四轮：A 新证据独立核验（36ab22e @ c9dda83）
     "EV-EX-R2",
+    # 2026-11-01 第四轮：M1 Mock 的 B 轨链路实测
+    "EV-BRAIL",
     # A 侧 EX-01–EX-20 回放，C 独立复核（见 docs/contest/ex-replay-evidence.md）
 ] + [f"EV-EX{i:02d}" for i in range(1, 21)]
 
