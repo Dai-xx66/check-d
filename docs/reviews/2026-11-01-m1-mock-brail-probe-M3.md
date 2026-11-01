@@ -201,3 +201,17 @@ python tools/m3-checks/assert_brail_contract.py <新mock>/tool_server.py   # 需
 ```
 
 闸门全绿才开录 8 镜。
+
+## 9. M0 裁定（2026-11-01T15:11Z）与证据清单
+
+M0 采纳 C 侧复测结论，明确「M3 的结论优先于 M1 自报的 14/14 与 20/20；当前闸门未全绿，完整 8 镜暂不录制」，并分三档：
+
+| 档 | 内容 | 归属 |
+|---|---|---|
+| 一 | 修 L862-866 崩溃分支：`details.proposal_status=applying`、`business_write_count_delta=0`、`retryable=true`；不得二次 apply、业务写入增量必须 0；**不得硬编码 `readback_pending`**；不得动 M0 契约或 M2/M3 文件 | M1 |
+| 二 | 与 C 对齐证据清单，补齐 `X1-a`、`T3` 原始响应、`X1-2` 独立 `writes_delta`；无 `raw` 继续标未测，禁止按摘要推 PASS | M1 + M3 |
+| 三 | 拿到新 SHA 后用**同一探测脚本**复测；全绿（exit 0）才录 8 镜，任一失败 → 镜头 6 继续 BLOCKED 并报差异；录制保留 MOCK 片头与全程角标 | M3 |
+
+关于「不得硬编码 `readback_pending`」：本闸门 **G2 已是该约束的判据**——`applying_newkey` 场景在 Proposal 真实状态为 `applying` 时，若返回值仍是 `readback_pending` 即 FAIL（旧 `36ab22e` 正是如此）。故不新增冗余闸门，G2 继续承担这条。
+
+证据清单已按字段级口径落地：**`docs/reviews/2026-11-02-m1-evidence-checklist-M3.md`**，含每条的必填字段、JSON 样例、两条格式纪律（禁止 `A -> B` 箭头、fixture 差异须在 `note` 声明）与提交前自检命令。
