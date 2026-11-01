@@ -155,14 +155,35 @@
 | 镜头 6（`proposal_status` 断言） | **BLOCKED** | Mock 返回 `details=[]` 或字段名 `proposal.status`，与 c9dda83 不符 |
 | 镜头 7 收敛 | **部分** | `readback_pending` 路径可收敛；`applying` 崩溃路径永远 `IDEMPOTENCY_IN_PROGRESS` |
 | 镜头 8 零写入 | **可录** | `IDEMPOTENCY_IN_PROGRESS` + 服务端写入计数增量 0 |
-| 实际开录 | **未开始** | 等 §6.2 的处置决定 |
+| 实际开录 | **未开始（等 M1 修复过闸门）** | M0 已选甲方案，见 §6.2 |
 
 实测明细与复现命令：`docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`（E1）。
 
-### 6.2 两条可选路径（请 M0 定）
+### 6.2 处置决定：**M0 已选甲方案（2026-11-01 12:46 邮件，E2）**
 
-- **路径甲（推荐）**：M1 按评审记录 §4 改 4 处（字段名 / 按真实状态取值 / `retryable=true` / 补 `business_write_count_delta`），改完 C 侧重跑探测脚本，通过后一次性录完 8 镜；
-- **路径乙**：先在当前 mock 上录 1–5、8 镜，镜头 6 当场标注 `BLOCKED · Mock 未实现契约要求的 proposal_status`，镜头 7 只演示 `readback_pending` 收敛分支。**代价**：D4 的"写入响应可判"这一条在 B 轨缺失。
+- **甲（已采纳）**：M1 修 4 处偏差 → C 用**同一探测脚本**复测这 4 项 → 全部通过后才一次性录完整 8 镜；
+- **乙（未采纳）**：先录 1–5/8 镜、镜头 6 标 BLOCKED。M0 的理由：这 4 项不是新功能，而是 Mock 对 c9dda83 已有契约的实现偏差，应先修齐再录；
+- **修复前**：镜头 6 **保持 BLOCKED**，不得录制、不得标 PASS；若复测仍有任一项不通过，如实保留 BLOCKED 并报告实际差异（M0 明确要求）。
+
+**复测闸门（机器判，不靠肉眼）**：
+
+```bash
+python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server.py
+# exit 0 = 通过可开录；exit 1 = 不通过，镜头 6 保持 BLOCKED
+```
+
+| 闸门 | 判据（全部来自 c9dda83 明文） |
+|---|---|
+| G1 | `details` 条目字段名为 `proposal_status`，不是 `proposal.status` |
+| G2 | 真实状态为 `applying` 时，值必须是 `applying`（崩溃路径 + 预存 applying 两处都查） |
+| G3 | 真实状态为 `readback_pending` 时，值必须是 `readback_pending` |
+| G4 | 四条 `READBACK_PENDING` 的 `retryable` 均为 `true` |
+| G5 | 写前路径的 `details` 含 `business_write_count_delta=0` |
+| G6 | 写前路径服务端写入增量 = 0（不得触发第二次 apply） |
+
+**当前基线（M1 mock `36ab22e`，2026-11-01 13:00 实测）：4/6 不通过** —— G1、G2、G4、G5 失败，G3、G6 通过。即 M0 要求的 4 项修复尚未落地。
+
+> 本闸门只判 Mock 行为，判过也不等于真实端点通过；A 轨证据仍需真实服务。
 
 ### 6.3 证据落点（录完即按此归档）
 

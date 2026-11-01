@@ -104,3 +104,36 @@ python tools/m3-checks/probe_brail_pending.py "$d/tools/m1-mock/tool_server.py"
 - 不构成对 M1 实现能力的否定：链路本身跑通了，问题集中在 `READBACK_PENDING` 的响应细节；
 - B 轨录屏仍属 **Mock 演示**，不得表述为真实写入闭环（M0 裁定一）；
 - X1 / T03-b / Y1 的证据状态**不因本次实测改变**，仍为「未测」。
+
+## 7. 复测闸门（M0 选定甲方案后新增）
+
+M0 于 2026-11-01 12:46 邮件裁定采纳**甲方案**：M1 修 4 处 → C 用同一探测脚本复测 → 全通过才录 8 镜。为让"通过"可机器判定，新增闸门脚本：
+
+```bash
+python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server.py
+# exit 0 = 通过，可开录；exit 1 = 不通过，镜头 6 保持 BLOCKED
+```
+
+闸门在同一 MCP 会话内跑四个 `READBACK_PENDING` 场景，逐项判定：
+
+| 闸门 | 判据 | 对应 M0 要求 |
+|---|---|---|
+| G1 | `details` 字段名为 `proposal_status` | 第 1 项 |
+| G2 | `applying` 路径（崩溃后 + 预存）值均为 `applying` | 第 2 项 |
+| G3 | `readback_pending` 路径值均为 `readback_pending` | 第 2 项 |
+| G4 | 四条响应 `retryable=true` | 第 3 项 |
+| G5 | 写前路径 `business_write_count_delta=0` | 第 4 项 |
+| G6 | 写前路径服务端写入增量 0（无第二次 apply） | 第 4 项后半 |
+
+**当前基线（mock `36ab22e`）：4/6 不通过**，G1/G2/G4/G5 FAIL、G3/G6 PASS。四个场景的原始响应：
+
+| 场景 | Proposal 真实状态 | `details` 实测 | `retryable` | 写入增量 |
+|---|---|---|---|---|
+| 崩溃后 + 旧键 | `applying` | `[]`（空） | `true` | 0 |
+| 回读未收敛 | `readback_pending` | `[{"field":"proposal.status","reason":"readback_pending"}]` | `false` | 12 |
+| 预存 pending + 新键 | `readback_pending` | 同上 | `false` | 0 |
+| 预存 applying + 新键 | `applying` | 同上（值应为 `applying`） | `false` | 0 |
+
+注意最后一行：Proposal 真实处于 `applying`，Mock 仍返回 `readback_pending` —— 与 B20 当初指出的"值不反映真实状态"是同一类问题，只是这次落在实现而非契约。
+
+**闸门通过后的动作**：一次性录 8 镜（§6.3 归档），仍须满足 4 条 MOCK 标识；闸门通过只代表 Mock 行为合契约，不代表真实端点通过。
