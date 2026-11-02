@@ -134,6 +134,7 @@ M0 指出的两处漏洞**成立**，已改，并用反例回归验证：
 | 零写入识别不按用例类别 | 靠文本出现"零写入"字样触发 | **按错误码集合判定**（`raw.code` 优先，文本仅用于识别该条讲哪个码） |
 | `writes_delta` 类型 | 字符串 `"0"` 也可能被接受 | 必须是 `int`（显式排除 `bool`），字符串即记未测 |
 | `retryable` | 只查存在 | 与契约示例比对：`READBACK_PENDING=true`、`READBACK_MISMATCH=false`，相反即冲突 |
+| `retryable` 类型 | 用 `bool(retry)` 转换后比对——**字符串 `"false"` 会被当成 `True`**（M0 15:27Z 指出） | **严格 `isinstance(retry, bool)`**；非布尔一律记 A 类未测，不做任何类型转换 |
 | `details` | 未检查 | `READBACK_*` 必须为非空数组，且须含 `proposal_status` 条目 |
 
 **反例回归（证明漏判已堵）**：把 `X1-a` 的 `raw.proposal_status` 与 `raw.writes_delta` 删掉、文本仍保留 `proposal_status=applying`：
@@ -144,6 +145,28 @@ M0 指出的两处漏洞**成立**，已改，并用反例回归验证：
 ```
 
 旧版此例会被判"字段齐全"。**结论：M0 所担心的"exit 0 掩盖字段缺失"已不可复现。**
+
+### 7.1 反例回归已固化为脚本（可复跑，不再靠人记得）
+
+```bash
+python tools/m3-checks/selftest_verifier.py --contract c9dda83
+```
+
+```
+  ✓ 合规样本应判齐全
+  ✓ 删除 raw.proposal_status（文本仍写着）应判 A 类未测
+  ✓ 删除 raw.details 应判 A 类未测
+  ✓ retryable 用字符串 "false" 应判类型不对（不是当成 True 放过）
+  ✓ retryable 用 1/0 数字也应判类型不对
+  ✓ retryable=false 与 PENDING 示例相反应判冲突
+  ✓ writes_delta 用字符串 "0" 应判 B 类未测
+  ✓ writes_delta=2 应判冲突
+  ✓ proposal_status 取非法值应判冲突
+反例回归：9 项，失败 0 项
+SELFTEST_EXIT=0
+```
+
+第 4 项就是 M0 15:27Z 指出的那条：旧代码 `bool("false") == True`，会把类型错误的证据判成合规。**已改为严格布尔，并把这个反例写进脚本，今后每次改口径都必须过这 9 项。**
 
 ## 8. 开录条件与仍存限制
 
@@ -166,3 +189,4 @@ M0 指出的两处漏洞**成立**，已改，并用反例回归验证：
 |---|---|
 | 2026-11-02 21:55 | 建立；`e7dd43b1d` 闸门 7/7 通过（exit 0）+ 两条动态探测复核，判定镜头 6 解封 |
 | 2026-11-02 22:10 | 并入证据字段核验（A 类 0 / B 类 5）；核验器按 M0 意见改为 raw-only + 错误码驱动，并附反例回归 |
+| 2026-11-02 23:40 | 增量复核（M0 15:27Z 裁定）：`retryable` 改严格布尔（修正 `bool("false")==True` 漏判）；反例回归固化为 `selftest_verifier.py`（9 项 0 失败）；真实证据复跑结果不变（冲突 0 / A 类 0 / B 类 5 / 需说明 2） |

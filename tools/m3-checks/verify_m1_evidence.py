@@ -10,7 +10,9 @@
       A 类（硬缺口，记「未测」，不得升 E1）
         code ∈ {READBACK_PENDING, READBACK_MISMATCH} 的条目，必须同时具备
         `raw.proposal_status`（取值合法）、`raw.writes_delta`（int）、
-        `raw.retryable`（bool，且与契约示例一致）、`raw.details`（非空数组）。
+        `raw.retryable`（**严格布尔**，且与契约示例一致）、`raw.details`（非空数组）。
+        类型不对（如 retryable="false" 字符串、writes_delta="0" 字符串）一律记未测，
+        不做 bool()/int() 之类的转换——转换会把 "false" 变成 True，属漏判。
 
       B 类（零写入类的软缺口，单列，不混进 A 类计数）
         code ∈ ZERO_WRITE_CODES 但非 A 类的条目，必须给 `raw.writes_delta`（int=0）；
@@ -145,7 +147,12 @@ def main():
             if retry is None:
                 needs_a.append("%s: %s 缺 raw.retryable（契约示例要求 %s）"
                                % (name, code, READBACK_RETRYABLE[code]))
-            elif bool(retry) is not READBACK_RETRYABLE[code]:
+            elif not isinstance(retry, bool):
+                # 严格布尔：字符串 "false" / 0 / 1 一律记未测，不做 bool() 转换
+                # （转换会把 "false" 变成 True，是 M0 2026-11-02T15:27Z 指出的漏判）
+                needs_a.append("%s: %s 的 raw.retryable=%r 是 %s，契约要求 JSON 布尔"
+                               % (name, code, retry, type(retry).__name__))
+            elif retry is not READBACK_RETRYABLE[code]:
                 conflicts.append("%s: %s 的 retryable=%s，与契约示例相反（应为 %s）"
                                  % (name, code, retry, READBACK_RETRYABLE[code]))
 
