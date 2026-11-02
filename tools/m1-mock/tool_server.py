@@ -862,7 +862,10 @@ def tool_apply(args, user):
 
     if take_flag("simulate_applying_crash"):
         STATE["idempotency"][idem] = {"digest": req_digest, "state": "applying", "result": None}
-        raise ToolError("READBACK_PENDING", "结果未知，请用同一幂等键重试。", retryable=True)
+        raise ToolError("READBACK_PENDING", "结果未知，请用同一幂等键重试。",
+                        [{"field": "proposal_status", "reason": "applying"},
+                         {"field": "business_write_count_delta", "reason": "0"}],
+                        retryable=True)
 
     if take_flag("fail_after_consume"):
         p["status"] = "failed"

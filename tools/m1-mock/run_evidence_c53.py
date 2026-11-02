@@ -78,6 +78,19 @@ class Client:
             self.p.kill()
 
 
+def raw_of(resp, path, w0, extra=None):
+    err = sc(resp).get("error") or {}
+    det = err.get("details") or []
+    f = {d.get("field"): d.get("reason") for d in det}
+    out = {"code": err.get("code"), "path": path,
+           "proposal_status": f.get("proposal_status"),
+           "writes_delta": int(writes() - w0),
+           "retryable": bool(err.get("retryable")),
+           "details": det}
+    if extra:
+        out.update(extra)
+    return out
+
 def sc(resp):
     return resp["result"].get("structuredContent", {})
 
@@ -161,39 +174,67 @@ def main():
         raw={"applied": len(rd.get("applied_changes", []))})
     c.close()
 
-    # X1 with counters
+    # X1-a crash after consume (no business write yet)
     c = Client()
     p, aid = pending(c, "x1k1")
     t = token(c, aid)
-    set_flags({"readback_mismatch": True})
+    set_flags({"simulate_applying_crash": True})
+    w0 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "x1a1"})
-    rec("X1-a 首次写入 → READBACK_PENDING", code(r) == "READBACK_PENDING", "READBACK_PENDING", code(r))
-    w_before = writes()
-    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                          "approval_token": t, "idempotency_key": "x1a2"})
-    det = sc(r).get("error", {}).get("details", [])
-    fields = {d.get("field"): d.get("reason") for d in det}
-    err = sc(r).get("error", {})
-    ok = (code(r) == "READBACK_PENDING" and writes() == w_before
-          and fields.get("proposal_status") == "readback_pending"
-          and fields.get("business_write_count_delta") == "0"
-          and err.get("retryable") is True)
-    rec("X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入）", ok,
-        "READBACK_PENDING, proposal_status=readback_pending, delta=0, retryable=true, writes 0",
-        f"{code(r)}, details={fields}, retryable={err.get('retryable')}, writes={writes()-w_before}",
-        raw={"writes_delta": writes() - w_before, "details": det})
+    raw_a = raw_of(r, "crash_after_consume", w0)
+    rec("X1-a 消费后崩溃 → READBACK_PENDING（applying, 零写入）",
+        code(r) == "READBACK_PENDING" and raw_a["proposal_status"] == "applying"
+        and raw_a["writes_delta"] == 0 and raw_a["retryable"] is True,
+        "READBACK_PENDING, proposal_status=applying, writes_delta=0",
+        f"{code(r)}, status={raw_a['proposal_status']}, delta={raw_a['writes_delta']}",
+        raw=raw_a)
+    c.close()
 
+    # X1-1 new key while readback_pending (after a real write)
+    c = Client()
+    p, aid = pending(c, "x1k2")
+    t = token(c, aid)
+    set_flags({"readback_mismatch": True})
+    c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                      "approval_token": t, "idempotency_key": "x1b0"})
+    w1 = writes()
+    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                          "approval_token": t, "idempotency_key": "x1b1"})
+    raw_1 = raw_of(r, "new_key+readback_pending", w1)
+    rec("X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入）",
+        code(r) == "READBACK_PENDING" and raw_1["writes_delta"] == 0
+        and raw_1["proposal_status"] == "readback_pending" and raw_1["retryable"] is True,
+        "READBACK_PENDING, proposal_status=readback_pending, writes_delta=0, retryable=true",
+        f"{code(r)}, status={raw_1['proposal_status']}, delta={raw_1['writes_delta']}",
+        raw=raw_1)
     w2 = writes()
     r2 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                           "approval_token": t, "idempotency_key": "x1a1"})
-    det2 = sc(r2).get("error", {}).get("details", [])
-    f2 = {d.get("field"): d.get("reason") for d in det2}
+                                           "approval_token": t, "idempotency_key": "x1b0"})
+    raw_2 = raw_of(r2, "same_key+readback_pending", w2, {"operation": "readback_only"})
     rec("X1-2 同键重试 → 只回读（operation=readback_only）且零写入",
-        code(r2) == "READBACK_PENDING" and f2.get("operation") == "readback_only"
-        and f2.get("business_write_count_delta") == "0" and writes() == w2,
-        "READBACK_PENDING readback_only, writes 0",
-        f"{code(r2)}, details={f2}, writes={writes()-w2}", raw={"details": det2})
+        code(r2) == "READBACK_PENDING" and raw_2["writes_delta"] == 0
+        and raw_2["operation"] == "readback_only" and raw_2["proposal_status"] == "readback_pending",
+        "READBACK_PENDING readback_only, writes_delta=0",
+        f"{code(r2)}, operation=readback_only, delta={raw_2['writes_delta']}", raw=raw_2)
+    c.close()
+
+    # X1-3 new key while applying (crash state, still no write)
+    c = Client()
+    p, aid = pending(c, "x1k3")
+    t = token(c, aid)
+    set_flags({"simulate_applying_crash": True})
+    c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                      "approval_token": t, "idempotency_key": "x1c0"})
+    w3 = writes()
+    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                          "approval_token": t, "idempotency_key": "x1c1"})
+    raw_3 = raw_of(r, "new_key+applying", w3)
+    rec("X1-3 applying 下新键 → READBACK_PENDING（真实状态 applying, 零写入）",
+        code(r) == "READBACK_PENDING" and raw_3["proposal_status"] == "applying"
+        and raw_3["writes_delta"] == 0,
+        "READBACK_PENDING, proposal_status=applying, writes_delta=0",
+        f"{code(r)}, status={raw_3['proposal_status']}, delta={raw_3['writes_delta']}", raw=raw_3)
     c.close()
 
     # X2 confirmed mismatch -> READBACK_MISMATCH / failed
@@ -229,13 +270,20 @@ def main():
     p, aid = pending(c, "t2k1")
     t = token(c, aid)
     set_flags({"fail_after_consume": True})
-    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                          "approval_token": t, "idempotency_key": "t2a1"})
-    first = code(r)
-    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                          "approval_token": t, "idempotency_key": "t2a2"})
+    w0 = writes()
+    r1 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                           "approval_token": t, "idempotency_key": "t2a1"})
+    step1 = {"step": 1, "code": code(r1), "writes_delta": int(writes() - w0)}
+    w1 = writes()
+    r2 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                           "approval_token": t, "idempotency_key": "t2a2"})
+    step2 = {"step": 2, "code": code(r2), "writes_delta": int(writes() - w1),
+             "retryable": bool((sc(r2).get("error") or {}).get("retryable"))}
     rec("T2 failed+已消费 → APPROVAL_CONSUMED",
-        code(r) == "APPROVAL_CONSUMED", "APPROVAL_CONSUMED", f"{first} -> {code(r)}")
+        code(r2) == "APPROVAL_CONSUMED", "APPROVAL_CONSUMED", code(r2),
+        raw={"steps": [step1, step2], "code": code(r2),
+             "writes_delta": int(step1["writes_delta"] + step2["writes_delta"]),
+             "retryable": False, "details": (sc(r2).get("error") or {}).get("details", [])})
     c.close()
 
     # T3 applying + same key -> IDEMPOTENCY_IN_PROGRESS
@@ -243,15 +291,27 @@ def main():
     p, aid = pending(c, "t3k1")
     t = token(c, aid)
     set_flags({"simulate_applying_crash": True})
-    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                          "approval_token": t, "idempotency_key": "t3a1"})
-    first = code(r)
-    r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
-                                          "approval_token": t, "idempotency_key": "t3a1"})
-    e = sc(r).get("error") or {}
+    w0 = writes()
+    r1 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                           "approval_token": t, "idempotency_key": "t3a1"})
+    e1 = sc(r1).get("error") or {}
+    f1 = {d.get("field"): d.get("reason") for d in (e1.get("details") or [])}
+    step1 = {"step": 1, "code": code(r1), "proposal_status": f1.get("proposal_status"),
+             "writes_delta": int(writes() - w0), "retryable": bool(e1.get("retryable"))}
+    w1 = writes()
+    r2 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                           "approval_token": t, "idempotency_key": "t3a1"})
+    e2 = sc(r2).get("error") or {}
+    step2 = {"step": 2, "code": code(r2), "retryable": bool(e2.get("retryable")),
+             "writes_delta": int(writes() - w1)}
+    top_status = step1.get("proposal_status")
     rec("T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable)",
-        code(r) == "IDEMPOTENCY_IN_PROGRESS" and e.get("retryable") is True,
-        "IDEMPOTENCY_IN_PROGRESS retryable", f"{first} -> {code(r)} retryable={e.get('retryable')}")
+        code(r2) == "IDEMPOTENCY_IN_PROGRESS" and step2["retryable"] is True,
+        "IDEMPOTENCY_IN_PROGRESS retryable",
+        f"{code(r2)}, retryable={step2['retryable']}",
+        raw={"steps": [step1, step2], "proposal_status": top_status,
+             "writes_delta": int(step1["writes_delta"] + step2["writes_delta"]),
+             "retryable": True})
     c.close()
 
     # ORD

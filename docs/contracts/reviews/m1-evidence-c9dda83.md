@@ -1,7 +1,7 @@
 # M1 证据 · 契约 c9dda83
 
 基准：`c9dda83195a9af4b9ca762d8556fdd0e8d43010a`（PR #4）
-核心 14/14；EX 20/20；环境 Windows / Python 3.14.3 / MCP stdio
+核心 15/15；EX 20/20；环境 Windows / Python 3.14.3 / MCP stdio
 
 > 与 2c48579、c53b1a9 及 26/26 证据分开统计；WorkBuddy 实机另见 `m1-workbuddy-live.md`。
 
@@ -15,13 +15,14 @@
 | R1-1 Token 过期 → APPROVAL_EXPIRED 且零写入 | APPROVAL_EXPIRED, writes 0 | APPROVAL_EXPIRED, writes=0 | ✅ |  |
 | R1-2 旧 Approval 终结后新 approval_id | new id | appr_0018->appr_0019 | ✅ |  |
 | R1-3 新 Token 成功应用（proposal_status=applied） | applied | applied | ✅ |  |
-| X1-a 首次写入 → READBACK_PENDING | READBACK_PENDING | READBACK_PENDING | ✅ |  |
-| X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入） | READBACK_PENDING, proposal_status=readback_pending, delta=0, retryable=true, writes 0 | READBACK_PENDING, details={'proposal_status': 'readback_pending', 'business_write_count_delta': '0'}, retryable=True, writes=0 | ✅ |  |
-| X1-2 同键重试 → 只回读（operation=readback_only）且零写入 | READBACK_PENDING readback_only, writes 0 | READBACK_PENDING, details={'proposal_status': 'readback_pending', 'business_write_count_delta': '0', 'operation': 'readback_only'}, writes=0 | ✅ |  |
+| X1-a 消费后崩溃 → READBACK_PENDING（applying, 零写入） | READBACK_PENDING, proposal_status=applying, writes_delta=0 | READBACK_PENDING, status=applying, delta=0 | ✅ |  |
+| X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入） | READBACK_PENDING, proposal_status=readback_pending, writes_delta=0, retryable=true | READBACK_PENDING, status=readback_pending, delta=0 | ✅ |  |
+| X1-2 同键重试 → 只回读（operation=readback_only）且零写入 | READBACK_PENDING readback_only, writes_delta=0 | READBACK_PENDING, operation=readback_only, delta=0 | ✅ |  |
+| X1-3 applying 下新键 → READBACK_PENDING（真实状态 applying, 零写入） | READBACK_PENDING, proposal_status=applying, writes_delta=0 | READBACK_PENDING, status=applying, delta=0 | ✅ |  |
 | X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入) | READBACK_MISMATCH, proposal_status=failed, second_apply=false | READBACK_MISMATCH, details={'proposal_status': 'failed', 'operation': 'readback_only', 'business_write_count_delta': '0', 'second_apply_executed': 'false'} | ✅ |  |
 | T1 跨 Proposal 错绑 Token → APPROVAL_UNTRUSTED | APPROVAL_UNTRUSTED | APPROVAL_UNTRUSTED | ✅ |  |
-| T2 failed+已消费 → APPROVAL_CONSUMED | APPROVAL_CONSUMED | PROPOSAL_INVALID -> APPROVAL_CONSUMED | ✅ |  |
-| T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable) | IDEMPOTENCY_IN_PROGRESS retryable | READBACK_PENDING -> IDEMPOTENCY_IN_PROGRESS retryable=True | ✅ |  |
+| T2 failed+已消费 → APPROVAL_CONSUMED | APPROVAL_CONSUMED | APPROVAL_CONSUMED | ✅ |  |
+| T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable) | IDEMPOTENCY_IN_PROGRESS retryable | IDEMPOTENCY_IN_PROGRESS, retryable=True | ✅ |  |
 | ORD-1 已应用 + 新键 → ALREADY_APPLIED | ALREADY_APPLIED | ALREADY_APPLIED | ✅ |  |
 
 ## examples 回放

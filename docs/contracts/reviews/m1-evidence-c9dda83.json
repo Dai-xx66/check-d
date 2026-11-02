@@ -1,8 +1,8 @@
 {
  "contract": "c9dda83195a9af4b9ca762d8556fdd0e8d43010a",
  "core": {
-  "passed": 14,
-  "total": 14,
+  "passed": 15,
+  "total": 15,
   "results": [
    {
     "case": "C1 tools/list 与 examples 的 7 工具一致",
@@ -92,21 +92,41 @@
     }
    },
    {
-    "case": "X1-a 首次写入 → READBACK_PENDING",
-    "expected": "READBACK_PENDING",
-    "got": "READBACK_PENDING",
-    "pass": true,
-    "note": "",
-    "raw": {}
-   },
-   {
-    "case": "X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入）",
-    "expected": "READBACK_PENDING, proposal_status=readback_pending, delta=0, retryable=true, writes 0",
-    "got": "READBACK_PENDING, details={'proposal_status': 'readback_pending', 'business_write_count_delta': '0'}, retryable=True, writes=0",
+    "case": "X1-a 消费后崩溃 → READBACK_PENDING（applying, 零写入）",
+    "expected": "READBACK_PENDING, proposal_status=applying, writes_delta=0",
+    "got": "READBACK_PENDING, status=applying, delta=0",
     "pass": true,
     "note": "",
     "raw": {
+     "code": "READBACK_PENDING",
+     "path": "crash_after_consume",
+     "proposal_status": "applying",
      "writes_delta": 0,
+     "retryable": true,
+     "details": [
+      {
+       "field": "proposal_status",
+       "reason": "applying"
+      },
+      {
+       "field": "business_write_count_delta",
+       "reason": "0"
+      }
+     ]
+    }
+   },
+   {
+    "case": "X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入）",
+    "expected": "READBACK_PENDING, proposal_status=readback_pending, writes_delta=0, retryable=true",
+    "got": "READBACK_PENDING, status=readback_pending, delta=0",
+    "pass": true,
+    "note": "",
+    "raw": {
+     "code": "READBACK_PENDING",
+     "path": "new_key+readback_pending",
+     "proposal_status": "readback_pending",
+     "writes_delta": 0,
+     "retryable": true,
      "details": [
       {
        "field": "proposal_status",
@@ -121,11 +141,16 @@
    },
    {
     "case": "X1-2 同键重试 → 只回读（operation=readback_only）且零写入",
-    "expected": "READBACK_PENDING readback_only, writes 0",
-    "got": "READBACK_PENDING, details={'proposal_status': 'readback_pending', 'business_write_count_delta': '0', 'operation': 'readback_only'}, writes=0",
+    "expected": "READBACK_PENDING readback_only, writes_delta=0",
+    "got": "READBACK_PENDING, operation=readback_only, delta=0",
     "pass": true,
     "note": "",
     "raw": {
+     "code": "READBACK_PENDING",
+     "path": "same_key+readback_pending",
+     "proposal_status": "readback_pending",
+     "writes_delta": 0,
+     "retryable": true,
      "details": [
       {
        "field": "proposal_status",
@@ -138,6 +163,31 @@
       {
        "field": "operation",
        "reason": "readback_only"
+      }
+     ],
+     "operation": "readback_only"
+    }
+   },
+   {
+    "case": "X1-3 applying 下新键 → READBACK_PENDING（真实状态 applying, 零写入）",
+    "expected": "READBACK_PENDING, proposal_status=applying, writes_delta=0",
+    "got": "READBACK_PENDING, status=applying, delta=0",
+    "pass": true,
+    "note": "",
+    "raw": {
+     "code": "READBACK_PENDING",
+     "path": "new_key+applying",
+     "proposal_status": "applying",
+     "writes_delta": 0,
+     "retryable": true,
+     "details": [
+      {
+       "field": "proposal_status",
+       "reason": "applying"
+      },
+      {
+       "field": "business_write_count_delta",
+       "reason": "0"
       }
      ]
     }
@@ -180,18 +230,55 @@
    {
     "case": "T2 failed+已消费 → APPROVAL_CONSUMED",
     "expected": "APPROVAL_CONSUMED",
-    "got": "PROPOSAL_INVALID -> APPROVAL_CONSUMED",
+    "got": "APPROVAL_CONSUMED",
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "steps": [
+      {
+       "step": 1,
+       "code": "PROPOSAL_INVALID",
+       "writes_delta": 0
+      },
+      {
+       "step": 2,
+       "code": "APPROVAL_CONSUMED",
+       "writes_delta": 0,
+       "retryable": false
+      }
+     ],
+     "code": "APPROVAL_CONSUMED",
+     "writes_delta": 0,
+     "retryable": false,
+     "details": []
+    }
    },
    {
     "case": "T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable)",
     "expected": "IDEMPOTENCY_IN_PROGRESS retryable",
-    "got": "READBACK_PENDING -> IDEMPOTENCY_IN_PROGRESS retryable=True",
+    "got": "IDEMPOTENCY_IN_PROGRESS, retryable=True",
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "steps": [
+      {
+       "step": 1,
+       "code": "READBACK_PENDING",
+       "proposal_status": "applying",
+       "writes_delta": 0,
+       "retryable": true
+      },
+      {
+       "step": 2,
+       "code": "IDEMPOTENCY_IN_PROGRESS",
+       "retryable": true,
+       "writes_delta": 0
+      }
+     ],
+     "proposal_status": "applying",
+     "writes_delta": 0,
+     "retryable": true
+    }
    },
    {
     "case": "ORD-1 已应用 + 新键 → ALREADY_APPLIED",
