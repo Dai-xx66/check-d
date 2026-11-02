@@ -116,7 +116,7 @@
 ## 5. 提交前自检（你可以直接跑，通过再发我）
 
 ```bash
-# 1) 证据字段自检：0 冲突、0 证据不足 即合格
+# 1) 证据字段自检：0 冲突、A 类 0 即合格（B 类只影响"零写入"结论）
 python tools/m3-checks/verify_m1_evidence.py \
   --evidence <你的分支>:docs/contracts/reviews/m1-evidence-c9dda83.json \
   --contract c9dda83
@@ -124,6 +124,8 @@ python tools/m3-checks/verify_m1_evidence.py \
 # 2) 闸门自检：exit 0 即 Mock 行为合契约
 python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server.py
 ```
+
+> **口径已收紧（2026-11-02 22:10，据 M0 12:54Z 意见）**：核验器不再从 `expected/got/note` 文本回退提取 `proposal_status`，零写入也改为**按错误码类别**判定（不看文案里有没有"零写入"三个字）；`writes_delta` 必须是 int，字符串不接受。输出分成 **A 类（`READBACK_*` 缺必填 raw 字段，硬缺口）/ B 类（零写入类缺计数器）/ 冲突（exit 1）**。已用"删 raw 留文本"的反例回归验证，不再出现"补了仍判不了"或"没补却判齐"。
 
 两条都过，我这边只需复跑同样两条命令即可确认，不需要你再准备别的东西。
 
