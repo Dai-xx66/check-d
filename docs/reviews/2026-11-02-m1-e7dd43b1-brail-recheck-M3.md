@@ -190,3 +190,34 @@ SELFTEST_EXIT=0
 | 2026-11-02 21:55 | 建立；`e7dd43b1d` 闸门 7/7 通过（exit 0）+ 两条动态探测复核，判定镜头 6 解封 |
 | 2026-11-02 22:10 | 并入证据字段核验（A 类 0 / B 类 5）；核验器按 M0 意见改为 raw-only + 错误码驱动，并附反例回归 |
 | 2026-11-02 23:40 | 增量复核（M0 15:27Z 裁定）：`retryable` 改严格布尔（修正 `bool("false")==True` 漏判）；反例回归固化为 `selftest_verifier.py`（9 项 0 失败）；真实证据复跑结果不变（冲突 0 / A 类 0 / B 类 5 / 需说明 2） |
+| 2026-11-03 00:56 | 增量复核第二轮（M0 16:21Z 审计 + M1 16:30Z 修复，对象 `c5818ee`）：B 类 5→3（T1/ORD-1 已补，EX-15/17/18 保留）；X2 `second_apply_executed` 已为 JSON 布尔；**生成器 `run_evidence_c53.py` 的 `bool()` 转换仍在（L88/282/298/317/322），待 M1 修正后三验** |
+
+## 10. 增量复核第二轮：`c5818ee`（M0 16:21Z 审计，2026-11-03 00:56 执行）
+
+**对象**：`Tony2215/check-d` @ `c5818ee8b6f2ae8260d4af882a839a5a734a8875`（PR #3 head，Open 未合并）。
+**触发**：M0 16:21Z 增量审计四项要求 + M1 16:30Z 三项修复通报。
+
+### 10.1 M0 四项要求的逐项结果
+
+1. **严格 verifier 复跑**（`verify_m1_evidence.py --evidence <c5818ee>:docs/contracts/reviews/m1-evidence-c9dda83.json --contract c9dda83`）：
+   - 契约冲突 0 / **A 类 0** / **B 类 3** / 需说明 1（EX-01 fixture 差异沿用），`VERIFY_EXIT=0`。
+   - `selftest_verifier.py` 9 项反例 0 失败。
+2. **EX-15 / EX-17 / EX-18 确认仍在 B 类未测**：`already_applied_with_new_idempotency_key`（ALREADY_APPLIED）、`consumed_token_cannot_authorize_another_apply`（APPROVAL_CONSUMED）、`approval_token_expired_before_apply`（APPROVAL_EXPIRED）三条 `raw.writes_delta` 仍缺整数。与 M0 预判一致：B 类 5→3（T1、ORD-1 已由 M1 补齐）。
+3. **`retryable` 原值保真检查**：
+   - **证据 JSON 本身类型干净**：`X2.retryable=False(bool)`、`X2.second_apply_executed=False(bool)`（不再是字符串 `"false"`）、`T1.retryable=False(bool)`——严格布尔口径下 0 误判，说明当前上游响应恰为真布尔。
+   - **但生成器 `run_evidence_c53.py` 的 `bool()` 转换仍在**：L88 `bool(err.get("retryable"))`、L282、L298、L317、L322。当前只是「碰巧没出事」——若 mock 将来某处返回字符串 `"false"`，生成器会先转成 `True` 包装进证据，我的 verifier 将无从察觉。**该修正属 M1（M0 已点名），我待其新 SHA 后三验。**
+4. **录制计划不变**：闸门对 `c5818ee` 的 `tool_server.py` 复跑 **7/7 PASS，`GATE_EXIT=0`**；B 轨 8 镜维持已批准的开录状态，本轮增量复核不构成暂停理由。
+
+### 10.2 M1 三项修复的独立确认（不采信自述，逐字段实测）
+
+| 项 | M1 自述 | 实测 |
+|---|---|---|
+| X2 `second_apply_executed` 改布尔 | 是 | `False`（JSON bool）✓ |
+| C2/C3/R1-2/T1/ORD-1 补 int `writes_delta` | 是 | 五条均 `int`（C2/C3/R1-2=0；T1=0；ORD-1=0 且带 `first_apply_writes_delta=8`）✓ |
+| 15 条 core 全带 int `writes_delta` | 是 | verifier B 类仅剩 3 条 examples，core 0 缺口 ✓ |
+
+### 10.3 结论
+
+- **B 轨开录状态维持**，闸门与证据双绿（7/7 + 冲突 0/A 0/B 3）。
+- 唯一悬挂项：**生成器 `bool()` 保真（M1 修）**——不影响已生成证据的正确性，但属于「上游先转换、下游无法察觉」的结构性风险，M0 要求保留为待办，我记入三验清单。
+- 引用纪律不变：引用「零写入」结论只用带整数计数器的条目；EX-15/17/18 保持「未测」。
