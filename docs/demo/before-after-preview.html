@@ -30,6 +30,7 @@
   }
   .chip.pending{background:var(--cream);border-color:#F6E3CC;color:#9A6B3A}
   .chip.applied{background:var(--mint);border-color:#CFEBDC;color:#3F7A61}
+  .chip.rejected{background:var(--surface-soft);border-color:var(--border);color:var(--muted)}
   .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
@@ -62,7 +63,7 @@
     padding:7px 10px;font-size:12px;overflow:hidden;
     border:1px solid transparent;
   }
-  .block .t{font-weight:650;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .block .t{font-weight:650;font-size:12px;overflow-wrap:break-word;word-break:break-word}
   .block .m{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
   .b-course{background:var(--blue-mist);border-color:#CFE4FA;color:#3F6884}
   .b-course .m{color:#6E90A8}
@@ -100,6 +101,7 @@
   .btns{display:flex;gap:10px}
   button{
     font:inherit;font-size:13px;font-weight:650;border-radius:999px;padding:10px 20px;cursor:pointer;
+    min-height:44px;min-width:44px;
     border:1px solid var(--border);background:var(--surface);color:var(--ink);transition:.16s;
   }
   button:hover{transform:translateY(-1px)}
@@ -235,18 +237,23 @@ function renderChanges(){
 }
 
 let applied = false;
+let rejected = false;
 function paint(){
   renderTimeline($('tlBefore'), before, false);
-  renderTimeline($('tlAfter'), applied ? after : after, applied);
+  renderTimeline($('tlAfter'), after, applied);
   renderChanges();
   const chip = $('stateChip');
-  chip.className = 'chip ' + (applied ? 'applied' : 'pending');
-  $('stateText').textContent = applied ? '已写入 · 已回读核验' : '待你确认';
+  if (applied){ chip.className = 'chip applied'; $('stateText').textContent = '已写入 · 已回读核验'; }
+  else if (rejected){ chip.className = 'chip rejected'; $('stateText').textContent = '已取消'; }
+  else { chip.className = 'chip pending'; $('stateText').textContent = '待你确认'; }
   $('afterTag').textContent = applied ? '已应用' : '提案预览';
   $('hintText').textContent = applied
     ? '已写入 1 条 override（overrideId 复用，非新增行）· 回读结果与提案一致'
-    : '批准前不会写入任何数据 · 确认后写回 CheckD 并回读核验';
+    : rejected
+      ? '未写入任何数据 · 可重新确认同一提案，或要求重新生成'
+      : '批准前不会写入任何数据 · 确认后写回 CheckD 并回读核验';
   $('btnApply').disabled = applied;
+  $('btnApply').textContent = rejected ? '重新确认并写入' : '批准并写入';
   $('btnReject').textContent = applied ? '撤销演示' : '取消';
 }
 
@@ -259,12 +266,12 @@ function toast(msg){
 }
 
 $('btnApply').addEventListener('click', ()=>{
-  applied = true; paint();
+  applied = true; rejected = false; paint();
   toast('已应用 · override 已更新并回读核验通过');
 });
 $('btnReject').addEventListener('click', ()=>{
   if (applied){ applied = false; paint(); toast('已回到提案预览状态'); }
-  else { toast('已取消，未写入任何数据'); }
+  else { rejected = true; paint(); toast('已取消，未写入任何数据'); }
 });
 
 // 明天日期（演示用，真实运行时由 CheckD 传入）
