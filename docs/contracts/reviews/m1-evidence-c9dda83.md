@@ -25,6 +25,8 @@
 | T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable) | IDEMPOTENCY_IN_PROGRESS retryable | IDEMPOTENCY_IN_PROGRESS, retryable=True | ✅ |  |
 | ORD-1 已应用 + 新键 → ALREADY_APPLIED | ALREADY_APPLIED | ALREADY_APPLIED | ✅ |  |
 
+> 每条 core 的 `raw` 均带 `writes_delta`（int，服务端业务写入计数器在该次调用前后的差值，0 表示零写入）；X2 另带 `second_apply_executed`(bool)；T2/T3 用 `raw.steps` 记录分步增量；ORD-1 另带 `first_apply_writes_delta`。
+
 ## examples 回放
 
 | ID | 名称 | 结果 | 说明 |

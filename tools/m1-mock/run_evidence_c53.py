@@ -142,13 +142,17 @@ def main():
         set(t["name"] for t in tools) == set(names) and len(tools) == len(names), names,
         [t["name"] for t in tools], raw={"count": len(tools)})
 
+    w_gen = writes()
     p = data(c.call("generate_schedule", {"date_range": RANGE}))
     codes = [x["code"] for x in p["explanations"]]
     rec("C2 explanations 属七码闭集",
-        set(codes) <= EXPLANATION_CODES and codes, sorted(EXPLANATION_CODES), codes)
+        set(codes) <= EXPLANATION_CODES and codes, sorted(EXPLANATION_CODES), codes,
+        raw={"writes_delta": int(writes() - w_gen)})
+    w_env = writes()
+    env = sc(c.call("list_tasks", {"date_range": RANGE}))
     rec("C3 响应信封字段",
-        {"api_version", "request_id", "trace_id", "status", "data"} <= set(sc(c.call("list_tasks", {"date_range": RANGE}))),
-        "envelope", sorted(sc(c.call("list_tasks", {"date_range": RANGE}))))
+        {"api_version", "request_id", "trace_id", "status", "data"} <= set(env),
+        "envelope", sorted(env), raw={"writes_delta": int(writes() - w_env)})
     c.close()
 
     # R1 with write counters
@@ -162,9 +166,11 @@ def main():
     rec("R1-1 Token 过期 → APPROVAL_EXPIRED 且零写入",
         code(r) == "APPROVAL_EXPIRED" and writes() == w0, "APPROVAL_EXPIRED, writes 0",
         f"{code(r)}, writes={writes()-w0}", raw={"writes_delta": writes() - w0})
+    w_r12 = writes()
     r = c.call("request_approval", {"proposal_id": p["proposal_id"], "idempotency_key": "r1k2"})
     aid2 = data(r)["approval_id"]
-    rec("R1-2 旧 Approval 终结后新 approval_id", aid2 != aid, "new id", f"{aid}->{aid2}")
+    rec("R1-2 旧 Approval 终结后新 approval_id", aid2 != aid, "new id", f"{aid}->{aid2}",
+        raw={"writes_delta": int(writes() - w_r12), "approval_id_prev": aid, "approval_id_new": aid2})
     t2 = token(c, aid2)
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t2, "idempotency_key": "r1a2"})
@@ -253,7 +259,7 @@ def main():
     steps = [{"step": 1, "code": code(r1), "writes_delta": int(w1 - w0)},
              {"step": 2, "code": code(r), "writes_delta": raw_2["writes_delta"]}]
     raw_2["steps"] = steps
-    raw_2["second_apply_executed"] = "false"
+    raw_2["second_apply_executed"] = False
     rec("X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入)",
         code(r) == "READBACK_MISMATCH" and raw_2["proposal_status"] == "failed"
         and raw_2["writes_delta"] == 0 and raw_2["retryable"] is False,
@@ -267,10 +273,13 @@ def main():
     t1 = token(c, a1)
     p2 = data(c.call("generate_schedule", {"date_range": RANGE}))
     c.call("validate_schedule", {"proposal_id": p2["proposal_id"]})
+    w_t1 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p2["proposal_id"], "base_version": p2["base_version"],
                                           "approval_token": t1, "idempotency_key": "t1a1"})
     rec("T1 跨 Proposal 错绑 Token → APPROVAL_UNTRUSTED", code(r) == "APPROVAL_UNTRUSTED",
-        "APPROVAL_UNTRUSTED", code(r))
+        "APPROVAL_UNTRUSTED", code(r),
+        raw={"code": code(r), "writes_delta": int(writes() - w_t1),
+             "retryable": bool((sc(r).get("error") or {}).get("retryable"))})
     c.close()
 
     # T2 failed + consumed -> APPROVAL_CONSUMED (reachable)
@@ -326,11 +335,15 @@ def main():
     c = Client()
     p, aid = pending(c, "ordk")
     t = token(c, aid)
+    w_pre = writes()
     c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                       "approval_token": t, "idempotency_key": "orda1"})
+    w_ord = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "orda2"})
-    rec("ORD-1 已应用 + 新键 → ALREADY_APPLIED", code(r) == "ALREADY_APPLIED", "ALREADY_APPLIED", code(r))
+    rec("ORD-1 已应用 + 新键 → ALREADY_APPLIED", code(r) == "ALREADY_APPLIED", "ALREADY_APPLIED", code(r),
+        raw={"code": code(r), "writes_delta": int(writes() - w_ord),
+             "first_apply_writes_delta": int(w_ord - w_pre)})
     c.close()
 
     # EX replay (first 20 by name mapping)
@@ -363,7 +376,9 @@ def main():
              "## 核心", "", "| 用例 | 预期 | 实际 | 结论 | 说明 |", "|---|---|---|---|---|"]
     for x in results:
         lines.append(f"| {x['case']} | {x['expected']} | {x['got']} | {'✅' if x['pass'] else '❌'} | {x['note']} |")
-    lines += ["", "## examples 回放", "", "| ID | 名称 | 结果 | 说明 |", "|---|---|---|---|"]
+    lines += ["", "> 每条 core 的 `raw` 均带 `writes_delta`（int，服务端业务写入计数器在该次调用前后的差值，0 表示零写入）；"
+              "X2 另带 `second_apply_executed`(bool)；T2/T3 用 `raw.steps` 记录分步增量；ORD-1 另带 `first_apply_writes_delta`。",
+              "", "## examples 回放", "", "| ID | 名称 | 结果 | 说明 |", "|---|---|---|---|"]
     for x in ex:
         mark = {"pass": "✅", "fail": "❌", "not_executable": "⏸️"}[x["status"]]
         lines.append(f"| {x['id']} | {x['name']} | {mark} {x['status']} | {x['note']} |")

@@ -47,7 +47,9 @@
     ],
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "writes_delta": 0
+    }
    },
    {
     "case": "C3 响应信封字段",
@@ -61,7 +63,9 @@
     ],
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "writes_delta": 0
+    }
    },
    {
     "case": "R1-1 Token 过期 → APPROVAL_EXPIRED 且零写入",
@@ -79,7 +83,11 @@
     "got": "appr_0018->appr_0019",
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "writes_delta": 0,
+     "approval_id_prev": "appr_0018",
+     "approval_id_new": "appr_0019"
+    }
    },
    {
     "case": "R1-3 新 Token 成功应用（proposal_status=applied）",
@@ -234,7 +242,7 @@
        "writes_delta": 0
       }
      ],
-     "second_apply_executed": "false"
+     "second_apply_executed": false
     }
    },
    {
@@ -243,7 +251,11 @@
     "got": "APPROVAL_UNTRUSTED",
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "code": "APPROVAL_UNTRUSTED",
+     "writes_delta": 0,
+     "retryable": false
+    }
    },
    {
     "case": "T2 failed+已消费 → APPROVAL_CONSUMED",
@@ -304,7 +316,11 @@
     "got": "ALREADY_APPLIED",
     "pass": true,
     "note": "",
-    "raw": {}
+    "raw": {
+     "code": "ALREADY_APPLIED",
+     "writes_delta": 0,
+     "first_apply_writes_delta": 8
+    }
    }
   ]
  },
