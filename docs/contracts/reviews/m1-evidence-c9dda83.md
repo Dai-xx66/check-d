@@ -19,7 +19,7 @@
 | X1-1 新键 → READBACK_PENDING（proposal_status/retryable/零写入） | READBACK_PENDING, proposal_status=readback_pending, writes_delta=0, retryable=true | READBACK_PENDING, status=readback_pending, delta=0 | ✅ |  |
 | X1-2 同键重试 → 只回读（operation=readback_only）且零写入 | READBACK_PENDING readback_only, writes_delta=0 | READBACK_PENDING, operation=readback_only, delta=0 | ✅ |  |
 | X1-3 applying 下新键 → READBACK_PENDING（真实状态 applying, 零写入） | READBACK_PENDING, proposal_status=applying, writes_delta=0 | READBACK_PENDING, status=applying, delta=0 | ✅ |  |
-| X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入) | READBACK_MISMATCH, proposal_status=failed, second_apply=false | READBACK_MISMATCH, details={'proposal_status': 'failed', 'operation': 'readback_only', 'business_write_count_delta': '0', 'second_apply_executed': 'false'} | ✅ |  |
+| X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入) | READBACK_MISMATCH, proposal_status=failed, writes_delta=0, retryable=false | READBACK_MISMATCH, status=failed, delta=0 | ✅ |  |
 | T1 跨 Proposal 错绑 Token → APPROVAL_UNTRUSTED | APPROVAL_UNTRUSTED | APPROVAL_UNTRUSTED | ✅ |  |
 | T2 failed+已消费 → APPROVAL_CONSUMED | APPROVAL_CONSUMED | APPROVAL_CONSUMED | ✅ |  |
 | T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable) | IDEMPOTENCY_IN_PROGRESS retryable | IDEMPOTENCY_IN_PROGRESS, retryable=True | ✅ |  |
@@ -48,4 +48,4 @@
 | EX-17 | consumed_token_cannot_authorize_another_apply | ✅ pass | code=APPROVAL_CONSUMED |
 | EX-18 | approval_token_expired_before_apply | ✅ pass | code=APPROVAL_EXPIRED |
 | EX-19 | base_version_changed_before_apply | ✅ pass | code=SNAPSHOT_CONFLICT |
-| EX-20 | write_may_have_succeeded_but_readback_is_pending | ✅ pass | code=READBACK_PENDING, proposal_status=readback_pending, retryable=True |
+| EX-20 | write_may_have_succeeded_but_readback_is_pending | ✅ pass | code=READBACK_PENDING, proposal_status=readback_pending, delta=0 |

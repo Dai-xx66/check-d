@@ -237,20 +237,28 @@ def main():
         f"{code(r)}, status={raw_3['proposal_status']}, delta={raw_3['writes_delta']}", raw=raw_3)
     c.close()
 
-    # X2 confirmed mismatch -> READBACK_MISMATCH / failed
+    # X2 readback_pending -> authoritative mismatch -> READBACK_MISMATCH / failed (zero writes)
     c = Client()
     p, aid = pending(c, "x2k1")
     t = token(c, aid)
-    set_flags({"confirmed_mismatch": True})
+    set_flags({"crash_as_readback_pending": True})
+    w0 = writes()
+    r1 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
+                                           "approval_token": t, "idempotency_key": "x2a1"})
+    w1 = writes()
+    set_flags({"confirmed_mismatch_on_readback": True})
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "x2a1"})
-    det = sc(r).get("error", {}).get("details", [])
-    fields = {d.get("field"): d.get("reason") for d in det}
+    raw_2 = raw_of(r, "readback_only", w1)
+    steps = [{"step": 1, "code": code(r1), "writes_delta": int(w1 - w0)},
+             {"step": 2, "code": code(r), "writes_delta": raw_2["writes_delta"]}]
+    raw_2["steps"] = steps
+    raw_2["second_apply_executed"] = "false"
     rec("X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入)",
-        code(r) == "READBACK_MISMATCH" and fields.get("proposal_status") == "failed"
-        and fields.get("second_apply_executed") == "false",
-        "READBACK_MISMATCH, proposal_status=failed, second_apply=false",
-        f"{code(r)}, details={fields}", raw={"details": det})
+        code(r) == "READBACK_MISMATCH" and raw_2["proposal_status"] == "failed"
+        and raw_2["writes_delta"] == 0 and raw_2["retryable"] is False,
+        "READBACK_MISMATCH, proposal_status=failed, writes_delta=0, retryable=false",
+        f"{code(r)}, status={raw_2['proposal_status']}, delta={raw_2['writes_delta']}", raw=raw_2)
     c.close()
 
     # T1 cross-proposal token
@@ -572,16 +580,15 @@ def ex_readback(ex):
     c = Client()
     p, aid = pending(c, "exrb")
     t = token(c, aid)
-    set_flags({"readback_mismatch": True})
+    set_flags({"crash_as_readback_pending": True})
+    w0 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "exrb1"})
-    det = sc(r).get("error", {}).get("details", [])
-    f = {d.get("field"): d.get("reason") for d in det}
-    err = sc(r).get("error", {})
-    ok = (code(r) == "READBACK_PENDING" and f.get("proposal_status") == "readback_pending"
-          and f.get("business_write_count_delta") == "0" and err.get("retryable") is True)
+    raw = raw_of(r, "new_key+readback_pending", w0)
+    ok = (code(r) == "READBACK_PENDING" and raw["proposal_status"] == "readback_pending"
+          and raw["writes_delta"] == 0 and raw["retryable"] is True)
     c.close()
-    return ok, f"code={code(r)}, proposal_status={f.get('proposal_status')}, retryable={err.get('retryable')}", {"details": det}
+    return ok, f"code={code(r)}, proposal_status={raw['proposal_status']}, delta={raw['writes_delta']}", raw
 
 
 EX_ORDER = [

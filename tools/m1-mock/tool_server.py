@@ -807,6 +807,13 @@ def tool_apply(args, user):
             return cached["result"]
         if cached["state"] == "applying":
             raise ToolError("IDEMPOTENCY_IN_PROGRESS", "同一请求正在处理中。", retryable=True)
+        if take_flag("confirmed_mismatch_on_readback"):
+            p["status"] = "failed"
+            raise ToolError("READBACK_MISMATCH", "权威回读与批准内容不一致，提案已终止。",
+                            [{"field": "proposal_status", "reason": "failed"},
+                             {"field": "operation", "reason": "readback_only"},
+                             {"field": "business_write_count_delta", "reason": "0"},
+                             {"field": "second_apply_executed", "reason": "false"}])
         raise ToolError("READBACK_PENDING", "仍在等待权威回读，请不要再次写入。",
                         [{"field": "proposal_status", "reason": "readback_pending"},
                          {"field": "business_write_count_delta", "reason": "0"},
@@ -859,6 +866,14 @@ def tool_apply(args, user):
     check_items_exist(p)
     trec["consumed"] = True
     p["status"] = "applying"
+
+    if take_flag("crash_as_readback_pending"):
+        STATE["idempotency"][idem] = {"digest": req_digest, "state": "readback_pending", "result": None}
+        p["status"] = "readback_pending"
+        raise ToolError("READBACK_PENDING", "写入结果未知，正在等待权威回读。",
+                        [{"field": "proposal_status", "reason": "readback_pending"},
+                         {"field": "business_write_count_delta", "reason": "0"}],
+                        retryable=True)
 
     if take_flag("simulate_applying_crash"):
         STATE["idempotency"][idem] = {"digest": req_digest, "state": "applying", "result": None}

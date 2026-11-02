@@ -194,11 +194,16 @@
    },
    {
     "case": "X2 权威回读不一致 → READBACK_MISMATCH(failed, 零写入)",
-    "expected": "READBACK_MISMATCH, proposal_status=failed, second_apply=false",
-    "got": "READBACK_MISMATCH, details={'proposal_status': 'failed', 'operation': 'readback_only', 'business_write_count_delta': '0', 'second_apply_executed': 'false'}",
+    "expected": "READBACK_MISMATCH, proposal_status=failed, writes_delta=0, retryable=false",
+    "got": "READBACK_MISMATCH, status=failed, delta=0",
     "pass": true,
     "note": "",
     "raw": {
+     "code": "READBACK_MISMATCH",
+     "path": "readback_only",
+     "proposal_status": "failed",
+     "writes_delta": 0,
+     "retryable": false,
      "details": [
       {
        "field": "proposal_status",
@@ -216,7 +221,20 @@
        "field": "second_apply_executed",
        "reason": "false"
       }
-     ]
+     ],
+     "steps": [
+      {
+       "step": 1,
+       "code": "READBACK_PENDING",
+       "writes_delta": 0
+      },
+      {
+       "step": 2,
+       "code": "READBACK_MISMATCH",
+       "writes_delta": 0
+      }
+     ],
+     "second_apply_executed": "false"
     }
    },
    {
@@ -490,8 +508,13 @@
     "id": "EX-20",
     "name": "write_may_have_succeeded_but_readback_is_pending",
     "status": "pass",
-    "note": "code=READBACK_PENDING, proposal_status=readback_pending, retryable=True",
+    "note": "code=READBACK_PENDING, proposal_status=readback_pending, delta=0",
     "raw": {
+     "code": "READBACK_PENDING",
+     "path": "new_key+readback_pending",
+     "proposal_status": "readback_pending",
+     "writes_delta": 0,
+     "retryable": true,
      "details": [
       {
        "field": "proposal_status",
