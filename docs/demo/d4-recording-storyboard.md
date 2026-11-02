@@ -137,14 +137,14 @@
 7. 镜头 7 的回读一致，固定课程未移动；
 8. 镜头 8 证明重复请求零写入。
 
-**当前可达成**：B 轨可过 1、2、3、4、5、8；第 7 条走 `readback_pending` 路径可演示收敛；**第 6 条当前不可达成（BLOCKED）**——见 §6 实测。
+**当前可达成**：B 轨 **8 镜全部可录**（2026-11-02 21:55 复测 `e7dd43b1d` 闸门 7/7 通过，exit 0）；第 6 条 `proposal_status` 断言与第 7 条收敛均已有实测证据——见 §6.2 基线演进。
 **A 轨待 M0**：真实 apply 端点 + 可信用户确认 + 第二账号只读复核（W4/W5/W6 三条 blocked 解除）。
 
 > **不得因本脚本已写明 `proposal_status` 就把第 6 条记为通过**（M0 裁定四）：脚本是要求，不是证据。
 
 ## 6. B 轨录制状态与证据落点（M0 裁定要求的回报项）
 
-### 6.1 状态（截至 2026-11-01 13:00）
+### 6.1 状态（截至 2026-11-02 21:55，M1 `e7dd43b1d`）
 
 | 项 | 状态 | 依据 |
 |---|---|---|
@@ -152,12 +152,12 @@
 | Mock 后端可启动 | **已验证** | `initialize` 成功（`checkd-agent-mock 0.4.0`），`tools/list` = 7 工具 |
 | 全链路可跑 | **已验证** | list(4 任务) → generate(12 变更) → validate(0 violations) → approve → token → apply |
 | 镜头 1–5 可录 | **就绪** | 上述链路覆盖 |
-| 镜头 6（`proposal_status` 断言） | **BLOCKED** | Mock 返回 `details=[]` 或字段名 `proposal.status`，与 c9dda83 不符 |
-| 镜头 7 收敛 | **部分** | `readback_pending` 路径可收敛；`applying` 崩溃路径永远 `IDEMPOTENCY_IN_PROGRESS` |
+| 镜头 6（`proposal_status` 断言） | **解锁** | `e7dd43b1d` 崩溃路径已补 `proposal_status=applying` + `delta=0`，闸门 G0–G6 全绿 |
+| 镜头 7 收敛 | **可录** | `readback_pending` 路径可收敛；`applying` 崩溃路径如实停在 `applying` 并以 `IDEMPOTENCY_IN_PROGRESS` 保持同键重试 |
 | 镜头 8 零写入 | **可录** | `IDEMPOTENCY_IN_PROGRESS` + 服务端写入计数增量 0 |
-| 实际开录 | **未开始（M1 `1d4f3f2` 复测 3/7 不通过，崩溃路径未修）** | M0 已选甲方案，见 §6.2 |
+| 实际开录 | **待录（本人执行）** | 闸门 exit 0，M0 甲方案条件已满足；8 镜一次性录 |
 
-实测明细与复现命令：`docs/reviews/2026-11-01-m1-mock-brail-probe-M3.md`（E1）。
+实测明细与复现命令：`docs/reviews/2026-11-02-m1-e7dd43b1-brail-recheck-M3.md`（E1）。
 
 ### 6.2 处置决定：**M0 已选甲方案（2026-11-01 12:46 邮件，E2）**
 
@@ -188,8 +188,11 @@ python tools/m3-checks/assert_brail_contract.py <path>/tools/m1-mock/tool_server
 |---|---|---|---|
 | 11-01 13:00 | `36ab22e` | 5/7 不通过 | G1/G2/G4/G5 全败，字段名 `proposal.status`、`retryable` 三条 false |
 | 11-01 22:50 | `1d4f3f2` | **3/7 不通过** | 字段名、`retryable`、两条新键路径的 delta 均已修好；**仅崩溃路径 `details: []` 未修** |
+| 11-02 13:02Z | `e7dd43b1d` | **7/7 通过（exit 0）** | 崩溃路径补 `proposal_status=applying` + `business_write_count_delta=0`；5 处 `READBACK_PENDING` 的 `details` 全非空 |
 
-新基线三项失败（G0 / G2 / G5）同源于一处：`tool_server.py` L862-866 的 `simulate_applying_crash` 分支抛 `READBACK_PENDING` 时未传 `details`。补一句 `proposal_status=applying` + `business_write_count_delta=0` 即可全绿。**镜头 6 仍 BLOCKED，不得开录。**
+`1d4f3f2` 的三项失败（G0 / G2 / G5）同源于 `tool_server.py` L862-866 的 `simulate_applying_crash` 分支抛 `READBACK_PENDING` 时未传 `details`。`e7dd43b1d` 已在该分支（新文件 L878-883）补齐两个字段并置 `retryable=True`，闸门由 3/7 转为 **7/7**，**镜头 6 解封**。
+
+动态探测（同一脚本、同一命令，非静态读码）复核：`probe_brail_chain.py` step6 实际返回 `proposal_status=applying` / `writes_delta=0` / `retryable=true`；`probe_brail_pending.py` case A–C 的 `details` 均含 `proposal_status` 与 `business_write_count_delta=0`。
 
 > 本闸门只判 Mock 行为，判过也不等于真实端点通过；A 轨证据仍需真实服务。
 
