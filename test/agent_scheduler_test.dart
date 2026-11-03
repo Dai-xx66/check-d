@@ -574,6 +574,183 @@ void main() {
       );
     });
 
+    // C（M3）2026-11-03 D6 实测：repair 只移 1 块，但那块从 15:00 被甩到 08:00，
+    // 位移 420 分钟，而当时 16:30–17:30 是空的（就近只需 90 分钟）。
+    // 「最小扰动」不能只在块数维度成立，位移维度同样要成立。
+    test('被撞掉的块就近重排：落在原位置之后最近空档，不是最早可用', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'english',
+            title: '英语听力',
+            startAt: _at(0, 8),
+            endAt: _at(0, 9, 30),
+          ),
+          ProposedBlock(
+            taskId: 'linear',
+            title: '线代作业',
+            startAt: _at(0, 9, 30),
+            endAt: _at(0, 11),
+          ),
+          ProposedBlock(
+            taskId: 'lab',
+            title: '实验报告',
+            startAt: _at(0, 13),
+            endAt: _at(0, 14, 30),
+          ),
+          ProposedBlock(
+            taskId: 'math-3',
+            title: '高数第三章习题',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 18),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 18)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 15),
+            endAt: _at(0, 16, 30),
+            title: '临时会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'english',
+            title: '英语听力',
+            requiredMinutes: 90,
+          ),
+          ScheduleTaskDemand(
+            taskId: 'linear',
+            title: '线代作业',
+            requiredMinutes: 90,
+          ),
+          ScheduleTaskDemand(
+            taskId: 'lab',
+            title: '实验报告',
+            requiredMinutes: 90,
+          ),
+          ScheduleTaskDemand(
+            taskId: 'math-3',
+            title: '高数第三章习题',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      final repaired = repairSchedule(input, previous);
+      final moved = repaired.blocks.firstWhere((b) => b.taskId == 'math-3');
+
+      expect(moved.startAt, _at(0, 16, 30));
+      expect(moved.endAt, _at(0, 17, 30));
+      expect(moved.movedFromPreviousPlan, isTrue);
+      expect(moved.startAt.difference(_at(0, 15)).inMinutes, 90);
+      // 老实现按「最早可用」会落到 11:00（位移 240 分钟）；这条断言防它回退。
+      expect(moved.startAt, isNot(_at(0, 11)));
+      // 其余三块原样保留，块数维度不变。
+      expect(repaired.blocks.length, 4);
+      expect(
+        repaired.blocks
+            .where((b) => b.taskId != 'math-3')
+            .every((b) => !b.movedFromPreviousPlan),
+        isTrue,
+      );
+
+      final text = repaired.notes.map((note) => note.message).join();
+      expect(text, contains('位移 90 分钟'));
+      expect(text, contains('总位移 90 分钟'));
+    });
+
+    test('就近重排：位移相同时优先落在原位置之后', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'task-tie',
+            title: '复习',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 17),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 17)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+            title: '临时会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'task-tie',
+            title: '复习',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      // 之后 16:00（+60）与之前 14:00（-60）等距，取之后。
+      final repaired = repairSchedule(input, previous);
+      expect(repaired.blocks.single.startAt, _at(0, 16));
+    });
+
+    test('就近重排：只有往前才排得下时才往前，不跳到最早可用', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'task-back',
+            title: '写周报',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 16),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 16)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 14),
+            endAt: _at(0, 16),
+            title: '临时会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'task-back',
+            title: '写周报',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      // 14:00 之后已无空档，只能前移到 13:00（-120），而不是 08:00（-420）。
+      final repaired = repairSchedule(input, previous);
+      expect(repaired.blocks.single.startAt, _at(0, 13));
+    });
+
     test('无可排位置时返回未安排量与理由', () {
       final previous = ScheduleProposal(
         blocks: [
