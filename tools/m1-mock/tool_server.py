@@ -433,22 +433,20 @@ def overlapping_block_pairs(blocks):
 
 
 def check_hard_constraints(proposal, events):
-    # 块间重叠属提案内部不一致，先于其他约束判定。
-    # 契约 c9dda83 §5 的 violations 是七码闭集且不含"块间重叠"，
-    # 按同节"未知 code 必须以 PROPOSAL_INVALID 拒绝"处理，不新增闭集外码。
-    overlaps = overlapping_block_pairs(proposal["blocks"])
-    if overlaps:
-        raise ToolError(
-            "PROPOSAL_INVALID",
-            "提案内存在时间重叠的 block，不能进入审批。",
-            details=[{"reason": "BLOCK_OVERLAP",
-                      "block_ids": [a[2], b[2]],
-                      "task_ids": [a[3], b[3]],
-                      "a_start_at": iso(a[0]), "a_end_at": iso(a[1]),
-                      "b_start_at": iso(b[0]), "b_end_at": iso(b[1])}
-                     for a, b in overlaps])
-
     violations = []
+    # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
+    # BLOCK_OVERLAP。属"结构合法但违反调度硬约束"，走 normal invalid 响应，
+    # 不作为 PROPOSAL_INVALID 结构错误抛出。
+    for left, right in overlapping_block_pairs(proposal["blocks"]):
+        item = {"code": "BLOCK_OVERLAP",
+                "message": "提案块之间存在时间重叠：%s（%s）与 %s（%s）。" % (
+                    left[2], iso(left[0]), right[2], iso(right[0])),
+                "related_block_ids": [left[2], right[2]]}
+        tasks = sorted({t for t in (left[3], right[3]) if t})
+        if tasks:
+            item["related_task_ids"] = tasks
+        violations.append(item)
+
     for b in proposal["blocks"]:
         bs = parse_instant(b["start_at"], "block.start_at")
         be = parse_instant(b["end_at"], "block.end_at")

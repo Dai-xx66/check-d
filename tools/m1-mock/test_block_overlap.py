@@ -101,19 +101,29 @@ def t2_injected_overlap_must_be_rejected():
               "overlap_pairs=%d" % len(pairs))
 
         r = c.call("validate_schedule", {"proposal_id": p["proposal_id"]})
-        check("T2.2 validate 以 error 拒绝该提案",
-              r["result"].get("isError") is True)
         env = envelope(r)
-        err = env.get("error") or (env.get("data") or {}).get("error") or {}
-        check("T2.3 错误码为 PROPOSAL_INVALID", err.get("code") == "PROPOSAL_INVALID",
-              "code=%s" % err.get("code"))
-        details = err.get("details") or []
-        ids = sorted({i for d in details for i in d.get("block_ids", [])})
-        check("T2.4 details 给出 reason 与涉及的 block_id",
-              bool(details) and all(d.get("reason") == "BLOCK_OVERLAP" for d in details)
-              and len(ids) >= 2,
-              "reason=%s block_ids=%s" % (
-                  sorted({d.get("reason") for d in details}), ids))
+        check("T2.2 走正常校验响应，不是结构错误",
+              env.get("status") == "success" and not r["result"].get("isError"),
+              "status=%s" % env.get("status"))
+        v = env.get("data") or {}
+        check("T2.3 validation_status=invalid", v.get("validation_status") == "invalid",
+              "validation_status=%s" % v.get("validation_status"))
+        vs = v.get("violations") or []
+        overlap = [x for x in vs if x.get("code") == "BLOCK_OVERLAP"]
+        check("T2.4 violations 含 BLOCK_OVERLAP", len(overlap) == 1,
+              "codes=%s" % [x.get("code") for x in vs])
+
+        ids = sorted(overlap[0].get("related_block_ids") or []) if overlap else []
+        expect = sorted({i for pr in pairs for i in pr})
+        check("T2.5 related_block_ids 指向冲突双方",
+              len(ids) == 2 and ids == expect,
+              "related_block_ids=%s expect=%s" % (ids, expect))
+        check("T2.6 带 message 与 related_task_ids",
+              bool(overlap and overlap[0].get("message"))
+              and bool(overlap and overlap[0].get("related_task_ids")),
+              "message=%r related_task_ids=%s" % (
+                  (overlap[0].get("message") or "")[:40] if overlap else None,
+                  overlap[0].get("related_task_ids") if overlap else None))
     finally:
         c.p.kill()
 
