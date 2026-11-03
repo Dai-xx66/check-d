@@ -57,7 +57,16 @@ PREFS = {"day_start_minute": 480, "day_end_minute": 1350, "minimum_block_minutes
 
 # M0 裁定：全程角标 + 片头全屏。做进画面而不是贴窗口，避免录制中切换窗口导致时间轴断裂。
 BANNER = "[MOCK · 非真实写入]  非真实业务端点 / 不产生真实写入"
-INTRO = r"""
+
+# 片头卡上要写清「按哪个契约返回」。契约 SHA 不得硬编码：滚动换契约时
+# 画面里写错 SHA 等于误述，由 --contract-sha 注入，默认取当前冻结值。
+DEFAULT_CONTRACT_SHA = "39f7f96559abac9d4bc59d5c560e6a706ec19946"
+CONTRACT_SHA = DEFAULT_CONTRACT_SHA
+
+
+def intro_text():
+    short = CONTRACT_SHA[:8]
+    return r"""
    ███╗   ███╗ ██████╗  ██████╗██╗  ██╗
    ████╗ ████║██╔═══██╗██╔════╝██║ ██╔╝
    ██╔████╔██║██║   ██║██║     █████╔╝
@@ -68,8 +77,11 @@ INTRO = r"""
         非真实写入 · 非真实业务端点 · 非生产环境
 
    本段为 B 轨 Mock 环境流程演示，画面中的响应体
-   由 Mock 服务按契约 c9dda83 返回，不是真实后端。
-"""
+   由 Mock 服务按契约 {sha} 返回，不是真实后端。
+""".format(sha=CONTRACT_SHA)
+
+
+INTRO = intro_text()
 CLOSING = """
 收尾声明（必须念）：
   「以上全部为 Mock 环境流程演示；真实写入、真实审批、
@@ -207,7 +219,7 @@ class Driver:
     # ---------------------------------------------------------------- shots
     def shot0(self):
         """片头卡：停满 3 秒再往下走（M0 纪律第 1 条）。"""
-        print(INTRO)
+        print(intro_text())
         print("  " + BANNER)
         print("  ↑ 片头卡：请停满 3 秒再说第一句。")
         hr()
@@ -337,7 +349,7 @@ class Driver:
         for v in vio[:5]:
             kv("    " + str(v.get("code")), "task_id=%s" % v.get("task_id"))
         print()
-        print("  [!] 冲突要说清哪一条违规、为什么；code 是 7 值闭集，集外即越界。")
+        print("  [!] 冲突要说清哪一条违规、为什么；code 是 8 值闭集（含 BLOCK_OVERLAP），集外即越界。")
 
     def shot5(self):
         pid = self.s.get("pid")
@@ -507,13 +519,18 @@ class Driver:
 
 
 def main():
+    global CONTRACT_SHA
     ap = argparse.ArgumentParser()
     ap.add_argument("--mock", required=True, help="M1 mock 的 tool_server.py 路径")
+    ap.add_argument("--contract-sha", default=DEFAULT_CONTRACT_SHA,
+                    help="录制所用契约 commit（写在片头卡上，默认当前冻结值）")
     a = ap.parse_args()
+    CONTRACT_SHA = a.contract_sha
     d = Driver(a.mock)
     hr()
     print("  D4 B 轨录制驱动  |  连接 %s" % os.path.basename(d.mock_path))
     print("  mock sha256 = %s" % d.mock_sha)
+    print("  契约 commit = %s" % CONTRACT_SHA)
     print("  演示窗口 %s ~ %s（含 10-30 15:00 外部固定会议）" % (RANGE["start"], RANGE["end"]))
     print("  镜号：0 片头卡 | 1 2 3 3u 4 5 5a 5x 6 7 8 | fin 收尾      q = 退出")
     hr()
