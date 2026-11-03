@@ -17,6 +17,33 @@
 
 ---
 
+## 本次实际执行方式（与分镜的差异，必须照说）
+
+WorkBuddy 任务窗**没有接到** Mock（工作区无 MCP 接线配置，`docs/workbuddy/tool-mapping.md` 也只到平台侧），
+因此 8 镜的调用由**同一个 Mock** 经 stdio 驱动脚本发出，屏幕上看的是真实 `request_id` 与真实响应体，
+不是回放录像、也不是我编的文本。替代关系：
+
+| 分镜原写法 | 本次实际画面 |
+|---|---|
+| 「在任务窗里发一句话」 | 终端里输入镜号 `3`，脚本发出 `tools/call generate_schedule` |
+| 面板出现 Proposal 卡 | 终端打印 `proposal_id` / `status` / `changes` / `explanations` / `expires_at` |
+
+**口播必须如实说明这一点**（片头加一句）：
+"任务窗尚未接入 Mock，下面由驱动脚本直接向同一个 Mock 发起调用，响应体是真实返回，不是回放。"
+
+不这么说的后果：观众会以为任务窗已接通，属于误述。
+
+启动命令（一个终端窗口即可，保持常驻）：
+
+```bash
+cd check-d
+python tools/m3-checks/demo_driver.py --mock <e7dd43b1d>/tools/m1-mock/tool_server.py
+```
+
+进入后按镜号回车：`1` `2` `3` `4` `5` `5a` `6` `7` `8`（`3u` / `5x` 为选做补充镜）。
+
+---
+
 ## 8 镜执行卡
 
 | 镜 | 你做什么 | 画面必须出现 | 口播关键句 |
