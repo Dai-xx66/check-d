@@ -1,7 +1,7 @@
 /// M3 / C 侧 D6 测量：突发事件重排的「移动数量 / 冲突情况」 vs 最简单优先级排序基线。
 ///
 /// 被测对象是 M2 的真实调度引擎（`schedule_engine.dart` + `schedule_contract.dart`，
-/// 取自 PR #2 head `0f87d4431`），不是 M3 重写的模拟实现。本脚本只做三件事：
+/// 取自 PR #2 head `e776232`，2026-11-03 的就近落点修复版），不是 M3 重写的模拟实现。本脚本只做三件事：
 ///   1. 用 `fixtures/education/scenario_c_meeting_replan.json` 构造「会议插入前」的输入；
 ///   2. 把 fixture 的 4 条既有安排当作上一版提案 P0；
 ///   3. 分别跑两条策略，再用同一套指标与 P0 比较。
@@ -313,7 +313,7 @@ void main(List<String> args) {
     'fixture': fixturePath,
     'scenario_id': fixture['scenario_id'],
     'today': today.toIso8601String().substring(0, 10),
-    'engine_source': 'PR #2 head 0f87d4431（M2 schedule_engine.dart）',
+    'engine_source': 'PR #2 head e7762321（M2 schedule_engine.dart）',
     'before': {
       'blocks': previous.blocks.length,
       'planned_minutes': previous.totalPlannedMinutes,

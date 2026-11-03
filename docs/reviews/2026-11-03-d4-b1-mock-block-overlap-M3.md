@@ -106,3 +106,15 @@ busy = sorted(busy + [(_hm(bs), _hm(be))])   # 或维护 day_busy[d].append(...)
 ---
 
 编制：钟钰芬（C / M3）｜2026-11-03
+
+## 8. 追加：8757c0e 复测（2026-11-03，PR #3 最新 head）
+
+M1 当日推送 `8757c0e5542f9c11b73f6933bf2683ca01082334`（EX-15/17/18 计数器 + 生成器
+`strict_bool`），本轮复测确认**本报告的 P1 未被触碰**：
+
+- `tools/m1-mock/tool_server.py` sha256 前 16 位 `0ff37fe2940cdfe3`，与 `e7dd43b1d` **字节相同**；
+- 实测 `generate_schedule`：10-29 四块同起点 09:40；块间重叠 **9 对**（10-29 六对 + 10-30/31、11-01 各一对）；
+- 实测 `validate_schedule`：`validation_status=valid` / `violations=0`。
+
+因此 8 镜录制的内容级阻塞仍然成立：开录会把「四块堆在同一时刻、校验器说没问题」录进镜头 3 与镜头 4。
+修复仍按 §5 的两处补丁；`BLOCK_OVERLAP` 是否入闭集由 M0 定。

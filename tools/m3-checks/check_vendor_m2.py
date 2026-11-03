@@ -23,7 +23,7 @@ import pathlib
 import sys
 import urllib.request
 
-PINNED_SHA = "0f87d4431"
+PINNED_SHA = "e77623217"
 REMOTE_TEMPLATE = (
     "https://raw.githubusercontent.com/Tony2215/check-d/{sha}/{path}"
 )

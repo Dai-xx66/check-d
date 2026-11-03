@@ -267,9 +267,71 @@ ProposedBlock? _placeDemand(
   return null;
 }
 
+/// 在原位置附近找最近的可放位置，专供「被硬约束撞掉」的块使用。
+///
+/// 只用「移动块数」衡量扰动是不够的：一块从 15:00 挪到 08:00 也只算 1 块，
+/// 但位移 420 分钟，和用户说的「其他尽量别动」是两件事。所以这里以**位移分钟**
+/// 为目标——先试原位置之后的最近空档，再退原位置之前，距离相同优先落在之后
+/// （往后顺延比往前甩 7 小时更符合预期）。
+/// 默认在全部片段里取全局最小位移；给了 [maxShiftMinutes] 就只在边界内找，
+/// 边界内无解返回 null，由调用方退最早可用。
+ProposedBlock? _placeNearest(
+  List<ScheduleWindow> free,
+  ScheduleTaskDemand demand,
+  ScheduleInput input,
+  DateTime originStart, {
+  int? maxShiftMinutes,
+}) {
+  final duration = _durationOf(demand, input);
+  if (duration.minutes <= 0) return null;
+  final need = Duration(minutes: duration.minutes);
+
+  ProposedBlock? best;
+  var bestDelta = 1 << 62;
+  var bestIsAfter = false;
+
+  for (final window in free) {
+    var minStart = _later(window.startAt, input.now);
+    final earliest = demand.earliestStartAt;
+    if (earliest != null) minStart = _later(minStart, earliest);
+
+    var latestEnd = window.endAt;
+    final deadline = demand.deadline;
+    if (deadline != null) latestEnd = _earlier(latestEnd, deadline.latestEndAt);
+
+    if (!minStart.isBefore(latestEnd)) continue;
+    if (latestEnd.difference(minStart) < need) continue;
+
+    // 该片段内所有可行起点是连续区间 [minStart, latestEnd - need]，
+    // 于是离原位置最近的那个点就是「把原位置夹到区间里」。
+    final maxStart = latestEnd.subtract(need);
+    var start = originStart;
+    if (start.isBefore(minStart)) start = minStart;
+    if (start.isAfter(maxStart)) start = maxStart;
+
+    final delta = start.difference(originStart).inMinutes.abs();
+    // 边界只在显式给定时生效：超界的候选不算「合理的局部位置」，
+    // 交给调用方退最早可用。
+    if (maxShiftMinutes != null && delta > maxShiftMinutes) continue;
+    final isAfter = !start.isBefore(originStart);
+    if (delta < bestDelta || (delta == bestDelta && isAfter && !bestIsAfter)) {
+      bestDelta = delta;
+      bestIsAfter = isAfter;
+      best = ProposedBlock(
+        taskId: demand.taskId,
+        title: demand.title,
+        startAt: start,
+        endAt: start.add(need),
+        taskKind: demand.taskKind,
+        hasDurationTarget: duration.fromTarget,
+      );
+    }
+  }
+  return best;
+}
+
 /// 从空闲片段中扣除已占用的时段。
-List<ScheduleWindow> _subtract(List<ScheduleWindow> free, ScheduleWindow taken) {
-  final result = <ScheduleWindow>[];
+List<ScheduleWindow> _subtract(List<ScheduleWindow> free, ScheduleWindow taken) {  final result = <ScheduleWindow>[];
   for (final window in free) {
     if (_atOrBefore(window.endAt, taken.startAt) ||
         _atOrAfter(window.startAt, taken.endAt)) {
@@ -486,10 +548,20 @@ bool _isInsideAny(List<ScheduleWindow> usable, ScheduleWindow candidate) {
 ///
 /// 策略：上一版里没被新课程/会议撞到的块原样保留；
 /// 只有真正冲突的柔性任务才重新找位置，其余尽量不动。
+///
+/// [maxShiftMinutes] 是「就近」的候选空档搜索边界（分钟，可空）。
+/// - 省略（默认）：不设边界，在全部可行空档里取**绝对位移最小**的那个；
+/// - 给定值：偏离原开始时间超过该值的空档不算「合理的局部位置」，
+///   全部候选都超界时退回到最早可用位置。
+///
+/// 默认不设边界，是因为全局限最小位移在位置质量上恒定不劣于最早可用；
+/// 只有在业务上不接受「跨半天挪动」时才需要收紧边界，取值属契约外的
+/// 调度策略参数，需由 M0 指位后由服务端传入，M2 不自定阈值。
 ScheduleProposal repairSchedule(
   ScheduleInput input,
-  ScheduleProposal previous,
-) {
+  ScheduleProposal previous, {
+  int? maxShiftMinutes,
+}) {
   final notes = <ScheduleNote>[];
   for (final block in _overlappingFixedBlocks(input)) {
     notes.add(
@@ -565,6 +637,11 @@ ScheduleProposal repairSchedule(
   ];
   var free = _subtractAll(usable, busy);
 
+  // 被撞掉的块原来在哪，决定它「就近」该去哪儿。
+  final originStartByTask = <String, DateTime>{
+    for (final block in previous.blocks) block.taskId: block.startAt,
+  };
+
   final moved = <ProposedBlock>[];
   final unplanned = <UnplannedTask>[];
 
@@ -593,7 +670,19 @@ ScheduleProposal repairSchedule(
       continue;
     }
 
-    final block = _placeDemand(free, demand, input);
+    // 上一版有位置的块「就近重排」，新任务才按最早可用排。
+    // 就近搜索无解（含显式边界把候选全部排除）时才退回最早可用。
+    final origin = originStartByTask[demand.taskId];
+    final block = (origin == null
+            ? null
+            : _placeNearest(
+                free,
+                demand,
+                input,
+                origin,
+                maxShiftMinutes: maxShiftMinutes,
+              )) ??
+        _placeDemand(free, demand, input);
     if (block == null) {
       unplanned.add(
         _unplanned(
@@ -621,8 +710,12 @@ ScheduleProposal repairSchedule(
       ScheduleNote(
         code: 'DISPLACED_BY_FIXED',
         taskId: demand.taskId,
-        message: '${demand.title} 与新增日程冲突，'
-            '移到 ${_clock(block.startAt)}–${_clock(block.endAt)}。',
+        message: origin == null
+            ? '${demand.title} 与新增日程冲突，'
+                '移到 ${_clock(block.startAt)}–${_clock(block.endAt)}。'
+            : '${demand.title} 与新增日程冲突，从 ${_clock(origin)} 就近移到 '
+                '${_clock(block.startAt)}–${_clock(block.endAt)}'
+                '（位移 ${block.startAt.difference(origin).inMinutes.abs()} 分钟）。',
       ),
     );
     free = _subtract(free, block.window);
@@ -634,13 +727,22 @@ ScheduleProposal repairSchedule(
     return start != 0 ? start : a.taskId.compareTo(b.taskId);
   });
 
+  // 扰动成本两个维度都要能被读出来：块数与位移。
+  // 只报块数会把「1 块挪 7 小时」美化成最小扰动。
+  final displacementMinutes = moved.fold<int>(0, (sum, block) {
+    final origin = originStartByTask[block.taskId];
+    if (origin == null) return sum;
+    return sum + block.startAt.difference(origin).inMinutes.abs();
+  });
+
   final movedCount = moved.length;
   notes.add(
     ScheduleNote(
       code: 'REPAIR_SUMMARY',
       message: movedCount == 0
           ? '新增日程与现有安排无冲突，计划保持原样。'
-          : '共移动 $movedCount 处安排，其余保持不变。',
+          : '共移动 $movedCount 处安排，总位移 $displacementMinutes 分钟，'
+              '其余保持不变。',
     ),
   );
 
