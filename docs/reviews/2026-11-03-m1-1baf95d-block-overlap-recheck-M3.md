@@ -96,3 +96,30 @@ python tools/m3-checks/verify_m1_evidence.py \
 printf '0\n1\n2\n3\n3u\n4\n5\n5a\n5x\n6\n7\n8\nfin\nq\n' | \
   python tools/m3-checks/demo_driver.py --mock <path>/tools/m1-mock/tool_server.py
 ```
+
+## 八、追加复核：`7e1367c2`（按 M0 第 5 点收敛检测顺序）
+
+M1 于 12:04 推送 `7e1367c2e22f03cebc29770b44a87c6f0c71066e`（PR #3 head，父 `1baf95d0`），
+只做一件事：把块间重叠循环整体移到「块时间合法性 + 块 vs 固定事件」之后，并新增 T1.5 混合场景。
+**本版取代 1baf95d 成为录制候选 HEAD。**
+
+文件自证：`tool_server.py` `ee2eeb10defb6b59…`、`test_block_overlap.py` `95ea739720f0182f…`，
+远端 raw 与 M1 自述一致。
+
+| 项 | 实测（7e1367c2） | 结论 |
+|---|---|---|
+| 正常生成 | 10 块 / 510 分钟，重叠 0 对，`unplanned=[]`，10-29 四块首尾相接 09:40→13:40 | PASS |
+| 正常校验 | `valid` / `violations=[]` | PASS |
+| 注入重叠 | `success` envelope、`invalid`、1 条 `BLOCK_OVERLAP`、`related_block_ids=['b_0001','b_0021']`、`related_task_ids=['t_1001']` | PASS |
+| 码序（M0 第 5 点） | 混合场景 `codes=['FIXED_EVENT_CONFLICT','BLOCK_OVERLAP']`——固定事件在前，未被新码抢占 | PASS |
+| 单块 vs 固定事件 | 仅 `FIXED_EVENT_CONFLICT`，不误报 `BLOCK_OVERLAP` | PASS |
+| 闸门 | G0–G6 7/7，`GATE_EXIT=0` | PASS |
+| 证据 | 35 条，契约冲突 0 / A 0 / B 0 / 需说明 1（EX-01 沿用），`VERIFY_EXIT=0` | PASS |
+| 8 镜全链 | `0 1 2 3 3u 4 5 5a 5x 6 7 8 fin` 全程 0 异常；镜头 3 无重叠、镜头 4 `valid`/0、镜头 6 写入 delta 0 | PASS |
+| M1 自测 | `test_block_overlap.py` 11/11（T1.1–1.5、T2.1–2.6），exit 0 | PASS |
+
+我的独立探针 `probe_block_overlap_1baf95d.py` 在本版 16/16 通过（同一脚本，未为适配新版本改断言）。
+
+**结论：代码侧已可作录制 HEAD。** 契约 §5.8 仍未补 `BLOCK_OVERLAP`（`c9dda83`），
+按 M0 04:02 口径，最终以「代码 SHA + 契约 SHA 两者一致」为准；M0 给出新契约 SHA 后，
+我用 `--contract` 指过去复跑一次即闭合，不重跑 8 镜。
