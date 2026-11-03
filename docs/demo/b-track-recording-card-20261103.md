@@ -30,12 +30,13 @@ cd <check-d 克隆>
 python tools/m3-checks/demo_driver.py \
   --mock <7e1367c2 快照>/tools/m1-mock/tool_server.py \
   --contract-sha 39f7f96559abac9d4bc59d5c560e6a706ec19946 \
-  --auto --hold 12
+  --auto --hold 20
 ```
 
 `--auto` 会自己按 `0 → 1 → 2 → 3 → 4 → 5 → 5a → 6 → 7 → 8 → fin` 播完，**录制中不需要碰键盘**；
 每镜执行后会把「【旁白 · 照念】」打在屏幕上，照着念即可（同时充当画面字幕）。
-`--start-delay` 默认 10 秒倒计时，留时间按录制键；念得快可调 `--hold`（默认 8，建议 12）。
+**停留期间屏幕左下角有「[停留 Ns]」倒计时**，看到它归零就会切下一镜，不用猜。
+`--start-delay` 默认 10 秒倒计时，留时间按录制键；`--hold` 默认 20（念得慢可改 25，总时长仍 < 6 分钟）。
 
 > 已实测：该命令下 `7/7 tools loaded`、`server = checkd-agent-mock 0.4.0`、`mock sha256 = ee2eeb10…`、`list_tasks` 读出 4 条任务（t_1001 实验报告 / t_1002 英语六级听力复习 / t_1003 背单词 / t_1004 线性代数复习）；全 11 段自动跑通，镜 6 断言 `[PASS]`、镜 7 逐条一致 4/4、镜 8 同键 `IDEMPOTENCY_IN_PROGRESS` 换新键 `READBACK_PENDING` delta 0。
 

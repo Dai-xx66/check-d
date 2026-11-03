@@ -600,7 +600,14 @@ def run_auto(d, table, seq, lead, hold, start_delay):
         teleprompt(key)
         stamp.append((key, time.time() - t0))
         if hold:
-            time.sleep(hold)
+            # 停留倒计时：让录制者看得到还剩几秒，不必猜节奏。
+            n = max(1, int(round(hold)))
+            for s in range(n, 0, -1):
+                sys.stdout.write("\r     [停留 %2ds]  念完就等，不要碰键盘……" % s)
+                sys.stdout.flush()
+                time.sleep(1)
+            sys.stdout.write("\r" + " " * 64 + "\r")
+            sys.stdout.flush()
     print()
     hr()
     print("  自动播放结束。各镜录制内时间点（写进交付说明用）：")
@@ -620,8 +627,8 @@ def main():
                     help="自动按 0→1→2→3→4→5→5a→6→7→8→fin 播放，无需键入镜号")
     ap.add_argument("--lead", type=float, default=2.0,
                     help="每镜执行前的静置秒数（默认 2）")
-    ap.add_argument("--hold", type=float, default=8.0,
-                    help="每镜旁白出现后停留秒数，给你念完的时间（默认 8）")
+    ap.add_argument("--hold", type=float, default=20.0,
+                    help="每镜旁白出现后停留秒数，给你念完的时间（默认 20，屏幕上会倒计时）")
     ap.add_argument("--start-delay", type=float, default=10.0,
                     help="自动播放启动倒计时秒数（默认 10，留时间按录制键）")
     ap.add_argument("--seq", default="",
