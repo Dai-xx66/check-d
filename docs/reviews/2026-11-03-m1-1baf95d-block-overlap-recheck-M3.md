@@ -137,10 +137,21 @@ M1 于 04:13Z 主动撤回了他上一封"本地 3d90bf8 内容等同 7e1367c2"�
 | `.gitignore` 703B − 52 = 651B（本地） | 差 0 | PASS |
 | `run_evidence_c53.py` 30685B − 652 = 30033B（本地） | 差 0 | PASS |
 
-一处未圆上的口径（已回信请其收敛）：远端 `tool_server.py` 含 **1156 个 CRLF**，
-与"该文件本地 blob 与远端 blob 完全相同"及"提交时归一为 LF、上传的是工作区 CRLF"
-这两句话只能成立一个。不影响本报告判定——本报告全部结论用的是**远端字节**
-（GitHub tarball / raw），`tool_server.py` sha256 `ee2eeb10defb6b59…` 即远端真值。
+**已闭合**（2026-11-03 12:22 M1 更正 + 本侧独立复算）：远端 `tool_server.py` 含 1156 个 CRLF
+是**索引本身就是 CRLF**（入库未归一），不是"归一后被上传覆盖"。用 git blob 公式
+（`sha1("blob <len>\0" + bytes)`）从远端字节复算：
+
+| 形态 | 字节 | git blob | 与何者相同 |
+|---|---|---|---|
+| 原样（CRLF） | 52477B / 1156 CRLF | `df42507dc62296c3…` | 本地 commit blob **与**远端 tree 对象（同一对象） |
+| 归一为 LF | 51321B | `c7c6b41b0bf8e0cc…` | M1 `git hash-object --path` 的结果 |
+
+两式均与 M1 自述逐字相同，故"索引存的是 CRLF 原样、非归一产物"的推理成立，不依赖其本机输出。
+两条路径因此不矛盾：15 个文件是「LF blob + CRLF 上传」，`tool_server.py` 是「CRLF blob + CRLF 上传」；
+15 个清单里没有它，正是其 `i/crlf` 的反证。成因仍未确证，记录为「索引含 CRLF，成因未确证」，不作归因。
+
+对本报告的意义：`tool_server.py` 的 commit blob 与本报告复核所用字节是**同一个 git 对象**，
+即本报告是对「提交产物」的复核，而非某个工作区快照。
 
 本侧同源核查：M3 分支远端 head 与本地 HEAD 同为 `964b9bc930afd26d…`，
 逐字相同，故本报告及此前记录中的 SHA 均可直接作远端 SHA 引用。
