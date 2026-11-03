@@ -55,6 +55,27 @@ MEETING = {
 }
 PREFS = {"day_start_minute": 480, "day_end_minute": 1350, "minimum_block_minutes": 25}
 
+# M0 裁定：全程角标 + 片头全屏。做进画面而不是贴窗口，避免录制中切换窗口导致时间轴断裂。
+BANNER = "[MOCK · 非真实写入]  非真实业务端点 / 不产生真实写入"
+INTRO = r"""
+   ███╗   ███╗ ██████╗  ██████╗██╗  ██╗
+   ████╗ ████║██╔═══██╗██╔════╝██║ ██╔╝
+   ██╔████╔██║██║   ██║██║     █████╔╝
+   ██║╚██╔╝██║██║   ██║██║     ██╔═██╗
+   ██║ ╚═╝ ██║╚██████╔╝╚██████╗██║  ██╗
+   ╚═╝     ╚═╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝
+
+        非真实写入 · 非真实业务端点 · 非生产环境
+
+   本段为 B 轨 Mock 环境流程演示，画面中的响应体
+   由 Mock 服务按契约 c9dda83 返回，不是真实后端。
+"""
+CLOSING = """
+收尾声明（必须念）：
+  「以上全部为 Mock 环境流程演示；真实写入、真实审批、
+    生产回读仍为 BLOCKED，待 A 轨补录。」
+"""
+
 
 def hr(ch="=", n=96):
     print(ch * n)
@@ -63,6 +84,7 @@ def hr(ch="=", n=96):
 def title(text):
     print()
     hr()
+    print("  " + BANNER)
     print("  " + text)
     hr()
 
@@ -183,6 +205,17 @@ class Driver:
         return "status=error code=%s retryable=%s" % (e.get("code"), e.get("retryable"))
 
     # ---------------------------------------------------------------- shots
+    def shot0(self):
+        """片头卡：停满 3 秒再往下走（M0 纪律第 1 条）。"""
+        print(INTRO)
+        print("  " + BANNER)
+        print("  ↑ 片头卡：请停满 3 秒再说第一句。")
+        hr()
+        print("  第一句（必须说）：「本段演示使用 Mock 后端，不是真实业务端点，不产生真实写入。」")
+        print("  第二句（本机实况）：「任务窗尚未接入 Mock，下面由驱动脚本直接向同一个 Mock 发起调用，")
+        print("                        响应体是真实返回，不是回放。」")
+        hr()
+
     def shot1(self):
         title("镜 1/8  片头：工具已加载（MOCK · 非真实写入）")
         r = self.rpc("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
@@ -461,6 +494,10 @@ class Driver:
         print()
         print("  [!] 这就是防重复写入的三道闸：同键幂等 / 换键仍拦 / 执行中不二次写。")
 
+    def shotfin(self):
+        title("收尾：声明边界（念完即可停止录制）")
+        print(CLOSING)
+
     def close(self):
         try:
             self.proc.stdin.close()
@@ -478,11 +515,11 @@ def main():
     print("  D4 B 轨录制驱动  |  连接 %s" % os.path.basename(d.mock_path))
     print("  mock sha256 = %s" % d.mock_sha)
     print("  演示窗口 %s ~ %s（含 10-30 15:00 外部固定会议）" % (RANGE["start"], RANGE["end"]))
-    print("  镜号：1 2 3 3u 4 5 5a 5x 6 7 8      q = 退出")
+    print("  镜号：0 片头卡 | 1 2 3 3u 4 5 5a 5x 6 7 8 | fin 收尾      q = 退出")
     hr()
-    table = {"1": d.shot1, "2": d.shot2, "3": d.shot3, "3u": d.shot3u, "4": d.shot4,
-             "5": d.shot5, "5a": d.shot5a, "5x": d.shot5x, "6": d.shot6,
-             "7": d.shot7, "8": d.shot8}
+    table = {"0": d.shot0, "1": d.shot1, "2": d.shot2, "3": d.shot3, "3u": d.shot3u,
+             "4": d.shot4, "5": d.shot5, "5a": d.shot5a, "5x": d.shot5x, "6": d.shot6,
+             "7": d.shot7, "8": d.shot8, "fin": d.shotfin}
     try:
         while True:
             try:
