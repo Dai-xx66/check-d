@@ -176,6 +176,10 @@ class Driver:
             print("     入参：%s" % tag)
         r = self.rpc("tools/call", {"name": tool, "arguments": args})
         body = (r.get("result") or {}).get("structuredContent") or {}
+        # M0 要求画面同时可见 request_id 与 trace_id：请求侧 rid 已在上一行打印，
+        # 这里补打印响应体里的 trace_id（由服务端生成，不是客户端伪造的值）。
+        print("  <- trace_id=%s   (response.status=%s)"
+              % (body.get("trace_id") or "(none)", body.get("status") or "(none)"))
         return rid, body
 
     # ------------------------------------------------------------- helpers
@@ -633,7 +637,22 @@ def main():
                     help="自动播放启动倒计时秒数（默认 10，留时间按录制键）")
     ap.add_argument("--seq", default="",
                     help="自定义镜序，逗号分隔，如 1,2,3,4,5,5a,6,7,8")
+    ap.add_argument("--log", default="",
+                    help="把整场终端输出同时写入该文件（逐镜日志，供交付取证）")
     a = ap.parse_args()
+    if a.log:
+        class _Tee:
+            def __init__(self, path):
+                self.f = open(path, "w", encoding="utf-8", newline="")
+            def write(self, s):
+                sys.__stdout__.write(s)
+                self.f.write(s)
+                return len(s)
+            def flush(self):
+                sys.__stdout__.flush()
+                self.f.flush()
+        sys.stdout = _Tee(a.log)
+        print("  log 文件 = %s" % a.log)
     CONTRACT_SHA = a.contract_sha
     d = Driver(a.mock)
     hr()
