@@ -1,0 +1,1561 @@
+{
+  "document_type": "checkd_agent_api_v1_mock_examples",
+  "status": "candidate_not_frozen",
+  "api_version": "checkd.agent.v1",
+  "timezone": "Asia/Shanghai",
+  "auth_mode": "static_bearer_demo",
+  "notice": "All identifiers, content, versions, approval records, and tokens are fictional and invalid for production. Mock success does not prove WorkBuddy, approval service, transaction, RLS, or production API availability.",
+  "tools": [
+    "list_tasks",
+    "get_calendar_events",
+    "generate_schedule",
+    "validate_schedule",
+    "request_approval",
+    "get_approval_status",
+    "apply_approved_changes"
+  ],
+  "internal_fixtures": [
+    {
+      "name": "remaining_minutes_today_zero_is_already_done",
+      "remote_tool_request": false,
+      "purpose": "M2 internal scheduling fixture; never accepted as generate_schedule request input.",
+      "input": {
+        "task_id": "task_mock_recurring_done",
+        "kind": "recurring",
+        "duration_target_seconds": 7200,
+        "remaining_minutes_today": 0
+      },
+      "expected": {
+        "blocks": [],
+        "unplanned_tasks": [],
+        "explanations": [
+          {
+            "code": "ALREADY_DONE_TODAY",
+            "message": "该周期任务今天的目标已经完成。",
+            "related_task_ids": ["task_mock_recurring_done"]
+          }
+        ],
+        "minimum_duration_fallback_used": false
+      }
+    },
+    {
+      "name": "remaining_minutes_today_limits_target_to_forty_minutes",
+      "remote_tool_request": false,
+      "purpose": "M2 internal scheduling fixture; never accepted as generate_schedule request input.",
+      "input": {
+        "task_id": "task_mock_recurring_partial",
+        "kind": "recurring",
+        "duration_target_seconds": 7200,
+        "remaining_minutes_today": 40
+      },
+      "expected": {
+        "blocks": [
+          {
+            "task_id": "task_mock_recurring_partial",
+            "duration_seconds": 2400,
+            "duration_source": "task_target"
+          }
+        ],
+        "unplanned_tasks": []
+      }
+    },
+    {
+      "name": "input_digest_changes_when_horizon_changes",
+      "remote_tool_request": false,
+      "purpose": "Server snapshot canonicalization fixture; trusted data and preferences are otherwise identical.",
+      "first": {
+        "timezone": "Asia/Shanghai",
+        "horizon_start": "2026-11-01T08:00:00+08:00",
+        "horizon_end": "2026-11-01T22:00:00+08:00",
+        "input_digest": "sha256:mock_horizon_digest_a_not_production"
+      },
+      "second": {
+        "timezone": "Asia/Shanghai",
+        "horizon_start": "2026-11-01T09:00:00+08:00",
+        "horizon_end": "2026-11-01T22:00:00+08:00",
+        "input_digest": "sha256:mock_horizon_digest_b_not_production"
+      },
+      "expected": {"digests_are_different": true}
+    },
+    {
+      "name": "ttl_equality_expires_proposal_approval_and_token",
+      "remote_tool_request": false,
+      "purpose": "Server clock boundary fixture for the shared now >= expires_at rule.",
+      "now": "2026-11-01T10:30:00+08:00",
+      "proposal_expires_at": "2026-11-01T10:30:00+08:00",
+      "approval_expires_at": "2026-11-01T10:30:00+08:00",
+      "token_expires_at": "2026-11-01T10:30:00+08:00",
+      "expected": {
+        "proposal_expired": true,
+        "approval_expired": true,
+        "token_expired": true
+      }
+    }
+  ],
+  "examples": [
+    {
+      "name": "list_tasks_with_recurring_and_one_time",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-11-01", "end": "2026-11-04"},
+          "kinds": ["recurring", "one_time"],
+          "statuses": ["active"],
+          "include_completed": false
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_001",
+        "trace_id": "trace_mock_tasks_001",
+        "status": "success",
+        "data": {
+          "query_version": "mock_task_query_not_a_base_version",
+          "date_range": {"start": "2026-11-01", "end": "2026-11-04"},
+          "tasks": [
+            {
+              "task_id": "task_mock_recurring_reading",
+              "kind": "recurring",
+              "name": "英语阅读练习",
+              "status": "active",
+              "execution_mode": "timed",
+              "duration_target_seconds": 1800,
+              "recurrence": {
+                "preset": "weekdays",
+                "weekdays": [1, 2, 3, 4, 5],
+                "starts_on": "2026-09-01",
+                "ends_on": null,
+                "scheduled_minute_of_day": 1140
+              },
+              "updated_at": "2026-10-31T20:10:00+08:00"
+            },
+            {
+              "task_id": "task_mock_one_time_report",
+              "kind": "one_time",
+              "name": "完成课程报告初稿",
+              "status": "active",
+              "execution_mode": "untimed",
+              "duration_target_seconds": null,
+              "available_from": "2026-11-01",
+              "planned_date": null,
+              "scheduled_at": null,
+              "deadline": {"kind": "date_only", "date": "2026-11-02"},
+              "updated_at": "2026-10-31T20:15:00+08:00"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "get_calendar_with_course_and_unexpected_meeting",
+      "tool": "get_calendar_events",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-11-01", "end": "2026-11-01"},
+          "external_fixed_events": [
+            {
+              "external_event_id": "external_mock_meeting_001",
+              "title": "临时项目会议",
+              "start_at": "2026-11-01T15:00:00+08:00",
+              "end_at": "2026-11-01T16:00:00+08:00"
+            }
+          ]
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_001",
+        "trace_id": "trace_mock_calendar_001",
+        "status": "success",
+        "data": {
+          "query_version": "mock_calendar_query_not_a_base_version",
+          "courses": [
+            {
+              "course_id": "course_mock_database",
+              "name": "数据库系统",
+              "status": "active",
+              "semester_starts_on": "2026-09-07",
+              "semester_ends_on": "2027-01-10",
+              "rules": [
+                {
+                  "rule_id": "course_rule_mock_sunday",
+                  "weekday": 7,
+                  "week_rule_type": "every_week",
+                  "start_week": 1,
+                  "end_week": 18,
+                  "interval_weeks": null,
+                  "week_numbers": [],
+                  "start_minute": 480,
+                  "end_minute": 570
+                }
+              ]
+            }
+          ],
+          "daily_overrides": [],
+          "events": [
+            {
+              "event_id": "event_mock_course_001",
+              "event_type": "course",
+              "source_id": "course_mock_database",
+              "date": "2026-11-01",
+              "start_at": "2026-11-01T08:00:00+08:00",
+              "end_at": "2026-11-01T09:30:00+08:00",
+              "fixed": true,
+              "applied_override_id": null
+            },
+            {
+              "event_id": "event_mock_meeting_001",
+              "event_type": "external_fixed_event",
+              "source_id": "external_mock_meeting_001",
+              "date": "2026-11-01",
+              "start_at": "2026-11-01T15:00:00+08:00",
+              "end_at": "2026-11-01T16:00:00+08:00",
+              "fixed": true,
+              "applied_override_id": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty_task_list_is_success",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_empty",
+        "timezone": "Asia/Shanghai",
+        "input": {"date_range": {"start": "2026-11-03", "end": "2026-11-03"}}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_tasks_empty",
+        "trace_id": "trace_mock_tasks_empty",
+        "status": "success",
+        "data": {
+          "query_version": "mock_empty_task_query_not_a_base_version",
+          "date_range": {"start": "2026-11-03", "end": "2026-11-03"},
+          "tasks": []
+        }
+      }
+    },
+    {
+      "name": "empty_calendar_is_success",
+      "tool": "get_calendar_events",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_empty",
+        "timezone": "Asia/Shanghai",
+        "input": {"date_range": {"start": "2026-11-03", "end": "2026-11-03"}}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_calendar_empty",
+        "trace_id": "trace_mock_calendar_empty",
+        "status": "success",
+        "data": {
+          "query_version": "mock_empty_calendar_query_not_a_base_version",
+          "courses": [],
+          "daily_overrides": [],
+          "events": []
+        }
+      }
+    },
+    {
+      "name": "unauthorized_request",
+      "tool": "list_tasks",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_unauthorized",
+        "timezone": "Asia/Shanghai",
+        "input": {"date_range": {"start": "2026-11-01", "end": "2026-11-01"}}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_unauthorized",
+        "trace_id": "trace_mock_unauthorized",
+        "status": "error",
+        "error": {
+          "code": "AUTH_REQUIRED",
+          "message": "需要有效的演示凭证。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "generate_schedule_proposal",
+      "tool": "generate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_generate_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "date_range": {"start": "2026-11-01", "end": "2026-11-01"},
+          "external_fixed_events": [
+            {
+              "external_event_id": "external_mock_meeting_001",
+              "title": "临时项目会议",
+              "start_at": "2026-11-01T15:00:00+08:00",
+              "end_at": "2026-11-01T16:00:00+08:00"
+            }
+          ],
+          "preferences": {
+            "day_start_minute": 480,
+            "day_end_minute": 1320,
+            "minimum_block_minutes": 30
+          }
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_generate_001",
+        "trace_id": "trace_mock_generate_001",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "snapshot_ref": "snapshot_ref_mock_001_not_production",
+          "base_version": "base_version_mock_001_not_production",
+          "input_digest": "sha256:mock_input_digest_001_not_production",
+          "status": "draft",
+          "generated_at": "2026-11-01T10:00:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00",
+          "blocks": [
+            {
+              "block_id": "block_mock_report",
+              "task_id": "task_mock_one_time_report",
+              "task_kind": "one_time",
+              "start_at": "2026-11-01T10:00:00+08:00",
+              "end_at": "2026-11-01T11:30:00+08:00",
+              "source": "proposal",
+              "persistable_as": "one_time_schedule",
+              "duration_source": "scheduler_estimate",
+              "duration_seconds": 5400
+            }
+          ],
+          "changes": [
+            {
+              "change_id": "change_mock_report",
+              "type": "schedule_one_time",
+              "task_id": "task_mock_one_time_report",
+              "planned_date": "2026-11-01",
+              "scheduled_at": "2026-11-01T10:00:00+08:00"
+            }
+          ],
+          "unplanned_tasks": [
+            {
+              "task_id": "task_mock_recurring_reading",
+              "reason_code": "WINDOW_INSUFFICIENT",
+              "remaining_minutes": 30,
+              "message": "固定事件之间没有满足目标时长的空闲区间。"
+            }
+          ],
+          "explanations": [
+            {
+              "code": "PRESERVED_FIXED_EVENTS",
+              "message": "保留了固定课程和临时会议。",
+              "related_task_ids": []
+            },
+            {
+              "code": "ESTIMATED_DURATION",
+              "message": "报告的 90 分钟为调度估算；只持久化 10:00 的计划开始时间。",
+              "related_task_ids": ["task_mock_one_time_report"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "validate_schedule_pending_approval",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_validate_001",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_001"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_validate_001",
+        "trace_id": "trace_mock_validate_001",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "snapshot_ref": "snapshot_ref_mock_001_not_production",
+          "base_version": "base_version_mock_001_not_production",
+          "input_digest": "sha256:mock_input_digest_001_not_production",
+          "proposal_status": "pending_approval",
+          "validation_status": "valid",
+          "approval_readiness": "not_requested",
+          "violations": [],
+          "validated_at": "2026-11-01T10:05:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "request_approval_creates_pending_only",
+      "tool": "request_approval",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_request_approval_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "idempotency_key": "idem_mock_request_approval_001"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_request_approval_001",
+        "trace_id": "trace_mock_request_approval_001",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_001",
+          "proposal_id": "proposal_mock_001",
+          "status": "pending",
+          "approval_url": "https://approval.invalid/checkd/approval_mock_001",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_pending_without_token",
+      "tool": "get_approval_status",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_pending",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_001"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_pending",
+        "trace_id": "trace_mock_approval_pending",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_001",
+          "proposal_id": "proposal_mock_001",
+          "status": "pending",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_first_approved_delivery",
+      "tool": "get_approval_status",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_approved",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_001"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_approved",
+        "trace_id": "trace_mock_approval_approved",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_001",
+          "proposal_id": "proposal_mock_001",
+          "status": "approved",
+          "approval_token": "mock_once_token_not_valid_for_production",
+          "token_issued_at": "2026-11-01T10:12:00+08:00",
+          "token_expires_at": "2026-11-01T10:17:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_after_token_was_issued",
+      "tool": "get_approval_status",
+      "server_fixture": {"concurrent_poll_lost_atomic_token_claim": true},
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_issued",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_001"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_issued",
+        "trace_id": "trace_mock_approval_issued",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_001",
+          "proposal_id": "proposal_mock_001",
+          "status": "token_issued",
+          "approval_token": null,
+          "token_expires_at": "2026-11-01T10:17:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "apply_while_external_approval_is_pending",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_pending",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_pending_approval",
+          "base_version": "base_version_mock_pending",
+          "approval_token": "mock_pending_placeholder_not_a_token",
+          "idempotency_key": "idem_mock_apply_pending"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_pending",
+        "trace_id": "trace_mock_apply_pending",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_PENDING",
+          "message": "审批仍在等待用户决定。",
+          "retryable": true,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "apply_approved_changes_success",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_001",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "approval_token": "mock_once_token_not_valid_for_production",
+          "idempotency_key": "idem_mock_apply_001"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_001",
+        "trace_id": "trace_mock_apply_001",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "result_version": "result_version_mock_001",
+          "proposal_status": "applied",
+          "idempotency_key": "idem_mock_apply_001",
+          "applied_changes": [
+            {
+              "change_id": "change_mock_report",
+              "type": "schedule_one_time",
+              "task_id": "task_mock_one_time_report",
+              "planned_date": "2026-11-01",
+              "scheduled_at": "2026-11-01T10:00:00+08:00"
+            }
+          ],
+          "readback_verified": true,
+          "applied_at": "2026-11-01T10:14:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "same_idempotency_key_replays_original_result",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_replay",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "approval_token": "mock_once_token_not_valid_for_production",
+          "idempotency_key": "idem_mock_apply_001"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_replay",
+        "trace_id": "trace_mock_apply_replay",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "result_version": "result_version_mock_001",
+          "proposal_status": "applied",
+          "idempotency_key": "idem_mock_apply_001",
+          "applied_changes": [
+            {
+              "change_id": "change_mock_report",
+              "type": "schedule_one_time",
+              "task_id": "task_mock_one_time_report",
+              "planned_date": "2026-11-01",
+              "scheduled_at": "2026-11-01T10:00:00+08:00"
+            }
+          ],
+          "readback_verified": true,
+          "applied_at": "2026-11-01T10:14:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "already_applied_with_new_idempotency_key",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_again",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "base_version": "base_version_mock_001_not_production",
+          "approval_token": "mock_once_token_not_valid_for_production",
+          "idempotency_key": "idem_mock_apply_different"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_again",
+        "trace_id": "trace_mock_apply_again",
+        "status": "error",
+        "error": {
+          "code": "ALREADY_APPLIED",
+          "message": "该提案已经成功应用。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "proposal_expired_before_approval",
+      "tool": "request_approval",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_expired_proposal",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_expired",
+          "idempotency_key": "idem_mock_request_expired"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_expired_proposal",
+        "trace_id": "trace_mock_expired_proposal",
+        "status": "error",
+        "error": {
+          "code": "PROPOSAL_EXPIRED",
+          "message": "提案已过期，请重新生成。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "consumed_token_cannot_authorize_another_apply",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "token_bound_proposal_id": "proposal_mock_001",
+        "token_lifecycle_status": "consumed"
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_consumed_token",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_other_pending",
+          "base_version": "base_version_mock_other",
+          "approval_token": "mock_once_token_not_valid_for_production",
+          "idempotency_key": "idem_mock_consumed_token"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_consumed_token",
+        "trace_id": "trace_mock_consumed_token",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_UNTRUSTED",
+          "message": "审批凭据无效。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "approval_token_expired_before_apply",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_expired",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_token_expired",
+          "base_version": "base_version_mock_token_expired",
+          "approval_token": "mock_expired_token_not_valid",
+          "idempotency_key": "idem_mock_token_expired"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_approval_expired",
+        "trace_id": "trace_mock_approval_expired",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_EXPIRED",
+          "message": "审批凭据已过期，请重新发起审批。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "base_version_changed_before_apply",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_snapshot_conflict",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_conflict",
+          "base_version": "base_version_mock_stale",
+          "approval_token": "mock_conflict_token_not_valid",
+          "idempotency_key": "idem_mock_conflict"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_snapshot_conflict",
+        "trace_id": "trace_mock_snapshot_conflict",
+        "status": "error",
+        "error": {
+          "code": "SNAPSHOT_CONFLICT",
+          "message": "基础数据已变化，请重新验证并生成审批。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "write_may_have_succeeded_but_readback_is_pending",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_pending",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_readback_pending",
+          "base_version": "base_version_mock_readback",
+          "approval_token": "mock_readback_token_not_valid",
+          "idempotency_key": "idem_mock_readback"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_pending",
+        "trace_id": "trace_mock_readback_pending",
+        "status": "error",
+        "error": {
+          "code": "READBACK_PENDING",
+          "message": "写入结果尚未完成回读核验；使用相同幂等键重试。",
+          "retryable": true,
+          "details": [
+            {"field": "proposal_status", "reason": "readback_pending"},
+            {"field": "input.idempotency_key", "reason": "reuse_same_key_for_readback_only"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "new_idempotency_key_while_readback_pending_zero_writes",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "readback_pending",
+        "prior_idempotency_key": "idem_mock_original_pending",
+        "business_write_count_before": 1
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_new_key_pending",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_readback_pending",
+          "base_version": "base_version_mock_readback",
+          "approval_token": "mock_consumed_readback_token",
+          "idempotency_key": "idem_mock_new_key_pending"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_new_key_pending",
+        "trace_id": "trace_mock_new_key_pending",
+        "status": "error",
+        "error": {
+          "code": "READBACK_PENDING",
+          "message": "该提案正在等待回读终局，不能再次写入。",
+          "retryable": true,
+          "details": [
+            {"field": "proposal_status", "reason": "readback_pending"},
+            {"field": "business_write_count_delta", "reason": "0"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "same_idempotency_key_while_applying_is_in_progress",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "applying",
+        "existing_idempotency_key": "idem_mock_applying",
+        "existing_request_digest": "sha256:mock_same_request_digest",
+        "business_write_count_before": 1
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_applying_same_key",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_applying",
+          "base_version": "base_version_mock_applying",
+          "approval_token": "mock_claimed_token_not_valid",
+          "idempotency_key": "idem_mock_applying"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_applying_same_key",
+        "trace_id": "trace_mock_applying_same_key",
+        "status": "error",
+        "error": {
+          "code": "IDEMPOTENCY_IN_PROGRESS",
+          "message": "相同请求正在执行，请稍后重试。",
+          "retryable": true,
+          "details": [
+            {"field": "proposal_status", "reason": "applying"},
+            {"field": "business_write_count_delta", "reason": "0"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "expired_token_allows_new_approval_for_live_proposal",
+      "tool": "request_approval",
+      "server_fixture": {
+        "now": "2026-11-01T10:18:00+08:00",
+        "proposal_expires_at": "2026-11-01T10:30:00+08:00",
+        "prior_approval_id": "approval_mock_001",
+        "prior_approval_record_status": "expired",
+        "prior_token_expires_at": "2026-11-01T10:17:00+08:00"
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_reapprove_after_token_expiry",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "idempotency_key": "idem_mock_reapprove_002"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_reapprove_after_token_expiry",
+        "trace_id": "trace_mock_reapprove_after_token_expiry",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_002",
+          "proposal_id": "proposal_mock_001",
+          "status": "pending",
+          "approval_url": "https://approval.invalid/checkd/approval_mock_002",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "untrusted_token_binding_is_rejected",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_untrusted_token",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_untrusted",
+          "base_version": "base_version_mock_untrusted",
+          "approval_token": "mock_token_bound_to_other_proposal",
+          "idempotency_key": "idem_mock_untrusted"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_untrusted_token",
+        "trace_id": "trace_mock_untrusted_token",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_UNTRUSTED",
+          "message": "审批凭据无效。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "authoritative_readback_mismatch_is_failed_terminal",
+      "tool": "apply_approved_changes",
+      "server_fixture": {"authoritative_readback_completed": true},
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_mismatch",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_readback_mismatch",
+          "base_version": "base_version_mock_mismatch",
+          "approval_token": "mock_mismatch_token_not_valid",
+          "idempotency_key": "idem_mock_mismatch"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_mismatch",
+        "trace_id": "trace_mock_readback_mismatch",
+        "status": "error",
+        "error": {
+          "code": "READBACK_MISMATCH",
+          "message": "权威回读与批准内容不一致，该提案已终止。",
+          "retryable": false,
+          "details": [{"field": "proposal_status", "reason": "failed"}]
+        }
+      }
+    },
+    {
+      "name": "missing_proposal_uses_not_found",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_missing_proposal",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_absent"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_missing_proposal",
+        "trace_id": "trace_mock_missing_proposal",
+        "status": "error",
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "找不到该资源。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "other_users_proposal_is_indistinguishable_not_found",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_other_user_proposal",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_owned_by_other_user"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_other_user_proposal",
+        "trace_id": "trace_mock_other_user_proposal",
+        "status": "error",
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "找不到该资源。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "t10a_planned_before_available_from_violation",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t10a",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_before_available"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t10a",
+        "trace_id": "trace_mock_t10a",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_before_available",
+          "snapshot_ref": "snapshot_ref_mock_t10a_not_production",
+          "base_version": "base_version_mock_t10a_not_production",
+          "input_digest": "sha256:mock_input_digest_t10a_not_production",
+          "proposal_status": "draft",
+          "validation_status": "invalid",
+          "approval_readiness": "not_approvable",
+          "violations": [
+            {
+              "code": "PLANNED_BEFORE_AVAILABLE_FROM",
+              "message": "计划日期早于任务允许开始日期。",
+              "related_task_ids": ["task_mock_one_time_future"],
+              "field": "changes[0].planned_date"
+            }
+          ],
+          "validated_at": "2026-11-01T10:06:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "t10b_planned_after_date_only_deadline_violation",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t10b",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_after_deadline"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t10b",
+        "trace_id": "trace_mock_t10b",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_after_deadline",
+          "snapshot_ref": "snapshot_ref_mock_t10b_not_production",
+          "base_version": "base_version_mock_t10b_not_production",
+          "input_digest": "sha256:mock_input_digest_t10b_not_production",
+          "proposal_status": "draft",
+          "validation_status": "invalid",
+          "approval_readiness": "not_approvable",
+          "violations": [
+            {
+              "code": "PLANNED_AFTER_DATE_ONLY_DEADLINE",
+              "message": "计划日期晚于日期型截止日期。",
+              "related_task_ids": ["task_mock_one_time_due"],
+              "field": "changes[0].planned_date"
+            }
+          ],
+          "validated_at": "2026-11-01T10:07:00+08:00",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "ttl_equality_is_already_expired",
+      "tool": "request_approval",
+      "server_fixture": {
+        "now": "2026-11-01T10:30:00+08:00",
+        "proposal_expires_at": "2026-11-01T10:30:00+08:00"
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_ttl_equal",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_expiring_now",
+          "idempotency_key": "idem_mock_ttl_equal"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_ttl_equal",
+        "trace_id": "trace_mock_ttl_equal",
+        "status": "error",
+        "error": {
+          "code": "PROPOSAL_EXPIRED",
+          "message": "提案已过期，请重新生成。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "new_idempotency_key_while_applying_returns_readback_pending",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "applying",
+        "prior_idempotency_key": "idem_mock_original_applying",
+        "business_write_count_before": 1
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_new_key_applying",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_applying",
+          "base_version": "base_version_mock_applying",
+          "approval_token": "mock_claimed_token_not_valid",
+          "idempotency_key": "idem_mock_new_key_applying"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_new_key_applying",
+        "trace_id": "trace_mock_new_key_applying",
+        "status": "error",
+        "error": {
+          "code": "READBACK_PENDING",
+          "message": "该提案正在执行，不能使用新幂等键启动第二次写入。",
+          "retryable": true,
+          "details": [
+            {"field": "proposal_status", "reason": "applying"},
+            {"field": "business_write_count_delta", "reason": "0"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "t11_scheduled_at_cross_date_is_structural_error",
+      "tool": "validate_schedule",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t11",
+        "timezone": "Asia/Shanghai",
+        "input": {"proposal_id": "proposal_mock_cross_date"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_t11",
+        "trace_id": "trace_mock_t11",
+        "status": "error",
+        "error": {
+          "code": "PROPOSAL_INVALID",
+          "message": "提案结构无效。",
+          "retryable": false,
+          "details": [
+            {"field": "changes[0].scheduled_at", "reason": "different_local_date_from_planned_date"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "consumed_token_after_failed_apply_is_reachable",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "failed",
+        "approval_record_status": "consumed",
+        "token_consumed_when_proposal_entered_applying": true,
+        "prior_apply_succeeded": false
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_consumed_after_failure",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_consumed_failed",
+          "base_version": "base_version_mock_consumed_failed",
+          "approval_token": "mock_consumed_failed_token",
+          "idempotency_key": "idem_mock_consumed_after_failure"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_consumed_after_failure",
+        "trace_id": "trace_mock_consumed_after_failure",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_CONSUMED",
+          "message": "审批凭据已经消费，不能再次使用。",
+          "retryable": false,
+          "details": [{"field": "proposal_status", "reason": "failed"}]
+        }
+      }
+    },
+    {
+      "name": "same_idempotency_key_while_readback_pending_only_reads",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "readback_pending",
+        "existing_idempotency_key": "idem_mock_pending_retry",
+        "existing_request_digest": "sha256:mock_pending_retry_digest",
+        "business_write_count_before": 1
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_pending_same_key",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_pending_retry",
+          "base_version": "base_version_mock_pending_retry",
+          "approval_token": "mock_consumed_pending_retry_token",
+          "idempotency_key": "idem_mock_pending_retry"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_pending_same_key",
+        "trace_id": "trace_mock_pending_same_key",
+        "status": "error",
+        "error": {
+          "code": "READBACK_PENDING",
+          "message": "权威回读仍无终局，本次未重复写入。",
+          "retryable": true,
+          "details": [
+            {"field": "proposal_status", "reason": "readback_pending"},
+            {"field": "business_write_count_delta", "reason": "0"},
+            {"field": "operation", "reason": "readback_only"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "same_idempotency_key_different_digest_is_conflict",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "existing_idempotency_key": "idem_mock_digest_conflict",
+        "existing_request_digest": "sha256:mock_original_digest",
+        "current_request_digest": "sha256:mock_different_digest",
+        "business_write_count_before": 0
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_digest_conflict",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_digest_conflict",
+          "base_version": "base_version_mock_digest_conflict",
+          "approval_token": "mock_bound_digest_conflict_token",
+          "idempotency_key": "idem_mock_digest_conflict"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_digest_conflict",
+        "trace_id": "trace_mock_digest_conflict",
+        "status": "error",
+        "error": {
+          "code": "IDEMPOTENCY_CONFLICT",
+          "message": "相同幂等键已用于不同请求。",
+          "retryable": false,
+          "details": [{"field": "business_write_count_delta", "reason": "0"}]
+        }
+      }
+    },
+    {
+      "name": "repeat_request_approval_returns_same_approval_id",
+      "tool": "request_approval",
+      "server_fixture": {
+        "existing_approval_id": "approval_mock_001",
+        "existing_approval_status": "pending"
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_repeat_approval",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_001",
+          "idempotency_key": "idem_mock_repeat_approval"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_repeat_approval",
+        "trace_id": "trace_mock_repeat_approval",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_001",
+          "proposal_id": "proposal_mock_001",
+          "status": "pending",
+          "approval_url": "https://approval.invalid/checkd/approval_mock_001",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_rejected",
+      "tool": "get_approval_status",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_rejected",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_rejected"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_rejected",
+        "trace_id": "trace_mock_status_rejected",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_rejected",
+          "proposal_id": "proposal_mock_rejected",
+          "status": "rejected",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_expired",
+      "tool": "get_approval_status",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_expired",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_expired"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_expired",
+        "trace_id": "trace_mock_status_expired",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_expired",
+          "proposal_id": "proposal_mock_live_after_token_expiry",
+          "status": "expired",
+          "expires_at": "2026-11-01T10:17:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "get_approval_status_consumed",
+      "tool": "get_approval_status",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_consumed",
+        "timezone": "Asia/Shanghai",
+        "input": {"approval_id": "approval_mock_consumed"}
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_status_consumed",
+        "trace_id": "trace_mock_status_consumed",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_consumed",
+          "proposal_id": "proposal_mock_applied",
+          "status": "consumed",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "apply_without_token_requires_approval",
+      "tool": "apply_approved_changes",
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_no_token",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_pending_approval",
+          "base_version": "base_version_mock_pending_approval",
+          "idempotency_key": "idem_mock_apply_no_token"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_no_token",
+        "trace_id": "trace_mock_apply_no_token",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_REQUIRED",
+          "message": "未提供服务端签发的审批凭据。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "token_delivery_uncertain_wait_for_expiry_then_new_approval",
+      "tool": "request_approval",
+      "server_fixture": {
+        "proposal_status": "pending_approval",
+        "token_delivery_response_lost": true,
+        "agent_must_not_replace_before_expiry": true,
+        "before_expiry": {
+          "now": "2026-11-01T10:16:59+08:00",
+          "old_approval_id": "approval_mock_lost_delivery",
+          "old_approval_status": "token_issued",
+          "token_expires_at": "2026-11-01T10:17:00+08:00",
+          "new_approval_allowed": false,
+          "get_approval_status_token": null
+        },
+        "at_expiry": {
+          "now": "2026-11-01T10:17:00+08:00",
+          "old_approval_status": "expired",
+          "old_token_permanently_invalid": true
+        },
+        "proposal_expires_at": "2026-11-01T10:30:00+08:00",
+        "user_explicitly_requested_new_approval": true
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_reapprove_after_uncertain_delivery",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_lost_delivery",
+          "idempotency_key": "idem_mock_reapprove_after_uncertain_delivery"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_reapprove_after_uncertain_delivery",
+        "trace_id": "trace_mock_reapprove_after_uncertain_delivery",
+        "status": "success",
+        "data": {
+          "approval_id": "approval_mock_new_after_expiry",
+          "proposal_id": "proposal_mock_lost_delivery",
+          "status": "pending",
+          "approval_url": "https://approval.invalid/checkd/approval_mock_new_after_expiry",
+          "expires_at": "2026-11-01T10:30:00+08:00"
+        }
+      }
+    },
+    {
+      "name": "apply_after_user_revoked_approval_is_rejected",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status": "rejected",
+        "approval_record_status": "rejected",
+        "token_signature_and_binding_valid": true,
+        "token_revoked_atomically_for_user_rejection": true,
+        "business_write_count_before": 0
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_rejected",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_rejected",
+          "base_version": "base_version_mock_rejected",
+          "approval_token": "mock_bound_but_user_revoked_token",
+          "idempotency_key": "idem_mock_apply_rejected"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_apply_rejected",
+        "trace_id": "trace_mock_apply_rejected",
+        "status": "error",
+        "error": {
+          "code": "APPROVAL_REJECTED",
+          "message": "用户已拒绝或撤回该审批。",
+          "retryable": false,
+          "details": [
+            {"field": "proposal_status", "reason": "rejected"},
+            {"field": "business_write_count_delta", "reason": "0"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "operation_level_permission_denial_uses_forbidden",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "demo_principal_can_read": true,
+        "demo_principal_can_apply": false,
+        "resource_lookup_performed": false
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_operation_forbidden",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "opaque_proposal_id_not_resolved",
+          "base_version": "opaque_base_version_not_resolved",
+          "approval_token": "mock_token_not_inspected",
+          "idempotency_key": "idem_mock_operation_forbidden"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_operation_forbidden",
+        "trace_id": "trace_mock_operation_forbidden",
+        "status": "error",
+        "error": {
+          "code": "FORBIDDEN",
+          "message": "当前演示主体没有执行该操作的权限。",
+          "retryable": false,
+          "details": []
+        }
+      }
+    },
+    {
+      "name": "readback_pending_to_applied_only_reads",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status_before": "readback_pending",
+        "authoritative_readback_result": "matches_approved_changes",
+        "business_write_count_before": 1,
+        "recovery_is_not_second_apply": true
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_recovers_applied",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_readback_recovers_applied",
+          "base_version": "base_version_mock_readback_recovers_applied",
+          "approval_token": "mock_consumed_readback_recovery_token",
+          "idempotency_key": "idem_mock_readback_recovers_applied"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_recovers_applied",
+        "trace_id": "trace_mock_readback_recovers_applied",
+        "status": "success",
+        "data": {
+          "proposal_id": "proposal_mock_readback_recovers_applied",
+          "base_version": "base_version_mock_readback_recovers_applied",
+          "result_version": "result_version_mock_readback_recovered",
+          "proposal_status": "applied",
+          "idempotency_key": "idem_mock_readback_recovers_applied",
+          "applied_changes": [
+            {
+              "change_id": "change_mock_readback_recovered",
+              "type": "schedule_one_time",
+              "task_id": "task_mock_readback_recovered",
+              "planned_date": "2026-11-01",
+              "scheduled_at": "2026-11-01T10:00:00+08:00"
+            }
+          ],
+          "readback_verified": true,
+          "applied_at": "2026-11-01T10:15:00+08:00",
+          "recovery_evidence": {
+            "operation": "readback_only",
+            "business_write_count_delta": 0,
+            "second_apply_executed": false
+          }
+        }
+      }
+    },
+    {
+      "name": "readback_pending_to_failed_only_reads",
+      "tool": "apply_approved_changes",
+      "server_fixture": {
+        "proposal_status_before": "readback_pending",
+        "authoritative_readback_result": "mismatches_approved_changes",
+        "business_write_count_before": 1,
+        "recovery_is_not_second_apply": true
+      },
+      "request": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_recovers_failed",
+        "timezone": "Asia/Shanghai",
+        "input": {
+          "proposal_id": "proposal_mock_readback_recovers_failed",
+          "base_version": "base_version_mock_readback_recovers_failed",
+          "approval_token": "mock_consumed_readback_failure_token",
+          "idempotency_key": "idem_mock_readback_recovers_failed"
+        }
+      },
+      "response": {
+        "api_version": "checkd.agent.v1",
+        "request_id": "req_mock_readback_recovers_failed",
+        "trace_id": "trace_mock_readback_recovers_failed",
+        "status": "error",
+        "error": {
+          "code": "READBACK_MISMATCH",
+          "message": "权威回读与批准内容不一致，该提案已进入终态。",
+          "retryable": false,
+          "details": [
+            {"field": "proposal_status", "reason": "failed"},
+            {"field": "operation", "reason": "readback_only"},
+            {"field": "business_write_count_delta", "reason": "0"},
+            {"field": "second_apply_executed", "reason": "false"}
+          ]
+        }
+      }
+    }
+  ]
+}
