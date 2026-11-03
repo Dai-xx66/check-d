@@ -337,6 +337,14 @@ def schedule(payload, prefs):
     fixed = [e for e in calendar_events_for(payload) if e["fixed"]]
     blocks, changes, unplanned = [], [], []
 
+    # 每日常驻占用：固定事件 + 本次已排出的块。排完一个块立即并入当天占用，
+    # 后续任务才不会再落回同一起点（否则块与块会完全重叠）。
+    day_busy = {}
+    for d in iter_dates(start, end):
+        day_busy[d] = sorted(
+            (_hm(parse_instant(e["start_at"], "x")), _hm(parse_instant(e["end_at"], "x")))
+            for e in fixed if e["date"] == d.isoformat())
+
     ones = [t for t in payload["tasks"] if t["kind"] == "one_time" and t["status"] == "active"]
     recurring = [t for t in payload["tasks"] if t["kind"] == "recurring" and t["status"] == "active"]
 
@@ -344,8 +352,7 @@ def schedule(payload, prefs):
         need = int(t.get("duration_target_seconds") or 0)
         placed = False
         for d in iter_dates(start, end):
-            busy = sorted((_hm(parse_instant(e["start_at"], "x")), _hm(parse_instant(e["end_at"], "x")))
-                          for e in fixed if e["date"] == d.isoformat())
+            busy = day_busy[d]
             cursor = day_start
             for bs, be in busy + [(day_end, day_end)]:
                 while cursor + min_block <= bs:
@@ -359,6 +366,8 @@ def schedule(payload, prefs):
                         changes.append({"change_id": _next_id("ch"), "type": "schedule_one_time",
                                         "task_id": t["task_id"], "planned_date": d.isoformat(),
                                         "scheduled_at": b["start_at"]})
+                        busy.append((cursor, cursor + need // 60))
+                        busy.sort()
                         placed = True
                         break
                     cursor += 30
@@ -381,8 +390,7 @@ def schedule(payload, prefs):
         need = int(target) if target else min_block * 60
         minutes = max(int((need + 59) // 60), min_block)
         for d in iter_dates(start, end):
-            busy = sorted((_hm(parse_instant(e["start_at"], "x")), _hm(parse_instant(e["end_at"], "x")))
-                          for e in fixed if e["date"] == d.isoformat())
+            busy = day_busy[d]
             cursor = day_start
             placed = False
             for bs, be in busy + [(day_end, day_end)]:
@@ -398,6 +406,8 @@ def schedule(payload, prefs):
                                     "local_date": d.isoformat(), "action": "reschedule",
                                     "planned_start_minute": cursor,
                                     "planned_end_minute": cursor + minutes})
+                    busy.append((cursor, cursor + minutes))
+                    busy.sort()
                     placed = True
                 cursor = max(cursor, be)
             if not placed:
@@ -408,7 +418,36 @@ def schedule(payload, prefs):
     return blocks, changes, unplanned
 
 
+def overlapping_block_pairs(blocks):
+    """返回提案内相互重叠的 block 对（按开始时间排序后比较，O(n log n)）。"""
+    rows = sorted((parse_instant(b["start_at"], "block.start_at"),
+                   parse_instant(b["end_at"], "block.end_at"),
+                   b["block_id"], b.get("task_id")) for b in blocks)
+    pairs = []
+    for i in range(len(rows)):
+        for j in range(i + 1, len(rows)):
+            if rows[j][0] >= rows[i][1]:
+                break
+            pairs.append((rows[i], rows[j]))
+    return pairs
+
+
 def check_hard_constraints(proposal, events):
+    # 块间重叠属提案内部不一致，先于其他约束判定。
+    # 契约 c9dda83 §5 的 violations 是七码闭集且不含"块间重叠"，
+    # 按同节"未知 code 必须以 PROPOSAL_INVALID 拒绝"处理，不新增闭集外码。
+    overlaps = overlapping_block_pairs(proposal["blocks"])
+    if overlaps:
+        raise ToolError(
+            "PROPOSAL_INVALID",
+            "提案内存在时间重叠的 block，不能进入审批。",
+            details=[{"reason": "BLOCK_OVERLAP",
+                      "block_ids": [a[2], b[2]],
+                      "task_ids": [a[3], b[3]],
+                      "a_start_at": iso(a[0]), "a_end_at": iso(a[1]),
+                      "b_start_at": iso(b[0]), "b_end_at": iso(b[1])}
+                     for a, b in overlaps])
+
     violations = []
     for b in proposal["blocks"]:
         bs = parse_instant(b["start_at"], "block.start_at")
@@ -566,6 +605,14 @@ def tool_generate_schedule(args, user):
     payload, input_digest = snapshot_for(user, start, end, ext)
     base_version = digest({"snapshot": input_digest, "user": user})
     blocks, changes, unplanned = schedule(payload, prefs)
+    if take_flag("inject_overlapping_blocks") and blocks:
+        # 反例注入（仅测试用）：复制首块并后移 5 分钟，制造块间重叠，
+        # 用于验证校验侧能在绕过生成阶段的情况下拒绝该提案。
+        src = blocks[0]
+        dup = dict(src)
+        dup["block_id"] = _next_id("b")
+        dup["start_at"] = iso(parse_instant(src["start_at"], "x") + timedelta(minutes=5))
+        blocks.append(dup)
     stored_events = list(ext)
     extra = take_flag("conflict_event")
     if isinstance(extra, dict):
