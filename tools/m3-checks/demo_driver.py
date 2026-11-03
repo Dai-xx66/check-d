@@ -518,12 +518,102 @@ class Driver:
             pass
 
 
+# --------------------------------------------------------------- 提词（旁白稿）
+# 自动播放时逐镜显示，录制者照着念；同时充当画面字幕。
+# 用词与 docs/demo/b-track-recording-card-20261103.md 逐句对应，改稿请同步改卡。
+NARRATION = {
+    "0": ["本段演示使用 Mock 后端，不是真实业务端点，不产生真实写入。",
+          "WorkBuddy 任务窗尚未接入 Mock，下面由驱动脚本直接向同一个 Mock 发起调用，",
+          "屏幕上看到的是真实返回的 request_id 与响应体，不是回放。"],
+    "1": ["教育场景：一周学习计划，含固定课程与一次临时会议。工具已加载 7 个。"],
+    "2": ["这两个是只读调用，不是我编的提示词；每条都带独立 request_id。"],
+    "3": ["这是提案，不是写入。",
+          "排不下的进 unplanned_tasks 并给 reason_code，不硬塞、不静默丢弃。",
+          "提案会过期，expires_at 就是它的寿命。"],
+    "3u": ["把可用窗口压窄，排不下就明说排不下，给 reason_code。"],
+    "4": ["冲突要说清哪一条违规、为什么。违规码是 8 值闭集，含 BLOCK_OVERLAP，集外即越界。"],
+    "5": ["用户不在审批页点确认，数据库一个字节都不变。此时拿不到 Token。"],
+    "5a": ["Token 只在批准后首次交付，且一次性；屏幕已打码。"],
+    "5x": ["取消就是取消：被拒后写入增量 0，不留半截写入。"],
+    "6": ["写入次数只有一次。重复点、换键、执行中重试，都拿到零写入的确定性错误。",
+          "这是 Mock 按契约给出的断言，不代表真实端点已验证。"],
+    "7": ["回读一致才叫成功。",
+          "崩溃路径停在 applying、同键只回 IDEMPOTENCY_IN_PROGRESS。",
+          "这条路径没有收敛，我不说成已收敛。"],
+    "8": ["这就是防重复写入的三道闸：同键幂等、换键仍拦、执行中不二次写。"],
+    "fin": ["以上全部为 Mock 环境流程演示；真实写入、真实审批、生产回读仍为 BLOCKED，待 A 轨补录。"],
+}
+AUTO_SEQ = ["0", "1", "2", "3", "4", "5", "5a", "6", "7", "8", "fin"]
+
+
+def teleprompt(key):
+    lines = NARRATION.get(key) or []
+    if not lines:
+        return
+    print()
+    print("  " + "-" * 92)
+    print("  【旁白 · 照念】")
+    for ln in lines:
+        print("    " + ln)
+    print("  " + "-" * 92)
+
+
+def run_auto(d, table, seq, lead, hold, start_delay):
+    import time
+    print()
+    print("  自动播放：%s" % " → ".join(seq))
+    print("  每镜节奏：显示镜号 → 执行（画面出结果）→ 显示旁白 → 停留 %ds 换镜" % hold)
+    if start_delay:
+        print("  录制软件就位后，%d 秒后自动开始……" % start_delay)
+        time.sleep(start_delay)
+    t0 = time.time()
+    stamp = []
+    for i, key in enumerate(seq, 1):
+        el = time.time() - t0
+        print()
+        print("=" * 96)
+        print("  [自动 %d/%d]  镜 %s   录制内时间 %02d:%05.2f" % (i, len(seq), key, int(el) // 60, el % 60))
+        print("=" * 96)
+        fn = table.get(key)
+        if fn is None:
+            print("  未知镜号，跳过：%s" % key)
+            continue
+        if lead:
+            time.sleep(lead)
+        try:
+            fn()
+        except Exception as exc:
+            print("  [执行异常] %s: %s" % (type(exc).__name__, exc))
+            print("  现场已保留，按纪律不重来、不掩盖，继续下一镜。")
+        teleprompt(key)
+        stamp.append((key, time.time() - t0))
+        if hold:
+            time.sleep(hold)
+    print()
+    hr()
+    print("  自动播放结束。各镜录制内时间点（写进交付说明用）：")
+    for key, t in stamp:
+        print("    镜 %-4s %02d:%05.2f" % (key, int(t) // 60, t % 60))
+    print("  画面可停止录制；确认自检 8 条后归档到 docs/demo/evidence/b-track-20261103/")
+    hr()
+
+
 def main():
     global CONTRACT_SHA
     ap = argparse.ArgumentParser()
     ap.add_argument("--mock", required=True, help="M1 mock 的 tool_server.py 路径")
     ap.add_argument("--contract-sha", default=DEFAULT_CONTRACT_SHA,
                     help="录制所用契约 commit（写在片头卡上，默认当前冻结值）")
+    ap.add_argument("--auto", action="store_true",
+                    help="自动按 0→1→2→3→4→5→5a→6→7→8→fin 播放，无需键入镜号")
+    ap.add_argument("--lead", type=float, default=2.0,
+                    help="每镜执行前的静置秒数（默认 2）")
+    ap.add_argument("--hold", type=float, default=8.0,
+                    help="每镜旁白出现后停留秒数，给你念完的时间（默认 8）")
+    ap.add_argument("--start-delay", type=float, default=10.0,
+                    help="自动播放启动倒计时秒数（默认 10，留时间按录制键）")
+    ap.add_argument("--seq", default="",
+                    help="自定义镜序，逗号分隔，如 1,2,3,4,5,5a,6,7,8")
     a = ap.parse_args()
     CONTRACT_SHA = a.contract_sha
     d = Driver(a.mock)
@@ -537,6 +627,13 @@ def main():
     table = {"0": d.shot0, "1": d.shot1, "2": d.shot2, "3": d.shot3, "3u": d.shot3u,
              "4": d.shot4, "5": d.shot5, "5a": d.shot5a, "5x": d.shot5x, "6": d.shot6,
              "7": d.shot7, "8": d.shot8, "fin": d.shotfin}
+    if a.auto:
+        seq = [s.strip() for s in a.seq.split(",") if s.strip()] or AUTO_SEQ
+        try:
+            run_auto(d, table, seq, a.lead, a.hold, a.start_delay)
+        finally:
+            d.close()
+        return
     try:
         while True:
             try:
