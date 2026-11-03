@@ -847,6 +847,61 @@ void main() {
       expect(bounded.blocks.single.startAt, _at(0, 17));
     });
 
+    // M0 2026-11-03 05:49 邮件 A 项：无边界守卫 + 120 限制守卫。
+    // 候选只有 08:00（-360）与 17:00（+180）：
+    // 不传 maxShiftMinutes（domain 默认 null）→ 无上限，取全局最小位移 17:00；
+    // 显式传 120 → 180 与 360 均超界 → 退最早可用 08:00。
+    // 「缺省无边界」与「Dart 默认 = null」由此钉死：以后有人把默认值改成 120，
+    // 本用例第一断言立刻变红。
+    test('不传 maxShiftMinutes 就是无边界：超 120 分钟的位移照常接受', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'task-far',
+            title: '整理笔记',
+            startAt: _at(0, 14),
+            endAt: _at(0, 15),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 20),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 20)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 11),
+            endAt: _at(0, 17),
+            title: '整段会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'task-far',
+            title: '整理笔记',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      // 缺省/null：+180 的候选必须被接受（若默认被误改成 120，这里会退 08:00）。
+      final unbounded = repairSchedule(input, previous);
+      expect(unbounded.blocks.single.startAt, _at(0, 17));
+      expect(unbounded.blocks.single.startAt.difference(_at(0, 14)).inMinutes,
+          180);
+
+      // 显式 120：180 > 120 超界、-360 也超界 → 退最早可用 08:00，
+      // 服务层将来传 120 时就是这个行为。
+      final bounded = repairSchedule(input, previous, maxShiftMinutes: 120);
+      expect(bounded.blocks.single.startAt, _at(0, 8));
+      expect(bounded.blocks.single.movedFromPreviousPlan, isTrue);
+    });
+
     test('无可排位置时返回未安排量与理由', () {
       final previous = ScheduleProposal(
         blocks: [
