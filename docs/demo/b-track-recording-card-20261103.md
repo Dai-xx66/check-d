@@ -58,6 +58,7 @@ python tools/m3-checks/demo_driver.py --mock <...>/tool_server.py \
 ## 3. 8 镜逐镜卡
 
 > 自动模式下「输入」列由驱动自己完成，你只需要照念「口播」列；画面上的【旁白 · 照念】就是这一列的原文。
+> **每镜第一句固定是「本镜验证：…」**（M0 05:02Z 要求「每镜开始前说一句这一镜要验证什么」），驱动已自动打出，照念即可，下表「口播」列是其后的话。
 
 | 镜 | 时长 | 输入 | 画面必须出现 | 口播（照念） |
 |---|---|---|---|---|
@@ -65,7 +66,7 @@ python tools/m3-checks/demo_driver.py --mock <...>/tool_server.py \
 | 2 | 30s | `2` | 两次调用各自的 `request_id`、`tasks 4 条`、课程 1 门、固定事件数 | 「这两个是只读调用，不是我编的提示词；每条都带独立 `request_id`。」 |
 | 3 | 50s | `3` | `proposal_id`、`status=draft`、`changes` 分类计数、`blocks` 块数与合计分钟、`unplanned_tasks`、`explanations`、`expires_at` | 「这是**提案**，不是写入。排不下的进 `unplanned_tasks` 并给 `reason_code`，不硬塞、不静默丢弃。提案会过期，`expires_at` 就是它的寿命。」 |
 | 4 | 40s | `4` | `validation_status`、`proposal_status`、`approval_status`、`violations` 计数 | 「冲突要说清**哪一条**违规、**为什么**。违规码是 **8 值闭集，含 `BLOCK_OVERLAP`**，集外即越界。」 |
-| 5 | 40s | `5` | `approval_id`、`status=pending`、`approval_url`、`expires_at`；轮询 `approval_token` 为 `(none)` | 「用户不在审批页点确认，数据库一个字节都不变。此时拿不到 Token。」 |
+| 5 | 40s | `5` | `approval_id`、`status=pending`、`approval_url`、`expires_at`；轮询 `approval_token` 为 `(none)` | 「用户不在审批页点确认，数据库一个字节都不变。此时拿不到 Token。」+「**本段为 Mock 演示，不构成真实身份认证，也不构成真实用户授权。**」 |
 | 5a | 20s | `5a` | `status=approved`、打码 Token（`xxxxxxxx********xxxx`）、`token_expires_at` | 「Token 只在批准后首次交付，且**一次性**；屏幕已打码。」 |
 | 6 | 40s | `6` | `code=READBACK_PENDING`、`retryable=true`、`details.proposal_status=applying`、`delta 0`、`[PASS]` | 「写入次数只有一次。重复点、换键、执行中重试，都拿到零写入的确定性错误。」+「**这是 Mock 按契约给出的断言，不代表真实端点已验证。**」 |
 | 7 | 40s | `7` | `逐条一致 n/4`、`发生变化的条目 0 条`、`服务端写入计数` | 「回读一致才叫成功。」+「崩溃路径停在 `applying`、同键只回 `IDEMPOTENCY_IN_PROGRESS`，**这条路径没有收敛**，我不说成已收敛。」 |
@@ -111,6 +112,34 @@ python tools/m3-checks/demo_driver.py --mock <...>/tool_server.py \
 
 不删现场、不补拍掩盖。念一句「这一镜失败，我保留现场继续」，把失败日志留在画面里，接着往下拍；交付时在第五节第 5 项写明失败镜号、原因、是否重试。
 
+## 8. 与 M0 口语结构（05:02:25Z）的逐条对照
+
+M0 说明里要求「若正式分镜与这份概括有出入，先把分镜发给 M0 对齐」。对照结果：**8 条对 8 镜，7 条完全对应，1 条（第 2 点：对话窗输入自然语言）存在表述差异**，已在下面单列。
+
+| M0 口语结构 | 对应镜次 | 画面上真实发生的事 | 是否需改分镜 |
+|---|---|---|---|
+| 1 片头 ≥3 秒 `MOCK · 非真实写入`，全程角标 | 镜 0 + 镜 1 | ASCII 片头卡停 3 秒；此后每镜标题栏首行都是 `[MOCK · 非真实写入]` 角标 | 否 |
+| 2 用户输入自然语言需求 | 镜 2 / 镜 3 | ⚠ 无对话窗；需求由口播说出，驱动把对应参数直接发给工具（见下方差异说明） | **待 M0 裁定** |
+| 3 Agent 读取任务与日历 | 镜 2 | `list_tasks` + `get_calendar_events` 两次真实 stdio MCP 调用，带各自 `request_id` / `trace_id` | 否 |
+| 4 任务拆解为结构化结果 | 镜 3 | `changes[]`（按类型计数）、`blocks[]`（起止+时长）、`unplanned_tasks[]`（含 `reason_code`）、`explanations[]` | 否 |
+| 5 日程生成 + 冲突/未安排校验 | 镜 3 + 镜 4 | 生成 10 块 0 重叠；`validate_schedule` 返回 `violations[]`，码属 8 值闭集 | 否 |
+| 6 方案预览与模拟审批（须说明非真实认证/授权） | 镜 5（含 5a） | `request_approval` → `approval_readiness`；未点确认无 Token；点确认后 Token 打码显示 | 否（旁白已补「不构成真实身份认证，也不构成真实用户授权」） |
+| 7 异常/恢复边界：停在 `applying`，同键 `IDEMPOTENCY_IN_PROGRESS`，不说成已恢复 | 镜 6 + 镜 7 | `apply_approved_changes` → `READBACK_PENDING` / `details.proposal_status=applying` / `delta=0`；同键重试 `IDEMPOTENCY_IN_PROGRESS`；回读 4/4 一致 | 否 |
+| 8 结果收尾：非生产写入、A 轨 BLOCKED | 镜 8 + `fin` | 同键/换新键两次响应并列；收尾声明 A 轨仍 BLOCKED | 否 |
+
+**第 2 点的差异（唯一待裁定项）**
+
+分镜里镜 2 的「操作」写的是「发一句『看看我下周的任务和课表』」，镜 3 是「发一句『把课程报告拆成子任务，这周做完』」。但实际录制环境里**没有 WorkBuddy 对话窗**：Mock 是以 stdio MCP 服务形态存在的，本机 `~/.workbuddy/mcp.json` 不存在，任务窗未接入。
+
+所以现在的画面是：口播说出需求 → 驱动把该需求对应的参数直接发给 Mock → 屏幕显示真实返回。**需求是真的、工具调用是真的、响应是真的，唯独「自然语言被模型解析成参数」这一步不在画面里，也不存在。**
+
+两个选项，等 M0 一句话：
+
+- **(a) 按现分镜录**（推荐，最快）。开场第二句已如实声明「任务窗尚未接入 Mock，由驱动脚本直接向同一个 Mock 发起调用」，不构成误述。缺的只是对话输入框那一眼。
+- **(b) 先把 Mock 注册成 WorkBuddy 自定义 MCP，在对话窗里真输入自然语言**。更贴合 M0 描述，属真·Agent 调用；但要改本机 MCP 配置、要验证模型是否稳定按契约调工具，且属「演示入口变更」，冻结期需 M0 书面同意，且不保证一次成功。
+
+在 M0 回复前**不开录**（避免录完被判不合规白拍）。
+
 ---
 
-编制：钟钰芬（C / M3）｜2026-11-03｜依据 M0 04:47:51Z 开录授权
+编制：钟钰芬（C / M3）｜2026-11-03｜依据 M0 04:47:51Z 开录授权、05:02:25Z 口语说明
