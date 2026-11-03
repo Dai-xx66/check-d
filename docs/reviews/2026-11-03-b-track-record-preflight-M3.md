@@ -77,6 +77,7 @@ python tools/m3-checks/verify_m1_evidence.py \
 3. 权威 `agent-api-v1.md` 全文 **0 次**提及 `examples.json`，契约未以引用方式纳入它。
 4. 核验器源码 **0 处**引用它，它不是核验输入。
 5. 反证：`validate_schedule` 示例共 6 条，只覆盖原 7 码中的 2 个（`PLANNED_BEFORE_AVAILABLE_FROM`、`PLANNED_AFTER_DATE_ONLY_DEADLINE`），其余 5 码从未出现。既有 7 码都没配齐，不存在「新增 1 码必须补示例」的先行义务。
+6. 最硬一条：`examples.json` 在两个 commit 之间 **blob 完全未变**（`c9dda83` 与 `39f7f965` 下均为 `f9c916c824fc67b6b22fedc21cf425e1a67e40e2`）。本次契约提交全提交只改动 1 个文件（`git diff --name-only` = `docs/contracts/agent-api-v1.md`，count=1），`examples.json` 根本没被触碰，因此不存在「漏同步」，也不存在「不该改却没改」。
 
 若后续要做，属**增强**不属**同步**：会改 45→46 条、examples 证据 20→21，触发 M1 重生成证据 + 我重核，等于再换一次 head，冻结期不建议动。最小形态：`validate_schedule` 一条 `invalid` + `violations=[{code:"BLOCK_OVERLAP", related_block_ids:[b1,b2]}]`。
 
