@@ -17,6 +17,14 @@
 | 3 | `related_block_ids` 指向双方 | `['b_0001','b_0021']`，与自算重叠对完全一致；另带 `message` 与 `related_task_ids` | PASS |
 | 4 | 固定事件冲突仍报 `FIXED_EVENT_CONFLICT` | 单块压固定事件 → 仅 `FIXED_EVENT_CONFLICT`；两块重叠且压固定事件 → `['BLOCK_OVERLAP','FIXED_EVENT_CONFLICT']` 两条都在 | PASS |
 | 5 | 闸门 G0–G6 与 35 条证据不回退 | `GATE_EXIT=0`（7/7）；证据 35 条，契约冲突 0 / A 类 0 / B 类 0 / 需说明 1（EX-01 沿用）；核验器 9 项反例自检 9/9 | PASS |
+| 6 | 远端文件与 M1 自述 SHA256 一致 | 远端 raw @1baf95d / M1 自述 / 本地解包三方逐字节相同：`tool_server.py` `b01387ef7b57f2c4…`、`test_block_overlap.py` `1b213d53dc3bd2ab…` | PASS |
+
+三项状态字段（M0 04:02 复核清单外的补充核对，与 M1 自述一致）：
+
+| 路径 | validation_status | approval_status | proposal_status | violations |
+|---|---|---|---|---|
+| 正常提案 | `valid` | `pending_approval` | `pending_approval` | 0 条 |
+| 注入重叠 | `invalid` | `not_approvable` | `draft` | 1 条 `BLOCK_OVERLAP` |
 
 ## 二、逐块时间（正常路径，用于录制镜头 3 对画面）
 
