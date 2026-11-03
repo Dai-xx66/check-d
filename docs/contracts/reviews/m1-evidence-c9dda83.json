@@ -481,7 +481,9 @@
     "status": "pass",
     "note": "code=ALREADY_APPLIED",
     "raw": {
-     "code": "ALREADY_APPLIED"
+     "code": "ALREADY_APPLIED",
+     "writes_delta": 0,
+     "first_apply_writes_delta": 8
     }
    },
    {
@@ -499,7 +501,9 @@
     "status": "pass",
     "note": "code=APPROVAL_CONSUMED",
     "raw": {
-     "code": "APPROVAL_CONSUMED"
+     "code": "APPROVAL_CONSUMED",
+     "writes_delta": 0,
+     "first_apply_writes_delta": 0
     }
    },
    {
@@ -508,7 +512,9 @@
     "status": "pass",
     "note": "code=APPROVAL_EXPIRED",
     "raw": {
-     "code": "APPROVAL_EXPIRED"
+     "code": "APPROVAL_EXPIRED",
+     "writes_delta": 0,
+     "retryable": false
     }
    },
    {

@@ -85,7 +85,7 @@ def raw_of(resp, path, w0, extra=None):
     out = {"code": err.get("code"), "path": path,
            "proposal_status": f.get("proposal_status"),
            "writes_delta": int(writes() - w0),
-           "retryable": bool(err.get("retryable")),
+           "retryable": strict_bool(err.get("retryable"), "raw_of.retryable"),
            "details": det}
     if extra:
         out.update(extra)
@@ -93,6 +93,14 @@ def raw_of(resp, path, w0, extra=None):
 
 def sc(resp):
     return resp["result"].get("structuredContent", {})
+
+
+def strict_bool(value, where):
+    """只接受真正的 bool。缺失或类型不符就明确失败，避免 bool("false") 掩盖上游类型错误。"""
+    if not isinstance(value, bool):
+        raise SystemExit("证据生成失败：%s 应为 bool，实际是 %s(%r)；拒绝强制转换。"
+                         % (where, type(value).__name__, value))
+    return value
 
 
 def data(resp):
@@ -126,7 +134,7 @@ results, ex = [], []
 
 
 def rec(case, ok, expected, got, note="", raw=None):
-    results.append({"case": case, "expected": expected, "got": got, "pass": bool(ok),
+    results.append({"case": case, "expected": expected, "got": got, "pass": ok is True,
                     "note": note, "raw": raw or {}})
     print(f"[{'PASS' if ok else 'FAIL'}] {case}: {got}")
 
@@ -146,7 +154,7 @@ def main():
     p = data(c.call("generate_schedule", {"date_range": RANGE}))
     codes = [x["code"] for x in p["explanations"]]
     rec("C2 explanations 属七码闭集",
-        set(codes) <= EXPLANATION_CODES and codes, sorted(EXPLANATION_CODES), codes,
+        set(codes) <= EXPLANATION_CODES and len(codes) > 0, sorted(EXPLANATION_CODES), codes,
         raw={"writes_delta": int(writes() - w_gen)})
     w_env = writes()
     env = sc(c.call("list_tasks", {"date_range": RANGE}))
@@ -279,7 +287,7 @@ def main():
     rec("T1 跨 Proposal 错绑 Token → APPROVAL_UNTRUSTED", code(r) == "APPROVAL_UNTRUSTED",
         "APPROVAL_UNTRUSTED", code(r),
         raw={"code": code(r), "writes_delta": int(writes() - w_t1),
-             "retryable": bool((sc(r).get("error") or {}).get("retryable"))})
+             "retryable": strict_bool((sc(r).get("error") or {}).get("retryable"), "T1.retryable")})
     c.close()
 
     # T2 failed + consumed -> APPROVAL_CONSUMED (reachable)
@@ -295,7 +303,7 @@ def main():
     r2 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                            "approval_token": t, "idempotency_key": "t2a2"})
     step2 = {"step": 2, "code": code(r2), "writes_delta": int(writes() - w1),
-             "retryable": bool((sc(r2).get("error") or {}).get("retryable"))}
+             "retryable": strict_bool((sc(r2).get("error") or {}).get("retryable"), "T2.step2.retryable")}
     rec("T2 failed+已消费 → APPROVAL_CONSUMED",
         code(r2) == "APPROVAL_CONSUMED", "APPROVAL_CONSUMED", code(r2),
         raw={"steps": [step1, step2], "code": code(r2),
@@ -314,12 +322,12 @@ def main():
     e1 = sc(r1).get("error") or {}
     f1 = {d.get("field"): d.get("reason") for d in (e1.get("details") or [])}
     step1 = {"step": 1, "code": code(r1), "proposal_status": f1.get("proposal_status"),
-             "writes_delta": int(writes() - w0), "retryable": bool(e1.get("retryable"))}
+             "writes_delta": int(writes() - w0), "retryable": strict_bool(e1.get("retryable"), "T3.step1.retryable")}
     w1 = writes()
     r2 = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                            "approval_token": t, "idempotency_key": "t3a1"})
     e2 = sc(r2).get("error") or {}
-    step2 = {"step": 2, "code": code(r2), "retryable": bool(e2.get("retryable")),
+    step2 = {"step": 2, "code": code(r2), "retryable": strict_bool(e2.get("retryable"), "T3.step2.retryable"),
              "writes_delta": int(writes() - w1)}
     top_status = step1.get("proposal_status")
     rec("T3 applying 同键 → IDEMPOTENCY_IN_PROGRESS(retryable)",
@@ -377,7 +385,8 @@ def main():
     for x in results:
         lines.append(f"| {x['case']} | {x['expected']} | {x['got']} | {'✅' if x['pass'] else '❌'} | {x['note']} |")
     lines += ["", "> 每条 core 的 `raw` 均带 `writes_delta`（int，服务端业务写入计数器在该次调用前后的差值，0 表示零写入）；"
-              "X2 另带 `second_apply_executed`(bool)；T2/T3 用 `raw.steps` 记录分步增量；ORD-1 另带 `first_apply_writes_delta`。",
+              "X2 另带 `second_apply_executed`(bool)；T2/T3 用 `raw.steps` 记录分步增量；ORD-1 另带 `first_apply_writes_delta`；"
+              "EX-15/17/18 也带 `writes_delta`。所有 `retryable` 经 `strict_bool()` 校验：非 bool（缺失/字符串）直接判生成失败，不做 truthy 转换。",
               "", "## examples 回放", "", "| ID | 名称 | 结果 | 说明 |", "|---|---|---|---|"]
     for x in ex:
         mark = {"pass": "✅", "fail": "❌", "not_executable": "⏸️"}[x["status"]]
@@ -480,9 +489,9 @@ def ex_poll_approved(ex):
     p, aid = pending(c, "exappr")
     approve(c, aid)
     d = data(c.call("get_approval_status", {"approval_id": aid}))
-    ok = d["status"] == "approved" and bool(d.get("approval_token")) and bool(d.get("token_expires_at"))
+    ok = d["status"] == "approved" and d.get("approval_token") is not None and d.get("token_expires_at") is not None
     c.close()
-    return ok, "approved+token", {"status": d.get("status"), "has_token": bool(d.get("approval_token"))}
+    return ok, "approved+token", {"status": d.get("status"), "has_token": d.get("approval_token") is not None}
 
 
 def ex_poll_issued(ex):
@@ -534,13 +543,17 @@ def ex_already_applied(ex):
     c = Client()
     p, aid = pending(c, "exalr")
     t = token(c, aid)
+    w0 = writes()
     c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                       "approval_token": t, "idempotency_key": "exalr1"})
+    w1 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "exalr2"})
     ok = code(r) == "ALREADY_APPLIED"
+    raw = {"code": code(r), "writes_delta": int(writes() - w1),
+           "first_apply_writes_delta": int(w1 - w0)}
     c.close()
-    return ok, f"code={code(r)}", {"code": code(r)}
+    return ok, f"code={code(r)}", raw
 
 
 def ex_proposal_expired(ex):
@@ -559,13 +572,17 @@ def ex_consumed(ex):
     p, aid = pending(c, "excons")
     t = token(c, aid)
     set_flags({"fail_after_consume": True})
+    w0 = writes()
     c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                       "approval_token": t, "idempotency_key": "excons1"})
+    w1 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "excons2"})
     ok = code(r) == "APPROVAL_CONSUMED"
+    raw = {"code": code(r), "writes_delta": int(writes() - w1),
+           "first_apply_writes_delta": int(w1 - w0)}
     c.close()
-    return ok, f"code={code(r)}", {"code": code(r)}
+    return ok, f"code={code(r)}", raw
 
 
 def ex_token_expired(ex):
@@ -573,11 +590,14 @@ def ex_token_expired(ex):
     p, aid = pending(c, "extok")
     t = token(c, aid)
     set_flags({"expire_token": True})
+    w0 = writes()
     r = c.call("apply_approved_changes", {"proposal_id": p["proposal_id"], "base_version": p["base_version"],
                                           "approval_token": t, "idempotency_key": "extok1"})
     ok = code(r) == "APPROVAL_EXPIRED"
+    raw = {"code": code(r), "writes_delta": int(writes() - w0),
+           "retryable": strict_bool((sc(r).get("error") or {}).get("retryable"), "EX-18.retryable")}
     c.close()
-    return ok, f"code={code(r)}", {"code": code(r)}
+    return ok, f"code={code(r)}", raw
 
 
 def ex_base_changed(ex):
