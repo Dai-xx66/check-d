@@ -434,19 +434,6 @@ def overlapping_block_pairs(blocks):
 
 def check_hard_constraints(proposal, events):
     violations = []
-    # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
-    # BLOCK_OVERLAP。属"结构合法但违反调度硬约束"，走 normal invalid 响应，
-    # 不作为 PROPOSAL_INVALID 结构错误抛出。
-    for left, right in overlapping_block_pairs(proposal["blocks"]):
-        item = {"code": "BLOCK_OVERLAP",
-                "message": "提案块之间存在时间重叠：%s（%s）与 %s（%s）。" % (
-                    left[2], iso(left[0]), right[2], iso(right[0])),
-                "related_block_ids": [left[2], right[2]]}
-        tasks = sorted({t for t in (left[3], right[3]) if t})
-        if tasks:
-            item["related_task_ids"] = tasks
-        violations.append(item)
-
     for b in proposal["blocks"]:
         bs = parse_instant(b["start_at"], "block.start_at")
         be = parse_instant(b["end_at"], "block.end_at")
@@ -460,6 +447,19 @@ def check_hard_constraints(proposal, events):
             if bs < ee and es < be:
                 violations.append({"code": "FIXED_EVENT_CONFLICT",
                                    "block_id": b["block_id"], "event_id": e["event_id"]})
+    # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
+    # BLOCK_OVERLAP。属"结构合法但违反调度硬约束"，走 normal invalid 响应，
+    # 不作为 PROPOSAL_INVALID 结构错误抛出。
+    # 顺序按 M0 要求 5：放在固定事件冲突检查之后，不抢占 FIXED_EVENT_CONFLICT。
+    for left, right in overlapping_block_pairs(proposal["blocks"]):
+        item = {"code": "BLOCK_OVERLAP",
+                "message": "提案块之间存在时间重叠：%s（%s）与 %s（%s）。" % (
+                    left[2], iso(left[0]), right[2], iso(right[0])),
+                "related_block_ids": [left[2], right[2]]}
+        tasks = sorted({t for t in (left[3], right[3]) if t})
+        if tasks:
+            item["related_task_ids"] = tasks
+        violations.append(item)
     seen = {}
     for ch in proposal["changes"]:
         if ch["type"] == "schedule_one_time":

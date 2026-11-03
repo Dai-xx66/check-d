@@ -89,6 +89,23 @@ def t1_normal_generation():
     check("T1.4 固定事件冲突仍报 FIXED_EVENT_CONFLICT",
           "FIXED_EVENT_CONFLICT" in codes, "codes=%s" % codes)
 
+    # T1.5 检测顺序（M0 要求 5）：同时存在块间重叠与固定事件冲突时，
+    # FIXED_EVENT_CONFLICT 仍必须先于 BLOCK_OVERLAP 出现，不能被新码抢占。
+    mixed = {"blocks": [
+        {"block_id": "b_p", "task_id": "t_p", "task_kind": "one_time",
+         "start_at": "2026-10-29T09:00:00+08:00", "end_at": "2026-10-29T10:00:00+08:00"},
+        {"block_id": "b_q", "task_id": "t_q", "task_kind": "one_time",
+         "start_at": "2026-10-29T09:30:00+08:00", "end_at": "2026-10-29T10:30:00+08:00"}],
+        "changes": []}
+    ev_ = [{"event_id": "ev_1", "fixed": True, "date": "2026-10-29",
+            "start_at": "2026-10-29T09:15:00+08:00",
+            "end_at": "2026-10-29T09:45:00+08:00"}]
+    mixed_codes = [x["code"] for x in ts.check_hard_constraints(mixed, ev_)]
+    check("T1.5 混合场景下 FIXED_EVENT_CONFLICT 不被 BLOCK_OVERLAP 抢占",
+          "FIXED_EVENT_CONFLICT" in mixed_codes and "BLOCK_OVERLAP" in mixed_codes
+          and mixed_codes.index("FIXED_EVENT_CONFLICT") < mixed_codes.index("BLOCK_OVERLAP"),
+          "codes=%s" % mixed_codes)
+
 
 def t2_injected_overlap_must_be_rejected():
     print("T2 注入重叠 blocks（绕过生成阶段）：validate 必须拒绝")
