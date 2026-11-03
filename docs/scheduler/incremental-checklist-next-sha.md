@@ -109,6 +109,7 @@ bash docs/scheduler/tools/contract-diff-check.sh <新的固定SHA>
 - `explanations[].code` 七值闭集契约已写死，与 `kPublicExplanationCodes` 逐字一致；repair 专用
   `DISPLACED_BY_FIXED`/`REPAIR_SUMMARY` 禁止进 v1 也已明文 —— 守卫早已绑定，无改动。
 - 新增 §5.8 `violations` 七值闭集 —— 属 `validate_schedule` 服务端校验职责，**M2 不实现**。
+  （**已过时：39f7f965 起为八值，新增 `BLOCK_OVERLAP`，见第八节**）
 - **命中红线**：契约把「方案 A」从暂定改为明文（M2 不输出 `proposal_id`/`snapshot_ref`/
   `base_version`/`input_digest`/`generated_at`/`expires_at`/`status`），已改 `ScheduleProposal`
   序列化只输出内部四部分，并同步守卫用例。详见 `reports/incremental-alignment-m2-c53b1a9.md`。
@@ -143,3 +144,49 @@ M0（daixinxin_1）回信确认：此前报告里标为「待 M0 确认」的两
 **结论：零代码改动、零测试。** 契约基准仍为 c9dda831 不变（本轮无新 SHA）。仅把第四节
 「欠 M0 三件事」中 R1/X1 两项标记为已闭环，并同步第一节第 3、5 项判据已满足。PR #2 保持未合并。
 
+
+## 八、39f7f965 轮结论（2026-11-03 已跑）
+
+新固定 SHA `39f7f96559abac9d4bc59d5c560e6a706ec19946`（M0 提交，`feat/m0-api-contract` 已从
+`c9dda83` 前进到 `39f7f96`）。按本清单只跑增量，不全文重评。
+
+**diff 结论（`contract-diff-check.sh 39f7f965`）**：md 新增 1 行 / 删除 1 行；examples.json 零变化；
+工具清单仍七个；§4.1 错误码表无变化；Proposal/Token TTL 段落无变化。
+
+**唯一实质变化**：§5.8 `violation` 的「公开 `code` 的 v1 完整闭集」由 **7 值变 8 值**，
+新增 `BLOCK_OVERLAP`，插在 `FIXED_EVENT_CONFLICT` 之后：
+
+```
+-`BLOCK_TIME_INVALID`、`FIXED_EVENT_CONFLICT`、
++`BLOCK_TIME_INVALID`、`FIXED_EVENT_CONFLICT`、`BLOCK_OVERLAP`、
+```
+
+### 归属判定（必须写清楚，避免和 explanations 七码混淆）
+
+| 闭集 | 位置 | 值个数 | 归属 | M2 是否产出 |
+|---|---|---|---|---|
+| `explanations[].code` | §5.6/§5.7 附近 | **7**（未变） | M2 输出侧 | **是**，`kPublicExplanationCodes` |
+| `validate_schedule.violations[].code` | §5.8 | **7 → 8**（新增 `BLOCK_OVERLAP`） | 服务端校验工具 | **否**，M2 不产出 violations |
+
+`BLOCK_OVERLAP` 只出现在 §5.8，全文仅一处；它是 violation code，**不是** explanation code，
+因此 `kPublicExplanationCodes` 不做任何改动（仍 7 个），repair 专用码隔离规则也不受影响。
+
+### 对 M2 的实际影响：零代码改动，但补了两条守卫
+
+M2 不产出 `violations`，这条新码不改变任何 DTO、枚举或序列化行为。但它判的是
+「块与块重叠」，而块正是 M2 的产出 —— 若我的输出里有相互重叠的块，服务端 `validate_schedule`
+必然判 `BLOCK_OVERLAP`。引擎在每放一块后立刻 `_subtract` 掉已占区间，块间不重叠是**构造性成立**的，
+此前却只有「块 vs 固定块」的断言，没有「块 vs 块」的证据。本轮补上：
+
+1. `generate 输出块两两不重叠：不会触发 §5.8 BLOCK_OVERLAP`
+   —— 2 个固定块 + 4 条 55 分钟需求，逐对比较 `window.overlaps`，并断言仍不与固定块重叠；
+   带防空跑守卫（`blocks.length >= 4`）。
+2. `repair 输出块两两不重叠：重排后也不会撞到别人`
+   —— 3 块既有安排，固定会议压住第 3 块迫使就近重排，显式 `maxShiftMinutes: 120`，
+   重排后同样逐对比较。
+
+用例数 **45 → 47**；两通道均 47/47（隔离 `dart test` / 宿主 `flutter test`，宿主需
+`env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy`）。
+
+**契约基准切换**：`contract-diff-check.sh` 的 BASE_SHA 更新为 `39f7f965`。
+PR #2 继续 Open，不合并。

@@ -1060,6 +1060,122 @@ void main() {
       expect(proposal.blocks, isEmpty);
       expect(proposal.unplannedTasks, hasLength(1));
     });
+
+    // 契约 39f7f965 在 §5.8 violations 闭集里新增了第 8 个码 BLOCK_OVERLAP
+    // （块与块重叠，related_block_ids 指向双方）。M2 不产出 violations，
+    // 但我的输出若是相互重叠的块，服务端 validate 就必然判这条。
+    // 引擎在每放一块后立刻 _subtract 掉已占区间，块间不重叠是构造性成立的；
+    // 这里把它从推理变成证据。
+    test('generate 输出块两两不重叠：不会触发 §5.8 BLOCK_OVERLAP', () {
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 20),
+        baseVersion: 'v1',
+        availability: [_window(0, 8, 20)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'course-1',
+            ownerType: ScheduleOwnerType.course,
+            startAt: _at(0, 10),
+            endAt: _at(0, 10, 50),
+            title: '高数课',
+          ),
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 14),
+            endAt: _at(0, 14, 40),
+            title: '班会',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(taskId: 't1', title: 'A', requiredMinutes: 55),
+          ScheduleTaskDemand(taskId: 't2', title: 'B', requiredMinutes: 55),
+          ScheduleTaskDemand(taskId: 't3', title: 'C', requiredMinutes: 55),
+          ScheduleTaskDemand(taskId: 't4', title: 'D', requiredMinutes: 55),
+        ],
+      );
+
+      final proposal = generateSchedule(input);
+      // 防空跑：真的排出了多块，否则下面的两两比较没有意义。
+      expect(proposal.blocks.length, greaterThanOrEqualTo(4));
+
+      for (var i = 0; i < proposal.blocks.length; i++) {
+        for (var j = i + 1; j < proposal.blocks.length; j++) {
+          expect(
+            proposal.blocks[i].window.overlaps(proposal.blocks[j].window),
+            isFalse,
+            reason:
+                '${proposal.blocks[i].taskId} 与 ${proposal.blocks[j].taskId} 重叠',
+          );
+        }
+        expect(_overlapsAny(proposal.blocks[i], input.fixedBlocks), isFalse);
+      }
+    });
+
+    test('repair 输出块两两不重叠：重排后也不会撞到别人', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'p1',
+            title: 'A',
+            startAt: _at(0, 9),
+            endAt: _at(0, 10),
+          ),
+          ProposedBlock(
+            taskId: 'p2',
+            title: 'B',
+            startAt: _at(0, 11),
+            endAt: _at(0, 12),
+          ),
+          ProposedBlock(
+            taskId: 'p3',
+            title: 'C',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 20),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 20)],
+        fixedBlocks: [
+          // 正好压住 p3，迫使它就近重排到 p2 旁边，考验块间避让。
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 15),
+            endAt: _at(0, 16, 30),
+            title: '临时会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(taskId: 'p1', title: 'A', requiredMinutes: 60),
+          ScheduleTaskDemand(taskId: 'p2', title: 'B', requiredMinutes: 60),
+          ScheduleTaskDemand(taskId: 'p3', title: 'C', requiredMinutes: 60),
+        ],
+      );
+
+      final repaired = repairSchedule(input, previous, maxShiftMinutes: 120);
+      expect(repaired.blocks, hasLength(3));
+
+      for (var i = 0; i < repaired.blocks.length; i++) {
+        for (var j = i + 1; j < repaired.blocks.length; j++) {
+          expect(
+            repaired.blocks[i].window.overlaps(repaired.blocks[j].window),
+            isFalse,
+            reason:
+                '${repaired.blocks[i].taskId} 与 ${repaired.blocks[j].taskId} 重叠',
+          );
+        }
+        expect(_overlapsAny(repaired.blocks[i], input.fixedBlocks), isFalse);
+      }
+    });
   });
 
   group('冻结目标守卫', () {
