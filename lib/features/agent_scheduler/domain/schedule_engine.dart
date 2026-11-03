@@ -272,13 +272,16 @@ ProposedBlock? _placeDemand(
 /// 只用「移动块数」衡量扰动是不够的：一块从 15:00 挪到 08:00 也只算 1 块，
 /// 但位移 420 分钟，和用户说的「其他尽量别动」是两件事。所以这里以**位移分钟**
 /// 为目标——先试原位置之后的最近空档，再退原位置之前，距离相同优先落在之后
-/// （往后顺延比往前甩 7 小时更符合预期）。真排不下才由调用方退到最早可用兜底。
+/// （往后顺延比往前甩 7 小时更符合预期）。
+/// 默认在全部片段里取全局最小位移；给了 [maxShiftMinutes] 就只在边界内找，
+/// 边界内无解返回 null，由调用方退最早可用。
 ProposedBlock? _placeNearest(
   List<ScheduleWindow> free,
   ScheduleTaskDemand demand,
   ScheduleInput input,
-  DateTime originStart,
-) {
+  DateTime originStart, {
+  int? maxShiftMinutes,
+}) {
   final duration = _durationOf(demand, input);
   if (duration.minutes <= 0) return null;
   final need = Duration(minutes: duration.minutes);
@@ -307,6 +310,9 @@ ProposedBlock? _placeNearest(
     if (start.isAfter(maxStart)) start = maxStart;
 
     final delta = start.difference(originStart).inMinutes.abs();
+    // 边界只在显式给定时生效：超界的候选不算「合理的局部位置」，
+    // 交给调用方退最早可用。
+    if (maxShiftMinutes != null && delta > maxShiftMinutes) continue;
     final isAfter = !start.isBefore(originStart);
     if (delta < bestDelta || (delta == bestDelta && isAfter && !bestIsAfter)) {
       bestDelta = delta;
@@ -542,10 +548,20 @@ bool _isInsideAny(List<ScheduleWindow> usable, ScheduleWindow candidate) {
 ///
 /// 策略：上一版里没被新课程/会议撞到的块原样保留；
 /// 只有真正冲突的柔性任务才重新找位置，其余尽量不动。
+///
+/// [maxShiftMinutes] 是「就近」的候选空档搜索边界（分钟，可空）。
+/// - 省略（默认）：不设边界，在全部可行空档里取**绝对位移最小**的那个；
+/// - 给定值：偏离原开始时间超过该值的空档不算「合理的局部位置」，
+///   全部候选都超界时退回到最早可用位置。
+///
+/// 默认不设边界，是因为全局限最小位移在位置质量上恒定不劣于最早可用；
+/// 只有在业务上不接受「跨半天挪动」时才需要收紧边界，取值属契约外的
+/// 调度策略参数，需由 M0 指位后由服务端传入，M2 不自定阈值。
 ScheduleProposal repairSchedule(
   ScheduleInput input,
-  ScheduleProposal previous,
-) {
+  ScheduleProposal previous, {
+  int? maxShiftMinutes,
+}) {
   final notes = <ScheduleNote>[];
   for (final block in _overlappingFixedBlocks(input)) {
     notes.add(
@@ -655,10 +671,17 @@ ScheduleProposal repairSchedule(
     }
 
     // 上一版有位置的块「就近重排」，新任务才按最早可用排。
+    // 就近搜索无解（含显式边界把候选全部排除）时才退回最早可用。
     final origin = originStartByTask[demand.taskId];
     final block = (origin == null
             ? null
-            : _placeNearest(free, demand, input, origin)) ??
+            : _placeNearest(
+                free,
+                demand,
+                input,
+                origin,
+                maxShiftMinutes: maxShiftMinutes,
+              )) ??
         _placeDemand(free, demand, input);
     if (block == null) {
       unplanned.add(

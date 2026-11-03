@@ -751,6 +751,102 @@ void main() {
       expect(repaired.blocks.single.startAt, _at(0, 13));
     });
 
+    // M0 2026-11-03 要求覆盖的第三分支：两侧都不可行时走最早可用兜底。
+    // 默认不设边界时这条分支不可达（全局最小位移要么有解、要么全局无解），
+    // 所以这里显式给 maxShiftMinutes，把「合理的局部位置」限定出一个边界。
+    test('就近重排：边界内两侧都不可行时退最早可用兜底', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'task-far',
+            title: '整理笔记',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 20),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 20)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 11),
+            endAt: _at(0, 17),
+            title: '整段会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'task-far',
+            title: '整理笔记',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      // 空闲只剩两段：08:00–11:00（起点 08:00，位移 -420）、
+      // 17:00–20:00（起点 17:00，位移 +120）。
+      // 默认无边界 → 取位移最小的 17:00。
+      expect(repairSchedule(input, previous).blocks.single.startAt, _at(0, 17));
+
+      // 边界 60 分钟：+120 超界、-420 也超界 → 两侧都不算「合理的局部位置」
+      // → 退回到最早可用，落 08:00（位移反而更大，这正是边界收紧的代价）。
+      final bounded = repairSchedule(input, previous, maxShiftMinutes: 60);
+      expect(bounded.blocks.single.startAt, _at(0, 8));
+      expect(bounded.blocks.single.movedFromPreviousPlan, isTrue);
+      expect(
+        bounded.notes.map((note) => note.message).join(),
+        contains('位移 420 分钟'),
+      );
+    });
+
+    test('就近重排：搜索边界不会误杀界内候选', () {
+      final previous = ScheduleProposal(
+        blocks: [
+          ProposedBlock(
+            taskId: 'task-far',
+            title: '整理笔记',
+            startAt: _at(0, 15),
+            endAt: _at(0, 16),
+          ),
+        ],
+      );
+
+      final input = ScheduleInput(
+        now: _at(0, 7),
+        horizonStart: _at(0, 8),
+        horizonEnd: _at(0, 20),
+        baseVersion: 'v2',
+        availability: [_window(0, 8, 20)],
+        fixedBlocks: [
+          ScheduleFixedBlock(
+            ownerId: 'event-1',
+            ownerType: ScheduleOwnerType.event,
+            startAt: _at(0, 11),
+            endAt: _at(0, 17),
+            title: '整段会议',
+          ),
+        ],
+        demands: [
+          ScheduleTaskDemand(
+            taskId: 'task-far',
+            title: '整理笔记',
+            requiredMinutes: 60,
+          ),
+        ],
+      );
+
+      // 同一场景把边界放到 180：17:00 的 +120 在界内，仍然是它，不误退兜底。
+      final bounded = repairSchedule(input, previous, maxShiftMinutes: 180);
+      expect(bounded.blocks.single.startAt, _at(0, 17));
+    });
+
     test('无可排位置时返回未安排量与理由', () {
       final previous = ScheduleProposal(
         blocks: [
