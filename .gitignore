@@ -51,3 +51,4 @@ pnpm-debug.log*
 *.temp
 
 android/key.properties
+.workbuddy/

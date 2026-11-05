@@ -1,0 +1,3 @@
+# vendor 快照必须与上游 SHA 逐字节一致，禁止任何行尾转换
+# （否则 check_vendor_m2.py 的哈希守卫会在 Windows 克隆上误报）
+tools/m3-checks/vendor/m2-scheduler/*.dart -text
