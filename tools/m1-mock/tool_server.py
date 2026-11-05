@@ -11,6 +11,7 @@ Environment:
   CHECKD_TOKEN        bearer token for the demo user (default demo-token-alice)
   MOCK_APPROVAL_FILE  JSON file acting as the external approval store
   MOCK_TEST_FLAGS     test-only JSON flags; never a tool parameter
+  MOCK_TASKS_FILE     JSON file replacing the built-in task seed (fail-fast)
 """
 import hashlib
 import json
@@ -26,6 +27,7 @@ SERVER_VERSION = "0.4.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVAL_FILE = os.environ.get("MOCK_APPROVAL_FILE", os.path.join(HERE, "mock_approvals.json"))
 FLAGS_FILE = os.environ.get("MOCK_TEST_FLAGS")
+TASKS_FILE = os.environ.get("MOCK_TASKS_FILE")
 
 PROPOSAL_TTL_MIN = 30
 TOKEN_TTL_MIN = 5
@@ -79,6 +81,19 @@ COURSES = [
         }],
     },
 ]
+
+if TASKS_FILE:
+    # fail-fast：fixture 写错时宁可报错退出，也不静默回退内置任务，
+    # 否则会拿默认数据跑出「通过」，那是假证据。
+    try:
+        with open(TASKS_FILE, encoding="utf-8") as _f:
+            TASKS = json.load(_f)
+    except Exception as _exc:
+        sys.stderr.write("FATAL: MOCK_TASKS_FILE unreadable %s: %s\n" % (TASKS_FILE, _exc))
+        sys.exit(2)
+    if not isinstance(TASKS, list):
+        sys.stderr.write("FATAL: MOCK_TASKS_FILE must be a JSON array of tasks\n")
+        sys.exit(2)
 
 STATE = {
     "tasks": {t["task_id"]: t for t in TASKS},
@@ -177,7 +192,26 @@ def parse_instant(s, field):
     return dt
 
 
+def is_completed_on(task, day):
+    """该任务在给定上海本地日期的 occurrence 是否已完成。
+
+    三个条件缺一不可：completed_today 必须为 true、completed_at 必须存在、
+    且其上海本地日期必须等于 day。任一不满足都返回 False。
+    fixture 漏字段或时间落在目标日之外时，不得产生该解释码。
+    """
+    if task.get("completed_today") is not True:
+        return False
+    raw = task.get("completed_at")
+    if not raw:
+        return False
+    try:
+        return parse_instant(raw, "completed_at").astimezone(TZ).date() == day
+    except ToolError:
+        return False
+
+
 def validate_envelope(args):
+
     if not isinstance(args, dict):
         raise ToolError("INVALID_ARGUMENT", "请求必须是对象。")
     if args.get("api_version") != API_VERSION:
@@ -336,6 +370,7 @@ def schedule(payload, prefs):
     min_block = int(prefs.get("minimum_block_minutes", 30))
     fixed = [e for e in calendar_events_for(payload) if e["fixed"]]
     blocks, changes, unplanned = [], [], []
+    already_done = []   # 当天已完成任务的 task_id，按出现顺序去重
 
     # 每日常驻占用：固定事件 + 本次已排出的块。排完一个块立即并入当天占用，
     # 后续任务才不会再落回同一起点（否则块与块会完全重叠）。
@@ -390,6 +425,12 @@ def schedule(payload, prefs):
         need = int(target) if target else min_block * 60
         minutes = max(int((need + 59) // 60), min_block)
         for d in iter_dates(start, end):
+            if is_completed_on(t, d):
+                # 当天 occurrence 已完成：不排块、不进 unplanned、不参与时长兜底，
+                # 只记 task_id，交由 generate_schedule 汇总成公共解释。
+                if t["task_id"] not in already_done:
+                    already_done.append(t["task_id"])
+                continue
             busy = day_busy[d]
             cursor = day_start
             placed = False
@@ -415,7 +456,7 @@ def schedule(payload, prefs):
                 unplanned.append({"task_id": t["task_id"], "reason_code": reason,
                                   "remaining_minutes": minutes,
                                   "message": "当日可用窗口不足以容纳该周期任务。"})
-    return blocks, changes, unplanned
+    return blocks, changes, unplanned, already_done
 
 
 def overlapping_block_pairs(blocks):
@@ -602,7 +643,7 @@ def tool_generate_schedule(args, user):
         raise ToolError("INVALID_ARGUMENT", "远程调用不得提交 tasks/courses/base_version/snapshot_ref。")
     payload, input_digest = snapshot_for(user, start, end, ext)
     base_version = digest({"snapshot": input_digest, "user": user})
-    blocks, changes, unplanned = schedule(payload, prefs)
+    blocks, changes, unplanned, already_done = schedule(payload, prefs)
     if take_flag("inject_overlapping_blocks") and blocks:
         # 反例注入（仅测试用）：复制首块并后移 5 分钟，制造块间重叠，
         # 用于验证校验侧能在绕过生成阶段的情况下拒绝该提案。
@@ -638,6 +679,11 @@ def tool_generate_schedule(args, user):
     if any(u["reason_code"] == "WINDOW_INSUFFICIENT" for u in unplanned):
         explanations.append({"code": "AVAILABILITY_SATURATED",
                              "message": "可用时长不足以覆盖目标时长。"})
+    if already_done:
+        # 公共解释结构，携带任务 ID；不得产生 repair-only code。
+        explanations.append({"code": "ALREADY_DONE_TODAY",
+                             "message": "部分任务今日已完成，不再重复安排。",
+                             "related_task_ids": sorted(already_done)})
 
     pid = _next_id("proposal")
     created = now()
