@@ -2094,6 +2094,78 @@ void main() {
     });
   });
 
+  // M0 2026-11-05 第三节：A2 决策—代码—测试追踪矩阵补强。
+  // 只针对已由 M0 裁定的 D2（公共解释过滤），不涉及任何未裁定语义。
+  group('D2 公共解释过滤（追踪矩阵补强）', () {
+    test('publicExplanations 与内部全集隔离：repair 码与枚举外码都不进远程响应', () {
+      final proposal = ScheduleProposal(
+        notes: [
+          const ScheduleNote(code: 'SCHEDULED', message: '已排入。', taskId: 't1'),
+          const ScheduleNote(
+            code: 'ESTIMATED_DURATION',
+            message: '时长按估算。',
+            taskId: 't1',
+          ),
+          const ScheduleNote(
+            code: 'DISPLACED_BY_FIXED',
+            message: '被撞移位。',
+            taskId: 't1',
+          ),
+          const ScheduleNote(code: 'REPAIR_SUMMARY', message: '共移动 1 处。'),
+          const ScheduleNote(code: 'UNLISTED_FUTURE_CODE', message: '未来新增码。'),
+        ],
+      );
+
+      // 方案 A：toJson 输出的是「内部四部分」，因此保留全部 5 条。
+      final internal = proposal.toJson()['explanations'] as List<dynamic>;
+      expect(internal, hasLength(5));
+
+      // 远程响应：只保留 2 条公共码。
+      final public = proposal.publicExplanations;
+      expect(public, hasLength(2));
+      expect(
+        public.map((note) => note.code).toSet(),
+        {'SCHEDULED', 'ESTIMATED_DURATION'},
+      );
+
+      // 差集必须恰好等于「repair 专用码 ∪ 枚举外码」——一条不多、一条不少。
+      final internalCodes = proposal.notes.map((note) => note.code).toSet();
+      final publicCodes = public.map((note) => note.code).toSet();
+      expect(
+        internalCodes.difference(publicCodes),
+        {'DISPLACED_BY_FIXED', 'REPAIR_SUMMARY', 'UNLISTED_FUTURE_CODE'},
+      );
+
+      // 双重守卫：public 里既不能有 repair 码，也必须都在公共集合内。
+      for (final note in public) {
+        expect(kRepairOnlyExplanationCodes.contains(note.code), isFalse);
+        expect(kPublicExplanationCodes.contains(note.code), isTrue);
+      }
+    });
+
+    test('isPublic 只认公共码：repair 码与枚举外码一律 false', () {
+      expect(const ScheduleNote(code: 'SCHEDULED', message: 'x').isPublic, isTrue);
+      expect(
+        const ScheduleNote(code: 'DISPLACED_BY_FIXED', message: 'x').isPublic,
+        isFalse,
+      );
+      expect(
+        const ScheduleNote(code: 'UNLISTED_FUTURE_CODE', message: 'x').isPublic,
+        isFalse,
+      );
+      expect(const ScheduleNote(code: '', message: 'x').isPublic, isFalse);
+    });
+
+    test('公共码与 repair 专用码两个集合互斥，且规模符合 M0 裁定', () {
+      expect(
+        kPublicExplanationCodes.intersection(kRepairOnlyExplanationCodes),
+        isEmpty,
+      );
+      expect(kPublicExplanationCodes, hasLength(7));
+      expect(kRepairOnlyExplanationCodes, hasLength(2));
+    });
+  });
+
   group('模块边界', () {
     test('调度模块不得访问数据库或任何应用层代码', () {
       for (final path in [
