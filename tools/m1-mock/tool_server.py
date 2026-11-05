@@ -479,15 +479,23 @@ def check_hard_constraints(proposal, events):
         bs = parse_instant(b["start_at"], "block.start_at")
         be = parse_instant(b["end_at"], "block.end_at")
         if be <= bs:
-            violations.append({"code": "BLOCK_TIME_INVALID", "block_id": b["block_id"]})
+            violations.append(dict(
+                code="BLOCK_TIME_INVALID",
+                message="提案块结束时间必须晚于开始时间：%s 至 %s。" % (iso(bs), iso(be)),
+                related_block_ids=[b["block_id"]]))
         for e in events:
             if not e["fixed"] or e["date"] != b["start_at"][:10]:
                 continue
             es = parse_instant(e["start_at"], "event.start_at")
             ee = parse_instant(e["end_at"], "event.end_at")
             if bs < ee and es < be:
-                violations.append({"code": "FIXED_EVENT_CONFLICT",
-                                   "block_id": b["block_id"], "event_id": e["event_id"]})
+                violations.append(dict(
+                    code="FIXED_EVENT_CONFLICT",
+                    message="提案块与固定事件时间冲突：块 %s（%s 至 %s）与事件 %s（%s 至 %s）。"
+                            % (b["block_id"], iso(bs), iso(be),
+                               e["event_id"], iso(es), iso(ee)),
+                    related_block_ids=[b["block_id"]],
+                    related_event_ids=[e["event_id"]]))
     # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
     # BLOCK_OVERLAP。属"结构合法但违反调度硬约束"，走 normal invalid 响应，
     # 不作为 PROPOSAL_INVALID 结构错误抛出。
@@ -511,27 +519,42 @@ def check_hard_constraints(proposal, events):
     for key, n in seen.items():
         if isinstance(key, tuple):
             if n > 1:
-                violations.append({"code": "MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
-                                   "task_id": key[0]})
+                violations.append(dict(
+                    code="MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
+                    message="同一周期任务在同一自然日出现多个单日例外：任务 %s，日期 %s。"
+                            % (key[0], key[1]),
+                    related_task_ids=[key[0]]))
         elif n > 1:
-            violations.append({"code": "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "task_id": key})
+            violations.append(dict(
+                code="MULTIPLE_CHANGES_FOR_ONE_TIME_TASK",
+                message="同一一次性任务在单次提案中出现多条排期变更：任务 %s。" % key,
+                related_task_ids=[key]))
     for ch in proposal["changes"]:
         if ch["type"] != "schedule_one_time":
             continue
         t = STATE["tasks"].get(ch["task_id"]) or {}
         avail = t.get("available_from")
         if avail and ch["planned_date"] < avail:
-            violations.append({"code": "PLANNED_BEFORE_AVAILABLE_FROM",
-                               "task_id": ch["task_id"]})
+            violations.append(dict(
+                code="PLANNED_BEFORE_AVAILABLE_FROM",
+                message="计划的日期早于任务可用起始日：任务 %s，计划日 %s，可用起始日 %s。"
+                        % (ch["task_id"], ch["planned_date"], avail),
+                related_task_ids=[ch["task_id"]]))
         dl = t.get("deadline") or {}
         if dl.get("kind") == "date_only" and ch["planned_date"] > dl.get("date", ""):
-            violations.append({"code": "PLANNED_AFTER_DATE_ONLY_DEADLINE",
-                               "task_id": ch["task_id"]})
+            violations.append(dict(
+                code="PLANNED_AFTER_DATE_ONLY_DEADLINE",
+                message="计划的日期晚于任务截止日期：任务 %s，计划日 %s，截止日 %s。"
+                        % (ch["task_id"], ch["planned_date"], dl.get("date", "")),
+                related_task_ids=[ch["task_id"]]))
         if dl.get("kind") == "exact" and ch.get("scheduled_at"):
             at = parse_instant(ch["scheduled_at"], "scheduled_at")
             if at > parse_instant(dl["at"], "deadline"):
-                violations.append({"code": "BLOCK_AFTER_EXACT_DEADLINE",
-                                   "task_id": ch["task_id"]})
+                violations.append(dict(
+                    code="BLOCK_AFTER_EXACT_DEADLINE",
+                    message="计划时刻晚于任务精确截止时刻：任务 %s，计划时刻 %s，截止时刻 %s。"
+                            % (ch["task_id"], iso(at), iso(parse_instant(dl["at"], "deadline"))),
+                    related_task_ids=[ch["task_id"]]))
     return violations
 
 
