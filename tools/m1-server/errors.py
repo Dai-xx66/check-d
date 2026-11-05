@@ -26,6 +26,7 @@
 - 不做 HTTP 服务（本目录是隔离的接口骨架，不含 web 框架）
 - 不做鉴权、不做持久化、不做审批链
 - 不重试、不记日志、不产生 trace_id
+- 不为未知 code 造信封：`to_envelope()` 对闭集外的 code 直接抛 `UnknownErrorCode`，拒绝由调用方决定
 """
 
 # --- 契约 §4.1 的 21 码闭集 -------------------------------------------------
@@ -103,6 +104,16 @@ RETRYABLE.update(RETRYABLE_CONTRACT)
 API_VERSION = "checkd.agent.v1"
 
 
+class UnknownErrorCode(ValueError):
+    """传入的 code 不在契约 §4.1 的 21 码闭集内。
+
+    为什么必须抛而不是兜底：信封一旦生成，远程调用方就会把它当成一个合法错误码
+    去做分支处理。拼错的码（如 `INVALID_ARGUMENTT`）静默进信封，等于把一次
+    调用方的编码错误伪装成一次业务失败，而且它还会被 is_retryable 判成不可重试，
+    让正确的重试逻辑失效。所以这里 fail-fast。
+    """
+
+
 def is_known_code(code):
     """该 code 是否在契约 §4.1 的 21 码闭集内。
 
@@ -156,6 +167,12 @@ def to_envelope(code, message, *, request_id=None, trace_id=None, details=None):
       不写 `null`——契约说的是可选字段，不是可空字段。
     - `trace_id` 由服务端产生；这一层不生成，调用方传入。
     """
+    if not is_known_code(code):
+        raise UnknownErrorCode(
+            "未知错误码 %r：不在契约 §4.1 的 21 码闭集内。"
+            "调用方应先用 is_known_code() 判定，把未知码转成可展示的拒绝，"
+            "不得包装成信封透传给远程调用方。" % (code,)
+        )
     if not isinstance(message, str) or not message.strip():
         raise ValueError("message 必须是非空字符串：它是给用户看的必填字段")
     if details is not None and not isinstance(details, list):

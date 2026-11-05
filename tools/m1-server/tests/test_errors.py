@@ -218,5 +218,62 @@ class TestEnvelope(unittest.TestCase):
             self.assertNotIn(banned, flat, "信封里出现疑似敏感键：%s" % banned)
 
 
+
+class TestUnknownCodeGuard(unittest.TestCase):
+    """未知 code 不得静默包装成信封（M0 2026-11-05 12:46:18Z 裁定一.2）。
+
+    M3 的实测发现：修复前 `to_envelope("INVALID_ARGUMENTT", ...)` 会正常返回一个
+    HTTP 500、retryable=False 的信封，远程调用方看不出这是拼写错误。
+    """
+
+    def test_unknown_code_raises(self):
+        with self.assertRaises(errors.UnknownErrorCode):
+            errors.to_envelope("INVALID_ARGUMENTT", "说明。")
+
+    def test_guard_is_value_error_subclass(self):
+        # 既有调用方可能只写了 except ValueError；换成独立异常类会静默漏掉。
+        self.assertTrue(issubclass(errors.UnknownErrorCode, ValueError))
+
+    def test_error_message_names_the_bad_code(self):
+        bad = "NOT_A_REAL_CODE"
+        with self.assertRaises(errors.UnknownErrorCode) as ctx:
+            errors.to_envelope(bad, "说明。")
+        self.assertIn(bad, str(ctx.exception),
+                      "异常消息应含传入的原值，否则拼错的码无法定位")
+
+    def test_no_envelope_is_ever_returned_for_unknown_code(self):
+        # 「不静默包装」的正面表述：函数要么抛，要么返回合法信封，没有第三种。
+        for bad in ("", "INVALID_ARGUMENTT", "invalid_argument",
+                    "INVALID_ARGUMENT ", "INVALID-ARGUMENT", None, 400):
+            try:
+                env = errors.to_envelope(bad, "说明。")
+            except errors.UnknownErrorCode:
+                continue
+            self.fail("未知 code %r 未抛异常，返回了信封：%r" % (bad, env))
+
+    def test_all_21_known_codes_still_pass(self):
+        # 反向误伤检查：校验不能把闭集内的码判成未知。
+        for code in errors.HTTP_BY_CODE:
+            env = errors.to_envelope(code, "某个安全可展示的说明。")
+            self.assertEqual(env["error"]["code"], code)
+
+    def test_guard_agrees_with_is_known_code(self):
+        # 两处判定必须同源，否则以后加码会出现「能查不能包」或反之。
+        for code in list(errors.HTTP_BY_CODE) + ["BOGUS", "", None]:
+            self.assertEqual(errors.is_known_code(code) is False,
+                             self._envelope_raises(code),
+                             "%r 上 is_known_code 与 to_envelope 判定不一致" % (code,))
+
+    def _envelope_raises(self, code):
+        try:
+            errors.to_envelope(code, "说明。")
+        except errors.UnknownErrorCode:
+            return True
+        except (ValueError, TypeError):
+            return False
+        return False
+
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
