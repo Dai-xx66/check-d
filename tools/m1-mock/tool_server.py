@@ -491,9 +491,8 @@ def check_hard_constraints(proposal, events):
             if bs < ee and es < be:
                 violations.append(dict(
                     code="FIXED_EVENT_CONFLICT",
-                    message="提案块与固定事件时间冲突：块 %s（%s 至 %s）与事件 %s（%s 至 %s）。"
-                            % (b["block_id"], iso(bs), iso(be),
-                               e["event_id"], iso(es), iso(ee)),
+                    message="提案中的时间块与固定日程冲突：%s 至 %s 与 %s 至 %s 重叠。"
+                            % (iso(bs), iso(be), iso(es), iso(ee)),
                     related_block_ids=[b["block_id"]],
                     related_event_ids=[e["event_id"]]))
     # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
@@ -502,8 +501,8 @@ def check_hard_constraints(proposal, events):
     # 顺序按 M0 要求 5：放在固定事件冲突检查之后，不抢占 FIXED_EVENT_CONFLICT。
     for left, right in overlapping_block_pairs(proposal["blocks"]):
         item = {"code": "BLOCK_OVERLAP",
-                "message": "提案块之间存在时间重叠：%s（%s）与 %s（%s）。" % (
-                    left[2], iso(left[0]), right[2], iso(right[0])),
+                "message": "提案中的时间块存在重叠：%s 至 %s 与 %s 至 %s。" % (
+                    iso(left[0]), iso(left[1]), iso(right[0]), iso(right[1])),
                 "related_block_ids": [left[2], right[2]]}
         tasks = sorted({t for t in (left[3], right[3]) if t})
         if tasks:
@@ -521,13 +520,13 @@ def check_hard_constraints(proposal, events):
             if n > 1:
                 violations.append(dict(
                     code="MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
-                    message="同一周期任务在同一自然日出现多个单日例外：任务 %s，日期 %s。"
-                            % (key[0], key[1]),
+                    message="同一周期任务在同一自然日出现了多个单日例外：日期 %s。"
+                            % key[1],
                     related_task_ids=[key[0]]))
         elif n > 1:
             violations.append(dict(
                 code="MULTIPLE_CHANGES_FOR_ONE_TIME_TASK",
-                message="同一一次性任务在单次提案中出现多条排期变更：任务 %s。" % key,
+                message="同一一次性任务在单次提案中出现多条排期变更。",
                 related_task_ids=[key]))
     for ch in proposal["changes"]:
         if ch["type"] != "schedule_one_time":
@@ -537,23 +536,23 @@ def check_hard_constraints(proposal, events):
         if avail and ch["planned_date"] < avail:
             violations.append(dict(
                 code="PLANNED_BEFORE_AVAILABLE_FROM",
-                message="计划的日期早于任务可用起始日：任务 %s，计划日 %s，可用起始日 %s。"
-                        % (ch["task_id"], ch["planned_date"], avail),
+                message="计划的日期 %s 早于该任务的可用起始日 %s。"
+                        % (ch["planned_date"], avail),
                 related_task_ids=[ch["task_id"]]))
         dl = t.get("deadline") or {}
         if dl.get("kind") == "date_only" and ch["planned_date"] > dl.get("date", ""):
             violations.append(dict(
                 code="PLANNED_AFTER_DATE_ONLY_DEADLINE",
-                message="计划的日期晚于任务截止日期：任务 %s，计划日 %s，截止日 %s。"
-                        % (ch["task_id"], ch["planned_date"], dl.get("date", "")),
+                message="计划的日期 %s 晚于该任务的截止日期 %s。"
+                        % (ch["planned_date"], dl.get("date", "")),
                 related_task_ids=[ch["task_id"]]))
         if dl.get("kind") == "exact" and ch.get("scheduled_at"):
             at = parse_instant(ch["scheduled_at"], "scheduled_at")
             if at > parse_instant(dl["at"], "deadline"):
                 violations.append(dict(
                     code="BLOCK_AFTER_EXACT_DEADLINE",
-                    message="计划时刻晚于任务精确截止时刻：任务 %s，计划时刻 %s，截止时刻 %s。"
-                            % (ch["task_id"], iso(at), iso(parse_instant(dl["at"], "deadline"))),
+                    message="计划的时刻 %s 晚于该任务的截止时刻 %s。"
+                            % (iso(at), iso(parse_instant(dl["at"], "deadline"))),
                     related_task_ids=[ch["task_id"]]))
     return violations
 
