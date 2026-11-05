@@ -12,6 +12,8 @@ Environment:
   MOCK_APPROVAL_FILE  JSON file acting as the external approval store
   MOCK_TEST_FLAGS     test-only JSON flags; never a tool parameter
   MOCK_TASKS_FILE     JSON file replacing the built-in task seed (fail-fast)
+  MOCK_TEST_FLAGS     also accepts dependency_down: read | schedule | persist | all
+                      to inject DEPENDENCY_UNAVAILABLE on that path (G20)
 """
 import hashlib
 import json
@@ -156,6 +158,53 @@ def take_flag(name):
         set_flags(flags)
         return value
     return None
+
+
+
+# 契约 21 码表 L146：「DEPENDENCY_UNAVAILABLE｜503｜读取、调度或持久化依赖不可用」。
+# 三个 503 码最容易混，判别口诀（Gap Closure Plan §3.3）：
+#   连不上 -> DEPENDENCY_UNAVAILABLE；连得上但不能写 -> WRITE_BLOCKED；
+#   写了但不知道成不成 -> READBACK_PENDING。
+# 本函数只造第一种。其余两种不在 G20 范围。
+DEPENDENCY_STAGES = (
+    "read",       # 读取依赖：任务、课程、日历
+    "schedule",   # 调度依赖：M2 引擎
+    "persist",    # 持久化依赖：提案存储、审批记录
+)
+
+# message 只写契约措辞，不含内部依赖名、主机名、连接串（契约 §8 脱敏要求）。
+DEPENDENCY_MESSAGES = {
+    "read": "读取依赖暂时不可用，请稍后重试。",
+    "schedule": "调度依赖暂时不可用，请稍后重试。",
+    "persist": "持久化依赖暂时不可用，请稍后重试。",
+}
+
+
+def dependency_down_stages():
+    """当前生效的故障注入路径集合（空集表示未注入）。
+
+    开关从 flags 文件实时读取，不用 take_flag：故障注入要持续生效，
+    取一次就消耗掉会让第二次调用悄悄恢复，测出来的通过是假的。
+    """
+    raw = read_flags().get("dependency_down")
+    if not raw:
+        return set()
+    wanted = set(raw) if isinstance(raw, list) else {raw}
+    if "all" in wanted:
+        return set(DEPENDENCY_STAGES)
+    return {s for s in DEPENDENCY_STAGES if s in wanted}
+
+
+def check_dependency(stage):
+    """该路径被注入故障时抛 DEPENDENCY_UNAVAILABLE。
+
+    retryable=True 的依据是 A1 §6.4 的建议值，**不是契约原文**——
+    契约 21 码表不定义 retryable，M-3 未裁。此处与 errors.py 的
+    RETRYABLE_SUGGESTED 口径一致，不得对外声称「契约规定可重试」。
+    """
+    if stage not in dependency_down_stages():
+        return
+    raise ToolError("DEPENDENCY_UNAVAILABLE", DEPENDENCY_MESSAGES[stage], retryable=True)
 
 
 def read_approvals():
@@ -619,6 +668,7 @@ def find_approval_for_proposal(proposal_id, user):
 
 def tool_list_tasks(args, user):
     inp = validate_envelope(args)
+    check_dependency("read")
     start, end = date_range(inp)
     kinds = inp.get("kinds") or ["recurring", "one_time"]
     statuses = inp.get("statuses") or ["active"]
@@ -658,6 +708,7 @@ def tool_get_calendar_events(args, user):
 
 def tool_generate_schedule(args, user):
     inp = validate_envelope(args)
+    check_dependency("schedule")
     start, end = date_range(inp)
     ext = inp.get("external_fixed_events") or []
     prefs = inp.get("preferences") or {}
@@ -884,6 +935,9 @@ def verify_readback(p):
 
 def tool_apply(args, user):
     inp = validate_envelope(args)
+    # 注入点必须在幂等登记与写入之前：否则 503 之后用同一 idempotency_key
+    # 重试会命中幂等短路，用例 20-2 就永远测不出「重试不产生双写」。
+    check_dependency("persist")
     pid, base_version = inp.get("proposal_id"), inp.get("base_version")
     token, key = inp.get("approval_token"), inp.get("idempotency_key")
     if not isinstance(pid, str) or not pid or not isinstance(base_version, str) or not base_version:
