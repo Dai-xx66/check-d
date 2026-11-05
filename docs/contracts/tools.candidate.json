@@ -1,0 +1,532 @@
+{
+ "$comment": "候选 Schema，未冻结；由 tools/m1-mock/export_schema.py 生成，仅按 agent-api-v1.md v1 CANDIDATE 文本整理，等待 M0/B/C 评审确认。",
+ "status": "candidate",
+ "contract_version": "checkd.agent.v1",
+ "source": "docs/contracts/agent-api-v1.md @ feat/m0-api-contract (503210c)",
+ "extensions": [
+  "request_approval",
+  "get_approval_status"
+ ],
+ "tools": [
+  {
+   "name": "list_tasks",
+   "description": "读取当前用户的任务定义（不展开逐日 occurrence）。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "kinds": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "recurring",
+          "one_time"
+         ]
+        }
+       },
+       "statuses": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "active",
+          "paused",
+          "archived"
+         ]
+        }
+       },
+       "include_completed": {
+        "type": "boolean"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "get_calendar_events",
+   "description": "读取日期范围内生效的课程、任务与单日例外，支持传入外部固定事件。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "external_fixed_events": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "external_event_id": {
+           "type": "string"
+          },
+          "title": {
+           "type": "string"
+          },
+          "start_at": {
+           "type": "string"
+          },
+          "end_at": {
+           "type": "string"
+          }
+         },
+         "additionalProperties": false,
+         "required": [
+          "external_event_id",
+          "title",
+          "start_at",
+          "end_at"
+         ]
+        }
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "generate_schedule",
+   "description": "基于服务端快照生成调度提案（只读，不写入）。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "date_range": {
+        "$ref": "#/$defs/date_range"
+       },
+       "external_fixed_events": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "external_event_id": {
+           "type": "string"
+          },
+          "title": {
+           "type": "string"
+          },
+          "start_at": {
+           "type": "string"
+          },
+          "end_at": {
+           "type": "string"
+          }
+         },
+         "additionalProperties": false,
+         "required": [
+          "external_event_id",
+          "title",
+          "start_at",
+          "end_at"
+         ]
+        }
+       },
+       "preferences": {
+        "type": "object",
+        "properties": {
+         "day_start_minute": {
+          "type": "integer"
+         },
+         "day_end_minute": {
+          "type": "integer"
+         },
+         "minimum_block_minutes": {
+          "type": "integer"
+         }
+        },
+        "additionalProperties": false
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "date_range"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "validate_schedule",
+   "description": "按服务端快照重新校验提案，合法则进入 pending_approval。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "apply_approved_changes",
+   "description": "凭可信审批凭据原子应用变更并回读核验。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       },
+       "base_version": {
+        "type": "string"
+       },
+       "approval_token": {
+        "type": "string"
+       },
+       "idempotency_key": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id",
+       "base_version",
+       "approval_token",
+       "idempotency_key"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "request_approval",
+   "description": "[候选扩展] 创建 pending 审批请求（按提案与幂等键幂等），不批准、不签 Token。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "proposal_id": {
+        "type": "string"
+       },
+       "idempotency_key": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "proposal_id",
+       "idempotency_key"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "name": "get_approval_status",
+   "description": "[候选扩展] 轮询外部审批页；仅在批准后首次交付一次性 Token。",
+   "inputSchema": {
+    "type": "object",
+    "properties": {
+     "api_version": {
+      "type": "string",
+      "const": "checkd.agent.v1"
+     },
+     "request_id": {
+      "type": "string"
+     },
+     "timezone": {
+      "type": "string",
+      "const": "Asia/Shanghai"
+     },
+     "input": {
+      "type": "object",
+      "properties": {
+       "approval_id": {
+        "type": "string"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "approval_id"
+      ]
+     }
+    },
+    "required": [
+     "api_version",
+     "request_id",
+     "timezone",
+     "input"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+     "date_range": {
+      "type": "object",
+      "properties": {
+       "start": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       },
+       "end": {
+        "type": "string",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+       }
+      },
+      "additionalProperties": false,
+      "required": [
+       "start",
+       "end"
+      ]
+     }
+    }
+   }
+  }
+ ]
+}
