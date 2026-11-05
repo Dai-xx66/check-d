@@ -689,12 +689,18 @@ def tool_validate_schedule(args, user):
         p["status"] = "draft"
         return {"proposal_id": pid, "snapshot_ref": p["snapshot_ref"], "base_version": p["base_version"],
                 "input_digest": p["input_digest"], "proposal_status": "draft",
-                "validation_status": "invalid", "approval_status": "not_approvable",
+                "validation_status": "invalid", "approval_readiness": "not_approvable",
                 "violations": violations, "validated_at": validated_at, "expires_at": p["expires_at"]}
     p["status"] = "pending_approval"
+    # 字段名与取值同步契约 39f7f965 §6.4（L522-524）：
+    #   approval_readiness 只表达「能否进入审批」，闭集两项：
+    #   合法未调 request_approval -> not_requested；约束失败 -> not_approvable。
+    #   本处校验通过、尚未调 request_approval，故为 not_requested。
+    #   原实现写 approval_status="pending_approval"：字段名旧（2c48579），
+    #   且取值不在契约闭集内，两处一并修正（M0 2026-11-05 06:05Z 批准）。
     return {"proposal_id": pid, "snapshot_ref": p["snapshot_ref"], "base_version": p["base_version"],
             "input_digest": p["input_digest"], "proposal_status": "pending_approval",
-            "validation_status": "valid", "approval_status": "pending_approval",
+            "validation_status": "valid", "approval_readiness": "not_requested",
             "violations": [], "validated_at": validated_at, "expires_at": p["expires_at"]}
 
 
