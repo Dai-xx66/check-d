@@ -1,7 +1,7 @@
 # M1 证据 · 契约 c9dda83
 
 基准：`c9dda83195a9af4b9ca762d8556fdd0e8d43010a`（PR #4）
-核心 15/15；EX 20/20；环境 Windows / Python 3.14.3 / MCP stdio
+核心 15/15；EX 20/20；环境 Windows / Python 3.13.14 / MCP stdio
 
 > 与 2c48579、c53b1a9 及 26/26 证据分开统计；WorkBuddy 实机另见 `m1-workbuddy-live.md`。
 

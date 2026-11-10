@@ -50,7 +50,11 @@ pnpm-debug.log*
 *.tmp
 *.temp
 
+# M1 preflight 输出（默认落仓库根；内容含目标库 host/dbname/user 与检查结果，不提交）
+preflight_snapshot_db_result.json
+
 android/key.properties
-# Python
-__pycache__/
-*.pyc
+
+# 运行时标记（M0 2026-11-10 批复边界第 5 条：标记不得进 Git）。
+# 它只在容器里产生，本地跑冒烟测试时可能落在 tools/m1-server/ 旁边。
+checkd-runtime-marker.txt

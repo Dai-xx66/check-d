@@ -11,6 +11,9 @@ Environment:
   CHECKD_TOKEN        bearer token for the demo user (default demo-token-alice)
   MOCK_APPROVAL_FILE  JSON file acting as the external approval store
   MOCK_TEST_FLAGS     test-only JSON flags; never a tool parameter
+  MOCK_TASKS_FILE     JSON file replacing the built-in task seed (fail-fast)
+  MOCK_TEST_FLAGS     also accepts dependency_down: read | schedule | persist | all
+                      to inject DEPENDENCY_UNAVAILABLE on that path (G20)
 """
 import hashlib
 import json
@@ -26,6 +29,7 @@ SERVER_VERSION = "0.4.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVAL_FILE = os.environ.get("MOCK_APPROVAL_FILE", os.path.join(HERE, "mock_approvals.json"))
 FLAGS_FILE = os.environ.get("MOCK_TEST_FLAGS")
+TASKS_FILE = os.environ.get("MOCK_TASKS_FILE")
 
 PROPOSAL_TTL_MIN = 30
 TOKEN_TTL_MIN = 5
@@ -79,6 +83,19 @@ COURSES = [
         }],
     },
 ]
+
+if TASKS_FILE:
+    # fail-fast：fixture 写错时宁可报错退出，也不静默回退内置任务，
+    # 否则会拿默认数据跑出「通过」，那是假证据。
+    try:
+        with open(TASKS_FILE, encoding="utf-8") as _f:
+            TASKS = json.load(_f)
+    except Exception as _exc:
+        sys.stderr.write("FATAL: MOCK_TASKS_FILE unreadable %s: %s\n" % (TASKS_FILE, _exc))
+        sys.exit(2)
+    if not isinstance(TASKS, list):
+        sys.stderr.write("FATAL: MOCK_TASKS_FILE must be a JSON array of tasks\n")
+        sys.exit(2)
 
 STATE = {
     "tasks": {t["task_id"]: t for t in TASKS},
@@ -143,6 +160,53 @@ def take_flag(name):
     return None
 
 
+
+# 契约 21 码表 L146：「DEPENDENCY_UNAVAILABLE｜503｜读取、调度或持久化依赖不可用」。
+# 三个 503 码最容易混，判别口诀（Gap Closure Plan §3.3）：
+#   连不上 -> DEPENDENCY_UNAVAILABLE；连得上但不能写 -> WRITE_BLOCKED；
+#   写了但不知道成不成 -> READBACK_PENDING。
+# 本函数只造第一种。其余两种不在 G20 范围。
+DEPENDENCY_STAGES = (
+    "read",       # 读取依赖：任务、课程、日历
+    "schedule",   # 调度依赖：M2 引擎
+    "persist",    # 持久化依赖：提案存储、审批记录
+)
+
+# message 只写契约措辞，不含内部依赖名、主机名、连接串（契约 §8 脱敏要求）。
+DEPENDENCY_MESSAGES = {
+    "read": "读取依赖暂时不可用，请稍后重试。",
+    "schedule": "调度依赖暂时不可用，请稍后重试。",
+    "persist": "持久化依赖暂时不可用，请稍后重试。",
+}
+
+
+def dependency_down_stages():
+    """当前生效的故障注入路径集合（空集表示未注入）。
+
+    开关从 flags 文件实时读取，不用 take_flag：故障注入要持续生效，
+    取一次就消耗掉会让第二次调用悄悄恢复，测出来的通过是假的。
+    """
+    raw = read_flags().get("dependency_down")
+    if not raw:
+        return set()
+    wanted = set(raw) if isinstance(raw, list) else {raw}
+    if "all" in wanted:
+        return set(DEPENDENCY_STAGES)
+    return {s for s in DEPENDENCY_STAGES if s in wanted}
+
+
+def check_dependency(stage):
+    """该路径被注入故障时抛 DEPENDENCY_UNAVAILABLE。
+
+    retryable=True 的依据是 A1 §6.4 的建议值，**不是契约原文**——
+    契约 21 码表不定义 retryable，M-3 未裁。此处与 errors.py 的
+    RETRYABLE_SUGGESTED 口径一致，不得对外声称「契约规定可重试」。
+    """
+    if stage not in dependency_down_stages():
+        return
+    raise ToolError("DEPENDENCY_UNAVAILABLE", DEPENDENCY_MESSAGES[stage], retryable=True)
+
+
 def read_approvals():
     if not os.path.exists(APPROVAL_FILE):
         return {}
@@ -177,7 +241,26 @@ def parse_instant(s, field):
     return dt
 
 
+def is_completed_on(task, day):
+    """该任务在给定上海本地日期的 occurrence 是否已完成。
+
+    三个条件缺一不可：completed_today 必须为 true、completed_at 必须存在、
+    且其上海本地日期必须等于 day。任一不满足都返回 False。
+    fixture 漏字段或时间落在目标日之外时，不得产生该解释码。
+    """
+    if task.get("completed_today") is not True:
+        return False
+    raw = task.get("completed_at")
+    if not raw:
+        return False
+    try:
+        return parse_instant(raw, "completed_at").astimezone(TZ).date() == day
+    except ToolError:
+        return False
+
+
 def validate_envelope(args):
+
     if not isinstance(args, dict):
         raise ToolError("INVALID_ARGUMENT", "请求必须是对象。")
     if args.get("api_version") != API_VERSION:
@@ -328,14 +411,93 @@ def deadline_key(t):
     return (2, "", t["task_id"])
 
 
+# date_only 截止时刻的口径。
+# 来源：M0 2026-11-05 17:04:01Z 派工单 P1-2「建议定义为截止日期当天 23:59:59」。
+# 已按该建议实现，且只在这里定义一次；若 M0 裁定不同，改这一处，
+# 生成器与校验器同时生效（P0-1 要求两边判定一致）。
+DATE_ONLY_DEADLINE_HMS = (23, 59, 59)
+
+
+def deadline_instant(t):
+    """把任务的 deadline 归一成可比较的时刻；没有截止返回 None。
+
+    这是生成器与校验器共用的唯一入口。此前两边各写一套：生成侧只认 exact，
+    校验侧按字符串比日期，于是「已逾期的任务仍能被排进未来」且两边判定不一致。
+    任何地方都不许再绕开本函数直接比 deadline。
+    """
+    dl = t.get("deadline") or {}
+    kind = dl.get("kind")
+    if kind == "exact" and dl.get("at"):
+        return parse_instant(dl["at"], "deadline.at")
+    if kind == "date_only" and dl.get("date"):
+        d = date.fromisoformat(dl["date"])
+        h, mi, s = DATE_ONLY_DEADLINE_HMS
+        return datetime(d.year, d.month, d.day, h, mi, s, tzinfo=TZ)
+    return None
+
+
+def is_overdue(t, ref=None):
+    inst = deadline_instant(t)
+    return inst is not None and inst < (ref or now())
+
+
+def unplanned_item(task_id, task_kind, code, message, basis, actions, remaining):
+    """未安排任务的统一结构。
+
+    M0 2026-11-05 17:04:01Z 派工单 P0-1/P1-3 要求每项给出 reason_code、
+    reason_message、判定依据、suggested_actions。message 保留是为了不破坏
+    M3 已验过的旧读法（她的探针读 message），两个字段值相同。
+    """
+    return {
+        "task_id": task_id,
+        "task_kind": task_kind,
+        "reason_code": code,
+        "reason_message": message,
+        "message": message,
+        "basis": basis,
+        "suggested_actions": actions,
+        "remaining_minutes": remaining,
+    }
+
+
 def schedule(payload, prefs):
     start = date.fromisoformat(payload["range"][0])
     end = date.fromisoformat(payload["range"][1])
     day_start = int(prefs.get("day_start_minute", 8 * 60))
     day_end = int(prefs.get("day_end_minute", 22 * 60))
     min_block = int(prefs.get("minimum_block_minutes", 30))
+
+    # 窗口落在过去：先把起点夹到今天，整体在过去就直接判参数错。
+    # M2 2026-11-10T01:37 实测缺陷：range=11-09、now=11-10 09:00 时，
+    # 旧实现照排 11-09 08:00-09:00 —— 把块排进了过去，而且这些块是可审批的。
+    # 之前只处理了「今天」这一种（today_floor），对「比今天更早的日期」完全没拦。
+    _now_local = now().astimezone(TZ)
+    today = _now_local.date()
+    if end < today:
+        # 窗口整体在过去：不排块，但**不抛参数错** —— range 本身合法（start<=end、
+        # 不超过 31 天），只是没有未来时间可用。调用方要的是「为什么不排」，不是「请求非法」。
+        # 与 Dart 引擎对齐（M2 2026-11-10T01:37 报的缺陷 1）：拒绝排 + 给未排出口。
+        # 用闭集内已有的 NO_AVAILABILITY，不新增 violation code。
+        rows = []
+        for t in payload["tasks"]:
+            if t.get("status") != "active":
+                continue
+            rows.append(unplanned_item(
+                t["task_id"], t["kind"], "NO_AVAILABILITY",
+                "排程窗口整体在过去（%s 至 %s，今天 %s），未生成任何块。"
+                % (start.isoformat(), end.isoformat(), today.isoformat()),
+                {"rule": "窗口整体在过去时不产生任何块",
+                 "window": {"start": start.isoformat(), "end": end.isoformat()},
+                 "today": today.isoformat()},
+                ["把日期范围改到今天或之后再重新生成"],
+                max(int((t.get("duration_target_seconds") or 0) // 60), 1)))
+        return [], [], rows, []
+    if start < today:
+        start = today
+
     fixed = [e for e in calendar_events_for(payload) if e["fixed"]]
     blocks, changes, unplanned = [], [], []
+    already_done = []   # 当天已完成任务的 task_id，按出现顺序去重
 
     # 每日常驻占用：固定事件 + 本次已排出的块。排完一个块立即并入当天占用，
     # 后续任务才不会再落回同一起点（否则块与块会完全重叠）。
@@ -345,21 +507,54 @@ def schedule(payload, prefs):
             (_hm(parse_instant(e["start_at"], "x")), _hm(parse_instant(e["end_at"], "x")))
             for e in fixed if e["date"] == d.isoformat())
 
-    ones = [t for t in payload["tasks"] if t["kind"] == "one_time" and t["status"] == "active"]
-    recurring = [t for t in payload["tasks"] if t["kind"] == "recurring" and t["status"] == "active"]
+    # 逾期任务在进入排程循环前就被摘出来。此前是「先尝试排、排不上才判逾期」，
+    # 于是只要日程还有空档，一个上周就该交的任务会被排到明天 —— 而这些 blocks
+    # 是可审批的。M0 2026-11-05 17:04:01Z 派工单 P0-1/P0-2 就指这条。
+    ref_now = now()
+    ones, recurring = [], []
+    for t in payload["tasks"]:
+        if t["status"] != "active":
+            continue
+        inst = deadline_instant(t)
+        if inst is not None and inst < ref_now:
+            unplanned.append(unplanned_item(
+                t["task_id"], t["kind"], "UNSCHEDULABLE_OVERDUE",
+                "该任务截止时间已过（%s），不再排入任何未来时段。" % iso(inst),
+                {"rule": "deadline < now 时禁止进入 blocks",
+                 "deadline_kind": (t.get("deadline") or {}).get("kind"),
+                 "deadline_at": iso(inst), "now": iso(ref_now)},
+                ["修改截止时间后重新生成", "若已完成请标记完成，不要排期"],
+                max(int((t.get("duration_target_seconds") or 0) // 60), 1)))
+            continue
+        (ones if t["kind"] == "one_time" else recurring).append(t)
+
+    # 今天这一刻的起点下限：候选起点不得早于现在。
+    # M3 2026-11-06 03:46:27Z 实测发现：now=11:44 时把 4 小时任务排成 08:00-12:00，
+    # 块起点落在过去。起点按 5 分钟向上取整。
+    # `_now_local` / `today` 已在函数开头取过（那里还要用来拦「窗口整体在过去」）。
+    today_floor = ((_now_local.hour * 60 + _now_local.minute + 4) // 5) * 5
 
     for t in sorted(ones, key=deadline_key):
         need = int(t.get("duration_target_seconds") or 0)
         placed = False
+        too_close = False          # 有空档，但最晚的合法起点已在截止之后
+        dl_inst = deadline_instant(t)
         for d in iter_dates(start, end):
             busy = day_busy[d]
-            cursor = day_start
+            cursor = max(day_start, today_floor) if d == today else day_start
             for bs, be in busy + [(day_end, day_end)]:
                 while cursor + min_block <= bs:
                     if (bs - cursor) * 60 >= need:
+                        cand_end = _at_local(d, cursor + need // 60)
+                        if dl_inst is not None and cand_end > dl_inst:
+                            # 生成器与校验器必须用同一套截止判定（P0-1）。
+                            # 这里判块的**结束**时刻，不是开始时刻：块跨过截止
+                            # 也算越界，否则校验侧会与生成侧结论相反。
+                            too_close = True
+                            break
                         b = {"block_id": _next_id("b"), "task_id": t["task_id"], "task_kind": "one_time",
                              "start_at": iso(_at_local(d, cursor)),
-                             "end_at": iso(_at_local(d, cursor + need // 60)),
+                             "end_at": iso(cand_end),
                              "source": "proposal", "persistable_as": "one_time_schedule",
                              "duration_source": "task_target", "duration_seconds": need}
                         blocks.append(b)
@@ -371,30 +566,65 @@ def schedule(payload, prefs):
                         placed = True
                         break
                     cursor += 30
-                if placed:
+                if placed or too_close:
                     break
                 cursor = max(cursor, be)
-            if placed:
+            if placed or too_close:
                 break
         if not placed:
-            dl = t.get("deadline") or {}
-            past = dl.get("kind") == "exact" and dl.get("at") and \
-                parse_instant(dl["at"], "deadline") < now()
-            reason = "PAST_DEADLINE" if past else ("OVERLAPS_FIXED" if fixed else "NO_AVAILABILITY")
-            unplanned.append({"task_id": t["task_id"], "reason_code": reason,
-                              "remaining_minutes": max(int(need // 60), 1),
-                              "message": "未找到可容纳目标时长的空档。"})
+            if too_close:
+                reason = "INSUFFICIENT_TIME_BEFORE_DEADLINE"
+                msg = "截止前剩余窗口不足以容纳目标时长 %d 分钟。" % (need // 60)
+                basis = {"rule": "块结束时刻不得晚于 deadline",
+                         "deadline_kind": (t.get("deadline") or {}).get("kind"),
+                         "deadline_at": iso(dl_inst) if dl_inst else None,
+                         "required_minutes": need // 60}
+                acts = ["缩短本次时长", "推迟截止时间", "拆成多个较短时段"]
+            else:
+                reason = "OVERLAPS_FIXED" if fixed else "NO_AVAILABILITY"
+                msg = "未找到可容纳目标时长的空档。"
+                basis = {"rule": "可用窗口内无连续空档",
+                         "required_minutes": need // 60,
+                         "has_fixed_events": bool(fixed)}
+                acts = ["放宽每日起止时间", "缩短目标时长"]
+            unplanned.append(unplanned_item(
+                t["task_id"], "one_time", reason, msg, basis, acts,
+                max(int(need // 60), 1)))
 
     for t in recurring:
         target = t.get("duration_target_seconds")
-        need = int(target) if target else min_block * 60
-        minutes = max(int((need + 59) // 60), min_block)
+        if target:
+            # 契约 `39f7f965` L288–293：有 `duration_target_seconds` 就用它，**不 floor 到 min_block**。
+            # M2 2026-11-10T03:07 用跨实现比对实测出这一处：target=600s、min_block=30 时
+            # 旧实现给 30 分钟块，他的 Dart 引擎给 10 分钟 + task_target。
+            # 他在撤回 D3 时写明「是镜像按 min_block 把周期任务 floor 了，引擎按 target 合规」。
+            # 我上一轮只看到一次性分支没 floor、周期分支 floor，以为要等口径；
+            # 其实契约已经写死 target 优先，所以这不是变更行为，是修一处违规。
+            minutes = max(int((int(target) + 59) // 60), 1)
+        else:
+            # 没有目标时长才走兜底：`max(minimum_block_minutes, 30)` 分钟。
+            # 注意是两者取大，不是直接用 min_block —— 用户把最小块设成 10 分钟时，
+            # 兜底仍应至少 30 分钟（契约原文的写法）。
+            minutes = max(min_block, 30)
         for d in iter_dates(start, end):
+            if is_completed_on(t, d):
+                # 当天 occurrence 已完成：不排块、不进 unplanned、不参与时长兜底，
+                # 只记 task_id，交由 generate_schedule 汇总成公共解释。
+                if t["task_id"] not in already_done:
+                    already_done.append(t["task_id"])
+                continue
             busy = day_busy[d]
-            cursor = day_start
+            cursor = max(day_start, today_floor) if d == today else day_start
             placed = False
             for bs, be in busy + [(day_end, day_end)]:
                 if not placed and bs - cursor >= minutes:
+                    # action 语义：当天已有该任务的落点（已有 override，或该
+                    # 周期任务本来就有固定时刻）才算「改期 reschedule」；
+                    # 首次指派是 assign。M3 2026-11-06 03:46:27Z 抓到的 c5
+                    # 同源缺陷：旧实现把首次指派也写死成 reschedule。
+                    already = (STATE["overrides"].get((t["task_id"], d.isoformat())) is not None
+                               or ((t.get("recurrence") or {}).get("scheduled_minute_of_day") is not None))
+                    action = "reschedule" if already else "assign"
                     blocks.append({"block_id": _next_id("b"), "task_id": t["task_id"], "task_kind": "recurring",
                                    "start_at": iso(_at_local(d, cursor)),
                                    "end_at": iso(_at_local(d, cursor + minutes)),
@@ -403,7 +633,7 @@ def schedule(payload, prefs):
                                    "duration_seconds": minutes * 60})
                     changes.append({"change_id": _next_id("ch"), "type": "upsert_daily_override",
                                     "item_type": "recurring", "item_id": t["task_id"],
-                                    "local_date": d.isoformat(), "action": "reschedule",
+                                    "local_date": d.isoformat(), "action": action,
                                     "planned_start_minute": cursor,
                                     "planned_end_minute": cursor + minutes})
                     busy.append((cursor, cursor + minutes))
@@ -412,10 +642,15 @@ def schedule(payload, prefs):
                 cursor = max(cursor, be)
             if not placed:
                 reason = "WINDOW_INSUFFICIENT" if (day_end - day_start) < minutes else "NO_AVAILABILITY"
-                unplanned.append({"task_id": t["task_id"], "reason_code": reason,
-                                  "remaining_minutes": minutes,
-                                  "message": "当日可用窗口不足以容纳该周期任务。"})
-    return blocks, changes, unplanned
+                unplanned.append(unplanned_item(
+                    t["task_id"], "recurring", reason,
+                    "当日可用窗口不足以容纳该周期任务。",
+                    {"rule": "单日可用窗口内无连续空档",
+                     "day_window_minutes": day_end - day_start,
+                     "required_minutes": minutes,
+                     "local_date": d.isoformat()},
+                    ["放宽每日起止时间", "缩短该任务时长"], minutes))
+    return blocks, changes, unplanned, already_done
 
 
 def overlapping_block_pairs(blocks):
@@ -438,23 +673,49 @@ def check_hard_constraints(proposal, events):
         bs = parse_instant(b["start_at"], "block.start_at")
         be = parse_instant(b["end_at"], "block.end_at")
         if be <= bs:
-            violations.append({"code": "BLOCK_TIME_INVALID", "block_id": b["block_id"]})
+            violations.append(dict(
+                code="BLOCK_TIME_INVALID",
+                message="提案块结束时间必须晚于开始时间：%s 至 %s。" % (iso(bs), iso(be)),
+                related_block_ids=[b["block_id"]]))
         for e in events:
             if not e["fixed"] or e["date"] != b["start_at"][:10]:
                 continue
             es = parse_instant(e["start_at"], "event.start_at")
             ee = parse_instant(e["end_at"], "event.end_at")
             if bs < ee and es < be:
-                violations.append({"code": "FIXED_EVENT_CONFLICT",
-                                   "block_id": b["block_id"], "event_id": e["event_id"]})
+                violations.append(dict(
+                    code="FIXED_EVENT_CONFLICT",
+                    message="提案中的时间块与固定日程冲突：%s 至 %s 与 %s 至 %s 重叠。"
+                            % (iso(bs), iso(be), iso(es), iso(ee)),
+                    related_block_ids=[b["block_id"]],
+                    related_event_ids=[e["event_id"]]))
+        # 截止时间越界（M0 2026-11-05 17:04:01Z 派工单 P0-1/P0-2）。
+        # 与生成器共用 deadline_instant，判的是块的**结束**时刻。
+        # 复用契约内已有的两个 violation code，不新增闭集外的码：
+        # 逾期任务的块必然满足「块结束 > 截止」，所以同一判据能覆盖两种情形。
+        bt = STATE["tasks"].get(b.get("task_id")) or {}
+        dl_inst = deadline_instant(bt)
+        if dl_inst is not None and be > dl_inst:
+            dl_kind = (bt.get("deadline") or {}).get("kind")
+            code = ("BLOCK_AFTER_EXACT_DEADLINE" if dl_kind == "exact"
+                    else "BLOCK_AFTER_DATE_ONLY_DEADLINE")
+            overdue = dl_inst < now()
+            msg = ("该任务截止时间已过（%s），提案仍为其生成时间块 %s 至 %s。"
+                   % (iso(dl_inst), iso(bs), iso(be)) if overdue
+                   else "提案时间块结束于 %s，晚于该任务截止时刻 %s。"
+                        % (iso(be), iso(dl_inst)))
+            violations.append(dict(
+                code=code, message=msg,
+                related_block_ids=[b["block_id"]],
+                related_task_ids=[b["task_id"]]))
     # 块间重叠：M0 2026-11-03 裁定 A，契约 §5.8 新增公开 violation code
     # BLOCK_OVERLAP。属"结构合法但违反调度硬约束"，走 normal invalid 响应，
     # 不作为 PROPOSAL_INVALID 结构错误抛出。
     # 顺序按 M0 要求 5：放在固定事件冲突检查之后，不抢占 FIXED_EVENT_CONFLICT。
     for left, right in overlapping_block_pairs(proposal["blocks"]):
         item = {"code": "BLOCK_OVERLAP",
-                "message": "提案块之间存在时间重叠：%s（%s）与 %s（%s）。" % (
-                    left[2], iso(left[0]), right[2], iso(right[0])),
+                "message": "提案中的时间块存在重叠：%s 至 %s 与 %s 至 %s。" % (
+                    iso(left[0]), iso(left[1]), iso(right[0]), iso(right[1])),
                 "related_block_ids": [left[2], right[2]]}
         tasks = sorted({t for t in (left[3], right[3]) if t})
         if tasks:
@@ -470,27 +731,42 @@ def check_hard_constraints(proposal, events):
     for key, n in seen.items():
         if isinstance(key, tuple):
             if n > 1:
-                violations.append({"code": "MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
-                                   "task_id": key[0]})
+                violations.append(dict(
+                    code="MULTIPLE_BLOCKS_FOR_RECURRING_TASK_DAY",
+                    message="同一周期任务在同一自然日出现了多个单日例外：日期 %s。"
+                            % key[1],
+                    related_task_ids=[key[0]]))
         elif n > 1:
-            violations.append({"code": "MULTIPLE_CHANGES_FOR_ONE_TIME_TASK", "task_id": key})
+            violations.append(dict(
+                code="MULTIPLE_CHANGES_FOR_ONE_TIME_TASK",
+                message="同一一次性任务在单次提案中出现多条排期变更。",
+                related_task_ids=[key]))
     for ch in proposal["changes"]:
         if ch["type"] != "schedule_one_time":
             continue
         t = STATE["tasks"].get(ch["task_id"]) or {}
         avail = t.get("available_from")
         if avail and ch["planned_date"] < avail:
-            violations.append({"code": "PLANNED_BEFORE_AVAILABLE_FROM",
-                               "task_id": ch["task_id"]})
+            violations.append(dict(
+                code="PLANNED_BEFORE_AVAILABLE_FROM",
+                message="计划的日期 %s 早于该任务的可用起始日 %s。"
+                        % (ch["planned_date"], avail),
+                related_task_ids=[ch["task_id"]]))
         dl = t.get("deadline") or {}
         if dl.get("kind") == "date_only" and ch["planned_date"] > dl.get("date", ""):
-            violations.append({"code": "PLANNED_AFTER_DATE_ONLY_DEADLINE",
-                               "task_id": ch["task_id"]})
+            violations.append(dict(
+                code="PLANNED_AFTER_DATE_ONLY_DEADLINE",
+                message="计划的日期 %s 晚于该任务的截止日期 %s。"
+                        % (ch["planned_date"], dl.get("date", "")),
+                related_task_ids=[ch["task_id"]]))
         if dl.get("kind") == "exact" and ch.get("scheduled_at"):
             at = parse_instant(ch["scheduled_at"], "scheduled_at")
             if at > parse_instant(dl["at"], "deadline"):
-                violations.append({"code": "BLOCK_AFTER_EXACT_DEADLINE",
-                                   "task_id": ch["task_id"]})
+                violations.append(dict(
+                    code="BLOCK_AFTER_EXACT_DEADLINE",
+                    message="计划的时刻 %s 晚于该任务的截止时刻 %s。"
+                            % (iso(at), iso(parse_instant(dl["at"], "deadline"))),
+                    related_task_ids=[ch["task_id"]]))
     return violations
 
 
@@ -556,6 +832,7 @@ def find_approval_for_proposal(proposal_id, user):
 
 def tool_list_tasks(args, user):
     inp = validate_envelope(args)
+    check_dependency("read")
     start, end = date_range(inp)
     kinds = inp.get("kinds") or ["recurring", "one_time"]
     statuses = inp.get("statuses") or ["active"]
@@ -595,6 +872,7 @@ def tool_get_calendar_events(args, user):
 
 def tool_generate_schedule(args, user):
     inp = validate_envelope(args)
+    check_dependency("schedule")
     start, end = date_range(inp)
     ext = inp.get("external_fixed_events") or []
     prefs = inp.get("preferences") or {}
@@ -602,7 +880,7 @@ def tool_generate_schedule(args, user):
         raise ToolError("INVALID_ARGUMENT", "远程调用不得提交 tasks/courses/base_version/snapshot_ref。")
     payload, input_digest = snapshot_for(user, start, end, ext)
     base_version = digest({"snapshot": input_digest, "user": user})
-    blocks, changes, unplanned = schedule(payload, prefs)
+    blocks, changes, unplanned, already_done = schedule(payload, prefs)
     if take_flag("inject_overlapping_blocks") and blocks:
         # 反例注入（仅测试用）：复制首块并后移 5 分钟，制造块间重叠，
         # 用于验证校验侧能在绕过生成阶段的情况下拒绝该提案。
@@ -638,6 +916,11 @@ def tool_generate_schedule(args, user):
     if any(u["reason_code"] == "WINDOW_INSUFFICIENT" for u in unplanned):
         explanations.append({"code": "AVAILABILITY_SATURATED",
                              "message": "可用时长不足以覆盖目标时长。"})
+    if already_done:
+        # 公共解释结构，携带任务 ID；不得产生 repair-only code。
+        explanations.append({"code": "ALREADY_DONE_TODAY",
+                             "message": "部分任务今日已完成，不再重复安排。",
+                             "related_task_ids": sorted(already_done)})
 
     pid = _next_id("proposal")
     created = now()
@@ -689,12 +972,18 @@ def tool_validate_schedule(args, user):
         p["status"] = "draft"
         return {"proposal_id": pid, "snapshot_ref": p["snapshot_ref"], "base_version": p["base_version"],
                 "input_digest": p["input_digest"], "proposal_status": "draft",
-                "validation_status": "invalid", "approval_status": "not_approvable",
+                "validation_status": "invalid", "approval_readiness": "not_approvable",
                 "violations": violations, "validated_at": validated_at, "expires_at": p["expires_at"]}
     p["status"] = "pending_approval"
+    # 字段名与取值同步契约 39f7f965 §6.4（L522-524）：
+    #   approval_readiness 只表达「能否进入审批」，闭集两项：
+    #   合法未调 request_approval -> not_requested；约束失败 -> not_approvable。
+    #   本处校验通过、尚未调 request_approval，故为 not_requested。
+    #   原实现写 approval_status="pending_approval"：字段名旧（2c48579），
+    #   且取值不在契约闭集内，两处一并修正（M0 2026-11-05 06:05Z 批准）。
     return {"proposal_id": pid, "snapshot_ref": p["snapshot_ref"], "base_version": p["base_version"],
             "input_digest": p["input_digest"], "proposal_status": "pending_approval",
-            "validation_status": "valid", "approval_status": "pending_approval",
+            "validation_status": "valid", "approval_readiness": "not_requested",
             "violations": [], "validated_at": validated_at, "expires_at": p["expires_at"]}
 
 
@@ -810,6 +1099,9 @@ def verify_readback(p):
 
 def tool_apply(args, user):
     inp = validate_envelope(args)
+    # 注入点必须在幂等登记与写入之前：否则 503 之后用同一 idempotency_key
+    # 重试会命中幂等短路，用例 20-2 就永远测不出「重试不产生双写」。
+    check_dependency("persist")
     pid, base_version = inp.get("proposal_id"), inp.get("base_version")
     token, key = inp.get("approval_token"), inp.get("idempotency_key")
     if not isinstance(pid, str) or not pid or not isinstance(base_version, str) or not base_version:
@@ -951,6 +1243,13 @@ def tool_apply(args, user):
             }
             record_write()
             applied.append({"change_id": ch["change_id"], "type": ch["type"],
+                            # task_id / planned_date / scheduled_at 三个键统一给，
+                            # 不因分支不同而缺。M3 2026-11-06 03:46:27Z 报的
+                            # 「applied_changes 形状静默变更」就是这条分支缺键，
+                            # 导致 S1/S2 的 readback 拿不到 planned_date。
+                            "task_id": ch["item_id"],
+                            "planned_date": ch["local_date"],
+                            "scheduled_at": None,
                             "item_type": ch["item_type"], "item_id": ch["item_id"],
                             "local_date": ch["local_date"], "action": ch["action"],
                             "planned_start_minute": ch["planned_start_minute"],

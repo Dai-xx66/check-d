@@ -1,0 +1,12 @@
+# 本目录的开发依赖
+#
+# 运行时依赖：无。errors.py 只用 Python 标准库，Python 3.11+ 语法特性未使用，
+#   实测环境 Python 3.13.14。
+#
+# 测试依赖：无。tests/test_errors.py 用标准库 unittest 编写，
+#   `python -m unittest discover -s tools/m1-server/tests -v` 在干净环境直接可跑，
+#   不需要先装任何东西。
+#
+# 下面这一项是「可选」的：如果你习惯用 pytest 跑，装了它也能收集本目录的
+#   unittest.TestCase 类，命令见 README。不装不影响任何交付判据。
+pytest==8.3.4
