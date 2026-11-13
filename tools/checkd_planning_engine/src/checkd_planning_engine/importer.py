@@ -27,6 +27,14 @@ class Snapshot:
     provisional: bool
 
 
+def assert_snapshot_current(snapshot: Snapshot, *, subject_ref: str, version: str, sync_state: str) -> None:
+    """Reject cached preview reuse when principal, source version, or sync state changed."""
+    if subject_ref != snapshot.user_ref:
+        raise PermissionError("snapshot principal mismatch")
+    if version != snapshot.version or sync_state != "current" or snapshot.provisional:
+        raise RuntimeError("snapshot is stale or not server-current; regenerate preview")
+
+
 def import_snapshot(payload: dict[str, Any]) -> Snapshot:
     required={"subject_ref","source","captured_at","version","sync_state","timezone","now","horizon_end","tasks","course_occurrences","occupied_blocks"}
     missing=required-set(payload)
