@@ -63,4 +63,12 @@ Flutter Drift 是离线优先的即时交互数据源，Supabase 是已同步数
 
 本次未使用 Supabase 配置启动云端会话。当前代码在登录后自动启动云端下载/上传；运行带凭证的 App 前，须先确认待同步操作是否安全。此次开发预览只在隔离测试数据库中验证，不访问或改变用户会话数据。
 
-验证状态：完整 Flutter 测试 241 项通过；本地规划器定向测试 10 项通过；Python 原型测试 88 项通过；本轮文件 `dart analyze` 无问题。iPhone 17 Pro Simulator 可启动，但 App 构建因 `sqlite3` 的 iOS Simulator 原生库从 GitHub 下载超时而未能运行；本轮没有 iOS/Android 真机验收。Stage 14A 截止/最早开始字段、真实服务端可信快照、审批写入、WorkBuddy 测试租户 OAuth 仍未接入。
+基础验证：最新完整 Flutter 测试 241 项通过；本地规划器定向测试 10 项通过；Python 原型测试 88 项通过；Dart 定向分析无问题。此前尝试 iOS Simulator 时，SQLite 原生库下载超时；本阶段按 Android First 决策暂停 iOS。Stage 14A 截止/最早开始字段、真实服务端可信快照、审批写入、WorkBuddy 测试租户 OAuth 仍未接入。
+
+## Android First 验收（2026-11-15）
+
+Android SDK 36、Emulator 37.1 和 platform/build-tools 已安装，现有 AVD `CheckD_OCR_Test`、`Pixel_9` 未使用。为保护现有模拟器数据，新建 `CheckD_Planning_Isolated` 空 AVD。`android/app/build.gradle.kts` 曾在配置阶段无条件强转缺失的 Release `key.properties`，使 Debug 也无法配置；现在仅在四项 Release 签名字段全部存在时创建 Release signing config。没有创建或写入密钥。
+
+`flutter build apk --debug` 已成功，`flutter run -d emulator-5554 --debug` 已在隔离 AVD 启动。离线体验模式进入 Today 后，点击“智能规划预览”实际读取该 AVD 的 Drift 数据；在 AVD 中创建的合成任务 `Planning_demo` 显示工作量和截止时间未知，补充本次 60 分钟及日期后得到候选块 `18:27–19:27`；“明天再做”返回延期前后均找到安排。该任务只在新建隔离 AVD 的离线 Drift 内，未发送到 Supabase。实际模拟器本轮没有录入课程，因此课程避让由 Flutter/Dart 测试覆盖，尚无 AVD 课程 UI 场景证据。规划只读，候选参数未写回任务。
+
+Android SDK license 在 `flutter doctor` 中仍显示未确认，但当前已安装 SDK 仍可完成 Debug 构建和模拟器运行。`flutter doctor --android-licenses` 未由自动化代理代为接受。

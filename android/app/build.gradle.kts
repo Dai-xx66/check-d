@@ -15,6 +15,10 @@ if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(it)
     }
 }
+val releaseSigningKeys = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")
+val hasReleaseSigning = releaseSigningKeys.all {
+    !keystoreProperties.getProperty(it).isNullOrBlank()
+}
 
 android {
     namespace = "com.daixx66.check_d"
@@ -43,22 +47,26 @@ android {
     }
 
     signingConfigs {
-    create("release") {
-        keyAlias = keystoreProperties["keyAlias"] as String
-        keyPassword = keystoreProperties["keyPassword"] as String
-        storeFile = file(keystoreProperties["storeFile"] as String)
-        storePassword = keystoreProperties["storePassword"] as String
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
     }
-}
-buildTypes {
-    release {
-        signingConfig = signingConfigs.getByName("release")
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
-            "proguard-rules.pro",
-        )
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
     }
-}
 }
 
 kotlin {
