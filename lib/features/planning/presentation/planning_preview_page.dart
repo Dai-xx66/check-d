@@ -46,7 +46,7 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
           error: (error, _) => _ErrorView(
             message: error is PlanningPreviewException
                 ? _friendlyError(error.code)
-                : '规划预览暂时不可用。请确认开发版规划服务已启动后重试。',
+                : '本地规划预览暂时不可用，请重新读取。',
             onRetry: () => ref.invalidate(planningPreviewProvider(_range)),
           ),
           data: (value) => _buildResult(context, value),
@@ -59,10 +59,10 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
     final snapshot = _previewSnapshot ?? value.snapshot;
     final result = _previewResult ?? value.result;
     final tasks = _maps(snapshot['tasks']);
-    final missing = result?['missing_data'];
-    final schedule = result?['schedule'];
+    final missing = result['missing_data'];
+    final schedule = result['schedule'];
     final blocks = _maps(schedule is Map ? schedule['blocks'] : null);
-    final risks = _maps((_riskResult ?? value.riskResult)?['risks']);
+    final risks = _maps((_riskResult ?? value.riskResult)['risks']);
     final syncState = snapshot['sync_state'] as String? ?? 'unknown';
     final provisional = snapshot['provisional'] == true;
 
@@ -90,19 +90,17 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
           ),
         ),
         const SizedBox(height: 8),
-        if (!value.serviceConfigured)
+        if (!value.calculationAvailable)
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
-                '规划计算服务未配置。开发者可按本地预览服务说明启动 Python 服务；普通 App 构建不会假设设备已安装 Python。',
-              ),
+              child: Text('本地规划器无法处理当前快照；请检查输入数据。'),
             ),
           )
         else ...[
           _SectionCard(
             title: '可行性',
-            child: Text(_outcomeLabel(result?['outcome'] as String?)),
+            child: Text(_outcomeLabel(result['outcome'] as String?)),
           ),
           _SectionCard(
             title: '候选时间块',
@@ -128,7 +126,7 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _limitations(missing),
-                if (value.serviceConfigured)
+                if (value.calculationAvailable)
                   for (final taskId in _missingTaskIds(missing))
                     Align(
                       alignment: Alignment.centerLeft,
@@ -206,8 +204,6 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
     Map<String, Object?> snapshot,
     Map<String, Object?> task,
   ) async {
-    final client = ref.read(planningPreviewClientProvider);
-    if (client == null) return;
     setState(() {
       _delayLoading = true;
       _delayError = null;
@@ -216,11 +212,13 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
     });
     try {
       final current = DateTime.parse(snapshot['now'] as String);
-      final result = await client.simulateDelay(
-        snapshot: snapshot,
-        taskId: _delayTaskId!,
-        until: current.add(const Duration(days: 1)),
-      );
+      final result = ref
+          .read(localPlanningEngineProvider)
+          .simulateDelay(
+            snapshot,
+            taskId: _delayTaskId!,
+            until: current.add(const Duration(days: 1)),
+          );
       if (mounted) setState(() => _delayResult = result);
     } on PlanningPreviewException catch (error) {
       if (mounted) setState(() => _delayError = _friendlyError(error.code));
@@ -241,21 +239,39 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
         children: [
           Text('延期任务：${_delayTaskId ?? '当前任务'}'),
           Text(
-            '延期前：${analysis['before_feasible'] == true ? '找到可行安排' : '未找到可行安排'}',
+            '延期前：${_feasibilityLabel(analysis['before_feasible'], analysis['status'])}',
           ),
           Text(
-            '延期后：${analysis['after_feasible'] == true ? '找到可行安排' : '未找到可行安排'}',
+            '延期后：${_feasibilityLabel(analysis['after_feasible'], analysis['status'])}',
           ),
           Text('缓冲变化：${analysis['slack_change_seconds'] ?? '未知'} 秒'),
+          ..._renderSchedule('延期前候选安排', analysis['before']),
+          ..._renderSchedule('延期后候选安排', analysis['after']),
           const Text('排程由启发式算法生成；未找到方案不等于数学上无解。'),
         ],
       ),
     );
   }
 
+  List<Widget> _renderSchedule(String title, Object? raw) {
+    if (raw is! Map) return const [];
+    final schedule = raw['schedule'];
+    final blocks = _maps(schedule is Map ? schedule['blocks'] : null);
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text('$title：${blocks.length} 个时间块'),
+      ),
+      for (final block in blocks)
+        Text(
+          '${_formatInstant(block['starts_at'])} – ${_formatInstant(block['ends_at'])}',
+        ),
+    ];
+  }
+
   Widget _limitations(Object? rawMissing) {
     if (rawMissing is! Map || rawMissing.isEmpty) {
-      return const Text('当前服务未报告缺失字段。');
+      return const Text('当前快照没有报告缺失字段。');
     }
     const labels = {
       'unknown_effort_task_ids': '剩余工作量未知',
@@ -305,12 +321,11 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
         row['deadline_at'] = null;
       }
     }
-    final client = ref.read(planningPreviewClientProvider);
-    if (client == null) return;
     setState(() => _delayLoading = true);
     try {
-      final result = await client.preview(snapshot);
-      final risks = await client.risks(snapshot);
+      final engine = ref.read(localPlanningEngineProvider);
+      final result = engine.preview(snapshot);
+      final risks = engine.assessRisks(snapshot);
       if (!mounted) return;
       setState(() {
         _previewSnapshot = snapshot;
@@ -425,7 +440,10 @@ class _TemporaryPlanningInputDialogState
     }
     Navigator.pop(
       context,
-      _TemporaryPlanningInput(remainingMinutes: minutes, deadline: _deadline!),
+      _TemporaryPlanningInput(
+        remainingMinutes: minutes,
+        deadline: widget.needsDeadline ? _deadline : null,
+      ),
     );
   }
 }
@@ -512,6 +530,13 @@ String _outcomeLabel(String? outcome) => switch (outcome) {
   'invalid_input' => '规划输入无效，请检查日期和任务数据。',
   _ => '规划结果未知。',
 };
+
+String _feasibilityLabel(Object? value, Object? status) {
+  if (status == 'unknown_due_to_missing_data' || value == null) {
+    return '数据不足，无法判断';
+  }
+  return value == true ? '找到可行安排' : '启发式未找到安排';
+}
 
 String _taskName(List<Map<String, Object?>> tasks, Object? id) =>
     tasks

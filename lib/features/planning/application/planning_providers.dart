@@ -6,6 +6,7 @@ import '../../schedule/application/day_schedule_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../data/planning_context_repository.dart';
 import '../data/planning_preview_client.dart';
+import '../domain/local_planning_engine.dart';
 
 /// Uses the same per-user repositories as the app's task, course, and schedule
 /// screens. The principal is supplied by the existing authenticated/offline
@@ -44,6 +45,10 @@ final planningSnapshotProvider = FutureProvider.autoDispose
           .load(from: range.from, through: range.through, now: DateTime.now());
     });
 
+final localPlanningEngineProvider = Provider<LocalPlanningEngine>(
+  (ref) => const LocalPlanningEngine(),
+);
+
 /// Opt-in local development bridge. It is disabled in ordinary builds and is
 /// not the production WorkBuddy/Auth endpoint.
 final planningPreviewClientProvider = Provider<PlanningPreviewClient?>((ref) {
@@ -58,23 +63,22 @@ final planningPreviewClientProvider = Provider<PlanningPreviewClient?>((ref) {
 class PlanningPreviewResult {
   const PlanningPreviewResult({
     required this.snapshot,
-    this.result,
-    this.riskResult,
+    required this.result,
+    required this.riskResult,
   });
 
   final Map<String, Object?> snapshot;
-  final Map<String, Object?>? result;
-  final Map<String, Object?>? riskResult;
-  bool get serviceConfigured => result != null;
+  final Map<String, Object?> result;
+  final Map<String, Object?> riskResult;
+  bool get calculationAvailable => result['ok'] == true;
 }
 
 final planningPreviewProvider = FutureProvider.autoDispose
     .family<PlanningPreviewResult, PlanningDateRange>((ref, range) async {
       final snapshot = await ref.watch(planningSnapshotProvider(range).future);
-      final client = ref.watch(planningPreviewClientProvider);
-      if (client == null) return PlanningPreviewResult(snapshot: snapshot);
-      final result = await client.preview(snapshot);
-      final riskResult = await client.risks(snapshot);
+      final engine = ref.watch(localPlanningEngineProvider);
+      final result = engine.preview(snapshot);
+      final riskResult = engine.assessRisks(snapshot);
       return PlanningPreviewResult(
         snapshot: snapshot,
         result: result,

@@ -54,3 +54,13 @@ Flutter Drift 是离线优先的即时交互数据源，Supabase 是已同步数
 腾讯 WorkBuddy 专家文档说明，专家可声明 MCP/Connector 依赖；Connector 文档列出 stdio、SSE 与 Streamable HTTP，并推荐云端托管 OAuth `auth_mode: "server-side"`。该方式需要 `server_auth` 配置并与 WorkBuddy 团队协作；文档还说明平台会托管并注入 OAuth 凭据（[专家文档](https://open.workbuddy.cn/en/docs/expert)、[Connector 文档](https://open.workbuddy.cn/docs/connector)）。Connector 文档同时描述 MCP OAuth 动态注册或预注册路径和资源元数据发现。腾讯云 Enterprise Connector 文档列出 MCP OAuth 2.1 / Streamable HTTP 与 token introspection（[Enterprise Connector 文档](https://cloud.tencent.com.cn/document/product/1831/134453)）。
 
 这些公开文档证明存在平台接入路径，不证明当前 CheckD 账号、目标 WorkBuddy 版本、个人/企业租户或公开专家分享已经开通。开发骨架当前只模拟 MCP/身份边界，尚未实现文档要求的 OAuth 或 WorkBuddy 连接器。WorkBuddy `sub` 与 CheckD `auth.users.id` 仍是不同身份域；服务端必须完成显式账户绑定，每次请求校验授权与撤销状态，再把已绑定的 CheckD 主体注入业务数据服务。绑定、撤权、scope、令牌生命周期、客户端版本、企业权限、Connector 审核与实际调用仍须在获准的测试租户实测。共享 Connector 统一凭据不满足每个 CheckD 用户使用个人业务账号的要求。
+
+## Flutter 本地规划预览（2026-11-15）
+
+新增 `LocalPlanningEngine` 将既有 `checkd.planning.snapshot.v1` Drift 快照直接在 Dart 中计算，规划页默认不再依赖本机 Python/HTTP 桥接。它使用 CheckD 课程 occurrence 和已有安排作为忙碌时段，生成只读候选块、风险提示与“明天再做”比较；所有结果保持 `execution_eligible=false`。Dart 实现是独立于 Python 参考实现的启发式实现，未声明结果完全等价；手机端可运行也不代表具备生产审批或写入资格。
+
+当前基线的 `TaskDetails` 缺少可持久化的日期型/精确截止及 `available_from` 字段，剩余工作量聚合也为空。因此规划器保留缺失信息，允许用户只为本次计算补充临时耗时/截止日期，不写回任务。Stage 14A 字段依赖须由其变更单独合入并核验后，才能从任务模型传入这些持久值；本次不改任务模型或数据库。
+
+本次未使用 Supabase 配置启动云端会话。当前代码在登录后自动启动云端下载/上传；运行带凭证的 App 前，须先确认待同步操作是否安全。此次开发预览只在隔离测试数据库中验证，不访问或改变用户会话数据。
+
+验证状态：完整 Flutter 测试 241 项通过；本地规划器定向测试 10 项通过；Python 原型测试 88 项通过；本轮文件 `dart analyze` 无问题。iPhone 17 Pro Simulator 可启动，但 App 构建因 `sqlite3` 的 iOS Simulator 原生库从 GitHub 下载超时而未能运行；本轮没有 iOS/Android 真机验收。Stage 14A 截止/最早开始字段、真实服务端可信快照、审批写入、WorkBuddy 测试租户 OAuth 仍未接入。
