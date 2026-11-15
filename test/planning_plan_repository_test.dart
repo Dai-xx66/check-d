@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:check_d/core/database/app_database.dart';
+import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/planning/data/planning_plan_repository.dart';
 
 void main() {
@@ -309,6 +310,136 @@ void main() {
       expect(second.revision, first.revision + 1);
     },
   );
+
+  test(
+    'keep remote resolves only owner conflict and drops stale outbox',
+    () async {
+      final queue = SyncQueueService(database);
+      await database
+          .into(database.taskEffortRecords)
+          .insert(
+            TaskEffortRecordsCompanion.insert(
+              userId: 'user-a',
+              taskId: 'task-a',
+              estimatedSeconds: const Value(3600),
+              remainingSeconds: const Value(2400),
+              source: 'local',
+              updatedAt: now,
+            ),
+          );
+      await queue.enqueue(
+        entityType: 'task_effort_estimates',
+        entityId: 'task-a',
+        operation: SyncOperationType.upsert,
+        payload: const {'task_id': 'task-a'},
+        userId: 'user-a',
+      );
+      await database
+          .into(database.planningSyncConflicts)
+          .insert(
+            PlanningSyncConflictsCompanion.insert(
+              id: 'conflict-a',
+              userId: 'user-a',
+              entityType: 'task_effort_estimates',
+              entityId: 'task-a',
+              localPayloadJson: '{"remainingSeconds":2400}',
+              remotePayloadJson:
+                  '{"task_id":"task-a","estimated_seconds":3600,"remaining_seconds":900,"source":"remote","updated_at":"2026-11-15T01:00:00Z","deleted_at":null}',
+              localVersion: 'local-2',
+              remoteVersion: 'remote-3',
+              createdAt: now,
+            ),
+          );
+
+      expect(
+        await PlanningPlanRepository(
+          database: database,
+          userId: 'user-b',
+          syncQueue: queue,
+        ).resolveSyncConflict(
+          conflictId: 'conflict-a',
+          resolution: 'keep_remote',
+        ),
+        isFalse,
+      );
+      expect(
+        await PlanningPlanRepository(
+          database: database,
+          userId: 'user-a',
+          syncQueue: queue,
+        ).resolveSyncConflict(
+          conflictId: 'conflict-a',
+          resolution: 'keep_remote',
+          now: now,
+        ),
+        isTrue,
+      );
+      expect(
+        (await database.select(database.taskEffortRecords).getSingle())
+            .remainingSeconds,
+        900,
+      );
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+      final resolved = await database
+          .select(database.planningSyncConflicts)
+          .getSingle();
+      expect(resolved.status, 'resolved');
+      expect(resolved.resolution, 'keep_remote');
+      expect(resolved.localPayloadJson, contains('2400'));
+      expect(resolved.remotePayloadJson, contains('900'));
+    },
+  );
+
+  test('keep local queues explicit resolution for upload', () async {
+    final queue = SyncQueueService(database);
+    await database
+        .into(database.taskEffortRecords)
+        .insert(
+          TaskEffortRecordsCompanion.insert(
+            userId: 'user-a',
+            taskId: 'task-a',
+            remainingSeconds: const Value(1200),
+            source: 'user_confirmed',
+            updatedAt: now,
+          ),
+        );
+    await database
+        .into(database.planningSyncConflicts)
+        .insert(
+          PlanningSyncConflictsCompanion.insert(
+            id: 'conflict-keep-local',
+            userId: 'user-a',
+            entityType: 'task_effort_estimates',
+            entityId: 'task-a',
+            localPayloadJson: '{"remainingSeconds":1200}',
+            remotePayloadJson: '{"remaining_seconds":900}',
+            localVersion: 'local-2',
+            remoteVersion: 'remote-3',
+            createdAt: now,
+          ),
+        );
+
+    expect(
+      await PlanningPlanRepository(
+        database: database,
+        userId: 'user-a',
+        syncQueue: queue,
+      ).resolveSyncConflict(
+        conflictId: 'conflict-keep-local',
+        resolution: 'keep_local',
+        now: now,
+      ),
+      isTrue,
+    );
+    final pending = await queue.loadRetryableForUser('user-a');
+    expect(pending, hasLength(1));
+    expect(pending.single.entityId, 'task-a');
+    expect(
+      (await database.select(database.planningSyncConflicts).getSingle())
+          .resolution,
+      'keep_local',
+    );
+  });
 
   test('schema 19 upgrades additively and preserves existing tasks', () async {
     final directory = await Directory.systemTemp.createTemp('checkd_plan_v20_');

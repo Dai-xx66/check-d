@@ -30,6 +30,7 @@ class RemoteMcpTests(unittest.TestCase):
                     "task_type":"one_time","remaining_effort_state":"known",
                     "remaining_seconds":1800,
                     "deadline_date":"2026-11-15","earliest_start":"2026-11-15T10:00:00+08:00",
+                    "planned_at":"2026-11-15T09:00:00+08:00",
                     "completion_status":"pending"},
                     {"task_id":f"done-{user_id}","name":"done","completion_status":"completed"}],
                 "current_plan":{"status":"confirmed","blocks":[]},
@@ -149,6 +150,21 @@ class RemoteMcpTests(unittest.TestCase):
             self.assertFalse(draft["execution_eligible"])
         self.assertEqual(self.provider_calls,[("checkd-a","2026-11-15","2026-11-15")]*4 +
                          [("checkd-b","2026-11-15","2026-11-15")]*4)
+
+    def test_list_plan_risks_reads_only_the_authenticated_users_snapshot(self):
+        for user in ("checkd-a", "checkd-b"):
+            status,_,body=self.rpc("tools/call",{"name":"list_plan_risks","arguments":{
+                "from":"2026-11-15","to":"2026-11-15"}},self.token(user))
+            result=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(status,200)
+            self.assertTrue(result["ok"])
+            self.assertIn("risks",result)
+            self.assertTrue(result["risks"])
+            self.assertTrue(all(
+                task_id.startswith(f"task-{user}")
+                for risk in result["risks"] for task_id in risk["affected_task_ids"]
+            ))
+            self.assertFalse(result["execution_eligible"])
 
     def test_misbound_snapshot_is_rejected_for_every_tool(self):
         def misbound(user_id, start, end):

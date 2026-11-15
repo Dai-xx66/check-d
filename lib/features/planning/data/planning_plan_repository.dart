@@ -319,6 +319,253 @@ class PlanningPlanRepository {
             ..orderBy([(row) => OrderingTerm.desc(row.createdAt)]))
           .get();
 
+  /// Resolves one owner-scoped conflict without discarding either captured
+  /// payload. Choosing local queues that value for upload; choosing remote
+  /// applies the captured remote value and removes stale local outbox entries.
+  Future<bool> resolveSyncConflict({
+    required String conflictId,
+    required String resolution,
+    DateTime? now,
+  }) async {
+    if (resolution != 'keep_local' && resolution != 'keep_remote') {
+      throw ArgumentError.value(resolution, 'resolution');
+    }
+    final resolvedAt = (now ?? DateTime.now()).toUtc();
+    return _database.transaction(() async {
+      final conflict =
+          await (_database.select(_database.planningSyncConflicts)..where(
+                (row) =>
+                    row.id.equals(conflictId) &
+                    row.userId.equals(_userId) &
+                    row.status.equals('unresolved'),
+              ))
+              .getSingleOrNull();
+      if (conflict == null) return false;
+
+      if (resolution == 'keep_local') {
+        final syncQueue = _syncQueue;
+        if (syncQueue == null) return false;
+        final exists = await _hasLocalConflictEntity(conflict);
+        if (!exists) return false;
+        await syncQueue.enqueue(
+          entityType: conflict.entityType,
+          entityId: conflict.entityId,
+          operation: SyncOperationType.upsert,
+          payload: conflict.entityType == 'planned_block_timer_links'
+              ? _linkPayload(conflict.localPayloadJson)
+              : {'id': conflict.entityId},
+          userId: _userId,
+        );
+      } else {
+        final remote =
+            jsonDecode(conflict.remotePayloadJson) as Map<String, dynamic>;
+        await _applyRemoteConflict(conflict, remote, resolvedAt);
+        await (_database.delete(_database.syncOperations)..where(
+              (op) =>
+                  op.userId.equals(_userId) &
+                  op.entityType.equals(conflict.entityType) &
+                  op.entityId.equals(conflict.entityId) &
+                  (op.status.equals('pending') | op.status.equals('failed')),
+            ))
+            .go();
+      }
+
+      await (_database.update(_database.planningSyncConflicts)..where(
+            (row) => row.id.equals(conflictId) & row.userId.equals(_userId),
+          ))
+          .write(
+            PlanningSyncConflictsCompanion(
+              status: const Value('resolved'),
+              resolution: Value(resolution),
+              resolvedAt: Value(resolvedAt),
+            ),
+          );
+      return true;
+    });
+  }
+
+  Future<bool> _hasLocalConflictEntity(PlanningSyncConflict conflict) async {
+    switch (conflict.entityType) {
+      case 'task_effort_estimates':
+        return await (_database.select(_database.taskEffortRecords)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.taskId.equals(conflict.entityId),
+                ))
+                .getSingleOrNull() !=
+            null;
+      case 'task_plan_versions':
+        return await (_database.select(_database.taskPlanVersionRecords)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.id.equals(conflict.entityId),
+                ))
+                .getSingleOrNull() !=
+            null;
+      case 'task_time_blocks':
+        return await (_database.select(_database.plannedTimeBlockRecords)
+                  ..where(
+                    (row) =>
+                        row.userId.equals(_userId) &
+                        row.id.equals(conflict.entityId),
+                  ))
+                .getSingleOrNull() !=
+            null;
+      case 'planned_block_timer_links':
+        final ids = conflict.entityId.split(':');
+        if (ids.length != 2) return false;
+        return await (_database.select(_database.plannedBlockTimerLinks)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.plannedBlockId.equals(ids[0]) &
+                      row.timerSessionId.equals(ids[1]),
+                ))
+                .getSingleOrNull() !=
+            null;
+      default:
+        return false;
+    }
+  }
+
+  Future<void> _applyRemoteConflict(
+    PlanningSyncConflict conflict,
+    Map<String, dynamic> row,
+    DateTime resolvedAt,
+  ) async {
+    DateTime? date(String key) {
+      final value = row[key] ?? row[_camel(key)];
+      if (value is! String || value.isEmpty) return null;
+      return DateTime.parse(value).toUtc();
+    }
+
+    int? integer(String key) {
+      final value = row[key] ?? row[_camel(key)];
+      return value is num ? value.toInt() : null;
+    }
+
+    String? string(String key) {
+      final value = row[key] ?? row[_camel(key)];
+      return value is String ? value : null;
+    }
+
+    switch (conflict.entityType) {
+      case 'task_effort_estimates':
+        final taskId = string('task_id') ?? conflict.entityId;
+        final updatedAt = date('updated_at');
+        if (updatedAt == null) {
+          throw const FormatException('updated_at missing');
+        }
+        await _database
+            .into(_database.taskEffortRecords)
+            .insertOnConflictUpdate(
+              TaskEffortRecordsCompanion.insert(
+                userId: _userId,
+                taskId: taskId,
+                estimatedSeconds: Value(integer('estimated_seconds')),
+                remainingSeconds: Value(integer('remaining_seconds')),
+                source: string('source') ?? 'remote_conflict_resolution',
+                updatedAt: updatedAt,
+                deletedAt: Value(date('deleted_at')),
+              ),
+            );
+      case 'task_plan_versions':
+        final id = string('id') ?? conflict.entityId;
+        final createdAt = date('created_at');
+        if (createdAt == null) {
+          throw const FormatException('created_at missing');
+        }
+        final supersedes =
+            row['supersedes_version_ids'] ?? row['supersedesVersionIdsJson'];
+        await _database
+            .into(_database.taskPlanVersionRecords)
+            .insertOnConflictUpdate(
+              TaskPlanVersionRecordsCompanion.insert(
+                id: id,
+                userId: _userId,
+                revision: integer('revision') ?? 1,
+                sourceSnapshotVersion: string('source_snapshot_version') ?? '',
+                proposalDigest: string('proposal_digest') ?? '',
+                rulesVersion: string('rules_version') ?? '',
+                startsOn: string('starts_on') ?? '',
+                endsOn: string('ends_on') ?? '',
+                status: string('status') ?? LocalPlanStatus.confirmed.name,
+                idempotencyKey: string('idempotency_key') ?? '',
+                createdAt: createdAt,
+                confirmedAt: Value(date('confirmed_at')),
+                appliedAt: Value(date('applied_at')),
+                supersedesVersionIdsJson: Value(
+                  supersedes is String
+                      ? supersedes
+                      : jsonEncode(supersedes ?? []),
+                ),
+              ),
+            );
+      case 'task_time_blocks':
+        final id = string('id') ?? conflict.entityId;
+        final startsAt = date('starts_at');
+        final endsAt = date('ends_at');
+        if (startsAt == null || endsAt == null) {
+          throw const FormatException('block interval missing');
+        }
+        await _database
+            .into(_database.plannedTimeBlockRecords)
+            .insertOnConflictUpdate(
+              PlannedTimeBlockRecordsCompanion.insert(
+                id: id,
+                userId: _userId,
+                planVersionId: string('plan_version_id') ?? '',
+                taskId: string('task_id') ?? '',
+                startsAt: startsAt,
+                endsAt: endsAt,
+                plannedSeconds:
+                    integer('planned_seconds') ??
+                    endsAt.difference(startsAt).inSeconds,
+                deletedAt: Value(date('deleted_at')),
+              ),
+            );
+      case 'planned_block_timer_links':
+        final blockId = string('planned_block_id');
+        final timerId = string('timer_session_id');
+        final linkedAt = date('linked_at') ?? resolvedAt;
+        if (blockId == null || timerId == null) {
+          throw const FormatException('timer link identifiers missing');
+        }
+        await _database
+            .into(_database.plannedBlockTimerLinks)
+            .insertOnConflictUpdate(
+              PlannedBlockTimerLinksCompanion.insert(
+                userId: _userId,
+                plannedBlockId: blockId,
+                timerSessionId: timerId,
+                linkedAt: linkedAt,
+              ),
+            );
+      default:
+        throw StateError('unsupported planning conflict type');
+    }
+  }
+
+  Map<String, Object?> _linkPayload(String json) {
+    final row = jsonDecode(json) as Map<String, dynamic>;
+    return {
+      'planned_block_id': row['planned_block_id'] ?? row['plannedBlockId'],
+      'timer_session_id': row['timer_session_id'] ?? row['timerSessionId'],
+    };
+  }
+
+  String _camel(String key) {
+    final parts = key.split('_');
+    return parts.first +
+        parts
+            .skip(1)
+            .map(
+              (part) => part.isEmpty
+                  ? ''
+                  : '${part[0].toUpperCase()}${part.substring(1)}',
+            )
+            .join();
+  }
+
   /// Tombstones a block instead of physically deleting it, so a later sync
   /// cannot resurrect it from another device's stale snapshot.
   Future<bool> tombstoneBlock(String blockId, {DateTime? now}) async {

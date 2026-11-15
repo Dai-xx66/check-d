@@ -8,6 +8,8 @@ declare
   user_a constant uuid := '10000000-0000-4000-8000-000000000001';
   user_b constant uuid := '10000000-0000-4000-8000-000000000002';
   task_a constant uuid := '20000000-0000-4000-8000-000000000001';
+  course_b constant uuid := '60000000-0000-4000-8000-000000000002';
+  course_rule_b constant uuid := '61000000-0000-4000-8000-000000000002';
   proposal_a constant uuid := '30000000-0000-4000-8000-000000000001';
   approval_a constant uuid := '40000000-0000-4000-8000-000000000001';
   proposal_b constant uuid := '30000000-0000-4000-8000-000000000004';
@@ -36,6 +38,14 @@ declare
   found_count integer;
   event_a public.agent_risk_events%rowtype;
   stale_lease uuid;
+  snapshot_b jsonb;
+  snapshot_version_b text;
+  proposal_source_change constant uuid := '30000000-0000-4000-8000-000000000008';
+  approval_source_change constant uuid := '40000000-0000-4000-8000-000000000008';
+  proposal_snapshot_apply constant uuid := '30000000-0000-4000-8000-000000000009';
+  approval_snapshot_apply constant uuid := '40000000-0000-4000-8000-000000000009';
+  plan_block_snapshot_apply constant uuid := '50000000-0000-4000-8000-000000000009';
+  source_change_digest text;
 begin
   insert into auth.users(id,aud,role,email,encrypted_password,email_confirmed_at,
     raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
@@ -238,6 +248,89 @@ begin
   if found_count <> 1 then raise exception 'risk RLS did not isolate user A'; end if;
   if (select status from public.agent_risk_states where user_id=user_a and risk_key='deadline-buffer-task') <> 'resolved' then
     raise exception 'risk disappearing from snapshot was not resolved'; end if;
+  reset role;
+
+  -- The snapshot RPC derives identity from auth.uid and reads only synced
+  -- server rows. Current cloud schema has no authoritative task deadline.
+  insert into public.tasks(id,user_id,name,type,color)
+    values('20000000-0000-4000-8000-000000000002',user_b,'Snapshot task B','one_time',1);
+  insert into public.courses(id,user_id,name,color)
+    values(course_b,user_b,'Synthetic Tuesday course',2);
+  insert into public.course_schedule_rules(id,course_id,user_id,weekday,week_rule_type,
+    starts_at_minute,ends_at_minute,time_mode)
+    values(course_rule_b,course_b,user_b,2,'everyWeek',600,660,'customTime');
+  insert into public.task_effort_estimates(user_id,task_id,estimated_seconds,remaining_seconds,source)
+    values(user_b,'20000000-0000-4000-8000-000000000002',3600,2400,'synthetic_user_confirmed');
+  insert into public.one_time_reminders(task_id,user_id,scheduled_at,has_scheduled_date,is_timed)
+    values('20000000-0000-4000-8000-000000000002',user_b,'2030-01-01T10:00:00+08:00',true,true);
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub',user_b::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',user_b,'role','authenticated')::text,true);
+  snapshot_b:=public.build_agent_planning_snapshot('2030-01-01','2030-01-07');
+  snapshot_version_b:=snapshot_b->>'snapshot_version';
+  if snapshot_b->>'planning_ready'<>'false' or snapshot_b->>'execution_eligible'<>'false' then
+    raise exception 'incomplete source snapshot was marked ready'; end if;
+  if snapshot_b#>>'{source,deadline_columns_available}'<>'false'
+     or not (snapshot_b->'readiness_blockers' @> '["cloud_deadline_fields_absent_or_history_unavailable"]'::jsonb) then
+    raise exception 'missing cloud deadline schema was not exposed as a readiness blocker'; end if;
+  if snapshot_b#>>'{source,tasks,0,deadline_state}'<>'unknown_no_deadline_record' then
+    raise exception 'missing deadline was not preserved as unknown: %',snapshot_b#>>'{source,tasks,0,deadline_state}'; end if;
+  if snapshot_b#>>'{source,tasks,0,remaining_effort_state}'<>'known'
+     or (snapshot_b#>>'{source,tasks,0,remaining_seconds}')::integer<>2400 then
+    raise exception 'snapshot did not include the same task effort row'; end if;
+  if jsonb_array_length(snapshot_b#>'{source,course_occurrences}')<>1
+     or (snapshot_b#>>'{source,course_occurrences,0,starts_at}')::timestamptz <> '2030-01-01T02:00:00Z'::timestamptz then
+    raise exception 'server snapshot did not normalize the real course rule into an occurrence: %',snapshot_b#>'{source,course_occurrences}'; end if;
+  if (snapshot_b->>'snapshot_digest') is null or (snapshot_b->>'revision')::bigint<1 then
+    raise exception 'server snapshot digest/revision missing'; end if;
+  if (public.build_agent_planning_snapshot('2030-01-01','2030-01-07')->>'snapshot_version')<>snapshot_version_b then
+    raise exception 'unchanged source snapshot was not deterministic'; end if;
+  execute 'reset role';
+  source_change_digest:=pg_catalog.encode(extensions.digest(changes_a::text,'sha256'),'hex');
+  insert into public.agent_plan_proposals(id,user_id,base_version,changes,change_digest,rules_version,starts_on,ends_on,status,expires_at,idempotency_key)
+    values(proposal_source_change,user_b,snapshot_version_b,changes_a,source_change_digest,'fixture-rules','2030-01-01','2030-01-01','approved',now()+interval '10 minutes','source-change');
+  insert into public.agent_plan_approvals(id,user_id,proposal_id,base_version,change_digest,status,expires_at)
+    values(approval_source_change,user_b,proposal_source_change,snapshot_version_b,source_change_digest,'approved',now()+interval '5 minutes');
+  update public.tasks set name='Snapshot task B changed' where id='20000000-0000-4000-8000-000000000002' and user_id=user_b;
+  if (select status from public.agent_plan_proposals where id=proposal_source_change)<>'superseded'
+     or (select status from public.agent_plan_approvals where id=approval_source_change)<>'expired' then
+    raise exception 'source mutation did not stale proposal and approval'; end if;
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub',user_b::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',user_b,'role','authenticated')::text,true);
+  begin
+    perform public.apply_approved_plan(proposal_source_change,approval_source_change,'source-change-apply');
+    raise exception 'source-mutated proposal unexpectedly applied';
+  exception when sqlstate 'P0001' then
+    if sqlerrm<>'PROPOSAL_NOT_APPROVED' then raise; end if;
+  end;
+  if exists(select 1 from public.task_plan_versions where user_id=user_b)
+     or exists(select 1 from public.agent_plan_apply_idempotency where user_id=user_b) then
+    raise exception 'stale proposal created a plan or idempotency write'; end if;
+
+  -- One server snapshot is then used to apply a synthetic, explicitly
+  -- approved block for the same user/task and verify it from authoritative rows.
+  execute 'set local role authenticated';
+  snapshot_b:=public.build_agent_planning_snapshot('2030-01-01','2030-01-07');
+  snapshot_version_b:=snapshot_b->>'snapshot_version';
+  changes_a:=jsonb_build_array(jsonb_build_object(
+    'id',plan_block_snapshot_apply,'task_id','20000000-0000-4000-8000-000000000002',
+    'starts_at','2030-01-01T04:00:00Z','ends_at','2030-01-01T04:30:00Z','planned_seconds',1800));
+  digest_a:=pg_catalog.encode(extensions.digest(changes_a::text,'sha256'),'hex');
+  execute 'reset role';
+  insert into public.agent_plan_proposals(id,user_id,base_version,changes,change_digest,rules_version,
+    starts_on,ends_on,status,expires_at,idempotency_key)
+    values(proposal_snapshot_apply,user_b,snapshot_version_b,changes_a,digest_a,'fixture-rules',
+      '2030-01-01','2030-01-01','approved',now()+interval '10 minutes','snapshot-apply');
+  insert into public.agent_plan_approvals(id,user_id,proposal_id,base_version,change_digest,status,expires_at)
+    values(approval_snapshot_apply,user_b,proposal_snapshot_apply,snapshot_version_b,digest_a,'approved',now()+interval '5 minutes');
+  execute 'set local role authenticated';
+  result_a:=public.apply_approved_plan(proposal_snapshot_apply,approval_snapshot_apply,'snapshot-apply');
+  execute 'reset role';
+  if result_a->>'readback_verified'<>'true'
+     or not exists(select 1 from public.task_time_blocks where user_id=user_b
+       and id=plan_block_snapshot_apply and task_id='20000000-0000-4000-8000-000000000002') then
+    raise exception 'snapshot proposal apply did not read back for its owner task'; end if;
   reset role;
 end $$;
 

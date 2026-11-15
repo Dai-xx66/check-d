@@ -385,6 +385,17 @@ class SyncDownloadExecutor {
         await (_database.select(_database.plannedTimeBlockRecords)
               ..where((r) => r.userId.equals(userId) & r.id.equals(entityId)))
             .getSingleOrNull(),
+      'planned_block_timer_links' => await (() async {
+        final ids = entityId.split(':');
+        if (ids.length != 2) return null;
+        return (_database.select(_database.plannedBlockTimerLinks)..where(
+              (r) =>
+                  r.userId.equals(userId) &
+                  r.plannedBlockId.equals(ids[0]) &
+                  r.timerSessionId.equals(ids[1]),
+            ))
+            .getSingleOrNull();
+      })(),
       _ => null,
     };
     if (record == null) return null;
