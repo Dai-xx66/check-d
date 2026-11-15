@@ -231,6 +231,50 @@ void main() {
       hasLength(2),
     );
   });
+
+  test('odd/even week rules use the semester first-week date', () {
+    final oddCourse = _course(
+      semesterStartsOn: DateTime(2026, 9, 7),
+      rule: _rule(weekRuleType: CourseWeekRuleType.oddWeeks),
+    );
+    final evenCourse = _course(
+      semesterStartsOn: DateTime(2026, 9, 7),
+      rule: _rule(weekRuleType: CourseWeekRuleType.evenWeeks),
+    );
+
+    expect(
+      buildCourseOccurrencesForDate(
+        date: DateTime(2026, 9, 8), // semester week 1
+        courses: [oddCourse],
+        overrides: const [],
+      ),
+      hasLength(1),
+    );
+    expect(
+      buildCourseOccurrencesForDate(
+        date: DateTime(2026, 9, 15), // semester week 2
+        courses: [oddCourse],
+        overrides: const [],
+      ),
+      isEmpty,
+    );
+    expect(
+      buildCourseOccurrencesForDate(
+        date: DateTime(2026, 9, 8),
+        courses: [evenCourse],
+        overrides: const [],
+      ),
+      isEmpty,
+    );
+    expect(
+      buildCourseOccurrencesForDate(
+        date: DateTime(2026, 9, 15),
+        courses: [evenCourse],
+        overrides: const [],
+      ),
+      hasLength(1),
+    );
+  });
 }
 
 CalendarOccurrence _singleOccurrence(ScheduleTemplateDetails template) =>
@@ -246,6 +290,7 @@ CalendarOccurrence _singleOccurrence(ScheduleTemplateDetails template) =>
 CourseDetails _course({
   List<String> sectionIds = const [],
   CourseScheduleRule? rule,
+  DateTime? semesterStartsOn,
 }) => CourseDetails(
   id: 'course-1',
   name: '高等数学',
@@ -253,6 +298,7 @@ CourseDetails _course({
   status: CourseStatus.active,
   createdAt: DateTime(2026, 9, 8),
   updatedAt: DateTime(2026, 9, 8),
+  semesterStartsOn: semesterStartsOn,
   rules: [rule ?? _rule(sectionIds: sectionIds)],
 );
 
@@ -262,11 +308,12 @@ CourseScheduleRule _rule({
   CourseScheduleTimeMode timeMode = CourseScheduleTimeMode.periods,
   int startsAtMinute = 8 * 60,
   int endsAtMinute = 9 * 60 + 40,
+  CourseWeekRuleType weekRuleType = CourseWeekRuleType.everyWeek,
 }) => CourseScheduleRule(
   id: id,
   courseId: id == 'rule-2' ? 'course-2' : 'course-1',
   weekday: DateTime.tuesday,
-  weekRuleType: CourseWeekRuleType.everyWeek,
+  weekRuleType: weekRuleType,
   startsAtMinute: startsAtMinute,
   endsAtMinute: endsAtMinute,
   createdAt: DateTime(2026, 9, 8),

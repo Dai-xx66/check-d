@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../application/planning_providers.dart';
+import '../data/planning_plan_repository.dart';
 import '../data/planning_preview_client.dart';
 
 class PlanningPreviewPage extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
   String? _delayTaskId;
   String? _delayError;
   bool _delayLoading = false;
+  bool _savingPlan = false;
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
     final risks = _maps((_riskResult ?? value.riskResult)['risks']);
     final syncState = snapshot['sync_state'] as String? ?? 'unknown';
     final provisional = snapshot['provisional'] == true;
+    final savedPlans = ref.watch(savedPlanningPlansProvider(_range));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -101,6 +104,37 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
           _SectionCard(
             title: '可行性',
             child: Text(_outcomeLabel(result['outcome'] as String?)),
+          ),
+          if (result['outcome'] == 'found_feasible' && blocks.isNotEmpty)
+            _SectionCard(
+              title: '保存本地计划',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('保存前会再次核对任务与课程快照。此操作只保存到本机，不会同步云端或修改任务排期。'),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _savingPlan
+                        ? null
+                        : () =>
+                              _confirmAndSave(snapshot, result, tasks, blocks),
+                    icon: _savingPlan
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_circle_outline),
+                    label: Text(_savingPlan ? '正在保存…' : '查看差异并确认保存'),
+                  ),
+                ],
+              ),
+            ),
+          savedPlans.when(
+            loading: () =>
+                const Card(child: ListTile(title: Text('正在读取已保存的本地计划…'))),
+            error: (_, _) =>
+                const Card(child: ListTile(title: Text('已保存计划暂时无法读取。'))),
+            data: (plans) => _savedPlansCard(plans, tasks),
           ),
           _SectionCard(
             title: '候选时间块',
@@ -198,6 +232,180 @@ class _PlanningPreviewPageState extends ConsumerState<PlanningPreviewPage> {
         ],
       ],
     );
+  }
+
+  Widget _savedPlansCard(
+    List<SavedLocalPlan> plans,
+    List<Map<String, Object?>> tasks,
+  ) {
+    final visible = plans
+        .where(
+          (plan) =>
+              plan.status == LocalPlanStatus.confirmed ||
+              plan.status == LocalPlanStatus.applied,
+        )
+        .toList();
+    return _SectionCard(
+      title: '已保存计划（本机）',
+      child: visible.isEmpty
+          ? const Text('当前日期范围还没有已确认的本地计划。')
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final plan in visible)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '版本 ${plan.revision} · ${plan.status.name} · ${plan.blocks.length} 个时间块',
+                        ),
+                        for (final block in plan.blocks)
+                          Text(
+                            '• ${_taskName(tasks, block.taskId)}：${_formatInstant(block.startsAt.toIso8601String())} – ${_formatInstant(block.endsAt.toIso8601String())}',
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Future<void> _confirmAndSave(
+    Map<String, Object?> snapshot,
+    Map<String, Object?> result,
+    List<Map<String, Object?>> tasks,
+    List<Map<String, Object?>> rawBlocks,
+  ) async {
+    if (_savingPlan) return;
+    final blocks = <CandidatePlanBlock>[];
+    try {
+      for (final block in rawBlocks) {
+        final start = DateTime.parse(block['starts_at']! as String).toUtc();
+        final end = DateTime.parse(block['ends_at']! as String).toUtc();
+        final seconds = block['planned_seconds'];
+        if (seconds is! int) {
+          throw const FormatException('planned seconds missing');
+        }
+        blocks.add(
+          CandidatePlanBlock(
+            taskId: block['task_id']! as String,
+            startsAt: start,
+            endsAt: end,
+            plannedSeconds: seconds,
+          ),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('候选时间块数据无效，尚未保存。')));
+      }
+      return;
+    }
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('确认保存本地计划？'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '以下是当前安排与候选计划的差异。确认后保存到此设备的 CheckD 数据库；不会修改任务本身、TimerSession 或云端数据。若你在本次预览中明确补充了剩余工时，该数值会保存在独立的本地规划估算记录中。',
+                ),
+                const SizedBox(height: 12),
+                for (final block in blocks)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      '• ${_taskName(tasks, block.taskId)}：${_formatInstant(block.startsAt.toIso8601String())} – ${_formatInstant(block.endsAt.toIso8601String())}（${_oldPlannedTime(tasks, block.taskId)}）',
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                const Text('计划将标记为“已确认（本地）”；尚未获得云端版本授权，不能自动执行或同步。'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('确认保存'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+
+    setState(() => _savingPlan = true);
+    try {
+      final sourceVersion = snapshot['version']! as String;
+      final repository = ref.read(planningPlanRepositoryProvider);
+      await repository.confirmPlan(
+        expectedSnapshotVersion: sourceVersion,
+        readCurrentSnapshotVersion: () async {
+          final fresh = await ref
+              .read(planningContextRepositoryProvider)
+              .load(
+                from: _range.from,
+                through: _range.through,
+                now: DateTime.now(),
+              );
+          return fresh['version']! as String;
+        },
+        startsOn: _range.from,
+        endsOn: _range.through,
+        rulesVersion: 'local-edf-v1',
+        blocks: blocks,
+        confirmedRemainingSeconds: {
+          for (final task in tasks)
+            if (task['effort_source'] == 'ephemeral_user_input' &&
+                task['remaining_seconds'] is int)
+              task['task_id']! as String: task['remaining_seconds']! as int,
+        },
+      );
+      if (!mounted) return;
+      ref.invalidate(savedPlanningPlansProvider(_range));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('本地计划已保存，可在本页重新读取。')));
+    } on LocalPlanSnapshotChanged {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('任务或课程数据已变化，旧方案未保存。请重新计算后确认。')),
+      );
+      setState(() {
+        _previewSnapshot = null;
+        _previewResult = null;
+        _riskResult = null;
+      });
+      ref.invalidate(planningPreviewProvider(_range));
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('计划保存失败；没有显示成功状态，请检查数据后重试。')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingPlan = false);
+    }
+  }
+
+  String _oldPlannedTime(List<Map<String, Object?>> tasks, String taskId) {
+    final task = _task(tasks, taskId);
+    final old = task['planned_at'];
+    return old is String ? '原执行时间 ${_formatInstant(old)}' : '原先未设执行时间';
   }
 
   Future<void> _simulateDelay(

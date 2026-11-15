@@ -5,6 +5,7 @@ import '../../courses/application/course_providers.dart';
 import '../../schedule/application/day_schedule_providers.dart';
 import '../../tasks/application/task_providers.dart';
 import '../data/planning_context_repository.dart';
+import '../data/planning_plan_repository.dart';
 import '../data/planning_preview_client.dart';
 import '../domain/local_planning_engine.dart';
 
@@ -19,6 +20,13 @@ final planningContextRepositoryProvider = Provider<PlanningContextRepository>(
     semesters: ref.watch(semesterRepositoryProvider),
     schedule: ref.watch(dayScheduleRepositoryProvider),
     authenticatedUserId: ref.watch(currentDataOwnerProvider),
+  ),
+);
+
+final planningPlanRepositoryProvider = Provider<PlanningPlanRepository>(
+  (ref) => PlanningPlanRepository(
+    database: ref.watch(appDatabaseProvider),
+    userId: ref.watch(currentDataOwnerProvider),
   ),
 );
 
@@ -84,4 +92,14 @@ final planningPreviewProvider = FutureProvider.autoDispose
         result: result,
         riskResult: riskResult,
       );
+    });
+
+final savedPlanningPlansProvider = FutureProvider.autoDispose
+    .family<List<SavedLocalPlan>, PlanningDateRange>((ref, range) {
+      return ref
+          .watch(planningPlanRepositoryProvider)
+          .loadPlans(
+            startsOnOrBefore: range.through,
+            endsOnOrAfter: range.from,
+          );
     });

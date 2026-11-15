@@ -7,6 +7,8 @@ import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
 import 'package:check_d/features/planning/data/planning_context_repository.dart';
+import 'package:check_d/features/planning/data/planning_plan_repository.dart';
+import 'package:check_d/features/planning/domain/local_planning_engine.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
@@ -151,6 +153,168 @@ void main() {
       expect(snapshot['version'], startsWith('local-fnv64-'));
       expect(snapshot['timer_facts'], hasLength(1));
       expect(snapshot['occupied_blocks'], hasLength(2));
+
+      final laterClock = await context.load(
+        from: day,
+        through: day,
+        now: DateTime(2026, 11, 16, 9, 1),
+      );
+      expect(laterClock['version'], snapshot['version']);
+      final planningInput =
+          jsonDecode(jsonEncode(snapshot)) as Map<String, Object?>;
+      final planningTask = (planningInput['tasks'] as List).single as Map;
+      planningTask['remaining_seconds'] = 3600;
+      planningTask['remaining_effort_state'] = 'known';
+      planningTask['deadline_date'] = '2026-11-16';
+      planningTask['effort_source'] = 'synthetic_user_input';
+      final planResult = const LocalPlanningEngine().preview(planningInput);
+      expect(planResult['outcome'], 'found_feasible');
+      final proposedBlocks = (planResult['schedule'] as Map)['blocks'] as List;
+      final courseBlock =
+          (snapshot['course_occurrences'] as List).single as Map;
+      for (final rawBlock in proposedBlocks) {
+        final block = rawBlock as Map;
+        final start = DateTime.parse(block['starts_at'] as String);
+        final end = DateTime.parse(block['ends_at'] as String);
+        final courseStart = DateTime.parse(courseBlock['starts_at'] as String);
+        final courseEnd = DateTime.parse(courseBlock['ends_at'] as String);
+        expect(
+          start.isBefore(courseEnd) && courseStart.isBefore(end),
+          isFalse,
+          reason: 'planner candidate must avoid the Flutter course occurrence',
+        );
+      }
+
+      await database
+          .into(database.taskEffortRecords)
+          .insert(
+            TaskEffortRecordsCompanion.insert(
+              taskId: taskId,
+              userId: 'user-a',
+              remainingSeconds: const Value(2400),
+              source: 'user_confirmed',
+              updatedAt: DateTime.utc(2026, 11, 16, 1),
+            ),
+          );
+      final withEffort = await context.load(
+        from: day,
+        through: day,
+        now: DateTime(2026, 11, 16, 9),
+      );
+      expect(withEffort['version'], isNot(snapshot['version']));
+      expect((withEffort['tasks'] as List).single['remaining_seconds'], 2400);
+
+      final planRepository = PlanningPlanRepository(
+        database: database,
+        userId: 'user-a',
+      );
+      final localPlan = await planRepository.confirmPlan(
+        expectedSnapshotVersion: withEffort['version']! as String,
+        readCurrentSnapshotVersion: () async =>
+            (await context.load(
+                  from: day,
+                  through: day,
+                  now: DateTime(2026, 11, 16, 9, 2),
+                ))['version']!
+                as String,
+        startsOn: day,
+        endsOn: day,
+        rulesVersion: 'local-edf-v1',
+        blocks: [
+          CandidatePlanBlock(
+            taskId: taskId,
+            startsAt: DateTime.utc(2026, 11, 16, 4),
+            endsAt: DateTime.utc(2026, 11, 16, 4, 40),
+            plannedSeconds: 2400,
+          ),
+        ],
+        now: DateTime.utc(2026, 11, 16, 1),
+      );
+      expect(localPlan.status, LocalPlanStatus.confirmed);
+      final persistedPlans = await planRepository.loadPlans(
+        startsOnOrBefore: day,
+        endsOnOrAfter: day,
+      );
+      expect(persistedPlans, hasLength(1));
+      expect(persistedPlans.single.blocks, hasLength(1));
+
+      await scheduleRepository.saveDailyOverride(
+        DailyItemOverrideDraft(
+          itemType: DayItemType.course,
+          itemId: courseId,
+          localDate: day,
+          action: DayOverrideAction.skip,
+        ),
+      );
+      final afterCourseChange = await context.load(
+        from: day,
+        through: day,
+        now: DateTime(2026, 11, 16, 9, 2),
+      );
+      expect(afterCourseChange['version'], isNot(withEffort['version']));
+      await expectLater(
+        planRepository.confirmPlan(
+          expectedSnapshotVersion: withEffort['version']! as String,
+          readCurrentSnapshotVersion: () async =>
+              (await context.load(
+                    from: day,
+                    through: day,
+                    now: DateTime(2026, 11, 16, 9, 2),
+                  ))['version']!
+                  as String,
+          startsOn: day,
+          endsOn: day,
+          rulesVersion: 'local-edf-v1',
+          blocks: [
+            CandidatePlanBlock(
+              taskId: taskId,
+              startsAt: DateTime.utc(2026, 11, 16, 6),
+              endsAt: DateTime.utc(2026, 11, 16, 6, 40),
+              plannedSeconds: 2400,
+            ),
+          ],
+          now: DateTime.utc(2026, 11, 16, 1),
+        ),
+        throwsA(isA<LocalPlanSnapshotChanged>()),
+      );
+
+      await taskRepository.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: '任务 fixture 已修改',
+          colorValue: 0,
+          scheduledAt: DateTime(2026, 11, 16, 14),
+        ),
+        taskId: taskId,
+      );
+      await expectLater(
+        planRepository.confirmPlan(
+          expectedSnapshotVersion: withEffort['version']! as String,
+          readCurrentSnapshotVersion: () async =>
+              (await context.load(
+                    from: day,
+                    through: day,
+                    now: DateTime(2026, 11, 16, 9, 3),
+                  ))['version']!
+                  as String,
+          startsOn: day,
+          endsOn: day,
+          rulesVersion: 'local-edf-v1',
+          blocks: [
+            CandidatePlanBlock(
+              taskId: taskId,
+              startsAt: DateTime.utc(2026, 11, 16, 5),
+              endsAt: DateTime.utc(2026, 11, 16, 5, 40),
+              plannedSeconds: 2400,
+            ),
+          ],
+          now: DateTime.utc(2026, 11, 16, 1),
+        ),
+        throwsA(isA<LocalPlanSnapshotChanged>()),
+      );
+      expect(
+        await database.select(database.taskPlanVersionRecords).get(),
+        hasLength(1),
+      );
 
       final coursesB = CourseRepository(
         database: database,

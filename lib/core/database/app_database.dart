@@ -211,6 +211,107 @@ class PlanTaskRecords extends Table {
   Set<Column<Object>> get primaryKey => {planId, taskId};
 }
 
+/// Planning-only estimates. These never replace TimerSession facts.
+class TaskEffortRecords extends Table {
+  TextColumn get taskId => text()();
+  TextColumn get userId => text()();
+  IntColumn get estimatedSeconds => integer().nullable()();
+  IntColumn get remainingSeconds => integer().nullable()();
+  TextColumn get source => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId, taskId};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (estimated_seconds IS NULL OR estimated_seconds > 0)',
+    'CHECK (remaining_seconds IS NULL OR remaining_seconds > 0)',
+    'CHECK (length(trim(source)) > 0)',
+  ];
+}
+
+/// A local planning proposal/version. It is not a cloud approval record.
+class TaskPlanVersionRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  IntColumn get revision => integer()();
+  TextColumn get sourceSnapshotVersion => text()();
+  TextColumn get proposalDigest => text()();
+  TextColumn get rulesVersion => text()();
+  TextColumn get startsOn => text()();
+  TextColumn get endsOn => text()();
+  TextColumn get status => text()();
+  TextColumn get idempotencyKey => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get confirmedAt => dateTime().nullable()();
+  DateTimeColumn get appliedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, id},
+    {userId, idempotencyKey},
+    {userId, revision},
+  ];
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK (revision > 0)',
+    "CHECK (status IN ('draft', 'confirmed', 'applied', 'superseded', 'failed'))",
+    'CHECK (starts_on <= ends_on)',
+  ];
+}
+
+/// Planned time blocks are proposals; actual work remains in TimerSession.
+class PlannedTimeBlockRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get planVersionId => text()();
+  TextColumn get taskId => text()();
+  DateTimeColumn get startsAt => dateTime()();
+  DateTimeColumn get endsAt => dateTime()();
+  IntColumn get plannedSeconds => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {userId, id},
+    {userId, planVersionId, taskId, startsAt},
+  ];
+
+  @override
+  List<String> get customConstraints => [
+    'FOREIGN KEY (user_id, plan_version_id) '
+        'REFERENCES task_plan_version_records (user_id, id) ON DELETE CASCADE',
+    'CHECK (ends_at > starts_at)',
+    'CHECK (planned_seconds > 0)',
+  ];
+}
+
+/// Optional link from an immutable actual TimerSession to a planned block.
+class PlannedBlockTimerLinks extends Table {
+  TextColumn get userId => text()();
+  TextColumn get plannedBlockId => text().references(
+    PlannedTimeBlockRecords,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get timerSessionId => text()();
+  DateTimeColumn get linkedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    userId,
+    plannedBlockId,
+    timerSessionId,
+  };
+}
+
 class ReviewRecords extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text()();
@@ -468,6 +569,10 @@ class AdHocTimerIntervalRecords extends Table {
     AlarmRuleRecords,
     AdHocTimerRecords,
     AdHocTimerIntervalRecords,
+    TaskEffortRecords,
+    TaskPlanVersionRecords,
+    PlannedTimeBlockRecords,
+    PlannedBlockTimerLinks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -476,7 +581,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -752,6 +857,12 @@ class AppDatabase extends _$AppDatabase {
             timerSessionRecords.logicalDate,
           );
         }
+      }
+      if (from < 20) {
+        await migrator.createTable(taskEffortRecords);
+        await migrator.createTable(taskPlanVersionRecords);
+        await migrator.createTable(plannedTimeBlockRecords);
+        await migrator.createTable(plannedBlockTimerLinks);
       }
     },
     beforeOpen: (details) async {

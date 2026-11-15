@@ -5,6 +5,7 @@ import 'package:check_d/features/courses/data/semester_repository.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
 import 'package:check_d/features/planning/application/planning_providers.dart';
 import 'package:check_d/features/planning/data/planning_context_repository.dart';
+import 'package:check_d/features/planning/data/planning_plan_repository.dart';
 import 'package:check_d/features/planning/presentation/planning_preview_page.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
@@ -70,11 +71,26 @@ void main() {
         schedule: schedule,
         authenticatedUserId: 'test-user-a',
       );
+      final planRepository = PlanningPlanRepository(
+        database: database,
+        userId: 'test-user-a',
+      );
+      final range = PlanningDateRange(
+        from: DateTime(now.year, now.month, now.day),
+        through: DateTime(now.year, now.month, now.day + 6),
+      );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             planningContextRepositoryProvider.overrideWithValue(repository),
+            planningPlanRepositoryProvider.overrideWithValue(planRepository),
+            savedPlanningPlansProvider(range).overrideWith(
+              (ref) => planRepository.loadPlans(
+                startsOnOrBefore: range.through,
+                endsOnOrAfter: range.from,
+              ),
+            ),
           ],
           child: const MaterialApp(home: PlanningPreviewPage()),
         ),
@@ -96,12 +112,65 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('仅用于本次预览'));
+      await tester.pumpAndSettle();
+      expect(find.text('本次预览：隔离测试单次事项'), findsNothing);
       await _pumpUntil(tester, find.text('当前输入下找到可行候选安排。'));
 
       expect(find.textContaining('仅用于本次计算'), findsOneWidget);
       expect(find.text('隔离测试单次事项'), findsWidgets);
-      await tester.ensureVisible(find.textContaining('明天再做'));
-      await tester.tap(find.textContaining('明天再做').first);
+      final saveButton = find.text('查看差异并确认保存');
+      await tester.scrollUntilVisible(
+        saveButton,
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+      expect(find.text('确认保存本地计划？'), findsOneWidget);
+      await tester.tap(find.text('取消').last);
+      await tester.pumpAndSettle();
+      expect(
+        await planRepository.loadPlans(
+          startsOnOrBefore: tomorrow,
+          endsOnOrAfter: tomorrow,
+        ),
+        isEmpty,
+      );
+
+      await tester.scrollUntilVisible(
+        saveButton,
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认保存'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final saved = await planRepository.loadPlans(
+        startsOnOrBefore: tomorrow,
+        endsOnOrAfter: tomorrow,
+      );
+      expect(saved, hasLength(1));
+      expect(saved.single.blocks, isNotEmpty);
+      await tester.pump();
+      final savedLabel = find.text('版本 1 · confirmed · 1 个时间块').first;
+      await tester.scrollUntilVisible(
+        savedLabel,
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('版本 1 · confirmed · 1 个时间块'), findsWidgets);
+
+      final delayButton = find.textContaining('明天再做');
+      await tester.scrollUntilVisible(
+        delayButton,
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.drag(find.byType(ListView).first, const Offset(0, -240));
+      await tester.pumpAndSettle();
+      await tester.tap(delayButton.first);
       await _pumpUntil(tester, find.textContaining('延期前：'));
       expect(find.textContaining('延期后：'), findsOneWidget);
     },

@@ -15688,6 +15688,2044 @@ class AdHocTimerIntervalRecordsCompanion
   }
 }
 
+class $TaskEffortRecordsTable extends TaskEffortRecords
+    with TableInfo<$TaskEffortRecordsTable, TaskEffortRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskEffortRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _estimatedSecondsMeta = const VerificationMeta(
+    'estimatedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> estimatedSeconds = GeneratedColumn<int>(
+    'estimated_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remainingSecondsMeta = const VerificationMeta(
+    'remainingSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> remainingSeconds = GeneratedColumn<int>(
+    'remaining_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    taskId,
+    userId,
+    estimatedSeconds,
+    remainingSeconds,
+    source,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_effort_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskEffortRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('estimated_seconds')) {
+      context.handle(
+        _estimatedSecondsMeta,
+        estimatedSeconds.isAcceptableOrUnknown(
+          data['estimated_seconds']!,
+          _estimatedSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('remaining_seconds')) {
+      context.handle(
+        _remainingSecondsMeta,
+        remainingSeconds.isAcceptableOrUnknown(
+          data['remaining_seconds']!,
+          _remainingSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, taskId};
+  @override
+  TaskEffortRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskEffortRecord(
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      estimatedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_seconds'],
+      ),
+      remainingSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remaining_seconds'],
+      ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskEffortRecordsTable createAlias(String alias) {
+    return $TaskEffortRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class TaskEffortRecord extends DataClass
+    implements Insertable<TaskEffortRecord> {
+  final String taskId;
+  final String userId;
+  final int? estimatedSeconds;
+  final int? remainingSeconds;
+  final String source;
+  final DateTime updatedAt;
+  const TaskEffortRecord({
+    required this.taskId,
+    required this.userId,
+    this.estimatedSeconds,
+    this.remainingSeconds,
+    required this.source,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['task_id'] = Variable<String>(taskId);
+    map['user_id'] = Variable<String>(userId);
+    if (!nullToAbsent || estimatedSeconds != null) {
+      map['estimated_seconds'] = Variable<int>(estimatedSeconds);
+    }
+    if (!nullToAbsent || remainingSeconds != null) {
+      map['remaining_seconds'] = Variable<int>(remainingSeconds);
+    }
+    map['source'] = Variable<String>(source);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  TaskEffortRecordsCompanion toCompanion(bool nullToAbsent) {
+    return TaskEffortRecordsCompanion(
+      taskId: Value(taskId),
+      userId: Value(userId),
+      estimatedSeconds: estimatedSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimatedSeconds),
+      remainingSeconds: remainingSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remainingSeconds),
+      source: Value(source),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory TaskEffortRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskEffortRecord(
+      taskId: serializer.fromJson<String>(json['taskId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      estimatedSeconds: serializer.fromJson<int?>(json['estimatedSeconds']),
+      remainingSeconds: serializer.fromJson<int?>(json['remainingSeconds']),
+      source: serializer.fromJson<String>(json['source']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'taskId': serializer.toJson<String>(taskId),
+      'userId': serializer.toJson<String>(userId),
+      'estimatedSeconds': serializer.toJson<int?>(estimatedSeconds),
+      'remainingSeconds': serializer.toJson<int?>(remainingSeconds),
+      'source': serializer.toJson<String>(source),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  TaskEffortRecord copyWith({
+    String? taskId,
+    String? userId,
+    Value<int?> estimatedSeconds = const Value.absent(),
+    Value<int?> remainingSeconds = const Value.absent(),
+    String? source,
+    DateTime? updatedAt,
+  }) => TaskEffortRecord(
+    taskId: taskId ?? this.taskId,
+    userId: userId ?? this.userId,
+    estimatedSeconds: estimatedSeconds.present
+        ? estimatedSeconds.value
+        : this.estimatedSeconds,
+    remainingSeconds: remainingSeconds.present
+        ? remainingSeconds.value
+        : this.remainingSeconds,
+    source: source ?? this.source,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  TaskEffortRecord copyWithCompanion(TaskEffortRecordsCompanion data) {
+    return TaskEffortRecord(
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      estimatedSeconds: data.estimatedSeconds.present
+          ? data.estimatedSeconds.value
+          : this.estimatedSeconds,
+      remainingSeconds: data.remainingSeconds.present
+          ? data.remainingSeconds.value
+          : this.remainingSeconds,
+      source: data.source.present ? data.source.value : this.source,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskEffortRecord(')
+          ..write('taskId: $taskId, ')
+          ..write('userId: $userId, ')
+          ..write('estimatedSeconds: $estimatedSeconds, ')
+          ..write('remainingSeconds: $remainingSeconds, ')
+          ..write('source: $source, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    taskId,
+    userId,
+    estimatedSeconds,
+    remainingSeconds,
+    source,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskEffortRecord &&
+          other.taskId == this.taskId &&
+          other.userId == this.userId &&
+          other.estimatedSeconds == this.estimatedSeconds &&
+          other.remainingSeconds == this.remainingSeconds &&
+          other.source == this.source &&
+          other.updatedAt == this.updatedAt);
+}
+
+class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
+  final Value<String> taskId;
+  final Value<String> userId;
+  final Value<int?> estimatedSeconds;
+  final Value<int?> remainingSeconds;
+  final Value<String> source;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const TaskEffortRecordsCompanion({
+    this.taskId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.estimatedSeconds = const Value.absent(),
+    this.remainingSeconds = const Value.absent(),
+    this.source = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskEffortRecordsCompanion.insert({
+    required String taskId,
+    required String userId,
+    this.estimatedSeconds = const Value.absent(),
+    this.remainingSeconds = const Value.absent(),
+    required String source,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : taskId = Value(taskId),
+       userId = Value(userId),
+       source = Value(source),
+       updatedAt = Value(updatedAt);
+  static Insertable<TaskEffortRecord> custom({
+    Expression<String>? taskId,
+    Expression<String>? userId,
+    Expression<int>? estimatedSeconds,
+    Expression<int>? remainingSeconds,
+    Expression<String>? source,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (taskId != null) 'task_id': taskId,
+      if (userId != null) 'user_id': userId,
+      if (estimatedSeconds != null) 'estimated_seconds': estimatedSeconds,
+      if (remainingSeconds != null) 'remaining_seconds': remainingSeconds,
+      if (source != null) 'source': source,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskEffortRecordsCompanion copyWith({
+    Value<String>? taskId,
+    Value<String>? userId,
+    Value<int?>? estimatedSeconds,
+    Value<int?>? remainingSeconds,
+    Value<String>? source,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return TaskEffortRecordsCompanion(
+      taskId: taskId ?? this.taskId,
+      userId: userId ?? this.userId,
+      estimatedSeconds: estimatedSeconds ?? this.estimatedSeconds,
+      remainingSeconds: remainingSeconds ?? this.remainingSeconds,
+      source: source ?? this.source,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (estimatedSeconds.present) {
+      map['estimated_seconds'] = Variable<int>(estimatedSeconds.value);
+    }
+    if (remainingSeconds.present) {
+      map['remaining_seconds'] = Variable<int>(remainingSeconds.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskEffortRecordsCompanion(')
+          ..write('taskId: $taskId, ')
+          ..write('userId: $userId, ')
+          ..write('estimatedSeconds: $estimatedSeconds, ')
+          ..write('remainingSeconds: $remainingSeconds, ')
+          ..write('source: $source, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TaskPlanVersionRecordsTable extends TaskPlanVersionRecords
+    with TableInfo<$TaskPlanVersionRecordsTable, TaskPlanVersionRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskPlanVersionRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceSnapshotVersionMeta =
+      const VerificationMeta('sourceSnapshotVersion');
+  @override
+  late final GeneratedColumn<String> sourceSnapshotVersion =
+      GeneratedColumn<String>(
+        'source_snapshot_version',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _proposalDigestMeta = const VerificationMeta(
+    'proposalDigest',
+  );
+  @override
+  late final GeneratedColumn<String> proposalDigest = GeneratedColumn<String>(
+    'proposal_digest',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rulesVersionMeta = const VerificationMeta(
+    'rulesVersion',
+  );
+  @override
+  late final GeneratedColumn<String> rulesVersion = GeneratedColumn<String>(
+    'rules_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startsOnMeta = const VerificationMeta(
+    'startsOn',
+  );
+  @override
+  late final GeneratedColumn<String> startsOn = GeneratedColumn<String>(
+    'starts_on',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endsOnMeta = const VerificationMeta('endsOn');
+  @override
+  late final GeneratedColumn<String> endsOn = GeneratedColumn<String>(
+    'ends_on',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _confirmedAtMeta = const VerificationMeta(
+    'confirmedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> confirmedAt = GeneratedColumn<DateTime>(
+    'confirmed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _appliedAtMeta = const VerificationMeta(
+    'appliedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> appliedAt = GeneratedColumn<DateTime>(
+    'applied_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    revision,
+    sourceSnapshotVersion,
+    proposalDigest,
+    rulesVersion,
+    startsOn,
+    endsOn,
+    status,
+    idempotencyKey,
+    createdAt,
+    confirmedAt,
+    appliedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_plan_version_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskPlanVersionRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_revisionMeta);
+    }
+    if (data.containsKey('source_snapshot_version')) {
+      context.handle(
+        _sourceSnapshotVersionMeta,
+        sourceSnapshotVersion.isAcceptableOrUnknown(
+          data['source_snapshot_version']!,
+          _sourceSnapshotVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceSnapshotVersionMeta);
+    }
+    if (data.containsKey('proposal_digest')) {
+      context.handle(
+        _proposalDigestMeta,
+        proposalDigest.isAcceptableOrUnknown(
+          data['proposal_digest']!,
+          _proposalDigestMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_proposalDigestMeta);
+    }
+    if (data.containsKey('rules_version')) {
+      context.handle(
+        _rulesVersionMeta,
+        rulesVersion.isAcceptableOrUnknown(
+          data['rules_version']!,
+          _rulesVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_rulesVersionMeta);
+    }
+    if (data.containsKey('starts_on')) {
+      context.handle(
+        _startsOnMeta,
+        startsOn.isAcceptableOrUnknown(data['starts_on']!, _startsOnMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startsOnMeta);
+    }
+    if (data.containsKey('ends_on')) {
+      context.handle(
+        _endsOnMeta,
+        endsOn.isAcceptableOrUnknown(data['ends_on']!, _endsOnMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endsOnMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_idempotencyKeyMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('confirmed_at')) {
+      context.handle(
+        _confirmedAtMeta,
+        confirmedAt.isAcceptableOrUnknown(
+          data['confirmed_at']!,
+          _confirmedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(
+        _appliedAtMeta,
+        appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, id},
+    {userId, idempotencyKey},
+    {userId, revision},
+  ];
+  @override
+  TaskPlanVersionRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskPlanVersionRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      sourceSnapshotVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_snapshot_version'],
+      )!,
+      proposalDigest: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}proposal_digest'],
+      )!,
+      rulesVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rules_version'],
+      )!,
+      startsOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}starts_on'],
+      )!,
+      endsOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ends_on'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      confirmedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}confirmed_at'],
+      ),
+      appliedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}applied_at'],
+      ),
+    );
+  }
+
+  @override
+  $TaskPlanVersionRecordsTable createAlias(String alias) {
+    return $TaskPlanVersionRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class TaskPlanVersionRecord extends DataClass
+    implements Insertable<TaskPlanVersionRecord> {
+  final String id;
+  final String userId;
+  final int revision;
+  final String sourceSnapshotVersion;
+  final String proposalDigest;
+  final String rulesVersion;
+  final String startsOn;
+  final String endsOn;
+  final String status;
+  final String idempotencyKey;
+  final DateTime createdAt;
+  final DateTime? confirmedAt;
+  final DateTime? appliedAt;
+  const TaskPlanVersionRecord({
+    required this.id,
+    required this.userId,
+    required this.revision,
+    required this.sourceSnapshotVersion,
+    required this.proposalDigest,
+    required this.rulesVersion,
+    required this.startsOn,
+    required this.endsOn,
+    required this.status,
+    required this.idempotencyKey,
+    required this.createdAt,
+    this.confirmedAt,
+    this.appliedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['revision'] = Variable<int>(revision);
+    map['source_snapshot_version'] = Variable<String>(sourceSnapshotVersion);
+    map['proposal_digest'] = Variable<String>(proposalDigest);
+    map['rules_version'] = Variable<String>(rulesVersion);
+    map['starts_on'] = Variable<String>(startsOn);
+    map['ends_on'] = Variable<String>(endsOn);
+    map['status'] = Variable<String>(status);
+    map['idempotency_key'] = Variable<String>(idempotencyKey);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || confirmedAt != null) {
+      map['confirmed_at'] = Variable<DateTime>(confirmedAt);
+    }
+    if (!nullToAbsent || appliedAt != null) {
+      map['applied_at'] = Variable<DateTime>(appliedAt);
+    }
+    return map;
+  }
+
+  TaskPlanVersionRecordsCompanion toCompanion(bool nullToAbsent) {
+    return TaskPlanVersionRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      revision: Value(revision),
+      sourceSnapshotVersion: Value(sourceSnapshotVersion),
+      proposalDigest: Value(proposalDigest),
+      rulesVersion: Value(rulesVersion),
+      startsOn: Value(startsOn),
+      endsOn: Value(endsOn),
+      status: Value(status),
+      idempotencyKey: Value(idempotencyKey),
+      createdAt: Value(createdAt),
+      confirmedAt: confirmedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confirmedAt),
+      appliedAt: appliedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAt),
+    );
+  }
+
+  factory TaskPlanVersionRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskPlanVersionRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      revision: serializer.fromJson<int>(json['revision']),
+      sourceSnapshotVersion: serializer.fromJson<String>(
+        json['sourceSnapshotVersion'],
+      ),
+      proposalDigest: serializer.fromJson<String>(json['proposalDigest']),
+      rulesVersion: serializer.fromJson<String>(json['rulesVersion']),
+      startsOn: serializer.fromJson<String>(json['startsOn']),
+      endsOn: serializer.fromJson<String>(json['endsOn']),
+      status: serializer.fromJson<String>(json['status']),
+      idempotencyKey: serializer.fromJson<String>(json['idempotencyKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      confirmedAt: serializer.fromJson<DateTime?>(json['confirmedAt']),
+      appliedAt: serializer.fromJson<DateTime?>(json['appliedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'revision': serializer.toJson<int>(revision),
+      'sourceSnapshotVersion': serializer.toJson<String>(sourceSnapshotVersion),
+      'proposalDigest': serializer.toJson<String>(proposalDigest),
+      'rulesVersion': serializer.toJson<String>(rulesVersion),
+      'startsOn': serializer.toJson<String>(startsOn),
+      'endsOn': serializer.toJson<String>(endsOn),
+      'status': serializer.toJson<String>(status),
+      'idempotencyKey': serializer.toJson<String>(idempotencyKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'confirmedAt': serializer.toJson<DateTime?>(confirmedAt),
+      'appliedAt': serializer.toJson<DateTime?>(appliedAt),
+    };
+  }
+
+  TaskPlanVersionRecord copyWith({
+    String? id,
+    String? userId,
+    int? revision,
+    String? sourceSnapshotVersion,
+    String? proposalDigest,
+    String? rulesVersion,
+    String? startsOn,
+    String? endsOn,
+    String? status,
+    String? idempotencyKey,
+    DateTime? createdAt,
+    Value<DateTime?> confirmedAt = const Value.absent(),
+    Value<DateTime?> appliedAt = const Value.absent(),
+  }) => TaskPlanVersionRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    revision: revision ?? this.revision,
+    sourceSnapshotVersion: sourceSnapshotVersion ?? this.sourceSnapshotVersion,
+    proposalDigest: proposalDigest ?? this.proposalDigest,
+    rulesVersion: rulesVersion ?? this.rulesVersion,
+    startsOn: startsOn ?? this.startsOn,
+    endsOn: endsOn ?? this.endsOn,
+    status: status ?? this.status,
+    idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    createdAt: createdAt ?? this.createdAt,
+    confirmedAt: confirmedAt.present ? confirmedAt.value : this.confirmedAt,
+    appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
+  );
+  TaskPlanVersionRecord copyWithCompanion(
+    TaskPlanVersionRecordsCompanion data,
+  ) {
+    return TaskPlanVersionRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      sourceSnapshotVersion: data.sourceSnapshotVersion.present
+          ? data.sourceSnapshotVersion.value
+          : this.sourceSnapshotVersion,
+      proposalDigest: data.proposalDigest.present
+          ? data.proposalDigest.value
+          : this.proposalDigest,
+      rulesVersion: data.rulesVersion.present
+          ? data.rulesVersion.value
+          : this.rulesVersion,
+      startsOn: data.startsOn.present ? data.startsOn.value : this.startsOn,
+      endsOn: data.endsOn.present ? data.endsOn.value : this.endsOn,
+      status: data.status.present ? data.status.value : this.status,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      confirmedAt: data.confirmedAt.present
+          ? data.confirmedAt.value
+          : this.confirmedAt,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskPlanVersionRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('revision: $revision, ')
+          ..write('sourceSnapshotVersion: $sourceSnapshotVersion, ')
+          ..write('proposalDigest: $proposalDigest, ')
+          ..write('rulesVersion: $rulesVersion, ')
+          ..write('startsOn: $startsOn, ')
+          ..write('endsOn: $endsOn, ')
+          ..write('status: $status, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('confirmedAt: $confirmedAt, ')
+          ..write('appliedAt: $appliedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    revision,
+    sourceSnapshotVersion,
+    proposalDigest,
+    rulesVersion,
+    startsOn,
+    endsOn,
+    status,
+    idempotencyKey,
+    createdAt,
+    confirmedAt,
+    appliedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskPlanVersionRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.revision == this.revision &&
+          other.sourceSnapshotVersion == this.sourceSnapshotVersion &&
+          other.proposalDigest == this.proposalDigest &&
+          other.rulesVersion == this.rulesVersion &&
+          other.startsOn == this.startsOn &&
+          other.endsOn == this.endsOn &&
+          other.status == this.status &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.createdAt == this.createdAt &&
+          other.confirmedAt == this.confirmedAt &&
+          other.appliedAt == this.appliedAt);
+}
+
+class TaskPlanVersionRecordsCompanion
+    extends UpdateCompanion<TaskPlanVersionRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<int> revision;
+  final Value<String> sourceSnapshotVersion;
+  final Value<String> proposalDigest;
+  final Value<String> rulesVersion;
+  final Value<String> startsOn;
+  final Value<String> endsOn;
+  final Value<String> status;
+  final Value<String> idempotencyKey;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> confirmedAt;
+  final Value<DateTime?> appliedAt;
+  final Value<int> rowid;
+  const TaskPlanVersionRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.sourceSnapshotVersion = const Value.absent(),
+    this.proposalDigest = const Value.absent(),
+    this.rulesVersion = const Value.absent(),
+    this.startsOn = const Value.absent(),
+    this.endsOn = const Value.absent(),
+    this.status = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.confirmedAt = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskPlanVersionRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required int revision,
+    required String sourceSnapshotVersion,
+    required String proposalDigest,
+    required String rulesVersion,
+    required String startsOn,
+    required String endsOn,
+    required String status,
+    required String idempotencyKey,
+    required DateTime createdAt,
+    this.confirmedAt = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       revision = Value(revision),
+       sourceSnapshotVersion = Value(sourceSnapshotVersion),
+       proposalDigest = Value(proposalDigest),
+       rulesVersion = Value(rulesVersion),
+       startsOn = Value(startsOn),
+       endsOn = Value(endsOn),
+       status = Value(status),
+       idempotencyKey = Value(idempotencyKey),
+       createdAt = Value(createdAt);
+  static Insertable<TaskPlanVersionRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<int>? revision,
+    Expression<String>? sourceSnapshotVersion,
+    Expression<String>? proposalDigest,
+    Expression<String>? rulesVersion,
+    Expression<String>? startsOn,
+    Expression<String>? endsOn,
+    Expression<String>? status,
+    Expression<String>? idempotencyKey,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? confirmedAt,
+    Expression<DateTime>? appliedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (revision != null) 'revision': revision,
+      if (sourceSnapshotVersion != null)
+        'source_snapshot_version': sourceSnapshotVersion,
+      if (proposalDigest != null) 'proposal_digest': proposalDigest,
+      if (rulesVersion != null) 'rules_version': rulesVersion,
+      if (startsOn != null) 'starts_on': startsOn,
+      if (endsOn != null) 'ends_on': endsOn,
+      if (status != null) 'status': status,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (confirmedAt != null) 'confirmed_at': confirmedAt,
+      if (appliedAt != null) 'applied_at': appliedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskPlanVersionRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<int>? revision,
+    Value<String>? sourceSnapshotVersion,
+    Value<String>? proposalDigest,
+    Value<String>? rulesVersion,
+    Value<String>? startsOn,
+    Value<String>? endsOn,
+    Value<String>? status,
+    Value<String>? idempotencyKey,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? confirmedAt,
+    Value<DateTime?>? appliedAt,
+    Value<int>? rowid,
+  }) {
+    return TaskPlanVersionRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      revision: revision ?? this.revision,
+      sourceSnapshotVersion:
+          sourceSnapshotVersion ?? this.sourceSnapshotVersion,
+      proposalDigest: proposalDigest ?? this.proposalDigest,
+      rulesVersion: rulesVersion ?? this.rulesVersion,
+      startsOn: startsOn ?? this.startsOn,
+      endsOn: endsOn ?? this.endsOn,
+      status: status ?? this.status,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      createdAt: createdAt ?? this.createdAt,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
+      appliedAt: appliedAt ?? this.appliedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (sourceSnapshotVersion.present) {
+      map['source_snapshot_version'] = Variable<String>(
+        sourceSnapshotVersion.value,
+      );
+    }
+    if (proposalDigest.present) {
+      map['proposal_digest'] = Variable<String>(proposalDigest.value);
+    }
+    if (rulesVersion.present) {
+      map['rules_version'] = Variable<String>(rulesVersion.value);
+    }
+    if (startsOn.present) {
+      map['starts_on'] = Variable<String>(startsOn.value);
+    }
+    if (endsOn.present) {
+      map['ends_on'] = Variable<String>(endsOn.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (confirmedAt.present) {
+      map['confirmed_at'] = Variable<DateTime>(confirmedAt.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<DateTime>(appliedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskPlanVersionRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('revision: $revision, ')
+          ..write('sourceSnapshotVersion: $sourceSnapshotVersion, ')
+          ..write('proposalDigest: $proposalDigest, ')
+          ..write('rulesVersion: $rulesVersion, ')
+          ..write('startsOn: $startsOn, ')
+          ..write('endsOn: $endsOn, ')
+          ..write('status: $status, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('confirmedAt: $confirmedAt, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PlannedTimeBlockRecordsTable extends PlannedTimeBlockRecords
+    with TableInfo<$PlannedTimeBlockRecordsTable, PlannedTimeBlockRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlannedTimeBlockRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _planVersionIdMeta = const VerificationMeta(
+    'planVersionId',
+  );
+  @override
+  late final GeneratedColumn<String> planVersionId = GeneratedColumn<String>(
+    'plan_version_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startsAtMeta = const VerificationMeta(
+    'startsAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startsAt = GeneratedColumn<DateTime>(
+    'starts_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endsAtMeta = const VerificationMeta('endsAt');
+  @override
+  late final GeneratedColumn<DateTime> endsAt = GeneratedColumn<DateTime>(
+    'ends_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _plannedSecondsMeta = const VerificationMeta(
+    'plannedSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> plannedSeconds = GeneratedColumn<int>(
+    'planned_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    planVersionId,
+    taskId,
+    startsAt,
+    endsAt,
+    plannedSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'planned_time_block_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlannedTimeBlockRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('plan_version_id')) {
+      context.handle(
+        _planVersionIdMeta,
+        planVersionId.isAcceptableOrUnknown(
+          data['plan_version_id']!,
+          _planVersionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_planVersionIdMeta);
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_taskIdMeta);
+    }
+    if (data.containsKey('starts_at')) {
+      context.handle(
+        _startsAtMeta,
+        startsAt.isAcceptableOrUnknown(data['starts_at']!, _startsAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startsAtMeta);
+    }
+    if (data.containsKey('ends_at')) {
+      context.handle(
+        _endsAtMeta,
+        endsAt.isAcceptableOrUnknown(data['ends_at']!, _endsAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endsAtMeta);
+    }
+    if (data.containsKey('planned_seconds')) {
+      context.handle(
+        _plannedSecondsMeta,
+        plannedSeconds.isAcceptableOrUnknown(
+          data['planned_seconds']!,
+          _plannedSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_plannedSecondsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {userId, id},
+    {userId, planVersionId, taskId, startsAt},
+  ];
+  @override
+  PlannedTimeBlockRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlannedTimeBlockRecord(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      planVersionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_version_id'],
+      )!,
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      )!,
+      startsAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}starts_at'],
+      )!,
+      endsAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ends_at'],
+      )!,
+      plannedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}planned_seconds'],
+      )!,
+    );
+  }
+
+  @override
+  $PlannedTimeBlockRecordsTable createAlias(String alias) {
+    return $PlannedTimeBlockRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class PlannedTimeBlockRecord extends DataClass
+    implements Insertable<PlannedTimeBlockRecord> {
+  final String id;
+  final String userId;
+  final String planVersionId;
+  final String taskId;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final int plannedSeconds;
+  const PlannedTimeBlockRecord({
+    required this.id,
+    required this.userId,
+    required this.planVersionId,
+    required this.taskId,
+    required this.startsAt,
+    required this.endsAt,
+    required this.plannedSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['plan_version_id'] = Variable<String>(planVersionId);
+    map['task_id'] = Variable<String>(taskId);
+    map['starts_at'] = Variable<DateTime>(startsAt);
+    map['ends_at'] = Variable<DateTime>(endsAt);
+    map['planned_seconds'] = Variable<int>(plannedSeconds);
+    return map;
+  }
+
+  PlannedTimeBlockRecordsCompanion toCompanion(bool nullToAbsent) {
+    return PlannedTimeBlockRecordsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      planVersionId: Value(planVersionId),
+      taskId: Value(taskId),
+      startsAt: Value(startsAt),
+      endsAt: Value(endsAt),
+      plannedSeconds: Value(plannedSeconds),
+    );
+  }
+
+  factory PlannedTimeBlockRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlannedTimeBlockRecord(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      planVersionId: serializer.fromJson<String>(json['planVersionId']),
+      taskId: serializer.fromJson<String>(json['taskId']),
+      startsAt: serializer.fromJson<DateTime>(json['startsAt']),
+      endsAt: serializer.fromJson<DateTime>(json['endsAt']),
+      plannedSeconds: serializer.fromJson<int>(json['plannedSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'planVersionId': serializer.toJson<String>(planVersionId),
+      'taskId': serializer.toJson<String>(taskId),
+      'startsAt': serializer.toJson<DateTime>(startsAt),
+      'endsAt': serializer.toJson<DateTime>(endsAt),
+      'plannedSeconds': serializer.toJson<int>(plannedSeconds),
+    };
+  }
+
+  PlannedTimeBlockRecord copyWith({
+    String? id,
+    String? userId,
+    String? planVersionId,
+    String? taskId,
+    DateTime? startsAt,
+    DateTime? endsAt,
+    int? plannedSeconds,
+  }) => PlannedTimeBlockRecord(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    planVersionId: planVersionId ?? this.planVersionId,
+    taskId: taskId ?? this.taskId,
+    startsAt: startsAt ?? this.startsAt,
+    endsAt: endsAt ?? this.endsAt,
+    plannedSeconds: plannedSeconds ?? this.plannedSeconds,
+  );
+  PlannedTimeBlockRecord copyWithCompanion(
+    PlannedTimeBlockRecordsCompanion data,
+  ) {
+    return PlannedTimeBlockRecord(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      planVersionId: data.planVersionId.present
+          ? data.planVersionId.value
+          : this.planVersionId,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      startsAt: data.startsAt.present ? data.startsAt.value : this.startsAt,
+      endsAt: data.endsAt.present ? data.endsAt.value : this.endsAt,
+      plannedSeconds: data.plannedSeconds.present
+          ? data.plannedSeconds.value
+          : this.plannedSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedTimeBlockRecord(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('planVersionId: $planVersionId, ')
+          ..write('taskId: $taskId, ')
+          ..write('startsAt: $startsAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('plannedSeconds: $plannedSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    planVersionId,
+    taskId,
+    startsAt,
+    endsAt,
+    plannedSeconds,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlannedTimeBlockRecord &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.planVersionId == this.planVersionId &&
+          other.taskId == this.taskId &&
+          other.startsAt == this.startsAt &&
+          other.endsAt == this.endsAt &&
+          other.plannedSeconds == this.plannedSeconds);
+}
+
+class PlannedTimeBlockRecordsCompanion
+    extends UpdateCompanion<PlannedTimeBlockRecord> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> planVersionId;
+  final Value<String> taskId;
+  final Value<DateTime> startsAt;
+  final Value<DateTime> endsAt;
+  final Value<int> plannedSeconds;
+  final Value<int> rowid;
+  const PlannedTimeBlockRecordsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.planVersionId = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.startsAt = const Value.absent(),
+    this.endsAt = const Value.absent(),
+    this.plannedSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlannedTimeBlockRecordsCompanion.insert({
+    required String id,
+    required String userId,
+    required String planVersionId,
+    required String taskId,
+    required DateTime startsAt,
+    required DateTime endsAt,
+    required int plannedSeconds,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       planVersionId = Value(planVersionId),
+       taskId = Value(taskId),
+       startsAt = Value(startsAt),
+       endsAt = Value(endsAt),
+       plannedSeconds = Value(plannedSeconds);
+  static Insertable<PlannedTimeBlockRecord> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? planVersionId,
+    Expression<String>? taskId,
+    Expression<DateTime>? startsAt,
+    Expression<DateTime>? endsAt,
+    Expression<int>? plannedSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (planVersionId != null) 'plan_version_id': planVersionId,
+      if (taskId != null) 'task_id': taskId,
+      if (startsAt != null) 'starts_at': startsAt,
+      if (endsAt != null) 'ends_at': endsAt,
+      if (plannedSeconds != null) 'planned_seconds': plannedSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlannedTimeBlockRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? planVersionId,
+    Value<String>? taskId,
+    Value<DateTime>? startsAt,
+    Value<DateTime>? endsAt,
+    Value<int>? plannedSeconds,
+    Value<int>? rowid,
+  }) {
+    return PlannedTimeBlockRecordsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      planVersionId: planVersionId ?? this.planVersionId,
+      taskId: taskId ?? this.taskId,
+      startsAt: startsAt ?? this.startsAt,
+      endsAt: endsAt ?? this.endsAt,
+      plannedSeconds: plannedSeconds ?? this.plannedSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (planVersionId.present) {
+      map['plan_version_id'] = Variable<String>(planVersionId.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (startsAt.present) {
+      map['starts_at'] = Variable<DateTime>(startsAt.value);
+    }
+    if (endsAt.present) {
+      map['ends_at'] = Variable<DateTime>(endsAt.value);
+    }
+    if (plannedSeconds.present) {
+      map['planned_seconds'] = Variable<int>(plannedSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedTimeBlockRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('planVersionId: $planVersionId, ')
+          ..write('taskId: $taskId, ')
+          ..write('startsAt: $startsAt, ')
+          ..write('endsAt: $endsAt, ')
+          ..write('plannedSeconds: $plannedSeconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PlannedBlockTimerLinksTable extends PlannedBlockTimerLinks
+    with TableInfo<$PlannedBlockTimerLinksTable, PlannedBlockTimerLink> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlannedBlockTimerLinksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _plannedBlockIdMeta = const VerificationMeta(
+    'plannedBlockId',
+  );
+  @override
+  late final GeneratedColumn<String> plannedBlockId = GeneratedColumn<String>(
+    'planned_block_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES planned_time_block_records (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _timerSessionIdMeta = const VerificationMeta(
+    'timerSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> timerSessionId = GeneratedColumn<String>(
+    'timer_session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _linkedAtMeta = const VerificationMeta(
+    'linkedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> linkedAt = GeneratedColumn<DateTime>(
+    'linked_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    plannedBlockId,
+    timerSessionId,
+    linkedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'planned_block_timer_links';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlannedBlockTimerLink> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('planned_block_id')) {
+      context.handle(
+        _plannedBlockIdMeta,
+        plannedBlockId.isAcceptableOrUnknown(
+          data['planned_block_id']!,
+          _plannedBlockIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_plannedBlockIdMeta);
+    }
+    if (data.containsKey('timer_session_id')) {
+      context.handle(
+        _timerSessionIdMeta,
+        timerSessionId.isAcceptableOrUnknown(
+          data['timer_session_id']!,
+          _timerSessionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_timerSessionIdMeta);
+    }
+    if (data.containsKey('linked_at')) {
+      context.handle(
+        _linkedAtMeta,
+        linkedAt.isAcceptableOrUnknown(data['linked_at']!, _linkedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_linkedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    userId,
+    plannedBlockId,
+    timerSessionId,
+  };
+  @override
+  PlannedBlockTimerLink map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlannedBlockTimerLink(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      plannedBlockId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}planned_block_id'],
+      )!,
+      timerSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}timer_session_id'],
+      )!,
+      linkedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}linked_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PlannedBlockTimerLinksTable createAlias(String alias) {
+    return $PlannedBlockTimerLinksTable(attachedDatabase, alias);
+  }
+}
+
+class PlannedBlockTimerLink extends DataClass
+    implements Insertable<PlannedBlockTimerLink> {
+  final String userId;
+  final String plannedBlockId;
+  final String timerSessionId;
+  final DateTime linkedAt;
+  const PlannedBlockTimerLink({
+    required this.userId,
+    required this.plannedBlockId,
+    required this.timerSessionId,
+    required this.linkedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['planned_block_id'] = Variable<String>(plannedBlockId);
+    map['timer_session_id'] = Variable<String>(timerSessionId);
+    map['linked_at'] = Variable<DateTime>(linkedAt);
+    return map;
+  }
+
+  PlannedBlockTimerLinksCompanion toCompanion(bool nullToAbsent) {
+    return PlannedBlockTimerLinksCompanion(
+      userId: Value(userId),
+      plannedBlockId: Value(plannedBlockId),
+      timerSessionId: Value(timerSessionId),
+      linkedAt: Value(linkedAt),
+    );
+  }
+
+  factory PlannedBlockTimerLink.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlannedBlockTimerLink(
+      userId: serializer.fromJson<String>(json['userId']),
+      plannedBlockId: serializer.fromJson<String>(json['plannedBlockId']),
+      timerSessionId: serializer.fromJson<String>(json['timerSessionId']),
+      linkedAt: serializer.fromJson<DateTime>(json['linkedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'plannedBlockId': serializer.toJson<String>(plannedBlockId),
+      'timerSessionId': serializer.toJson<String>(timerSessionId),
+      'linkedAt': serializer.toJson<DateTime>(linkedAt),
+    };
+  }
+
+  PlannedBlockTimerLink copyWith({
+    String? userId,
+    String? plannedBlockId,
+    String? timerSessionId,
+    DateTime? linkedAt,
+  }) => PlannedBlockTimerLink(
+    userId: userId ?? this.userId,
+    plannedBlockId: plannedBlockId ?? this.plannedBlockId,
+    timerSessionId: timerSessionId ?? this.timerSessionId,
+    linkedAt: linkedAt ?? this.linkedAt,
+  );
+  PlannedBlockTimerLink copyWithCompanion(
+    PlannedBlockTimerLinksCompanion data,
+  ) {
+    return PlannedBlockTimerLink(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      plannedBlockId: data.plannedBlockId.present
+          ? data.plannedBlockId.value
+          : this.plannedBlockId,
+      timerSessionId: data.timerSessionId.present
+          ? data.timerSessionId.value
+          : this.timerSessionId,
+      linkedAt: data.linkedAt.present ? data.linkedAt.value : this.linkedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedBlockTimerLink(')
+          ..write('userId: $userId, ')
+          ..write('plannedBlockId: $plannedBlockId, ')
+          ..write('timerSessionId: $timerSessionId, ')
+          ..write('linkedAt: $linkedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, plannedBlockId, timerSessionId, linkedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlannedBlockTimerLink &&
+          other.userId == this.userId &&
+          other.plannedBlockId == this.plannedBlockId &&
+          other.timerSessionId == this.timerSessionId &&
+          other.linkedAt == this.linkedAt);
+}
+
+class PlannedBlockTimerLinksCompanion
+    extends UpdateCompanion<PlannedBlockTimerLink> {
+  final Value<String> userId;
+  final Value<String> plannedBlockId;
+  final Value<String> timerSessionId;
+  final Value<DateTime> linkedAt;
+  final Value<int> rowid;
+  const PlannedBlockTimerLinksCompanion({
+    this.userId = const Value.absent(),
+    this.plannedBlockId = const Value.absent(),
+    this.timerSessionId = const Value.absent(),
+    this.linkedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlannedBlockTimerLinksCompanion.insert({
+    required String userId,
+    required String plannedBlockId,
+    required String timerSessionId,
+    required DateTime linkedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       plannedBlockId = Value(plannedBlockId),
+       timerSessionId = Value(timerSessionId),
+       linkedAt = Value(linkedAt);
+  static Insertable<PlannedBlockTimerLink> custom({
+    Expression<String>? userId,
+    Expression<String>? plannedBlockId,
+    Expression<String>? timerSessionId,
+    Expression<DateTime>? linkedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (plannedBlockId != null) 'planned_block_id': plannedBlockId,
+      if (timerSessionId != null) 'timer_session_id': timerSessionId,
+      if (linkedAt != null) 'linked_at': linkedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlannedBlockTimerLinksCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? plannedBlockId,
+    Value<String>? timerSessionId,
+    Value<DateTime>? linkedAt,
+    Value<int>? rowid,
+  }) {
+    return PlannedBlockTimerLinksCompanion(
+      userId: userId ?? this.userId,
+      plannedBlockId: plannedBlockId ?? this.plannedBlockId,
+      timerSessionId: timerSessionId ?? this.timerSessionId,
+      linkedAt: linkedAt ?? this.linkedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (plannedBlockId.present) {
+      map['planned_block_id'] = Variable<String>(plannedBlockId.value);
+    }
+    if (timerSessionId.present) {
+      map['timer_session_id'] = Variable<String>(timerSessionId.value);
+    }
+    if (linkedAt.present) {
+      map['linked_at'] = Variable<DateTime>(linkedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlannedBlockTimerLinksCompanion(')
+          ..write('userId: $userId, ')
+          ..write('plannedBlockId: $plannedBlockId, ')
+          ..write('timerSessionId: $timerSessionId, ')
+          ..write('linkedAt: $linkedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15735,6 +17773,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AdHocTimerRecordsTable(this);
   late final $AdHocTimerIntervalRecordsTable adHocTimerIntervalRecords =
       $AdHocTimerIntervalRecordsTable(this);
+  late final $TaskEffortRecordsTable taskEffortRecords =
+      $TaskEffortRecordsTable(this);
+  late final $TaskPlanVersionRecordsTable taskPlanVersionRecords =
+      $TaskPlanVersionRecordsTable(this);
+  late final $PlannedTimeBlockRecordsTable plannedTimeBlockRecords =
+      $PlannedTimeBlockRecordsTable(this);
+  late final $PlannedBlockTimerLinksTable plannedBlockTimerLinks =
+      $PlannedBlockTimerLinksTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15764,6 +17810,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     alarmRuleRecords,
     adHocTimerRecords,
     adHocTimerIntervalRecords,
+    taskEffortRecords,
+    taskPlanVersionRecords,
+    plannedTimeBlockRecords,
+    plannedBlockTimerLinks,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -15844,6 +17894,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
           'schedule_template_segment_records',
           kind: UpdateKind.delete,
         ),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'planned_time_block_records',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('planned_block_timer_links', kind: UpdateKind.delete),
       ],
     ),
   ]);
@@ -26186,6 +28245,1356 @@ typedef $$AdHocTimerIntervalRecordsTableProcessedTableManager =
       AdHocTimerIntervalRecord,
       PrefetchHooks Function()
     >;
+typedef $$TaskEffortRecordsTableCreateCompanionBuilder =
+    TaskEffortRecordsCompanion Function({
+      required String taskId,
+      required String userId,
+      Value<int?> estimatedSeconds,
+      Value<int?> remainingSeconds,
+      required String source,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$TaskEffortRecordsTableUpdateCompanionBuilder =
+    TaskEffortRecordsCompanion Function({
+      Value<String> taskId,
+      Value<String> userId,
+      Value<int?> estimatedSeconds,
+      Value<int?> remainingSeconds,
+      Value<String> source,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$TaskEffortRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskEffortRecordsTable> {
+  $$TaskEffortRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedSeconds => $composableBuilder(
+    column: $table.estimatedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskEffortRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskEffortRecordsTable> {
+  $$TaskEffortRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedSeconds => $composableBuilder(
+    column: $table.estimatedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskEffortRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskEffortRecordsTable> {
+  $$TaskEffortRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get estimatedSeconds => $composableBuilder(
+    column: $table.estimatedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get remainingSeconds => $composableBuilder(
+    column: $table.remainingSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$TaskEffortRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskEffortRecordsTable,
+          TaskEffortRecord,
+          $$TaskEffortRecordsTableFilterComposer,
+          $$TaskEffortRecordsTableOrderingComposer,
+          $$TaskEffortRecordsTableAnnotationComposer,
+          $$TaskEffortRecordsTableCreateCompanionBuilder,
+          $$TaskEffortRecordsTableUpdateCompanionBuilder,
+          (
+            TaskEffortRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $TaskEffortRecordsTable,
+              TaskEffortRecord
+            >,
+          ),
+          TaskEffortRecord,
+          PrefetchHooks Function()
+        > {
+  $$TaskEffortRecordsTableTableManager(
+    _$AppDatabase db,
+    $TaskEffortRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskEffortRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskEffortRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskEffortRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> taskId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<int?> estimatedSeconds = const Value.absent(),
+                Value<int?> remainingSeconds = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskEffortRecordsCompanion(
+                taskId: taskId,
+                userId: userId,
+                estimatedSeconds: estimatedSeconds,
+                remainingSeconds: remainingSeconds,
+                source: source,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String taskId,
+                required String userId,
+                Value<int?> estimatedSeconds = const Value.absent(),
+                Value<int?> remainingSeconds = const Value.absent(),
+                required String source,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TaskEffortRecordsCompanion.insert(
+                taskId: taskId,
+                userId: userId,
+                estimatedSeconds: estimatedSeconds,
+                remainingSeconds: remainingSeconds,
+                source: source,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskEffortRecordsTable, TaskEffortRecord>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TaskEffortRecordsTable,
+                    TaskEffortRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskEffortRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskEffortRecordsTable,
+      TaskEffortRecord,
+      $$TaskEffortRecordsTableFilterComposer,
+      $$TaskEffortRecordsTableOrderingComposer,
+      $$TaskEffortRecordsTableAnnotationComposer,
+      $$TaskEffortRecordsTableCreateCompanionBuilder,
+      $$TaskEffortRecordsTableUpdateCompanionBuilder,
+      (
+        TaskEffortRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $TaskEffortRecordsTable,
+          TaskEffortRecord
+        >,
+      ),
+      TaskEffortRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$TaskPlanVersionRecordsTableCreateCompanionBuilder =
+    TaskPlanVersionRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required int revision,
+      required String sourceSnapshotVersion,
+      required String proposalDigest,
+      required String rulesVersion,
+      required String startsOn,
+      required String endsOn,
+      required String status,
+      required String idempotencyKey,
+      required DateTime createdAt,
+      Value<DateTime?> confirmedAt,
+      Value<DateTime?> appliedAt,
+      Value<int> rowid,
+    });
+typedef $$TaskPlanVersionRecordsTableUpdateCompanionBuilder =
+    TaskPlanVersionRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<int> revision,
+      Value<String> sourceSnapshotVersion,
+      Value<String> proposalDigest,
+      Value<String> rulesVersion,
+      Value<String> startsOn,
+      Value<String> endsOn,
+      Value<String> status,
+      Value<String> idempotencyKey,
+      Value<DateTime> createdAt,
+      Value<DateTime?> confirmedAt,
+      Value<DateTime?> appliedAt,
+      Value<int> rowid,
+    });
+
+class $$TaskPlanVersionRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskPlanVersionRecordsTable> {
+  $$TaskPlanVersionRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceSnapshotVersion => $composableBuilder(
+    column: $table.sourceSnapshotVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get proposalDigest => $composableBuilder(
+    column: $table.proposalDigest,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rulesVersion => $composableBuilder(
+    column: $table.rulesVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startsOn => $composableBuilder(
+    column: $table.startsOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endsOn => $composableBuilder(
+    column: $table.endsOn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskPlanVersionRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskPlanVersionRecordsTable> {
+  $$TaskPlanVersionRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceSnapshotVersion => $composableBuilder(
+    column: $table.sourceSnapshotVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get proposalDigest => $composableBuilder(
+    column: $table.proposalDigest,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rulesVersion => $composableBuilder(
+    column: $table.rulesVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startsOn => $composableBuilder(
+    column: $table.startsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endsOn => $composableBuilder(
+    column: $table.endsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskPlanVersionRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskPlanVersionRecordsTable> {
+  $$TaskPlanVersionRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceSnapshotVersion => $composableBuilder(
+    column: $table.sourceSnapshotVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get proposalDigest => $composableBuilder(
+    column: $table.proposalDigest,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rulesVersion => $composableBuilder(
+    column: $table.rulesVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startsOn =>
+      $composableBuilder(column: $table.startsOn, builder: (column) => column);
+
+  GeneratedColumn<String> get endsOn =>
+      $composableBuilder(column: $table.endsOn, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get confirmedAt => $composableBuilder(
+    column: $table.confirmedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+}
+
+class $$TaskPlanVersionRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskPlanVersionRecordsTable,
+          TaskPlanVersionRecord,
+          $$TaskPlanVersionRecordsTableFilterComposer,
+          $$TaskPlanVersionRecordsTableOrderingComposer,
+          $$TaskPlanVersionRecordsTableAnnotationComposer,
+          $$TaskPlanVersionRecordsTableCreateCompanionBuilder,
+          $$TaskPlanVersionRecordsTableUpdateCompanionBuilder,
+          (
+            TaskPlanVersionRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $TaskPlanVersionRecordsTable,
+              TaskPlanVersionRecord
+            >,
+          ),
+          TaskPlanVersionRecord,
+          PrefetchHooks Function()
+        > {
+  $$TaskPlanVersionRecordsTableTableManager(
+    _$AppDatabase db,
+    $TaskPlanVersionRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskPlanVersionRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TaskPlanVersionRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TaskPlanVersionRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<String> sourceSnapshotVersion = const Value.absent(),
+                Value<String> proposalDigest = const Value.absent(),
+                Value<String> rulesVersion = const Value.absent(),
+                Value<String> startsOn = const Value.absent(),
+                Value<String> endsOn = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> idempotencyKey = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> confirmedAt = const Value.absent(),
+                Value<DateTime?> appliedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskPlanVersionRecordsCompanion(
+                id: id,
+                userId: userId,
+                revision: revision,
+                sourceSnapshotVersion: sourceSnapshotVersion,
+                proposalDigest: proposalDigest,
+                rulesVersion: rulesVersion,
+                startsOn: startsOn,
+                endsOn: endsOn,
+                status: status,
+                idempotencyKey: idempotencyKey,
+                createdAt: createdAt,
+                confirmedAt: confirmedAt,
+                appliedAt: appliedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required int revision,
+                required String sourceSnapshotVersion,
+                required String proposalDigest,
+                required String rulesVersion,
+                required String startsOn,
+                required String endsOn,
+                required String status,
+                required String idempotencyKey,
+                required DateTime createdAt,
+                Value<DateTime?> confirmedAt = const Value.absent(),
+                Value<DateTime?> appliedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskPlanVersionRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                revision: revision,
+                sourceSnapshotVersion: sourceSnapshotVersion,
+                proposalDigest: proposalDigest,
+                rulesVersion: rulesVersion,
+                startsOn: startsOn,
+                endsOn: endsOn,
+                status: status,
+                idempotencyKey: idempotencyKey,
+                createdAt: createdAt,
+                confirmedAt: confirmedAt,
+                appliedAt: appliedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $TaskPlanVersionRecordsTable,
+                    TaskPlanVersionRecord
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TaskPlanVersionRecordsTable,
+                    TaskPlanVersionRecord
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskPlanVersionRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskPlanVersionRecordsTable,
+      TaskPlanVersionRecord,
+      $$TaskPlanVersionRecordsTableFilterComposer,
+      $$TaskPlanVersionRecordsTableOrderingComposer,
+      $$TaskPlanVersionRecordsTableAnnotationComposer,
+      $$TaskPlanVersionRecordsTableCreateCompanionBuilder,
+      $$TaskPlanVersionRecordsTableUpdateCompanionBuilder,
+      (
+        TaskPlanVersionRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $TaskPlanVersionRecordsTable,
+          TaskPlanVersionRecord
+        >,
+      ),
+      TaskPlanVersionRecord,
+      PrefetchHooks Function()
+    >;
+typedef $$PlannedTimeBlockRecordsTableCreateCompanionBuilder =
+    PlannedTimeBlockRecordsCompanion Function({
+      required String id,
+      required String userId,
+      required String planVersionId,
+      required String taskId,
+      required DateTime startsAt,
+      required DateTime endsAt,
+      required int plannedSeconds,
+      Value<int> rowid,
+    });
+typedef $$PlannedTimeBlockRecordsTableUpdateCompanionBuilder =
+    PlannedTimeBlockRecordsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> planVersionId,
+      Value<String> taskId,
+      Value<DateTime> startsAt,
+      Value<DateTime> endsAt,
+      Value<int> plannedSeconds,
+      Value<int> rowid,
+    });
+
+final class $$PlannedTimeBlockRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PlannedTimeBlockRecordsTable,
+          PlannedTimeBlockRecord
+        > {
+  $$PlannedTimeBlockRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $PlannedBlockTimerLinksTable,
+    List<PlannedBlockTimerLink>
+  >
+  _plannedBlockTimerLinksRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.plannedBlockTimerLinks,
+    aliasName:
+        'planned_time_block_records__id__planned_block_timer_links__planned_block_id',
+  );
+
+  $$PlannedBlockTimerLinksTableProcessedTableManager
+  get plannedBlockTimerLinksRefs {
+    final manager = $$PlannedBlockTimerLinksTableTableManager(
+      $_db,
+      $_db.plannedBlockTimerLinks,
+    ).filter((f) => f.plannedBlockId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _plannedBlockTimerLinksRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PlannedTimeBlockRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $PlannedTimeBlockRecordsTable> {
+  $$PlannedTimeBlockRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planVersionId => $composableBuilder(
+    column: $table.planVersionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startsAt => $composableBuilder(
+    column: $table.startsAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endsAt => $composableBuilder(
+    column: $table.endsAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plannedSeconds => $composableBuilder(
+    column: $table.plannedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> plannedBlockTimerLinksRefs(
+    Expression<bool> Function($$PlannedBlockTimerLinksTableFilterComposer f) f,
+  ) {
+    final $$PlannedBlockTimerLinksTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.plannedBlockTimerLinks,
+          getReferencedColumn: (t) => t.plannedBlockId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlannedBlockTimerLinksTableFilterComposer(
+                $db: $db,
+                $table: $db.plannedBlockTimerLinks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PlannedTimeBlockRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlannedTimeBlockRecordsTable> {
+  $$PlannedTimeBlockRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get planVersionId => $composableBuilder(
+    column: $table.planVersionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startsAt => $composableBuilder(
+    column: $table.startsAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endsAt => $composableBuilder(
+    column: $table.endsAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plannedSeconds => $composableBuilder(
+    column: $table.plannedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlannedTimeBlockRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlannedTimeBlockRecordsTable> {
+  $$PlannedTimeBlockRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get planVersionId => $composableBuilder(
+    column: $table.planVersionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startsAt =>
+      $composableBuilder(column: $table.startsAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endsAt =>
+      $composableBuilder(column: $table.endsAt, builder: (column) => column);
+
+  GeneratedColumn<int> get plannedSeconds => $composableBuilder(
+    column: $table.plannedSeconds,
+    builder: (column) => column,
+  );
+
+  Expression<T> plannedBlockTimerLinksRefs<T extends Object>(
+    Expression<T> Function($$PlannedBlockTimerLinksTableAnnotationComposer a) f,
+  ) {
+    final $$PlannedBlockTimerLinksTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.plannedBlockTimerLinks,
+          getReferencedColumn: (t) => t.plannedBlockId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlannedBlockTimerLinksTableAnnotationComposer(
+                $db: $db,
+                $table: $db.plannedBlockTimerLinks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PlannedTimeBlockRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlannedTimeBlockRecordsTable,
+          PlannedTimeBlockRecord,
+          $$PlannedTimeBlockRecordsTableFilterComposer,
+          $$PlannedTimeBlockRecordsTableOrderingComposer,
+          $$PlannedTimeBlockRecordsTableAnnotationComposer,
+          $$PlannedTimeBlockRecordsTableCreateCompanionBuilder,
+          $$PlannedTimeBlockRecordsTableUpdateCompanionBuilder,
+          (PlannedTimeBlockRecord, $$PlannedTimeBlockRecordsTableReferences),
+          PlannedTimeBlockRecord,
+          PrefetchHooks Function({bool plannedBlockTimerLinksRefs})
+        > {
+  $$PlannedTimeBlockRecordsTableTableManager(
+    _$AppDatabase db,
+    $PlannedTimeBlockRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlannedTimeBlockRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PlannedTimeBlockRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PlannedTimeBlockRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> planVersionId = const Value.absent(),
+                Value<String> taskId = const Value.absent(),
+                Value<DateTime> startsAt = const Value.absent(),
+                Value<DateTime> endsAt = const Value.absent(),
+                Value<int> plannedSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedTimeBlockRecordsCompanion(
+                id: id,
+                userId: userId,
+                planVersionId: planVersionId,
+                taskId: taskId,
+                startsAt: startsAt,
+                endsAt: endsAt,
+                plannedSeconds: plannedSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String planVersionId,
+                required String taskId,
+                required DateTime startsAt,
+                required DateTime endsAt,
+                required int plannedSeconds,
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedTimeBlockRecordsCompanion.insert(
+                id: id,
+                userId: userId,
+                planVersionId: planVersionId,
+                taskId: taskId,
+                startsAt: startsAt,
+                endsAt: endsAt,
+                plannedSeconds: plannedSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PlannedTimeBlockRecordsTable,
+                    PlannedTimeBlockRecord
+                  >(table),
+                  $$PlannedTimeBlockRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({plannedBlockTimerLinksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (plannedBlockTimerLinksRefs) db.plannedBlockTimerLinks,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (plannedBlockTimerLinksRefs)
+                    await $_getPrefetchedData<
+                      PlannedTimeBlockRecord,
+                      $PlannedTimeBlockRecordsTable,
+                      PlannedBlockTimerLink
+                    >(
+                      currentTable: table,
+                      referencedTable: $$PlannedTimeBlockRecordsTableReferences
+                          ._plannedBlockTimerLinksRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$PlannedTimeBlockRecordsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).plannedBlockTimerLinksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.plannedBlockId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PlannedTimeBlockRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlannedTimeBlockRecordsTable,
+      PlannedTimeBlockRecord,
+      $$PlannedTimeBlockRecordsTableFilterComposer,
+      $$PlannedTimeBlockRecordsTableOrderingComposer,
+      $$PlannedTimeBlockRecordsTableAnnotationComposer,
+      $$PlannedTimeBlockRecordsTableCreateCompanionBuilder,
+      $$PlannedTimeBlockRecordsTableUpdateCompanionBuilder,
+      (PlannedTimeBlockRecord, $$PlannedTimeBlockRecordsTableReferences),
+      PlannedTimeBlockRecord,
+      PrefetchHooks Function({bool plannedBlockTimerLinksRefs})
+    >;
+typedef $$PlannedBlockTimerLinksTableCreateCompanionBuilder =
+    PlannedBlockTimerLinksCompanion Function({
+      required String userId,
+      required String plannedBlockId,
+      required String timerSessionId,
+      required DateTime linkedAt,
+      Value<int> rowid,
+    });
+typedef $$PlannedBlockTimerLinksTableUpdateCompanionBuilder =
+    PlannedBlockTimerLinksCompanion Function({
+      Value<String> userId,
+      Value<String> plannedBlockId,
+      Value<String> timerSessionId,
+      Value<DateTime> linkedAt,
+      Value<int> rowid,
+    });
+
+final class $$PlannedBlockTimerLinksTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PlannedBlockTimerLinksTable,
+          PlannedBlockTimerLink
+        > {
+  $$PlannedBlockTimerLinksTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $PlannedTimeBlockRecordsTable _plannedBlockIdTable(
+    _$AppDatabase db,
+  ) => db.plannedTimeBlockRecords.createAlias(
+    'planned_block_timer_links__planned_block_id__planned_time_block_records__id',
+  );
+
+  $$PlannedTimeBlockRecordsTableProcessedTableManager get plannedBlockId {
+    final $_column = $_itemColumn<String>('planned_block_id')!;
+
+    final manager = $$PlannedTimeBlockRecordsTableTableManager(
+      $_db,
+      $_db.plannedTimeBlockRecords,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_plannedBlockIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PlannedBlockTimerLinksTableFilterComposer
+    extends Composer<_$AppDatabase, $PlannedBlockTimerLinksTable> {
+  $$PlannedBlockTimerLinksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get timerSessionId => $composableBuilder(
+    column: $table.timerSessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get linkedAt => $composableBuilder(
+    column: $table.linkedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PlannedTimeBlockRecordsTableFilterComposer get plannedBlockId {
+    final $$PlannedTimeBlockRecordsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.plannedBlockId,
+          referencedTable: $db.plannedTimeBlockRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlannedTimeBlockRecordsTableFilterComposer(
+                $db: $db,
+                $table: $db.plannedTimeBlockRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$PlannedBlockTimerLinksTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlannedBlockTimerLinksTable> {
+  $$PlannedBlockTimerLinksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get timerSessionId => $composableBuilder(
+    column: $table.timerSessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get linkedAt => $composableBuilder(
+    column: $table.linkedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PlannedTimeBlockRecordsTableOrderingComposer get plannedBlockId {
+    final $$PlannedTimeBlockRecordsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.plannedBlockId,
+          referencedTable: $db.plannedTimeBlockRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlannedTimeBlockRecordsTableOrderingComposer(
+                $db: $db,
+                $table: $db.plannedTimeBlockRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$PlannedBlockTimerLinksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlannedBlockTimerLinksTable> {
+  $$PlannedBlockTimerLinksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get timerSessionId => $composableBuilder(
+    column: $table.timerSessionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get linkedAt =>
+      $composableBuilder(column: $table.linkedAt, builder: (column) => column);
+
+  $$PlannedTimeBlockRecordsTableAnnotationComposer get plannedBlockId {
+    final $$PlannedTimeBlockRecordsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.plannedBlockId,
+          referencedTable: $db.plannedTimeBlockRecords,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlannedTimeBlockRecordsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.plannedTimeBlockRecords,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$PlannedBlockTimerLinksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlannedBlockTimerLinksTable,
+          PlannedBlockTimerLink,
+          $$PlannedBlockTimerLinksTableFilterComposer,
+          $$PlannedBlockTimerLinksTableOrderingComposer,
+          $$PlannedBlockTimerLinksTableAnnotationComposer,
+          $$PlannedBlockTimerLinksTableCreateCompanionBuilder,
+          $$PlannedBlockTimerLinksTableUpdateCompanionBuilder,
+          (PlannedBlockTimerLink, $$PlannedBlockTimerLinksTableReferences),
+          PlannedBlockTimerLink,
+          PrefetchHooks Function({bool plannedBlockId})
+        > {
+  $$PlannedBlockTimerLinksTableTableManager(
+    _$AppDatabase db,
+    $PlannedBlockTimerLinksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlannedBlockTimerLinksTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PlannedBlockTimerLinksTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PlannedBlockTimerLinksTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> plannedBlockId = const Value.absent(),
+                Value<String> timerSessionId = const Value.absent(),
+                Value<DateTime> linkedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedBlockTimerLinksCompanion(
+                userId: userId,
+                plannedBlockId: plannedBlockId,
+                timerSessionId: timerSessionId,
+                linkedAt: linkedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String plannedBlockId,
+                required String timerSessionId,
+                required DateTime linkedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PlannedBlockTimerLinksCompanion.insert(
+                userId: userId,
+                plannedBlockId: plannedBlockId,
+                timerSessionId: timerSessionId,
+                linkedAt: linkedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PlannedBlockTimerLinksTable,
+                    PlannedBlockTimerLink
+                  >(table),
+                  $$PlannedBlockTimerLinksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({plannedBlockId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (plannedBlockId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.plannedBlockId,
+                                referencedTable:
+                                    $$PlannedBlockTimerLinksTableReferences
+                                        ._plannedBlockIdTable(db),
+                                referencedColumn:
+                                    $$PlannedBlockTimerLinksTableReferences
+                                        ._plannedBlockIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PlannedBlockTimerLinksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlannedBlockTimerLinksTable,
+      PlannedBlockTimerLink,
+      $$PlannedBlockTimerLinksTableFilterComposer,
+      $$PlannedBlockTimerLinksTableOrderingComposer,
+      $$PlannedBlockTimerLinksTableAnnotationComposer,
+      $$PlannedBlockTimerLinksTableCreateCompanionBuilder,
+      $$PlannedBlockTimerLinksTableUpdateCompanionBuilder,
+      (PlannedBlockTimerLink, $$PlannedBlockTimerLinksTableReferences),
+      PlannedBlockTimerLink,
+      PrefetchHooks Function({bool plannedBlockId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -26256,5 +29665,22 @@ class $AppDatabaseManager {
       $$AdHocTimerIntervalRecordsTableTableManager(
         _db,
         _db.adHocTimerIntervalRecords,
+      );
+  $$TaskEffortRecordsTableTableManager get taskEffortRecords =>
+      $$TaskEffortRecordsTableTableManager(_db, _db.taskEffortRecords);
+  $$TaskPlanVersionRecordsTableTableManager get taskPlanVersionRecords =>
+      $$TaskPlanVersionRecordsTableTableManager(
+        _db,
+        _db.taskPlanVersionRecords,
+      );
+  $$PlannedTimeBlockRecordsTableTableManager get plannedTimeBlockRecords =>
+      $$PlannedTimeBlockRecordsTableTableManager(
+        _db,
+        _db.plannedTimeBlockRecords,
+      );
+  $$PlannedBlockTimerLinksTableTableManager get plannedBlockTimerLinks =>
+      $$PlannedBlockTimerLinksTableTableManager(
+        _db,
+        _db.plannedBlockTimerLinks,
       );
 }

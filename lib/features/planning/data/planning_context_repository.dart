@@ -140,6 +140,12 @@ class PlanningContextRepository {
                         row.status.equals('failed')),
               ))
               .get();
+      final effortRows = await (_database.select(
+        _database.taskEffortRecords,
+      )..where((row) => row.userId.equals(_userId))).get();
+      final remainingSecondsByTask = <String, int?>{
+        for (final row in effortRows) row.taskId: row.remainingSeconds,
+      };
       // Both queued and failed operations represent local changes not
       // acknowledged by the server. A failed upload is still unsynced.
       final hasUnacknowledgedChanges = queue.isNotEmpty;
@@ -231,17 +237,38 @@ class PlanningContextRepository {
         templates: templates,
         semesters: semesters,
         resolvedCourseOccurrences: resolvedOccurrences,
-        remainingSecondsByTask: const {},
+        remainingSecondsByTask: remainingSecondsByTask,
         occupiedBlocks: occupied,
         timerFacts: timerFacts,
         recurringOccurrences: recurringOccurrences,
         unmodeledRecurringOccurrenceIds: unmodeledRecurringOccurrenceIds,
+        // Give the user enough time to review and confirm so the first
+        // candidate does not become past while the confirmation dialog opens.
+        previewSafetyLead: const Duration(minutes: 15),
       );
       // Version is a deterministic digest of planning-relevant content; time
       // of collection is deliberately excluded so identical data has a stable version.
       final versionInput = Map<String, Object?>.from(result)
         ..remove('version')
-        ..remove('captured_at');
+        ..remove('captured_at')
+        ..remove('now');
+      // earliest_start defaults to the collection clock in the DTO, not a
+      // persisted CheckD field. Excluding it keeps the content version stable
+      // while still hashing actual task fields, occurrence data and timers.
+      final versionTasks = versionInput['tasks'];
+      if (versionTasks is List) {
+        // Clone nested task maps before normalizing the digest input. The
+        // shallow top-level copy shares `tasks` with `result`; mutating it
+        // would strip required planning fields from the returned snapshot.
+        final digestTasks = versionTasks
+            .whereType<Map>()
+            .map((task) => Map<String, Object?>.from(task))
+            .toList(growable: false);
+        versionInput['tasks'] = digestTasks;
+        for (final task in digestTasks) {
+          task.remove('earliest_start');
+        }
+      }
       result['version'] = _contentVersion(jsonEncode(versionInput));
       result['sync_queue_pending_count'] = queue
           .where((row) => row.status == 'pending')

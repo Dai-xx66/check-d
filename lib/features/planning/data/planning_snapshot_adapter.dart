@@ -31,6 +31,7 @@ class PlanningSnapshotAdapter {
     List<Map<String, Object?>> recurringOccurrences = const [],
     List<String> unmodeledRecurringOccurrenceIds = const [],
     int minimumBlockMinutes = 30,
+    Duration previewSafetyLead = Duration.zero,
   }) {
     if (subjectRef.isEmpty || version.isEmpty) {
       throw ArgumentError('subjectRef and version are required');
@@ -86,7 +87,7 @@ class PlanningSnapshotAdapter {
         // The committed TaskDetails model has only the existing one-time
         // scheduledAt value. It does not expose date-only deadline or
         // available-from metadata, so preserve those as unknown/null.
-        'earliest_start': now.toUtc().toIso8601String(),
+        'earliest_start': now.add(previewSafetyLead).toUtc().toIso8601String(),
         'effort_source': remainingSecondsByTask[task.id] == null
             ? null
             : 'provided_snapshot',
