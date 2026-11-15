@@ -219,6 +219,7 @@ class TaskEffortRecords extends Table {
   IntColumn get remainingSeconds => integer().nullable()();
   TextColumn get source => text()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {userId, taskId};
@@ -246,6 +247,8 @@ class TaskPlanVersionRecords extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get confirmedAt => dateTime().nullable()();
   DateTimeColumn get appliedAt => dateTime().nullable()();
+  TextColumn get supersedesVersionIdsJson =>
+      text().withDefault(const Constant('[]'))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -274,6 +277,7 @@ class PlannedTimeBlockRecords extends Table {
   DateTimeColumn get startsAt => dateTime()();
   DateTimeColumn get endsAt => dateTime()();
   IntColumn get plannedSeconds => integer()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -290,6 +294,32 @@ class PlannedTimeBlockRecords extends Table {
         'REFERENCES task_plan_version_records (user_id, id) ON DELETE CASCADE',
     'CHECK (ends_at > starts_at)',
     'CHECK (planned_seconds > 0)',
+  ];
+}
+
+/// Keeps both sides of a cross-device planning conflict until the user
+/// chooses which version to retain. Payloads contain only planning DTO data.
+class PlanningSyncConflicts extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  TextColumn get localPayloadJson => text()();
+  TextColumn get remotePayloadJson => text()();
+  TextColumn get localVersion => text()();
+  TextColumn get remoteVersion => text()();
+  TextColumn get status => text().withDefault(const Constant('unresolved'))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  TextColumn get resolution => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    "CHECK (status IN ('unresolved', 'resolved'))",
+    "CHECK (resolution IS NULL OR resolution IN ('keep_local', 'keep_remote'))",
   ];
 }
 
@@ -573,6 +603,7 @@ class AdHocTimerIntervalRecords extends Table {
     TaskPlanVersionRecords,
     PlannedTimeBlockRecords,
     PlannedBlockTimerLinks,
+    PlanningSyncConflicts,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -581,7 +612,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -863,6 +894,33 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(taskPlanVersionRecords);
         await migrator.createTable(plannedTimeBlockRecords);
         await migrator.createTable(plannedBlockTimerLinks);
+      }
+      if (from < 21) {
+        if (await hasTable('task_effort_records') &&
+            !await hasColumn('task_effort_records', 'deleted_at')) {
+          await migrator.addColumn(
+            taskEffortRecords,
+            taskEffortRecords.deletedAt,
+          );
+        }
+        if (await hasTable('task_plan_version_records') &&
+            !await hasColumn(
+              'task_plan_version_records',
+              'supersedes_version_ids_json',
+            )) {
+          await migrator.addColumn(
+            taskPlanVersionRecords,
+            taskPlanVersionRecords.supersedesVersionIdsJson,
+          );
+        }
+        if (await hasTable('planned_time_block_records') &&
+            !await hasColumn('planned_time_block_records', 'deleted_at')) {
+          await migrator.addColumn(
+            plannedTimeBlockRecords,
+            plannedTimeBlockRecords.deletedAt,
+          );
+        }
+        await migrator.createTable(planningSyncConflicts);
       }
     },
     beforeOpen: (details) async {

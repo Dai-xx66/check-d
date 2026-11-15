@@ -140,9 +140,11 @@ class PlanningContextRepository {
                         row.status.equals('failed')),
               ))
               .get();
-      final effortRows = await (_database.select(
-        _database.taskEffortRecords,
-      )..where((row) => row.userId.equals(_userId))).get();
+      final effortRows =
+          await (_database.select(_database.taskEffortRecords)..where(
+                (row) => row.userId.equals(_userId) & row.deletedAt.isNull(),
+              ))
+              .get();
       final remainingSecondsByTask = <String, int?>{
         for (final row in effortRows) row.taskId: row.remainingSeconds,
       };

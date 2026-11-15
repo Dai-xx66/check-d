@@ -220,6 +220,96 @@ void main() {
     );
   });
 
+  test(
+    'block tombstone is idempotent and excluded from restored plan',
+    () async {
+      final repository = PlanningPlanRepository(
+        database: database,
+        userId: 'user-a',
+      );
+      final saved = await repository.confirmPlan(
+        expectedSnapshotVersion: 'snapshot-1',
+        readCurrentSnapshotVersion: () async => 'snapshot-1',
+        startsOn: DateTime.utc(2026, 11, 15),
+        endsOn: DateTime.utc(2026, 11, 15),
+        rulesVersion: 'local-edf-v1',
+        blocks: [
+          CandidatePlanBlock(
+            taskId: 'task-a',
+            startsAt: now.add(const Duration(hours: 1)),
+            endsAt: now.add(const Duration(hours: 2)),
+            plannedSeconds: 3600,
+          ),
+        ],
+        now: now,
+      );
+      final blockId =
+          (await database.select(database.plannedTimeBlockRecords).getSingle())
+              .id;
+
+      expect(await repository.tombstoneBlock(blockId, now: now), isTrue);
+      expect(await repository.tombstoneBlock(blockId, now: now), isFalse);
+      expect(
+        (await repository.loadPlans(
+          startsOnOrBefore: DateTime.utc(2026, 11, 15),
+          endsOnOrAfter: DateTime.utc(2026, 11, 15),
+        )).single.blocks,
+        isEmpty,
+      );
+      expect(
+        (await database.select(database.plannedTimeBlockRecords).getSingle())
+            .deletedAt!
+            .isAtSameMomentAs(now),
+        isTrue,
+      );
+      expect(saved.blocks, hasLength(1));
+    },
+  );
+
+  test(
+    'replacement preserves prior version and records supersession edge',
+    () async {
+      final repository = PlanningPlanRepository(
+        database: database,
+        userId: 'user-a',
+      );
+      Future<SavedLocalPlan> save(String snapshot) => repository.confirmPlan(
+        expectedSnapshotVersion: snapshot,
+        readCurrentSnapshotVersion: () async => snapshot,
+        startsOn: DateTime.utc(2026, 11, 15),
+        endsOn: DateTime.utc(2026, 11, 15),
+        rulesVersion: 'local-edf-v1',
+        blocks: [
+          CandidatePlanBlock(
+            taskId: 'task-a',
+            startsAt: now.add(const Duration(hours: 1)),
+            endsAt: now.add(const Duration(hours: 2)),
+            plannedSeconds: 3600,
+          ),
+        ],
+        now: now,
+      );
+      final first = await save('snapshot-1');
+      final second = await save('snapshot-2');
+      final versions = await database
+          .select(database.taskPlanVersionRecords)
+          .get();
+
+      expect(versions, hasLength(2));
+      expect(
+        versions.firstWhere((row) => row.id == first.id).status,
+        'superseded',
+      );
+      expect(
+        versions
+            .firstWhere((row) => row.id == second.id)
+            .supersedesVersionIdsJson,
+        '["${first.id}"]',
+      );
+      expect(second.revision, first.revision + 1);
+    },
+  );
+
   test('schema 19 upgrades additively and preserves existing tasks', () async {
     final directory = await Directory.systemTemp.createTemp('checkd_plan_v20_');
     final file = File('${directory.path}/upgrade.sqlite');
@@ -259,6 +349,39 @@ void main() {
     ]) {
       await upgraded.customSelect('SELECT 1 FROM $table LIMIT 1').get();
     }
+    await upgraded.close();
+    await directory.delete(recursive: true);
+  });
+
+  test('schema 20 adds tombstone lineage and conflict records', () async {
+    final directory = await Directory.systemTemp.createTemp('checkd_plan_v21_');
+    final file = File('${directory.path}/upgrade.sqlite');
+    final first = AppDatabase.forTesting(NativeDatabase(file));
+    await first.customStatement('DROP TABLE planning_sync_conflicts');
+    await first.customStatement(
+      'ALTER TABLE task_effort_records DROP COLUMN deleted_at',
+    );
+    await first.customStatement(
+      'ALTER TABLE task_plan_version_records DROP COLUMN supersedes_version_ids_json',
+    );
+    await first.customStatement(
+      'ALTER TABLE planned_time_block_records DROP COLUMN deleted_at',
+    );
+    await first.customStatement('PRAGMA user_version = 20');
+    await first.close();
+
+    final upgraded = AppDatabase.forTesting(NativeDatabase(file));
+    final columns = await upgraded
+        .customSelect('PRAGMA table_info(planned_time_block_records)')
+        .get();
+    expect(
+      columns.map((row) => row.read<String>('name')),
+      contains('deleted_at'),
+    );
+    expect(
+      await upgraded.select(upgraded.planningSyncConflicts).get(),
+      isEmpty,
+    );
     await upgraded.close();
     await directory.delete(recursive: true);
   });

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/notifications/notification_service.dart';
 import 'package:check_d/core/notifications/reminder_scheduler.dart';
@@ -8,6 +10,7 @@ import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
+import 'package:check_d/features/planning/data/planning_plan_repository.dart';
 import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -388,6 +391,109 @@ void main() {
         (await database.select(database.taskEffortRecords).getSingle())
             .remainingSeconds,
         2400,
+      );
+      final conflict = await database
+          .select(database.planningSyncConflicts)
+          .getSingle();
+      expect(conflict.userId, userId);
+      expect(conflict.entityId, 'local-planning-task');
+      expect(jsonDecode(conflict.localPayloadJson)['remainingSeconds'], 2400);
+      expect(jsonDecode(conflict.remotePayloadJson)['remaining_seconds'], 600);
+      expect(conflict.status, 'unresolved');
+      await database
+          .into(database.planningSyncConflicts)
+          .insert(
+            PlanningSyncConflictsCompanion.insert(
+              id: 'user-2-conflict',
+              userId: 'user-2',
+              entityType: 'task_effort_estimates',
+              entityId: 'task-b',
+              localPayloadJson: '{}',
+              remotePayloadJson: '{}',
+              localVersion: 'local-b',
+              remoteVersion: 'remote-b',
+              createdAt: stamp,
+            ),
+          );
+      final userConflicts = await PlanningPlanRepository(
+        database: database,
+        userId: userId,
+      ).loadUnresolvedSyncConflicts();
+      expect(userConflicts, hasLength(1));
+      expect(userConflicts.single.userId, userId);
+    },
+  );
+
+  test(
+    'remote planning tombstone converges without recreating a block',
+    () async {
+      final stamp = DateTime.utc(2030, 1, 1, 10);
+      await database
+          .into(database.localTasks)
+          .insert(
+            LocalTasksCompanion.insert(
+              id: 'tombstone-task',
+              userId: const Value(userId),
+              name: '合成规划任务',
+              taskType: 'one_time',
+              colorValue: 1,
+              createdAt: stamp,
+              updatedAt: stamp,
+            ),
+          );
+      await database
+          .into(database.taskPlanVersionRecords)
+          .insert(
+            TaskPlanVersionRecordsCompanion.insert(
+              id: 'tombstone-version',
+              userId: userId,
+              revision: 1,
+              sourceSnapshotVersion: 'snapshot-1',
+              proposalDigest: 'digest-1',
+              rulesVersion: 'rules-1',
+              startsOn: '2030-01-01',
+              endsOn: '2030-01-01',
+              status: 'confirmed',
+              idempotencyKey: 'idem-1',
+              createdAt: stamp,
+            ),
+          );
+      await database
+          .into(database.plannedTimeBlockRecords)
+          .insert(
+            PlannedTimeBlockRecordsCompanion.insert(
+              id: 'tombstone-block',
+              userId: userId,
+              planVersionId: 'tombstone-version',
+              taskId: 'tombstone-task',
+              startsAt: stamp.add(const Duration(hours: 1)),
+              endsAt: stamp.add(const Duration(hours: 2)),
+              plannedSeconds: 3600,
+            ),
+          );
+      remote.tables['task_time_blocks'] = [
+        _row('tombstone-block', {
+          'plan_version_id': 'tombstone-version',
+          'task_id': 'tombstone-task',
+          'starts_at': _time(11),
+          'ends_at': _time(12),
+          'planned_seconds': 3600,
+          'deleted_at': _time(13),
+          'sync_version': 2,
+        }),
+      ];
+
+      final result = await executor.reconcile();
+
+      expect(result.succeeded, isTrue);
+      final block = await database
+          .select(database.plannedTimeBlockRecords)
+          .getSingle();
+      expect(block.id, 'tombstone-block');
+      expect(block.deletedAt, isNotNull);
+      expect(
+        await database.select(database.plannedTimeBlockRecords).get(),
+        hasLength(1),
       );
     },
   );

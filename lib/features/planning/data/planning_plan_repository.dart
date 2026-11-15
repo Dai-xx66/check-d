@@ -192,6 +192,7 @@ class PlanningPlanRepository {
                 remainingSeconds: Value(entry.value),
                 source: 'user_confirmed',
                 updatedAt: createdAt,
+                deletedAt: const Value(null),
               ),
             );
         await _syncQueue?.enqueue(
@@ -252,6 +253,9 @@ class PlanningPlanRepository {
               idempotencyKey: idempotencyKey,
               createdAt: createdAt,
               confirmedAt: Value(createdAt),
+              supersedesVersionIdsJson: Value(
+                jsonEncode(overlappingConfirmed.map((row) => row.id).toList()),
+              ),
             ),
           );
       await _syncQueue?.enqueue(
@@ -304,6 +308,44 @@ class PlanningPlanRepository {
               ..orderBy([(row) => OrderingTerm.desc(row.revision)]))
             .get();
     return [for (final row in rows) await _readPlan(row.id)];
+  }
+
+  Future<List<PlanningSyncConflict>> loadUnresolvedSyncConflicts() =>
+      (_database.select(_database.planningSyncConflicts)
+            ..where(
+              (row) =>
+                  row.userId.equals(_userId) & row.status.equals('unresolved'),
+            )
+            ..orderBy([(row) => OrderingTerm.desc(row.createdAt)]))
+          .get();
+
+  /// Tombstones a block instead of physically deleting it, so a later sync
+  /// cannot resurrect it from another device's stale snapshot.
+  Future<bool> tombstoneBlock(String blockId, {DateTime? now}) async {
+    final at = (now ?? DateTime.now()).toUtc();
+    return _database.transaction(() async {
+      final row =
+          await (_database.select(_database.plannedTimeBlockRecords)..where(
+                (block) =>
+                    block.id.equals(blockId) &
+                    block.userId.equals(_userId) &
+                    block.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (row == null) return false;
+      await (_database.update(_database.plannedTimeBlockRecords)..where(
+            (block) => block.id.equals(blockId) & block.userId.equals(_userId),
+          ))
+          .write(PlannedTimeBlockRecordsCompanion(deletedAt: Value(at)));
+      await _syncQueue?.enqueue(
+        entityType: 'task_time_blocks',
+        entityId: blockId,
+        operation: SyncOperationType.upsert,
+        payload: {'id': blockId, 'deleted_at': at.toIso8601String()},
+        userId: _userId,
+      );
+      return true;
+    });
   }
 
   /// Links an immutable actual TimerSession to its planned block, if known.
@@ -360,7 +402,9 @@ class PlanningPlanRepository {
         await (_database.select(_database.plannedTimeBlockRecords)
               ..where(
                 (row) =>
-                    row.planVersionId.equals(id) & row.userId.equals(_userId),
+                    row.planVersionId.equals(id) &
+                    row.userId.equals(_userId) &
+                    row.deletedAt.isNull(),
               )
               ..orderBy([(row) => OrderingTerm.asc(row.startsAt)]))
             .get();

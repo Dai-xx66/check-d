@@ -191,16 +191,30 @@ void main() {
       expect(queued.every((op) => op.userId == userId), isTrue);
 
       final first = await executor.flush();
-      final second = await executor.flush(force: true);
       final block = await database
           .select(database.plannedTimeBlockRecords)
           .getSingle();
       expect(first.failed, 0);
       expect(first.uploaded, queued.length);
-      expect(second.uploaded, 0);
       expect(remote.value('task_effort_estimates', taskId)?['user_id'], userId);
       expect(remote.value('task_plan_versions', saved.id)?['user_id'], userId);
       expect(remote.value('task_time_blocks', block.id)?['user_id'], userId);
+
+      expect(
+        await planning.tombstoneBlock(
+          block.id,
+          now: now.add(const Duration(minutes: 1)),
+        ),
+        isTrue,
+      );
+      final tombstoneFlush = await executor.flush(force: true);
+      expect(tombstoneFlush.uploaded, 1);
+      expect(tombstoneFlush.failed, 0);
+      expect(
+        remote.value('task_time_blocks', block.id)?['deleted_at'],
+        isNotNull,
+      );
+      expect((await executor.flush(force: true)).uploaded, 0);
     },
   );
 }

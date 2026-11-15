@@ -15754,6 +15754,17 @@ class $TaskEffortRecordsTable extends TaskEffortRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     taskId,
@@ -15762,6 +15773,7 @@ class $TaskEffortRecordsTable extends TaskEffortRecords
     remainingSeconds,
     source,
     updatedAt,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -15825,6 +15837,12 @@ class $TaskEffortRecordsTable extends TaskEffortRecords
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -15858,6 +15876,10 @@ class $TaskEffortRecordsTable extends TaskEffortRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -15875,6 +15897,7 @@ class TaskEffortRecord extends DataClass
   final int? remainingSeconds;
   final String source;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   const TaskEffortRecord({
     required this.taskId,
     required this.userId,
@@ -15882,6 +15905,7 @@ class TaskEffortRecord extends DataClass
     this.remainingSeconds,
     required this.source,
     required this.updatedAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -15896,6 +15920,9 @@ class TaskEffortRecord extends DataClass
     }
     map['source'] = Variable<String>(source);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -15911,6 +15938,9 @@ class TaskEffortRecord extends DataClass
           : Value(remainingSeconds),
       source: Value(source),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -15926,6 +15956,7 @@ class TaskEffortRecord extends DataClass
       remainingSeconds: serializer.fromJson<int?>(json['remainingSeconds']),
       source: serializer.fromJson<String>(json['source']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -15938,6 +15969,7 @@ class TaskEffortRecord extends DataClass
       'remainingSeconds': serializer.toJson<int?>(remainingSeconds),
       'source': serializer.toJson<String>(source),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -15948,6 +15980,7 @@ class TaskEffortRecord extends DataClass
     Value<int?> remainingSeconds = const Value.absent(),
     String? source,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => TaskEffortRecord(
     taskId: taskId ?? this.taskId,
     userId: userId ?? this.userId,
@@ -15959,6 +15992,7 @@ class TaskEffortRecord extends DataClass
         : this.remainingSeconds,
     source: source ?? this.source,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   TaskEffortRecord copyWithCompanion(TaskEffortRecordsCompanion data) {
     return TaskEffortRecord(
@@ -15972,6 +16006,7 @@ class TaskEffortRecord extends DataClass
           : this.remainingSeconds,
       source: data.source.present ? data.source.value : this.source,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -15983,7 +16018,8 @@ class TaskEffortRecord extends DataClass
           ..write('estimatedSeconds: $estimatedSeconds, ')
           ..write('remainingSeconds: $remainingSeconds, ')
           ..write('source: $source, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -15996,6 +16032,7 @@ class TaskEffortRecord extends DataClass
     remainingSeconds,
     source,
     updatedAt,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -16006,7 +16043,8 @@ class TaskEffortRecord extends DataClass
           other.estimatedSeconds == this.estimatedSeconds &&
           other.remainingSeconds == this.remainingSeconds &&
           other.source == this.source &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
@@ -16016,6 +16054,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
   final Value<int?> remainingSeconds;
   final Value<String> source;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const TaskEffortRecordsCompanion({
     this.taskId = const Value.absent(),
@@ -16024,6 +16063,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
     this.remainingSeconds = const Value.absent(),
     this.source = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TaskEffortRecordsCompanion.insert({
@@ -16033,6 +16073,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
     this.remainingSeconds = const Value.absent(),
     required String source,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : taskId = Value(taskId),
        userId = Value(userId),
@@ -16045,6 +16086,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
     Expression<int>? remainingSeconds,
     Expression<String>? source,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -16054,6 +16096,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
       if (remainingSeconds != null) 'remaining_seconds': remainingSeconds,
       if (source != null) 'source': source,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -16065,6 +16108,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
     Value<int?>? remainingSeconds,
     Value<String>? source,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return TaskEffortRecordsCompanion(
@@ -16074,6 +16118,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       source: source ?? this.source,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -16099,6 +16144,9 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -16114,6 +16162,7 @@ class TaskEffortRecordsCompanion extends UpdateCompanion<TaskEffortRecord> {
           ..write('remainingSeconds: $remainingSeconds, ')
           ..write('source: $source, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -16261,6 +16310,18 @@ class $TaskPlanVersionRecordsTable extends TaskPlanVersionRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _supersedesVersionIdsJsonMeta =
+      const VerificationMeta('supersedesVersionIdsJson');
+  @override
+  late final GeneratedColumn<String> supersedesVersionIdsJson =
+      GeneratedColumn<String>(
+        'supersedes_version_ids_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -16276,6 +16337,7 @@ class $TaskPlanVersionRecordsTable extends TaskPlanVersionRecords
     createdAt,
     confirmedAt,
     appliedAt,
+    supersedesVersionIdsJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -16401,6 +16463,15 @@ class $TaskPlanVersionRecordsTable extends TaskPlanVersionRecords
         appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
       );
     }
+    if (data.containsKey('supersedes_version_ids_json')) {
+      context.handle(
+        _supersedesVersionIdsJsonMeta,
+        supersedesVersionIdsJson.isAcceptableOrUnknown(
+          data['supersedes_version_ids_json']!,
+          _supersedesVersionIdsJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -16468,6 +16539,10 @@ class $TaskPlanVersionRecordsTable extends TaskPlanVersionRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}applied_at'],
       ),
+      supersedesVersionIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supersedes_version_ids_json'],
+      )!,
     );
   }
 
@@ -16492,6 +16567,7 @@ class TaskPlanVersionRecord extends DataClass
   final DateTime createdAt;
   final DateTime? confirmedAt;
   final DateTime? appliedAt;
+  final String supersedesVersionIdsJson;
   const TaskPlanVersionRecord({
     required this.id,
     required this.userId,
@@ -16506,6 +16582,7 @@ class TaskPlanVersionRecord extends DataClass
     required this.createdAt,
     this.confirmedAt,
     this.appliedAt,
+    required this.supersedesVersionIdsJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -16527,6 +16604,9 @@ class TaskPlanVersionRecord extends DataClass
     if (!nullToAbsent || appliedAt != null) {
       map['applied_at'] = Variable<DateTime>(appliedAt);
     }
+    map['supersedes_version_ids_json'] = Variable<String>(
+      supersedesVersionIdsJson,
+    );
     return map;
   }
 
@@ -16549,6 +16629,7 @@ class TaskPlanVersionRecord extends DataClass
       appliedAt: appliedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(appliedAt),
+      supersedesVersionIdsJson: Value(supersedesVersionIdsJson),
     );
   }
 
@@ -16573,6 +16654,9 @@ class TaskPlanVersionRecord extends DataClass
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       confirmedAt: serializer.fromJson<DateTime?>(json['confirmedAt']),
       appliedAt: serializer.fromJson<DateTime?>(json['appliedAt']),
+      supersedesVersionIdsJson: serializer.fromJson<String>(
+        json['supersedesVersionIdsJson'],
+      ),
     );
   }
   @override
@@ -16592,6 +16676,9 @@ class TaskPlanVersionRecord extends DataClass
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'confirmedAt': serializer.toJson<DateTime?>(confirmedAt),
       'appliedAt': serializer.toJson<DateTime?>(appliedAt),
+      'supersedesVersionIdsJson': serializer.toJson<String>(
+        supersedesVersionIdsJson,
+      ),
     };
   }
 
@@ -16609,6 +16696,7 @@ class TaskPlanVersionRecord extends DataClass
     DateTime? createdAt,
     Value<DateTime?> confirmedAt = const Value.absent(),
     Value<DateTime?> appliedAt = const Value.absent(),
+    String? supersedesVersionIdsJson,
   }) => TaskPlanVersionRecord(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -16623,6 +16711,8 @@ class TaskPlanVersionRecord extends DataClass
     createdAt: createdAt ?? this.createdAt,
     confirmedAt: confirmedAt.present ? confirmedAt.value : this.confirmedAt,
     appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
+    supersedesVersionIdsJson:
+        supersedesVersionIdsJson ?? this.supersedesVersionIdsJson,
   );
   TaskPlanVersionRecord copyWithCompanion(
     TaskPlanVersionRecordsCompanion data,
@@ -16651,6 +16741,9 @@ class TaskPlanVersionRecord extends DataClass
           ? data.confirmedAt.value
           : this.confirmedAt,
       appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+      supersedesVersionIdsJson: data.supersedesVersionIdsJson.present
+          ? data.supersedesVersionIdsJson.value
+          : this.supersedesVersionIdsJson,
     );
   }
 
@@ -16669,7 +16762,8 @@ class TaskPlanVersionRecord extends DataClass
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('createdAt: $createdAt, ')
           ..write('confirmedAt: $confirmedAt, ')
-          ..write('appliedAt: $appliedAt')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('supersedesVersionIdsJson: $supersedesVersionIdsJson')
           ..write(')'))
         .toString();
   }
@@ -16689,6 +16783,7 @@ class TaskPlanVersionRecord extends DataClass
     createdAt,
     confirmedAt,
     appliedAt,
+    supersedesVersionIdsJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -16706,7 +16801,8 @@ class TaskPlanVersionRecord extends DataClass
           other.idempotencyKey == this.idempotencyKey &&
           other.createdAt == this.createdAt &&
           other.confirmedAt == this.confirmedAt &&
-          other.appliedAt == this.appliedAt);
+          other.appliedAt == this.appliedAt &&
+          other.supersedesVersionIdsJson == this.supersedesVersionIdsJson);
 }
 
 class TaskPlanVersionRecordsCompanion
@@ -16724,6 +16820,7 @@ class TaskPlanVersionRecordsCompanion
   final Value<DateTime> createdAt;
   final Value<DateTime?> confirmedAt;
   final Value<DateTime?> appliedAt;
+  final Value<String> supersedesVersionIdsJson;
   final Value<int> rowid;
   const TaskPlanVersionRecordsCompanion({
     this.id = const Value.absent(),
@@ -16739,6 +16836,7 @@ class TaskPlanVersionRecordsCompanion
     this.createdAt = const Value.absent(),
     this.confirmedAt = const Value.absent(),
     this.appliedAt = const Value.absent(),
+    this.supersedesVersionIdsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TaskPlanVersionRecordsCompanion.insert({
@@ -16755,6 +16853,7 @@ class TaskPlanVersionRecordsCompanion
     required DateTime createdAt,
     this.confirmedAt = const Value.absent(),
     this.appliedAt = const Value.absent(),
+    this.supersedesVersionIdsJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -16781,6 +16880,7 @@ class TaskPlanVersionRecordsCompanion
     Expression<DateTime>? createdAt,
     Expression<DateTime>? confirmedAt,
     Expression<DateTime>? appliedAt,
+    Expression<String>? supersedesVersionIdsJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -16798,6 +16898,8 @@ class TaskPlanVersionRecordsCompanion
       if (createdAt != null) 'created_at': createdAt,
       if (confirmedAt != null) 'confirmed_at': confirmedAt,
       if (appliedAt != null) 'applied_at': appliedAt,
+      if (supersedesVersionIdsJson != null)
+        'supersedes_version_ids_json': supersedesVersionIdsJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -16816,6 +16918,7 @@ class TaskPlanVersionRecordsCompanion
     Value<DateTime>? createdAt,
     Value<DateTime?>? confirmedAt,
     Value<DateTime?>? appliedAt,
+    Value<String>? supersedesVersionIdsJson,
     Value<int>? rowid,
   }) {
     return TaskPlanVersionRecordsCompanion(
@@ -16833,6 +16936,8 @@ class TaskPlanVersionRecordsCompanion
       createdAt: createdAt ?? this.createdAt,
       confirmedAt: confirmedAt ?? this.confirmedAt,
       appliedAt: appliedAt ?? this.appliedAt,
+      supersedesVersionIdsJson:
+          supersedesVersionIdsJson ?? this.supersedesVersionIdsJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -16881,6 +16986,11 @@ class TaskPlanVersionRecordsCompanion
     if (appliedAt.present) {
       map['applied_at'] = Variable<DateTime>(appliedAt.value);
     }
+    if (supersedesVersionIdsJson.present) {
+      map['supersedes_version_ids_json'] = Variable<String>(
+        supersedesVersionIdsJson.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -16903,6 +17013,7 @@ class TaskPlanVersionRecordsCompanion
           ..write('createdAt: $createdAt, ')
           ..write('confirmedAt: $confirmedAt, ')
           ..write('appliedAt: $appliedAt, ')
+          ..write('supersedesVersionIdsJson: $supersedesVersionIdsJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -16984,6 +17095,17 @@ class $PlannedTimeBlockRecordsTable extends PlannedTimeBlockRecords
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -16993,6 +17115,7 @@ class $PlannedTimeBlockRecordsTable extends PlannedTimeBlockRecords
     startsAt,
     endsAt,
     plannedSeconds,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -17065,6 +17188,12 @@ class $PlannedTimeBlockRecordsTable extends PlannedTimeBlockRecords
     } else if (isInserting) {
       context.missing(_plannedSecondsMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -17107,6 +17236,10 @@ class $PlannedTimeBlockRecordsTable extends PlannedTimeBlockRecords
         DriftSqlType.int,
         data['${effectivePrefix}planned_seconds'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -17125,6 +17258,7 @@ class PlannedTimeBlockRecord extends DataClass
   final DateTime startsAt;
   final DateTime endsAt;
   final int plannedSeconds;
+  final DateTime? deletedAt;
   const PlannedTimeBlockRecord({
     required this.id,
     required this.userId,
@@ -17133,6 +17267,7 @@ class PlannedTimeBlockRecord extends DataClass
     required this.startsAt,
     required this.endsAt,
     required this.plannedSeconds,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -17144,6 +17279,9 @@ class PlannedTimeBlockRecord extends DataClass
     map['starts_at'] = Variable<DateTime>(startsAt);
     map['ends_at'] = Variable<DateTime>(endsAt);
     map['planned_seconds'] = Variable<int>(plannedSeconds);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -17156,6 +17294,9 @@ class PlannedTimeBlockRecord extends DataClass
       startsAt: Value(startsAt),
       endsAt: Value(endsAt),
       plannedSeconds: Value(plannedSeconds),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -17172,6 +17313,7 @@ class PlannedTimeBlockRecord extends DataClass
       startsAt: serializer.fromJson<DateTime>(json['startsAt']),
       endsAt: serializer.fromJson<DateTime>(json['endsAt']),
       plannedSeconds: serializer.fromJson<int>(json['plannedSeconds']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -17185,6 +17327,7 @@ class PlannedTimeBlockRecord extends DataClass
       'startsAt': serializer.toJson<DateTime>(startsAt),
       'endsAt': serializer.toJson<DateTime>(endsAt),
       'plannedSeconds': serializer.toJson<int>(plannedSeconds),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -17196,6 +17339,7 @@ class PlannedTimeBlockRecord extends DataClass
     DateTime? startsAt,
     DateTime? endsAt,
     int? plannedSeconds,
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => PlannedTimeBlockRecord(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -17204,6 +17348,7 @@ class PlannedTimeBlockRecord extends DataClass
     startsAt: startsAt ?? this.startsAt,
     endsAt: endsAt ?? this.endsAt,
     plannedSeconds: plannedSeconds ?? this.plannedSeconds,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   PlannedTimeBlockRecord copyWithCompanion(
     PlannedTimeBlockRecordsCompanion data,
@@ -17220,6 +17365,7 @@ class PlannedTimeBlockRecord extends DataClass
       plannedSeconds: data.plannedSeconds.present
           ? data.plannedSeconds.value
           : this.plannedSeconds,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -17232,7 +17378,8 @@ class PlannedTimeBlockRecord extends DataClass
           ..write('taskId: $taskId, ')
           ..write('startsAt: $startsAt, ')
           ..write('endsAt: $endsAt, ')
-          ..write('plannedSeconds: $plannedSeconds')
+          ..write('plannedSeconds: $plannedSeconds, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -17246,6 +17393,7 @@ class PlannedTimeBlockRecord extends DataClass
     startsAt,
     endsAt,
     plannedSeconds,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -17257,7 +17405,8 @@ class PlannedTimeBlockRecord extends DataClass
           other.taskId == this.taskId &&
           other.startsAt == this.startsAt &&
           other.endsAt == this.endsAt &&
-          other.plannedSeconds == this.plannedSeconds);
+          other.plannedSeconds == this.plannedSeconds &&
+          other.deletedAt == this.deletedAt);
 }
 
 class PlannedTimeBlockRecordsCompanion
@@ -17269,6 +17418,7 @@ class PlannedTimeBlockRecordsCompanion
   final Value<DateTime> startsAt;
   final Value<DateTime> endsAt;
   final Value<int> plannedSeconds;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const PlannedTimeBlockRecordsCompanion({
     this.id = const Value.absent(),
@@ -17278,6 +17428,7 @@ class PlannedTimeBlockRecordsCompanion
     this.startsAt = const Value.absent(),
     this.endsAt = const Value.absent(),
     this.plannedSeconds = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlannedTimeBlockRecordsCompanion.insert({
@@ -17288,6 +17439,7 @@ class PlannedTimeBlockRecordsCompanion
     required DateTime startsAt,
     required DateTime endsAt,
     required int plannedSeconds,
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -17304,6 +17456,7 @@ class PlannedTimeBlockRecordsCompanion
     Expression<DateTime>? startsAt,
     Expression<DateTime>? endsAt,
     Expression<int>? plannedSeconds,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -17314,6 +17467,7 @@ class PlannedTimeBlockRecordsCompanion
       if (startsAt != null) 'starts_at': startsAt,
       if (endsAt != null) 'ends_at': endsAt,
       if (plannedSeconds != null) 'planned_seconds': plannedSeconds,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -17326,6 +17480,7 @@ class PlannedTimeBlockRecordsCompanion
     Value<DateTime>? startsAt,
     Value<DateTime>? endsAt,
     Value<int>? plannedSeconds,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return PlannedTimeBlockRecordsCompanion(
@@ -17336,6 +17491,7 @@ class PlannedTimeBlockRecordsCompanion
       startsAt: startsAt ?? this.startsAt,
       endsAt: endsAt ?? this.endsAt,
       plannedSeconds: plannedSeconds ?? this.plannedSeconds,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -17364,6 +17520,9 @@ class PlannedTimeBlockRecordsCompanion
     if (plannedSeconds.present) {
       map['planned_seconds'] = Variable<int>(plannedSeconds.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -17380,6 +17539,7 @@ class PlannedTimeBlockRecordsCompanion
           ..write('startsAt: $startsAt, ')
           ..write('endsAt: $endsAt, ')
           ..write('plannedSeconds: $plannedSeconds, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -17726,6 +17886,735 @@ class PlannedBlockTimerLinksCompanion
   }
 }
 
+class $PlanningSyncConflictsTable extends PlanningSyncConflicts
+    with TableInfo<$PlanningSyncConflictsTable, PlanningSyncConflict> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlanningSyncConflictsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localPayloadJsonMeta = const VerificationMeta(
+    'localPayloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> localPayloadJson = GeneratedColumn<String>(
+    'local_payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remotePayloadJsonMeta = const VerificationMeta(
+    'remotePayloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> remotePayloadJson =
+      GeneratedColumn<String>(
+        'remote_payload_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _localVersionMeta = const VerificationMeta(
+    'localVersion',
+  );
+  @override
+  late final GeneratedColumn<String> localVersion = GeneratedColumn<String>(
+    'local_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteVersionMeta = const VerificationMeta(
+    'remoteVersion',
+  );
+  @override
+  late final GeneratedColumn<String> remoteVersion = GeneratedColumn<String>(
+    'remote_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('unresolved'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _resolvedAtMeta = const VerificationMeta(
+    'resolvedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+    'resolved_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _resolutionMeta = const VerificationMeta(
+    'resolution',
+  );
+  @override
+  late final GeneratedColumn<String> resolution = GeneratedColumn<String>(
+    'resolution',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    entityType,
+    entityId,
+    localPayloadJson,
+    remotePayloadJson,
+    localVersion,
+    remoteVersion,
+    status,
+    createdAt,
+    resolvedAt,
+    resolution,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'planning_sync_conflicts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlanningSyncConflict> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('local_payload_json')) {
+      context.handle(
+        _localPayloadJsonMeta,
+        localPayloadJson.isAcceptableOrUnknown(
+          data['local_payload_json']!,
+          _localPayloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localPayloadJsonMeta);
+    }
+    if (data.containsKey('remote_payload_json')) {
+      context.handle(
+        _remotePayloadJsonMeta,
+        remotePayloadJson.isAcceptableOrUnknown(
+          data['remote_payload_json']!,
+          _remotePayloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remotePayloadJsonMeta);
+    }
+    if (data.containsKey('local_version')) {
+      context.handle(
+        _localVersionMeta,
+        localVersion.isAcceptableOrUnknown(
+          data['local_version']!,
+          _localVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_localVersionMeta);
+    }
+    if (data.containsKey('remote_version')) {
+      context.handle(
+        _remoteVersionMeta,
+        remoteVersion.isAcceptableOrUnknown(
+          data['remote_version']!,
+          _remoteVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteVersionMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+        _resolvedAtMeta,
+        resolvedAt.isAcceptableOrUnknown(data['resolved_at']!, _resolvedAtMeta),
+      );
+    }
+    if (data.containsKey('resolution')) {
+      context.handle(
+        _resolutionMeta,
+        resolution.isAcceptableOrUnknown(data['resolution']!, _resolutionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PlanningSyncConflict map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlanningSyncConflict(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      localPayloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_payload_json'],
+      )!,
+      remotePayloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_payload_json'],
+      )!,
+      localVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_version'],
+      )!,
+      remoteVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_version'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      resolvedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}resolved_at'],
+      ),
+      resolution: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}resolution'],
+      ),
+    );
+  }
+
+  @override
+  $PlanningSyncConflictsTable createAlias(String alias) {
+    return $PlanningSyncConflictsTable(attachedDatabase, alias);
+  }
+}
+
+class PlanningSyncConflict extends DataClass
+    implements Insertable<PlanningSyncConflict> {
+  final String id;
+  final String userId;
+  final String entityType;
+  final String entityId;
+  final String localPayloadJson;
+  final String remotePayloadJson;
+  final String localVersion;
+  final String remoteVersion;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? resolvedAt;
+  final String? resolution;
+  const PlanningSyncConflict({
+    required this.id,
+    required this.userId,
+    required this.entityType,
+    required this.entityId,
+    required this.localPayloadJson,
+    required this.remotePayloadJson,
+    required this.localVersion,
+    required this.remoteVersion,
+    required this.status,
+    required this.createdAt,
+    this.resolvedAt,
+    this.resolution,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['local_payload_json'] = Variable<String>(localPayloadJson);
+    map['remote_payload_json'] = Variable<String>(remotePayloadJson);
+    map['local_version'] = Variable<String>(localVersion);
+    map['remote_version'] = Variable<String>(remoteVersion);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    if (!nullToAbsent || resolution != null) {
+      map['resolution'] = Variable<String>(resolution);
+    }
+    return map;
+  }
+
+  PlanningSyncConflictsCompanion toCompanion(bool nullToAbsent) {
+    return PlanningSyncConflictsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      localPayloadJson: Value(localPayloadJson),
+      remotePayloadJson: Value(remotePayloadJson),
+      localVersion: Value(localVersion),
+      remoteVersion: Value(remoteVersion),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      resolution: resolution == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolution),
+    );
+  }
+
+  factory PlanningSyncConflict.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlanningSyncConflict(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      localPayloadJson: serializer.fromJson<String>(json['localPayloadJson']),
+      remotePayloadJson: serializer.fromJson<String>(json['remotePayloadJson']),
+      localVersion: serializer.fromJson<String>(json['localVersion']),
+      remoteVersion: serializer.fromJson<String>(json['remoteVersion']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      resolution: serializer.fromJson<String?>(json['resolution']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'localPayloadJson': serializer.toJson<String>(localPayloadJson),
+      'remotePayloadJson': serializer.toJson<String>(remotePayloadJson),
+      'localVersion': serializer.toJson<String>(localVersion),
+      'remoteVersion': serializer.toJson<String>(remoteVersion),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'resolution': serializer.toJson<String?>(resolution),
+    };
+  }
+
+  PlanningSyncConflict copyWith({
+    String? id,
+    String? userId,
+    String? entityType,
+    String? entityId,
+    String? localPayloadJson,
+    String? remotePayloadJson,
+    String? localVersion,
+    String? remoteVersion,
+    String? status,
+    DateTime? createdAt,
+    Value<DateTime?> resolvedAt = const Value.absent(),
+    Value<String?> resolution = const Value.absent(),
+  }) => PlanningSyncConflict(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    localPayloadJson: localPayloadJson ?? this.localPayloadJson,
+    remotePayloadJson: remotePayloadJson ?? this.remotePayloadJson,
+    localVersion: localVersion ?? this.localVersion,
+    remoteVersion: remoteVersion ?? this.remoteVersion,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+    resolution: resolution.present ? resolution.value : this.resolution,
+  );
+  PlanningSyncConflict copyWithCompanion(PlanningSyncConflictsCompanion data) {
+    return PlanningSyncConflict(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      localPayloadJson: data.localPayloadJson.present
+          ? data.localPayloadJson.value
+          : this.localPayloadJson,
+      remotePayloadJson: data.remotePayloadJson.present
+          ? data.remotePayloadJson.value
+          : this.remotePayloadJson,
+      localVersion: data.localVersion.present
+          ? data.localVersion.value
+          : this.localVersion,
+      remoteVersion: data.remoteVersion.present
+          ? data.remoteVersion.value
+          : this.remoteVersion,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      resolvedAt: data.resolvedAt.present
+          ? data.resolvedAt.value
+          : this.resolvedAt,
+      resolution: data.resolution.present
+          ? data.resolution.value
+          : this.resolution,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlanningSyncConflict(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayloadJson: $localPayloadJson, ')
+          ..write('remotePayloadJson: $remotePayloadJson, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('remoteVersion: $remoteVersion, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolution: $resolution')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    entityType,
+    entityId,
+    localPayloadJson,
+    remotePayloadJson,
+    localVersion,
+    remoteVersion,
+    status,
+    createdAt,
+    resolvedAt,
+    resolution,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlanningSyncConflict &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.localPayloadJson == this.localPayloadJson &&
+          other.remotePayloadJson == this.remotePayloadJson &&
+          other.localVersion == this.localVersion &&
+          other.remoteVersion == this.remoteVersion &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.resolvedAt == this.resolvedAt &&
+          other.resolution == this.resolution);
+}
+
+class PlanningSyncConflictsCompanion
+    extends UpdateCompanion<PlanningSyncConflict> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> localPayloadJson;
+  final Value<String> remotePayloadJson;
+  final Value<String> localVersion;
+  final Value<String> remoteVersion;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> resolvedAt;
+  final Value<String?> resolution;
+  final Value<int> rowid;
+  const PlanningSyncConflictsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.localPayloadJson = const Value.absent(),
+    this.remotePayloadJson = const Value.absent(),
+    this.localVersion = const Value.absent(),
+    this.remoteVersion = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.resolution = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlanningSyncConflictsCompanion.insert({
+    required String id,
+    required String userId,
+    required String entityType,
+    required String entityId,
+    required String localPayloadJson,
+    required String remotePayloadJson,
+    required String localVersion,
+    required String remoteVersion,
+    this.status = const Value.absent(),
+    required DateTime createdAt,
+    this.resolvedAt = const Value.absent(),
+    this.resolution = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       localPayloadJson = Value(localPayloadJson),
+       remotePayloadJson = Value(remotePayloadJson),
+       localVersion = Value(localVersion),
+       remoteVersion = Value(remoteVersion),
+       createdAt = Value(createdAt);
+  static Insertable<PlanningSyncConflict> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? localPayloadJson,
+    Expression<String>? remotePayloadJson,
+    Expression<String>? localVersion,
+    Expression<String>? remoteVersion,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? resolvedAt,
+    Expression<String>? resolution,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (localPayloadJson != null) 'local_payload_json': localPayloadJson,
+      if (remotePayloadJson != null) 'remote_payload_json': remotePayloadJson,
+      if (localVersion != null) 'local_version': localVersion,
+      if (remoteVersion != null) 'remote_version': remoteVersion,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (resolution != null) 'resolution': resolution,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlanningSyncConflictsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? localPayloadJson,
+    Value<String>? remotePayloadJson,
+    Value<String>? localVersion,
+    Value<String>? remoteVersion,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? resolvedAt,
+    Value<String?>? resolution,
+    Value<int>? rowid,
+  }) {
+    return PlanningSyncConflictsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      localPayloadJson: localPayloadJson ?? this.localPayloadJson,
+      remotePayloadJson: remotePayloadJson ?? this.remotePayloadJson,
+      localVersion: localVersion ?? this.localVersion,
+      remoteVersion: remoteVersion ?? this.remoteVersion,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      resolution: resolution ?? this.resolution,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (localPayloadJson.present) {
+      map['local_payload_json'] = Variable<String>(localPayloadJson.value);
+    }
+    if (remotePayloadJson.present) {
+      map['remote_payload_json'] = Variable<String>(remotePayloadJson.value);
+    }
+    if (localVersion.present) {
+      map['local_version'] = Variable<String>(localVersion.value);
+    }
+    if (remoteVersion.present) {
+      map['remote_version'] = Variable<String>(remoteVersion.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (resolution.present) {
+      map['resolution'] = Variable<String>(resolution.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlanningSyncConflictsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('localPayloadJson: $localPayloadJson, ')
+          ..write('remotePayloadJson: $remotePayloadJson, ')
+          ..write('localVersion: $localVersion, ')
+          ..write('remoteVersion: $remoteVersion, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('resolution: $resolution, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -17781,6 +18670,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PlannedTimeBlockRecordsTable(this);
   late final $PlannedBlockTimerLinksTable plannedBlockTimerLinks =
       $PlannedBlockTimerLinksTable(this);
+  late final $PlanningSyncConflictsTable planningSyncConflicts =
+      $PlanningSyncConflictsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -17814,6 +18705,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     taskPlanVersionRecords,
     plannedTimeBlockRecords,
     plannedBlockTimerLinks,
+    planningSyncConflicts,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -28253,6 +29145,7 @@ typedef $$TaskEffortRecordsTableCreateCompanionBuilder =
       Value<int?> remainingSeconds,
       required String source,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$TaskEffortRecordsTableUpdateCompanionBuilder =
@@ -28263,6 +29156,7 @@ typedef $$TaskEffortRecordsTableUpdateCompanionBuilder =
       Value<int?> remainingSeconds,
       Value<String> source,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -28302,6 +29196,11 @@ class $$TaskEffortRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -28344,6 +29243,11 @@ class $$TaskEffortRecordsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TaskEffortRecordsTableAnnotationComposer
@@ -28376,6 +29280,9 @@ class $$TaskEffortRecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
 class $$TaskEffortRecordsTableTableManager
@@ -28424,6 +29331,7 @@ class $$TaskEffortRecordsTableTableManager
                 Value<int?> remainingSeconds = const Value.absent(),
                 Value<String> source = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskEffortRecordsCompanion(
                 taskId: taskId,
@@ -28432,6 +29340,7 @@ class $$TaskEffortRecordsTableTableManager
                 remainingSeconds: remainingSeconds,
                 source: source,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -28442,6 +29351,7 @@ class $$TaskEffortRecordsTableTableManager
                 Value<int?> remainingSeconds = const Value.absent(),
                 required String source,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskEffortRecordsCompanion.insert(
                 taskId: taskId,
@@ -28450,6 +29360,7 @@ class $$TaskEffortRecordsTableTableManager
                 remainingSeconds: remainingSeconds,
                 source: source,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28505,6 +29416,7 @@ typedef $$TaskPlanVersionRecordsTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<DateTime?> confirmedAt,
       Value<DateTime?> appliedAt,
+      Value<String> supersedesVersionIdsJson,
       Value<int> rowid,
     });
 typedef $$TaskPlanVersionRecordsTableUpdateCompanionBuilder =
@@ -28522,6 +29434,7 @@ typedef $$TaskPlanVersionRecordsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime?> confirmedAt,
       Value<DateTime?> appliedAt,
+      Value<String> supersedesVersionIdsJson,
       Value<int> rowid,
     });
 
@@ -28596,6 +29509,11 @@ class $$TaskPlanVersionRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get appliedAt => $composableBuilder(
     column: $table.appliedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supersedesVersionIdsJson => $composableBuilder(
+    column: $table.supersedesVersionIdsJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -28673,6 +29591,11 @@ class $$TaskPlanVersionRecordsTableOrderingComposer
     column: $table.appliedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get supersedesVersionIdsJson => $composableBuilder(
+    column: $table.supersedesVersionIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TaskPlanVersionRecordsTableAnnotationComposer
@@ -28732,6 +29655,11 @@ class $$TaskPlanVersionRecordsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get appliedAt =>
       $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get supersedesVersionIdsJson => $composableBuilder(
+    column: $table.supersedesVersionIdsJson,
+    builder: (column) => column,
+  );
 }
 
 class $$TaskPlanVersionRecordsTableTableManager
@@ -28793,6 +29721,7 @@ class $$TaskPlanVersionRecordsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> confirmedAt = const Value.absent(),
                 Value<DateTime?> appliedAt = const Value.absent(),
+                Value<String> supersedesVersionIdsJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskPlanVersionRecordsCompanion(
                 id: id,
@@ -28808,6 +29737,7 @@ class $$TaskPlanVersionRecordsTableTableManager
                 createdAt: createdAt,
                 confirmedAt: confirmedAt,
                 appliedAt: appliedAt,
+                supersedesVersionIdsJson: supersedesVersionIdsJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -28825,6 +29755,7 @@ class $$TaskPlanVersionRecordsTableTableManager
                 required DateTime createdAt,
                 Value<DateTime?> confirmedAt = const Value.absent(),
                 Value<DateTime?> appliedAt = const Value.absent(),
+                Value<String> supersedesVersionIdsJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskPlanVersionRecordsCompanion.insert(
                 id: id,
@@ -28840,6 +29771,7 @@ class $$TaskPlanVersionRecordsTableTableManager
                 createdAt: createdAt,
                 confirmedAt: confirmedAt,
                 appliedAt: appliedAt,
+                supersedesVersionIdsJson: supersedesVersionIdsJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -28892,6 +29824,7 @@ typedef $$PlannedTimeBlockRecordsTableCreateCompanionBuilder =
       required DateTime startsAt,
       required DateTime endsAt,
       required int plannedSeconds,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$PlannedTimeBlockRecordsTableUpdateCompanionBuilder =
@@ -28903,6 +29836,7 @@ typedef $$PlannedTimeBlockRecordsTableUpdateCompanionBuilder =
       Value<DateTime> startsAt,
       Value<DateTime> endsAt,
       Value<int> plannedSeconds,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -28991,6 +29925,11 @@ class $$PlannedTimeBlockRecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> plannedBlockTimerLinksRefs(
     Expression<bool> Function($$PlannedBlockTimerLinksTableFilterComposer f) f,
   ) {
@@ -29061,6 +30000,11 @@ class $$PlannedTimeBlockRecordsTableOrderingComposer
     column: $table.plannedSeconds,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PlannedTimeBlockRecordsTableAnnotationComposer
@@ -29096,6 +30040,9 @@ class $$PlannedTimeBlockRecordsTableAnnotationComposer
     column: $table.plannedSeconds,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   Expression<T> plannedBlockTimerLinksRefs<T extends Object>(
     Expression<T> Function($$PlannedBlockTimerLinksTableAnnotationComposer a) f,
@@ -29170,6 +30117,7 @@ class $$PlannedTimeBlockRecordsTableTableManager
                 Value<DateTime> startsAt = const Value.absent(),
                 Value<DateTime> endsAt = const Value.absent(),
                 Value<int> plannedSeconds = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlannedTimeBlockRecordsCompanion(
                 id: id,
@@ -29179,6 +30127,7 @@ class $$PlannedTimeBlockRecordsTableTableManager
                 startsAt: startsAt,
                 endsAt: endsAt,
                 plannedSeconds: plannedSeconds,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -29190,6 +30139,7 @@ class $$PlannedTimeBlockRecordsTableTableManager
                 required DateTime startsAt,
                 required DateTime endsAt,
                 required int plannedSeconds,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlannedTimeBlockRecordsCompanion.insert(
                 id: id,
@@ -29199,6 +30149,7 @@ class $$PlannedTimeBlockRecordsTableTableManager
                 startsAt: startsAt,
                 endsAt: endsAt,
                 plannedSeconds: plannedSeconds,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29595,6 +30546,384 @@ typedef $$PlannedBlockTimerLinksTableProcessedTableManager =
       PlannedBlockTimerLink,
       PrefetchHooks Function({bool plannedBlockId})
     >;
+typedef $$PlanningSyncConflictsTableCreateCompanionBuilder =
+    PlanningSyncConflictsCompanion Function({
+      required String id,
+      required String userId,
+      required String entityType,
+      required String entityId,
+      required String localPayloadJson,
+      required String remotePayloadJson,
+      required String localVersion,
+      required String remoteVersion,
+      Value<String> status,
+      required DateTime createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<String?> resolution,
+      Value<int> rowid,
+    });
+typedef $$PlanningSyncConflictsTableUpdateCompanionBuilder =
+    PlanningSyncConflictsCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String> localPayloadJson,
+      Value<String> remotePayloadJson,
+      Value<String> localVersion,
+      Value<String> remoteVersion,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime?> resolvedAt,
+      Value<String?> resolution,
+      Value<int> rowid,
+    });
+
+class $$PlanningSyncConflictsTableFilterComposer
+    extends Composer<_$AppDatabase, $PlanningSyncConflictsTable> {
+  $$PlanningSyncConflictsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPayloadJson => $composableBuilder(
+    column: $table.localPayloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remotePayloadJson => $composableBuilder(
+    column: $table.remotePayloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteVersion => $composableBuilder(
+    column: $table.remoteVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get resolution => $composableBuilder(
+    column: $table.resolution,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PlanningSyncConflictsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlanningSyncConflictsTable> {
+  $$PlanningSyncConflictsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPayloadJson => $composableBuilder(
+    column: $table.localPayloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remotePayloadJson => $composableBuilder(
+    column: $table.remotePayloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteVersion => $composableBuilder(
+    column: $table.remoteVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get resolution => $composableBuilder(
+    column: $table.resolution,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlanningSyncConflictsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlanningSyncConflictsTable> {
+  $$PlanningSyncConflictsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get localPayloadJson => $composableBuilder(
+    column: $table.localPayloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remotePayloadJson => $composableBuilder(
+    column: $table.remotePayloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get localVersion => $composableBuilder(
+    column: $table.localVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get remoteVersion => $composableBuilder(
+    column: $table.remoteVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get resolution => $composableBuilder(
+    column: $table.resolution,
+    builder: (column) => column,
+  );
+}
+
+class $$PlanningSyncConflictsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlanningSyncConflictsTable,
+          PlanningSyncConflict,
+          $$PlanningSyncConflictsTableFilterComposer,
+          $$PlanningSyncConflictsTableOrderingComposer,
+          $$PlanningSyncConflictsTableAnnotationComposer,
+          $$PlanningSyncConflictsTableCreateCompanionBuilder,
+          $$PlanningSyncConflictsTableUpdateCompanionBuilder,
+          (
+            PlanningSyncConflict,
+            BaseReferences<
+              _$AppDatabase,
+              $PlanningSyncConflictsTable,
+              PlanningSyncConflict
+            >,
+          ),
+          PlanningSyncConflict,
+          PrefetchHooks Function()
+        > {
+  $$PlanningSyncConflictsTableTableManager(
+    _$AppDatabase db,
+    $PlanningSyncConflictsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlanningSyncConflictsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PlanningSyncConflictsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PlanningSyncConflictsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> localPayloadJson = const Value.absent(),
+                Value<String> remotePayloadJson = const Value.absent(),
+                Value<String> localVersion = const Value.absent(),
+                Value<String> remoteVersion = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<String?> resolution = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlanningSyncConflictsCompanion(
+                id: id,
+                userId: userId,
+                entityType: entityType,
+                entityId: entityId,
+                localPayloadJson: localPayloadJson,
+                remotePayloadJson: remotePayloadJson,
+                localVersion: localVersion,
+                remoteVersion: remoteVersion,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                resolution: resolution,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String entityType,
+                required String entityId,
+                required String localPayloadJson,
+                required String remotePayloadJson,
+                required String localVersion,
+                required String remoteVersion,
+                Value<String> status = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<String?> resolution = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlanningSyncConflictsCompanion.insert(
+                id: id,
+                userId: userId,
+                entityType: entityType,
+                entityId: entityId,
+                localPayloadJson: localPayloadJson,
+                remotePayloadJson: remotePayloadJson,
+                localVersion: localVersion,
+                remoteVersion: remoteVersion,
+                status: status,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+                resolution: resolution,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PlanningSyncConflictsTable,
+                    PlanningSyncConflict
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PlanningSyncConflictsTable,
+                    PlanningSyncConflict
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlanningSyncConflictsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlanningSyncConflictsTable,
+      PlanningSyncConflict,
+      $$PlanningSyncConflictsTableFilterComposer,
+      $$PlanningSyncConflictsTableOrderingComposer,
+      $$PlanningSyncConflictsTableAnnotationComposer,
+      $$PlanningSyncConflictsTableCreateCompanionBuilder,
+      $$PlanningSyncConflictsTableUpdateCompanionBuilder,
+      (
+        PlanningSyncConflict,
+        BaseReferences<
+          _$AppDatabase,
+          $PlanningSyncConflictsTable,
+          PlanningSyncConflict
+        >,
+      ),
+      PlanningSyncConflict,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29683,4 +31012,6 @@ class $AppDatabaseManager {
         _db,
         _db.plannedBlockTimerLinks,
       );
+  $$PlanningSyncConflictsTableTableManager get planningSyncConflicts =>
+      $$PlanningSyncConflictsTableTableManager(_db, _db.planningSyncConflicts);
 }

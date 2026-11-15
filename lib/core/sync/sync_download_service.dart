@@ -306,8 +306,97 @@ class SyncDownloadExecutor {
                   (op.status.equals('pending') | op.status.equals('failed')),
             ))
             .get();
+    if (pending.isNotEmpty) {
+      final pendingVersion =
+          pending
+              .map(
+                (operation) =>
+                    '${operation.id}:${operation.updatedAt.toIso8601String()}',
+              )
+              .toList()
+            ..sort();
+      await _recordPlanningConflict(
+        table: table,
+        row: row,
+        userId: userId,
+        localVersion: pendingVersion.join(','),
+      );
+    }
     return pending.isNotEmpty;
   }
+
+  Future<void> _recordPlanningConflict({
+    required String table,
+    required Map<String, Object?> row,
+    required String userId,
+    required String localVersion,
+  }) async {
+    final entityType = table;
+    final entityId = switch (table) {
+      'task_effort_estimates' => _string(row, 'task_id'),
+      'task_plan_versions' || 'task_time_blocks' => _id(row),
+      'planned_block_timer_links' =>
+        '${_string(row, 'planned_block_id')}:${_string(row, 'timer_session_id')}',
+      _ => '',
+    };
+    if (entityId.isEmpty) return;
+    final local = await _localPlanningPayload(table, entityId, userId);
+    final remoteVersion =
+        '${row['sync_version'] ?? row['updated_at'] ?? row['created_at'] ?? 'unknown'}';
+    final conflictId =
+        '$userId|$entityType|$entityId|$localVersion|$remoteVersion';
+    final prior = await (_database.select(
+      _database.planningSyncConflicts,
+    )..where((conflict) => conflict.id.equals(conflictId))).getSingleOrNull();
+    if (prior != null) return;
+    await _database
+        .into(_database.planningSyncConflicts)
+        .insert(
+          PlanningSyncConflictsCompanion.insert(
+            id: conflictId,
+            userId: userId,
+            entityType: entityType,
+            entityId: entityId,
+            localPayloadJson: _encodeSafe(local ?? const {}),
+            remotePayloadJson: _encodeSafe(row),
+            localVersion: localVersion,
+            remoteVersion: remoteVersion,
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+  }
+
+  Future<Map<String, Object?>?> _localPlanningPayload(
+    String table,
+    String entityId,
+    String userId,
+  ) async {
+    final Object? record = switch (table) {
+      'task_effort_estimates' =>
+        await (_database.select(_database.taskEffortRecords)..where(
+              (r) => r.userId.equals(userId) & r.taskId.equals(entityId),
+            ))
+            .getSingleOrNull(),
+      'task_plan_versions' =>
+        await (_database.select(_database.taskPlanVersionRecords)
+              ..where((r) => r.userId.equals(userId) & r.id.equals(entityId)))
+            .getSingleOrNull(),
+      'task_time_blocks' =>
+        await (_database.select(_database.plannedTimeBlockRecords)
+              ..where((r) => r.userId.equals(userId) & r.id.equals(entityId)))
+            .getSingleOrNull(),
+      _ => null,
+    };
+    if (record == null) return null;
+    return (record as dynamic).toJson().cast<String, Object?>()
+        as Map<String, Object?>;
+  }
+
+  String _encodeSafe(Object value) => jsonEncode(
+    value,
+    toEncodable: (item) =>
+        item is DateTime ? item.toIso8601String() : item.toString(),
+  );
 
   Future<bool> _applyPlanningEffort(
     Map<String, Object?> row,
@@ -332,6 +421,7 @@ class SyncDownloadExecutor {
             remainingSeconds: Value(_intOrNull(row['remaining_seconds'])),
             source: _string(row, 'source'),
             updatedAt: _dateTime(row, 'updated_at'),
+            deletedAt: Value(_dateTimeOrNull(row, 'deleted_at')),
           ),
         );
     return true;
@@ -363,6 +453,9 @@ class SyncDownloadExecutor {
             endsOn: _string(row, 'ends_on'),
             status: _string(row, 'status'),
             idempotencyKey: _string(row, 'idempotency_key'),
+            supersedesVersionIdsJson: Value(
+              jsonEncode(row['supersedes_version_ids'] ?? const []),
+            ),
             createdAt: _dateTime(row, 'created_at'),
             confirmedAt: Value(_dateTimeOrNull(row, 'confirmed_at')),
             appliedAt: Value(_dateTimeOrNull(row, 'applied_at')),
@@ -390,9 +483,21 @@ class SyncDownloadExecutor {
         await (_database.select(_database.plannedTimeBlockRecords)
               ..where((r) => r.id.equals(id) & r.userId.equals(userId)))
             .getSingleOrNull();
-    // Time blocks are immutable after plan confirmation; a repeated download
-    // is idempotent and cannot replace a local row with cloud data.
-    if (existing != null) return false;
+    final remoteDeletedAt = _dateTimeOrNull(row, 'deleted_at');
+    if (existing != null) {
+      // Content is immutable, but a newer explicit tombstone must converge.
+      if (remoteDeletedAt != null &&
+          (existing.deletedAt == null ||
+              remoteDeletedAt.isAfter(existing.deletedAt!))) {
+        await (_database.update(
+          _database.plannedTimeBlockRecords,
+        )..where((r) => r.userId.equals(userId) & r.id.equals(id))).write(
+          PlannedTimeBlockRecordsCompanion(deletedAt: Value(remoteDeletedAt)),
+        );
+        return true;
+      }
+      return false;
+    }
     await _database
         .into(_database.plannedTimeBlockRecords)
         .insert(
@@ -404,6 +509,7 @@ class SyncDownloadExecutor {
             startsAt: _dateTime(row, 'starts_at'),
             endsAt: _dateTime(row, 'ends_at'),
             plannedSeconds: _int(row, 'planned_seconds'),
+            deletedAt: Value(remoteDeletedAt),
           ),
         );
     return true;
