@@ -72,4 +72,4 @@
 
 - [ ] Flutter outbox/download is verified with deterministic remote fakes, and PostgreSQL apply with isolated SQL fixtures; one automated test does not yet carry the same Drift data over real local Supabase REST into apply and back down.
 - [x] Full Flutter suite and Python suite pass; local Supabase migrations and SQL workflow script pass; focused Dart analysis, contract JSON parse and diff check pass.
-- [ ] Commit and push only verified in-scope paths on `codex/checkd-planning-delivery`; never merge or force push.
+- [x] Committed and pushed only the 14 verified in-scope paths on `codex/checkd-planning-delivery`; no merge or force push.
