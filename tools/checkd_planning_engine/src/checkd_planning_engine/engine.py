@@ -22,25 +22,39 @@ def _overlap(a: Block, b: Block) -> bool:
 
 
 def _busy_blocks(value: PlanningInput) -> list[Block]:
-    result = []
+    result: list[Block] = []
     for block in (*value.fixed_blocks, *value.unavailable, *value.existing_blocks):
+        _require_aware(block.starts_at, "busy block start")
+        _require_aware(block.ends_at, "busy block end")
         if block.ends_at <= block.starts_at:
             raise ValueError("busy block end must be after start")
         result.append(block)
     ordered = sorted(result, key=lambda x: x.starts_at)
-    for index, left in enumerate(ordered):
-        for right in ordered[index + 1:]:
-            if right.starts_at >= left.ends_at:
-                break
-            # Existing fixed overlaps are legal source data; both remain blocked.
-    return ordered
+    merged: list[Block] = []
+    for block in ordered:
+        if merged and block.starts_at <= merged[-1].ends_at:
+            prior = merged[-1]
+            merged[-1] = Block(prior.starts_at, max(prior.ends_at,block.ends_at),kind="merged_busy")
+        else:
+            merged.append(Block(block.starts_at,block.ends_at,block.task_id,block.kind))
+    return merged
+
+
+def _require_aware(value: datetime, label: str) -> None:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{label} must include timezone")
 
 
 def calculate_availability(value: PlanningInput, *, after: datetime | None = None) -> list[Block]:
+    _require_aware(value.now,"now")
+    _require_aware(value.horizon_end,"horizon_end")
+    if after is not None: _require_aware(after,"after")
+    if value.slot_minutes <= 0:
+        raise ValueError("slot_minutes must be positive")
     zone_now = after or value.now
     cursor = max(zone_now, value.now)
     quantum = timedelta(minutes=value.slot_minutes)
-    if value.slot_minutes <= 0 or value.horizon_end <= cursor:
+    if value.horizon_end <= cursor:
         return []
     busy = _busy_blocks(value)
     slots: list[Block] = []
@@ -60,18 +74,63 @@ def _serialize_block(task_id: str, start: datetime, end: datetime) -> dict:
 
 def generate_schedule(value: PlanningInput, *, delayed_task_id: str | None = None,
                       delayed_until: datetime | None = None) -> ScheduleResult:
+    _require_aware(value.now,"now")
+    _require_aware(value.horizon_end,"horizon_end")
+    if value.horizon_end < value.now:
+        raise ValueError("horizon_end must not precede now")
+    if value.slot_minutes <= 0:
+        raise ValueError("slot_minutes must be positive")
+    for task in value.tasks:
+        _require_aware(task.earliest_start,"task earliest_start")
+        if task.priority < 0 or task.priority > 10:
+            raise ValueError("task priority must be between 0 and 10")
+        if task.minimum_rest_minutes < 0:
+            raise ValueError("minimum_rest_minutes must not be negative")
+        if task.maximum_continuous_minutes is not None:
+            if task.maximum_continuous_minutes <= 0:
+                raise ValueError("maximum_continuous_minutes must be positive")
+            if task.maximum_continuous_minutes < task.minimum_block_minutes:
+                raise ValueError("maximum continuous time is shorter than minimum block")
+    ids = [task.task_id for task in value.tasks]
+    if len(ids) != len(set(ids)):
+        raise ValueError("task IDs must be unique")
     slots = calculate_availability(value)
     quantum = timedelta(minutes=value.slot_minutes)
     placed: list[dict] = []
     unplanned: list[dict] = []
-    # EDF tie-breaks deterministically by task_id.
-    tasks = sorted(value.tasks, key=lambda t: (deadline_instant(t.deadline, value.timezone), t.task_id))
-    for task in tasks:
+    task_map = {task.task_id:task for task in value.tasks}
+    pending = set(task_map)
+    completed: dict[str,datetime] = {}
+    failed: set[str] = set()
+    for task in value.tasks:
+        if any(dep not in task_map for dep in task.depends_on):
+            unplanned.append({"task_id":task.task_id,"reason":"unknown_dependency"})
+            pending.discard(task.task_id)
+            failed.add(task.task_id)
+    while pending:
+        ready = [task_map[key] for key in pending
+                 if set(task_map[key].depends_on) <= (set(completed)|failed)]
+        if not ready:
+            for key in sorted(pending):
+                unplanned.append({"task_id":key,"reason":"dependency_cycle_or_missing_dependency"})
+            break
+        # An explicit scheduling priority is a top-level preference; EDF orders
+        # tasks within that priority, followed by task ID for deterministic ties.
+        task = min(ready,key=lambda t:(-t.priority,deadline_instant(t.deadline,value.timezone),t.task_id))
+        pending.remove(task.task_id)
+        if any(dep in failed for dep in task.depends_on):
+            unplanned.append({"task_id":task.task_id,"reason":"dependency_unplanned"})
+            failed.add(task.task_id)
+            continue
         if task.remaining_seconds <= 0 or task.minimum_block_minutes <= 0:
             unplanned.append({"task_id": task.task_id, "reason": "invalid_effort_or_minimum_block"})
+            failed.add(task.task_id)
             continue
         earliest = task.earliest_start
+        if task.depends_on:
+            earliest = max(earliest,*(completed[dep] for dep in task.depends_on))
         if delayed_task_id == task.task_id and delayed_until:
+            _require_aware(delayed_until,"delayed_until")
             earliest = max(earliest, delayed_until)
         deadline = deadline_instant(task.deadline, value.timezone)
         eligible = [s for s in slots if s.starts_at >= earliest and s.ends_at <= deadline]
@@ -84,29 +143,54 @@ def generate_schedule(value: PlanningInput, *, delayed_task_id: str | None = Non
                 if run and slot.starts_at != run[-1].ends_at:
                     run = []
                 run.append(slot)
-                if len(run) >= need_slots:
+                if len(run) >= need_slots and (task.maximum_continuous_minutes is None or need_slots <= (task.maximum_continuous_minutes+value.slot_minutes-1)//value.slot_minutes):
                     chosen = run[:need_slots]
                     break
         else:
             remaining = need_slots
-            # Pack contiguous runs, preserving minimum block size except the final remainder.
+            max_slots = (task.maximum_continuous_minutes + value.slot_minutes - 1) // value.slot_minutes if task.maximum_continuous_minutes else None
             index = 0
             while index < len(eligible) and remaining:
                 run = [eligible[index]]
                 index += 1
                 while index < len(eligible) and eligible[index].starts_at == run[-1].ends_at:
                     run.append(eligible[index]); index += 1
-                take = min(remaining, len(run))
-                if take >= min(min_slots, remaining):
-                    chosen.extend(run[:take]); remaining -= take
+                offset = 0
+                while offset < len(run) and remaining:
+                    capacity = min(len(run)-offset,max_slots or len(run))
+                    take = min(remaining,capacity)
+                    if take < min(min_slots,remaining):
+                        break
+                    chosen.extend(run[offset:offset+take])
+                    remaining -= take
+                    offset += take
+                    if remaining and max_slots is not None and take == max_slots:
+                        rest_slots = (task.minimum_rest_minutes + value.slot_minutes - 1)//value.slot_minutes
+                        if rest_slots == 0:
+                            break
+                        offset += rest_slots
             if remaining:
                 chosen = []
         if not chosen:
             unplanned.append({"task_id": task.task_id, "reason": "no_slot_found_within_constraints"})
+            failed.add(task.task_id)
             continue
+        left = task.remaining_seconds
+        groups: list[list[Block]] = []
         for slot in chosen:
-            placed.append(_serialize_block(task.task_id, slot.starts_at, slot.ends_at))
-            slots.remove(slot)
+            if groups and groups[-1][-1].ends_at == slot.starts_at:
+                groups[-1].append(slot)
+            else:
+                groups.append([slot])
+        for group in groups:
+            capacity = sum(slot.seconds for slot in group)
+            duration = min(capacity,left)
+            end = group[0].starts_at + timedelta(seconds=duration)
+            placed.append(_serialize_block(task.task_id,group[0].starts_at,end))
+            left -= duration
+            for slot in group:
+                slots.remove(slot)
+        completed[task.task_id] = max(datetime.fromisoformat(block["ends_at"]) for block in placed if block["task_id"] == task.task_id)
     return ScheduleResult("feasible" if not unplanned else "partial", not unplanned, placed, unplanned, True)
 
 
@@ -132,7 +216,8 @@ def simulate_delay(value: PlanningInput, task_id: str, delayed_until: datetime) 
     delayed_input = PlanningInput(value.now, value.horizon_end, value.timezone,
         tuple(Task(t.task_id,t.remaining_seconds,t.deadline,
                    max(t.earliest_start, delayed_until) if t.task_id == task_id else t.earliest_start,
-                   t.splittable,t.minimum_block_minutes,t.effort_confidence) for t in value.tasks),
+                   t.splittable,t.minimum_block_minutes,t.effort_confidence,t.priority,
+                   t.maximum_continuous_minutes,t.minimum_rest_minutes,t.depends_on) for t in value.tasks),
         value.fixed_blocks,value.unavailable,value.existing_blocks,value.slot_minutes,value.preferences)
     after_slack = calculate_slack(delayed_input, target, earliest_start=delayed_until)["slack_seconds"]
     return {"task_id": task_id, "delayed_until": delayed_until.isoformat(), "before_feasible": before.feasible,

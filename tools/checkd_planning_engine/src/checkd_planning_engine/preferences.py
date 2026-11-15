@@ -8,14 +8,17 @@ from datetime import datetime, timedelta
 class Preference:
     key: str
     value: object
-    provenance: str  # explicit | inferred | user_confirmed
+    provenance: str  # explicit | inferred | user_confirmed | default | contextual
     hard_constraint: bool = False
+    category: str = "default"  # hard_rule | default | contextual | leisure_balance
 
     def __post_init__(self):
-        if self.provenance not in {"explicit", "inferred", "user_confirmed"}:
+        if self.provenance not in {"explicit", "inferred", "user_confirmed", "default", "contextual"}:
             raise ValueError("invalid preference provenance")
-        if self.provenance == "inferred" and self.hard_constraint:
-            raise ValueError("inferred preference cannot become a hard constraint")
+        if self.category not in {"hard_rule", "default", "contextual", "leisure_balance"}:
+            raise ValueError("invalid preference category")
+        if self.hard_constraint and not (self.provenance in {"explicit", "user_confirmed"} and self.category == "hard_rule"):
+            raise ValueError("only explicit or confirmed hard rules may constrain planning")
 
 
 STYLES={"gentle":"可以稍作调整，我们先看看剩余空间。",
@@ -32,14 +35,29 @@ def render_risk(risk: dict, style: str) -> dict:
 class InterventionPolicy:
     cooldown: timedelta = timedelta(hours=12)
     daily_limit: int = 3
-    last_sent: dict[str,datetime] = field(default_factory=dict)
-    sent_today: dict[str,int] = field(default_factory=dict)
-    ignored: set[str] = field(default_factory=set)
+    last_sent: dict[tuple[str,str],datetime] = field(default_factory=dict)
+    sent_today: dict[tuple[str,str],int] = field(default_factory=dict)
+    ignored: set[tuple[str,str]] = field(default_factory=set)
+    rest_until: dict[str,datetime] = field(default_factory=dict)
 
     def should_notify(self, user_id: str, risk_key: str, now: datetime) -> bool:
-        if risk_key in self.ignored or self.sent_today.get(user_id,0)>=self.daily_limit: return False
-        prior=self.last_sent.get(risk_key)
+        local_day = now.date().isoformat()
+        if (user_id,risk_key) in self.ignored or self.sent_today.get((user_id,local_day),0)>=self.daily_limit: return False
+        if self.rest_until.get(user_id) and now < self.rest_until[user_id]: return False
+        prior=self.last_sent.get((user_id,risk_key))
         return prior is None or now-prior>=self.cooldown
 
     def record(self,user_id:str,risk_key:str,now:datetime):
-        self.last_sent[risk_key]=now; self.sent_today[user_id]=self.sent_today.get(user_id,0)+1
+        local_day = now.date().isoformat()
+        self.last_sent[(user_id,risk_key)]=now
+        key = (user_id,local_day)
+        self.sent_today[key]=self.sent_today.get(key,0)+1
+
+    def choose_rest(self,user_id:str,until:datetime):
+        self.rest_until[user_id]=until
+
+    def ignore(self,user_id:str,risk_key:str):
+        self.ignored.add((user_id,risk_key))
+
+    def unignore(self,user_id:str,risk_key:str):
+        self.ignored.discard((user_id,risk_key))

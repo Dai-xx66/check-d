@@ -1,5 +1,4 @@
 import unittest
-from datetime import date
 from checkd_planning_engine.importer import assert_snapshot_current, import_snapshot
 from checkd_planning_engine.engine import generate_schedule
 
@@ -8,7 +7,7 @@ class ImportTests(unittest.TestCase):
  def test_pending_sync_retains_snapshot_and_unknown_effort(self):
   snap=import_snapshot(BASE)
   self.assertTrue(snap.provisional); self.assertFalse(snap.effort_known); self.assertEqual(snap.version,'v1')
-  self.assertTrue(snap.planning_input.tasks[0].deadline==date(2026,11,14))
+  self.assertEqual(snap.unknown_effort_task_ids,('t1',)); self.assertEqual(snap.planning_input.tasks,())
  def test_user_id_spoofing_rejected_and_digest_changes(self):
   bad=dict(BASE,user_id='victim')
   with self.assertRaises(ValueError): import_snapshot(bad)
@@ -16,6 +15,21 @@ class ImportTests(unittest.TestCase):
  def test_resolved_occurrence_is_used_as_block(self):
   snap=import_snapshot(BASE); result=generate_schedule(snap.planning_input)
   self.assertFalse(any('10:00:00' in b['starts_at'] for b in result.blocks))
+ def test_missing_deadline_is_reported_not_crashed(self):
+  row=dict(BASE['tasks'][0],remaining_seconds=1800,deadline_date=None,deadline_at=None)
+  snap=import_snapshot(dict(BASE,tasks=[row]))
+  self.assertEqual(snap.missing_deadline_task_ids,('t1',)); self.assertEqual(snap.planning_input.tasks,())
+ def test_existing_exact_plan_is_reserved_when_effort_is_known(self):
+  row=dict(BASE['tasks'][0],remaining_seconds=1800,planned_at='2026-11-14T10:00:00+08:00')
+  snap=import_snapshot(dict(BASE,tasks=[row]))
+  self.assertEqual(snap.existing_plan_task_ids,('t1',)); self.assertEqual(snap.planning_input.tasks,())
+  self.assertEqual(snap.planning_input.fixed_blocks[0].kind,'existing_task_plan')
+  self.assertEqual(snap.planning_input.fixed_blocks[0].seconds,1800)
+ def test_existing_exact_plan_with_unknown_effort_is_not_guessed(self):
+  row=dict(BASE['tasks'][0],planned_at='2026-11-14T10:00:00+08:00')
+  snap=import_snapshot(dict(BASE,tasks=[row]))
+  self.assertEqual(snap.existing_plan_needing_effort_task_ids,('t1',))
+  self.assertEqual(snap.planning_input.tasks,())
  def test_provisional_or_changed_version_cannot_reuse_proposal(self):
   snap=import_snapshot(BASE)
   with self.assertRaises(RuntimeError): assert_snapshot_current(snap,subject_ref='anon-A',version='v1',sync_state='current')

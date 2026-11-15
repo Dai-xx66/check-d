@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from hashlib import sha256
 import json
 
+from .models import deadline_instant
+
 
 def evaluate_risks(tasks: list[dict], *, evaluated_at: datetime, buffer_threshold_seconds: int = 3600,
-                   consecutive_misses: dict[str, int] | None = None) -> list[dict]:
+                   consecutive_misses: dict[str, int] | None = None,
+                   timezone: str = "Asia/Shanghai") -> list[dict]:
     risks=[]
     for task in tasks:
         due=task.get("deadline")
-        due_at=due if isinstance(due,datetime) else None
+        due_at = (due if isinstance(due, datetime) else
+                  deadline_instant(due,timezone) if isinstance(due,date) else None)
         reasons=[]
-        if task.get("available_capacity_seconds",0) < task.get("remaining_seconds",0):
+        remaining = task.get("remaining_seconds")
+        capacity = task.get("available_capacity_seconds")
+        if (isinstance(remaining, int) and isinstance(capacity, int)
+                and capacity < remaining):
             reasons.append(("capacity_insufficient","high"))
         if task.get("planned_at") and task.get("planned_at") < evaluated_at and not task.get("completed",False):
             reasons.append(("plan_missed","medium"))

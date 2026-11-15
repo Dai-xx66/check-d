@@ -14,6 +14,10 @@ class Task:
     splittable: bool = True
     minimum_block_minutes: int = 30
     effort_confidence: float | None = None
+    priority: int = 0
+    maximum_continuous_minutes: int | None = None
+    minimum_rest_minutes: int = 0
+    depends_on: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -32,6 +32,17 @@ class SemesterRepository {
     yield* query.watch().map(map);
   }
 
+  Future<List<SemesterDetails>> loadSemesters() async {
+    final rows = await (_database.select(_database.semesterRecords)
+          ..where((row) => row.userId.equals(_userId) & row.deletedAt.isNull())
+          ..orderBy([
+            (row) => OrderingTerm.desc(row.isCurrent),
+            (row) => OrderingTerm.desc(row.firstWeekStartDate),
+          ]))
+        .get();
+    return rows.map(_toDetails).toList(growable: false);
+  }
+
   Stream<SemesterDetails?> watchCurrentSemester() {
     final query = _database.select(_database.semesterRecords)
       ..where(

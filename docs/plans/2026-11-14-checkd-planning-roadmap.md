@@ -1,15 +1,29 @@
 # CheckD 规划系统 M0–M8 路线图
 
-| 里程碑 | 状态/工作 | 依赖与验收 | 数据库/Flutter/MCP 影响 | 批准与风险 |
-|---|---|---|---|---|
-| M0 契约冻结 | 当前候选 DTO、错误码、OAuth 主体边界评审 | M1/M2/M3 和安全评审签字；JSON Schema 校验 | 无生产变更 | P0；审批、版本原子性未决 |
-| M1 规划数据层 | effort、plan version、time block、proposal 表设计及本地迁移草案 | RLS 双用户测试、回滚与旧客户端兼容 | 需要新表和同步 DTO；Flutter 增量同步 | P0；需人工批准 Production Migration/RLS |
-| M2 课程约束适配 | Flutter occurrence builder 生成带来源的只读快照 | 周期、单双周、调课、补课、停课对照测试 | Flutter 新适配器；无课程主表改造 | P0；课程规则变更并发风险 |
-| M3 排程引擎 | 将离线 EDF 原型升级为受约束求解并接真实快照 | 边界/性能/对照测试，失败不冒称无解 | 规划服务；读接口 | P0；最优性与时长可信度 |
-| M4 延迟风险与补排 | slack、latest-start、风险事实、最小扰动提案 | 延期模拟基准集、用户可解释证据 | 风险/提案同步；只读 MCP | P1；干预打扰风险 |
-| M5 事件与扫描 | 云端持久队列、租约、重试、去重、逐用户扫描 | 重启、并发、过期快照、撤权测试 | Worker/Edge Function 与事件表 | P1；需平台调度及运维批准 |
-| M6 WorkBuddy 总控 Agent | OAuth 绑定、上下文读取、只读分析工具 | A/B 两账号隔离、撤销、过期实测 | Connector/远程 Streamable HTTP MCP | P0；WorkBuddy 平台能力/审核未验证 |
-| M7 审批与真实写入 | 一次性审批、事务版本检查、白名单应用与回读 | 双用户越权、重放、冲突、恢复端到端 | 服务端写 API、RLS/事务实现 | P0；需人工批准生产写服务和 schema |
-| M8 反调官与偏好 | 冷却、日限额、忽略、显式/推断偏好隔离 | 事实跨风格一致、无推断硬约束 | 私人偏好/记忆存储 | P2；隐私、解释和用户控制 |
+状态定义：**原型实现**表示代码存在；**本地验证**表示隔离自动化测试通过；**Flutter 集成**表示可由 App provider 调用；**云端连接**表示服务端真实数据入口已运行；**生产验证**表示已获准完成双用户及恢复验证。后两者当前均未达成。
 
-目前仅 M0 部分设计、离线原型模块与本地事件存储原型已编码；其余生产里程碑未实现。所有生产 schema、RLS、公开部署、OAuth Connector 审核均须后续授权。
+| 里程碑 | 当前状态 | 已验证的交付 | 尚缺内容与依赖 | 风险/批准边界 |
+|---|---|---|---|---|
+| M0 契约冻结 | 候选设计；未冻结 | `agent-planning-v0.json` 定义候选读写工具与主体边界 | M1/M2/M3 联合评审、错误/状态完整校验、最终冻结 | 生产授权和事务语义仍阻塞 |
+| M1 规划数据层 | 本地原型 + 本地验证 | DTO、user-scoped 数据及新建 sync-aware `TrustedSnapshotStore` 测试；无正式新表 | 接入真实 Drift outbox 水位、服务端云快照读取、正式服务端版本 | 需人工批准任何 Production Migration/RLS |
+| M2 课程与任务适配 | Flutter 集成（只读本地） | `planningSnapshotProvider` → Drift Context → canonical calendar builder → JSON；内存 Drift/双用户/课程例外测试 | 实际设备库验收、跨端同步水位、完整实时数据确认 | 全部结果暂定、不可执行 |
+| M3 排程引擎 | 原型实现 + 本地验证 | EDF、时区、课程占用、固定占用、优先级、依赖、最大连续时段、延期、性质/小型穷举测试 | 更大规模基准、用户目标/约束来源、独立求解器对照 | 启发式失败不是数学无解 |
+| M4 延期与风险 | 原型实现 + 本地验证 | 延期分析、容量/截止/缓冲风险、风险版本更新、提醒冷却与日限额 | Flutter UI、真实通知渠道、实际剩余工时 | 通知当前仅为本地待办 |
+| M5 事件与扫描 | 本地持久原型 + 本地验证 | SQLite 租约、重试、幂等、崩溃恢复、逐用户风险和通知 outbox | 云端 Worker、调度器、监控、保留策略、可用性设计 | SQLite 不是跨设备/生产服务 |
+| M6 WorkBuddy Agent | 本地 Streamable HTTP 骨架 + 协议/边界测试；未接入 WorkBuddy | 只读四工具 loopback 服务、bearer 验证接口、跨用户 subject 绑定测试；官方 Connector 路径已查证 | OAuth AS/CheckD Auth 绑定、工作区 Connector 注册/审核、目标租户/版本/分享/撤权实测、部署审批 | 测试 HMAC issuer 不是 OAuth；未部署、未连接 WorkBuddy |
+| M7 审批与真实写入 | 本地 SQLite 事务模拟 + 本地验证 | 用户/提案/快照版本/变更绑定，一次性测试凭据、幂等、过期、审计、可注入事务回滚、只读回读恢复 | PostgreSQL 原子 compare-and-apply、正式授权服务、真实 CheckD allowlist、权威云端 readback | 只改变临时测试库里的模拟 cloud payload，不访问 CheckD 数据 |
+| M8 反调官与偏好 | 本地策略原型 + 本地验证 | Gentle/Balanced/Direct 共用事实；偏好来源；休息冷却、每日上限、忽略、休闲平衡 | 持久化偏好产品 UI、用户研究、渠道送达 | 推断偏好不能成为硬约束 |
+
+## 本轮状态
+
+- **已接入 Flutter：** 本地只读规划快照有 Riverpod provider，来源为当前 App owner 对应的 user-scoped Drift Repository。没有新增页面入口，也没有连接云端规划服务。
+- **已连接云端：** 无。`TrustedSnapshotStore` 仅在测试数据库模拟服务端 revision 与同步水位；Supabase 服务端可信快照、服务端版本/水位和 MCP OAuth API 均未运行。
+- **多用户认证：** 未完成。HTTP skeleton 使用测试 issuer 验证主体映射，SQLite Principal 是显式 local-test seam；均不是 OAuth、Supabase JWT 验证或生产隔离证据。
+- **审批写入能力：** 未完成。新 `TrustedSnapshotStore` 在隔离 SQLite 中模拟一个原子版本比较和测试用 allowlist 变更；不是 CheckD 业务写入。模拟器可在故障前回滚事务，但真实 PostgreSQL 事务和权威回读未实现。
+- **生产安全验证：** 未完成。未访问 Production、未执行 SQL/Migration/RLS，也未部署或修改 WorkBuddy 生产专家。
+
+## 推荐生产前置顺序
+
+1. 在 Flutter 暴露事务一致、带用户身份与 dirty-range/outbox watermark 的版本化只读快照；先在脱敏设备夹具验证本地与云端差异。
+2. 建立 CheckD Auth OAuth 授权码绑定与可撤销服务端 session，并以两位测试用户验证 MCP 每请求身份传播；WorkBuddy Connector 版本/租户/分享能力需先实机验证。
+3. 将本地 `TrustedSnapshotStore` 语义迁移到隔离 PostgreSQL 测试库，验证事务、锁竞争、幂等及回读；由真实 OAuth principal 与服务端生成快照后，再经安全评审及人工批准讨论 Production Migration/RLS/部署。

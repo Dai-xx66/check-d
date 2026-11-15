@@ -1,3 +1,4 @@
+import '../../../features/calendar/domain/calendar_models.dart';
 import '../../../features/calendar/domain/calendar_occurrence_builder.dart';
 import '../../../features/courses/domain/course_models.dart';
 import '../../../features/schedule/domain/day_schedule_models.dart';
@@ -23,7 +24,12 @@ class PlanningSnapshotAdapter {
     required List<DailyItemOverride> overrides,
     List<ScheduleTemplateDetails> templates = const [],
     List<SemesterDetails> semesters = const [],
+    List<CalendarOccurrence>? resolvedCourseOccurrences,
     Map<String, int?> remainingSecondsByTask = const {},
+    List<Map<String, Object?>> occupiedBlocks = const [],
+    List<Map<String, Object?>> timerFacts = const [],
+    List<Map<String, Object?>> recurringOccurrences = const [],
+    List<String> unmodeledRecurringOccurrenceIds = const [],
     int minimumBlockMinutes = 30,
   }) {
     if (subjectRef.isEmpty || version.isEmpty) {
@@ -32,19 +38,25 @@ class PlanningSnapshotAdapter {
     if (!{'current', 'pending_local_changes', 'unknown'}.contains(syncState)) {
       throw ArgumentError.value(syncState, 'syncState');
     }
-    final occurrences = buildCourseOccurrencesForDate(
-      date: date,
-      courses: courses,
-      overrides: overrides,
-      templates: templates,
-      semesters: semesters,
-    );
+    final occurrences =
+        resolvedCourseOccurrences ??
+        buildCourseOccurrencesForDate(
+          date: date,
+          courses: courses,
+          overrides: overrides,
+          templates: templates,
+          semesters: semesters,
+        );
     final busy = <Map<String, Object?>>[];
     for (final occurrence in occurrences) {
       final start = occurrence.startMinute;
       final end = occurrence.endMinute;
       if (start == null || end == null || end <= start) continue;
-      final day = DateTime(date.year, date.month, date.day);
+      final day = DateTime(
+        occurrence.date.year,
+        occurrence.date.month,
+        occurrence.date.day,
+      );
       busy.add({
         'source_id': occurrence.id,
         'kind': 'course',
@@ -59,7 +71,6 @@ class PlanningSnapshotAdapter {
           task.status != TaskLifecycle.active) {
         continue;
       }
-      final deadline = task.deadline;
       taskDtos.add({
         'task_id': task.id,
         'name': task.name,
@@ -72,20 +83,18 @@ class PlanningSnapshotAdapter {
                 remainingSecondsByTask[task.id] != null
             ? 'known'
             : 'unknown',
+        // The committed TaskDetails model has only the existing one-time
+        // scheduledAt value. It does not expose date-only deadline or
+        // available-from metadata, so preserve those as unknown/null.
+        'earliest_start': now.toUtc().toIso8601String(),
         'effort_source': remainingSecondsByTask[task.id] == null
             ? null
             : 'provided_snapshot',
         'planned_at': task.scheduledAt?.toUtc().toIso8601String(),
-        'planned_date': task.plannedDate == null
-            ? null
-            : _dateOnly(task.plannedDate!),
-        'available_from': task.availableFrom == null
-            ? null
-            : _dateOnly(task.availableFrom!),
-        'deadline_date': deadline?.date == null
-            ? null
-            : _dateOnly(deadline!.date!),
-        'deadline_at': deadline?.at?.toUtc().toIso8601String(),
+        'planned_date': null,
+        'available_from': null,
+        'deadline_date': null,
+        'deadline_at': null,
         'updated_at': task.updatedAt.toUtc().toIso8601String(),
       });
     }
@@ -104,7 +113,10 @@ class PlanningSnapshotAdapter {
       'horizon_end': horizonEnd.toUtc().toIso8601String(),
       'tasks': taskDtos,
       'course_occurrences': busy,
-      'occupied_blocks': const <Map<String, Object?>>[],
+      'occupied_blocks': occupiedBlocks,
+      'timer_facts': timerFacts,
+      'recurring_occurrences': recurringOccurrences,
+      'unmodeled_recurring_occurrence_ids': unmodeledRecurringOccurrenceIds,
       'unknown_effort_task_ids': taskDtos
           .where((t) => t['remaining_seconds'] == null)
           .map((t) => t['task_id'])
@@ -112,9 +124,11 @@ class PlanningSnapshotAdapter {
     };
   }
 
-  static DateTime _localMinute(DateTime day, int minute) =>
-      DateTime(day.year, day.month, day.day).add(Duration(minutes: minute));
-
-  static String _dateOnly(DateTime value) =>
-      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+  static DateTime _localMinute(DateTime day, int minute) => DateTime.utc(
+    day.year,
+    day.month,
+    day.day,
+    0,
+    minute,
+  ).subtract(const Duration(hours: 8));
 }

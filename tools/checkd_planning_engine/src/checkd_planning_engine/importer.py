@@ -6,7 +6,7 @@ The future adapter must obtain principal and consistency metadata server-side.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from hashlib import sha256
 import json
 from typing import Any
@@ -25,6 +25,10 @@ class Snapshot:
     planning_input: PlanningInput
     digest: str
     provisional: bool
+    unknown_effort_task_ids: tuple[str, ...] = ()
+    missing_deadline_task_ids: tuple[str, ...] = ()
+    existing_plan_task_ids: tuple[str, ...] = ()
+    existing_plan_needing_effort_task_ids: tuple[str, ...] = ()
 
 
 def assert_snapshot_current(snapshot: Snapshot, *, subject_ref: str, version: str, sync_state: str) -> None:
@@ -45,18 +49,45 @@ def import_snapshot(payload: dict[str, Any]) -> Snapshot:
         out=datetime.fromisoformat(v.replace("Z","+00:00"))
         if out.tzinfo is None: raise ValueError("timestamps must have UTC offset")
         return out
-    tasks=[]; effort_known=True
+    tasks=[]; unknown_effort=[]; missing_deadline=[]
+    existing_plan=[]; existing_plan_needs_effort=[]; busy=[]
     for row in payload["tasks"]:
         remaining=row.get("remaining_seconds")
-        if remaining is None: effort_known=False
-        tasks.append(Task(row["task_id"], remaining if remaining is not None else 0,
-            date.fromisoformat(row["deadline_date"]) if row.get("deadline_date") else instant(row["deadline_at"]),
-            instant(row["earliest_start"]), bool(row.get("splittable",True)),int(row.get("minimum_block_minutes",30)),row.get("effort_confidence")))
-    busy=[]
+        deadline = (
+            date.fromisoformat(row["deadline_date"])
+            if row.get("deadline_date")
+            else instant(row["deadline_at"])
+            if row.get("deadline_at")
+            else None
+        )
+        planned_at = instant(row["planned_at"]) if row.get("planned_at") else None
+        if deadline is None and planned_at is None:
+            missing_deadline.append(row["task_id"])
+        if remaining is None:
+            unknown_effort.append(row["task_id"])
+            if planned_at is not None:
+                existing_plan_needs_effort.append(row["task_id"])
+            continue
+        if planned_at is not None:
+            busy.append(Block(
+                planned_at,
+                planned_at + timedelta(seconds=remaining),
+                row["task_id"],
+                "existing_task_plan",
+            ))
+            existing_plan.append(row["task_id"])
+            continue
+        if deadline is None:
+            continue
+        tasks.append(Task(row["task_id"], remaining, deadline,
+            instant(row["earliest_start"]), bool(row.get("splittable",True)),
+            int(row.get("minimum_block_minutes",30)),row.get("effort_confidence"),
+            int(row.get("priority",0)),row.get("maximum_continuous_minutes"),
+            int(row.get("minimum_rest_minutes",0)),tuple(row.get("depends_on",()))))
     for row in [*payload["course_occurrences"],*payload["occupied_blocks"]]:
         busy.append(Block(instant(row["starts_at"]),instant(row["ends_at"]),row.get("task_id"),row.get("kind","course")))
     normalized={k:v for k,v in payload.items() if k!="display_names"}
     digest=sha256(json.dumps(normalized,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
     planning=PlanningInput(instant(payload["now"]),instant(payload["horizon_end"]),payload["timezone"],tuple(tasks),tuple(busy))
     captured=instant(payload["captured_at"])
-    return Snapshot(payload["subject_ref"],payload["source"],captured,payload["version"],payload["sync_state"],effort_known,planning,digest,payload["sync_state"]!="current")
+    return Snapshot(payload["subject_ref"],payload["source"],captured,payload["version"],payload["sync_state"],not unknown_effort,planning,digest,payload["sync_state"]!="current",tuple(unknown_effort),tuple(missing_deadline),tuple(existing_plan),tuple(existing_plan_needs_effort))

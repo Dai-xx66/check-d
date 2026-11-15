@@ -2,7 +2,7 @@
 
 ## 边界与数据权威
 
-Flutter Drift 是离线优先的即时交互数据源，Supabase 是已同步数据的云端副本与跨设备入口；二者不是实时强一致。任务定义继续由 `tasks`/本地任务表拥有，单次事项排期语义来自 `one_time_reminders`（主键 `task_id`，`scheduled_at`、`has_scheduled_date`、`planned_date`、`available_from`、`due_date`、`due_at`）；周期规则与完成事实分别来自 `long_term_tasks`/`task_schedules` 与 `task_completions`，实际时间只来自 `timer_sessions`。不得把计划写成实际计时或完成事实。
+Flutter Drift 是离线优先的即时交互数据源，Supabase 是已同步数据的云端副本与跨设备入口；二者不是实时强一致。任务定义继续由 `tasks`/本地任务表拥有。**在本次交付基于的 Git 基线**，`one_time_reminders`（本地主键 `task_id`）含 `scheduled_at`、`has_scheduled_date`、提醒字段和完成字段；日期型/精确截止、`planned_date` 与 `available_from` 不在该基线的 `TaskDetails` DTO 中，因此只读规划不得伪造这些值。周期规则与完成事实分别来自 `long_term_tasks`/`task_schedules` 与 `task_completions`，实际时间只来自 `timer_sessions`。不得把计划写成实际计时或完成事实。
 
 规划层只消费一个带用户主体、数据版本、采集时间、同步状态和已解析课程 occurrence 的快照。课程 occurrence 必须由 Flutter 的 `buildCourseOccurrencesForDate`、`courseWeekNumberForDate`、`isCourseRuleActiveOnDate` 适配器生成；Python 不复制学期、单双周、停课、补课算法。
 
@@ -39,4 +39,18 @@ Flutter Drift 是离线优先的即时交互数据源，Supabase 是已同步数
 
 授权撤销需由服务端 session/token 撤销或短 TTL + introspection 生效；过期、撤销、主体不明时 fail closed。审批凭据绑定 user、proposal、base version、digest、过期时间并一次消费。幂等唯一域为 `(user_id, tool, key)`。后台扫描逐用户取数、事件写入 user_id 并以主体重验应用结果。
 
+候选 MCP 中的 `confirmation_text` 不能证明用户亲自确认；生产审批必须来自受验证的 WorkBuddy 人工确认节点或 CheckD 自有确认页面的服务端回调。当前目标租户的可信确认信号尚未实测，因此 `approve_schedule_proposal` 和所有真实写入仍 BLOCKED。SQLite 原型仅接受 `LocalTestHumanConfirmation` 这种显式测试接缝，用于测试 user/proposal/change digest 绑定；该类型可由测试代码构造，不是密码学凭据、OAuth 声明或生产审批证明。
+
 尚未验证的 WorkBuddy Streamable HTTP/OAuth、Connector 发布、redirect URI 白名单、scope UI、平台审核和回调能力必须在官方开发者环境实测；本轮未注册工具或部署端点。
+
+## 隔离快照与远程 MCP 原型（2026-11-15）
+
+`tools/checkd_planning_engine/trusted_snapshot_store.py` 是本地临时 SQLite 原型：云端状态由带单调 revision 与内容摘要的 fixture 表模拟；设备水位分别记录 local/uploaded/downloaded revision。存在未上传本地修改或设备未确认最新云版本时，快照仍可展示，但标记 provisional 并拒绝创建 proposal。Proposal 绑定快照版本、摘要和 TTL；审批期间服务器版本改变会使其 superseded。apply 在 SQLite 事务内比较版本、消费一次性凭据、写入 allowlist 测试对象和幂等记录，再进入 readback 状态；读回恢复不重复执行写入。它没有接入 Drift SyncQueue、Supabase Auth 或真实 PostgreSQL，不能证明云端原子性。
+
+`tools/checkd_planning_engine/remote_mcp.py` 绑定一个本地 loopback Streamable HTTP 子集，仅提供四个只读规划工具。每次请求验证 bearer、audience、expiry、scope 和显式 WorkBuddy subject → CheckD subject 映射，数据提供器只按已验证的 CheckD subject 读取；拒绝请求体 `user_id`。测试 issuer 为本地 HMAC fixture；生产侧只有注入式 introspection 边界，没有 OAuth 授权服务器、Supabase 身份绑定或 WorkBuddy 部署。读接口响应始终不具备写入资格。
+
+## WorkBuddy 官方文档核实（2026-11-15）
+
+腾讯 WorkBuddy 专家文档说明，专家可声明 MCP/Connector 依赖；Connector 文档列出 stdio、SSE 与 Streamable HTTP，并推荐云端托管 OAuth `auth_mode: "server-side"`。该方式需要 `server_auth` 配置并与 WorkBuddy 团队协作；文档还说明平台会托管并注入 OAuth 凭据（[专家文档](https://open.workbuddy.cn/en/docs/expert)、[Connector 文档](https://open.workbuddy.cn/docs/connector)）。Connector 文档同时描述 MCP OAuth 动态注册或预注册路径和资源元数据发现。腾讯云 Enterprise Connector 文档列出 MCP OAuth 2.1 / Streamable HTTP 与 token introspection（[Enterprise Connector 文档](https://cloud.tencent.com.cn/document/product/1831/134453)）。
+
+这些公开文档证明存在平台接入路径，不证明当前 CheckD 账号、目标 WorkBuddy 版本、个人/企业租户或公开专家分享已经开通。开发骨架当前只模拟 MCP/身份边界，尚未实现文档要求的 OAuth 或 WorkBuddy 连接器。WorkBuddy `sub` 与 CheckD `auth.users.id` 仍是不同身份域；服务端必须完成显式账户绑定，每次请求校验授权与撤销状态，再把已绑定的 CheckD 主体注入业务数据服务。绑定、撤权、scope、令牌生命周期、客户端版本、企业权限、Connector 审核与实际调用仍须在获准的测试租户实测。共享 Connector 统一凭据不满足每个 CheckD 用户使用个人业务账号的要求。

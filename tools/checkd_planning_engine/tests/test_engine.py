@@ -1,4 +1,6 @@
 import unittest
+import itertools
+import random
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from checkd_planning_engine import Block, PlanningInput, Task, generate_schedule, simulate_delay
@@ -30,6 +32,74 @@ class EngineTests(unittest.TestCase):
   busy=Block(NOW+timedelta(minutes=30),NOW+timedelta(minutes=60))
   result=generate_schedule(self.make(effort=3600,blocks=(busy,),task_extra={'minimum_block_minutes':45}))
   self.assertTrue(result.feasible)
+ def test_explicit_priority_precedes_edf_and_equal_deadline_is_stable(self):
+  low=Task('early-deadline',900,date(2026,11,14),NOW,priority=0)
+  high=Task('high-priority',900,date(2026,11,15),NOW,priority=2)
+  result=generate_schedule(PlanningInput(NOW,datetime(2026,11,14,10,tzinfo=Z),tasks=(low,high)))
+  self.assertEqual(result.blocks[0]['task_id'],'high-priority')
+  same=(Task('b',900,date(2026,11,14),NOW),Task('a',900,date(2026,11,14),NOW))
+  stable=generate_schedule(PlanningInput(NOW,datetime(2026,11,14,10,tzinfo=Z),tasks=same))
+  self.assertEqual(stable.blocks[0]['task_id'],'a')
+ def test_busy_intervals_merge_and_confirmed_blocks_remain_blocked(self):
+  first=Block(NOW+timedelta(minutes=15),NOW+timedelta(minutes=60),kind='confirmed')
+  second=Block(NOW+timedelta(minutes=45),NOW+timedelta(minutes=75),kind='unavailable')
+  free=calculate_availability(PlanningInput(NOW,NOW+timedelta(hours=2),fixed_blocks=(first,),unavailable=(second,)))
+  self.assertTrue(all(not (slot.starts_at < first.ends_at and first.starts_at < slot.ends_at) for slot in free))
+  self.assertEqual(free[0].starts_at,NOW)
+  self.assertEqual(free[0].ends_at,NOW+timedelta(minutes=15))
+ def test_invalid_zero_length_interval_and_zero_slot_rejected(self):
+  with self.assertRaises(ValueError):
+   calculate_availability(PlanningInput(NOW,NOW+timedelta(hours=1),fixed_blocks=(Block(NOW,NOW),)))
+  with self.assertRaises(ValueError):
+   calculate_availability(PlanningInput(NOW,NOW+timedelta(hours=1),slot_minutes=0))
+ def test_final_partial_slot_reports_exact_remaining_seconds(self):
+  task=Task('tail',31*60,date(2026,11,14),NOW,minimum_block_minutes=30)
+  result=generate_schedule(PlanningInput(NOW,NOW+timedelta(hours=2),tasks=(task,)))
+  self.assertTrue(result.feasible)
+  self.assertEqual(sum(block['planned_seconds'] for block in result.blocks),31*60)
+  self.assertEqual(len(result.blocks),1)
+  self.assertEqual(result.blocks[0]['planned_seconds'],31*60)
+ def test_max_continuous_work_requires_rest_gap(self):
+  task=Task('bounded',90*60,date(2026,11,14),NOW,maximum_continuous_minutes=30,minimum_rest_minutes=15)
+  result=generate_schedule(PlanningInput(NOW,NOW+timedelta(hours=3),tasks=(task,)))
+  self.assertTrue(result.feasible)
+  self.assertTrue(all(block['planned_seconds']<=30*60 for block in result.blocks))
+  starts=[datetime.fromisoformat(block['starts_at']) for block in result.blocks]
+  ends=[datetime.fromisoformat(block['ends_at']) for block in result.blocks]
+  self.assertTrue(all(starts[i+1]-ends[i]>=timedelta(minutes=15) for i in range(len(ends)-1)))
+ def test_dependencies_order_and_cycles_are_reported(self):
+  prerequisite=Task('first',15*60,date(2026,11,14),NOW)
+  dependent=Task('second',15*60,date(2026,11,14),NOW,depends_on=('first',))
+  result=generate_schedule(PlanningInput(NOW,NOW+timedelta(hours=1),tasks=(dependent,prerequisite)))
+  self.assertEqual(result.blocks[0]['task_id'],'first')
+  self.assertGreaterEqual(datetime.fromisoformat(result.blocks[1]['starts_at']),datetime.fromisoformat(result.blocks[0]['ends_at']))
+  cycle=generate_schedule(PlanningInput(NOW,NOW+timedelta(hours=1),tasks=(Task('x',900,date(2026,11,14),NOW,depends_on=('y',)),Task('y',900,date(2026,11,14),NOW,depends_on=('x',)))))
+  self.assertEqual({x['reason'] for x in cycle.unplanned_tasks},{'dependency_cycle_or_missing_dependency'})
+ def test_seeded_property_constraints_and_small_exhaustive_edf_oracle(self):
+  rng=random.Random(418)
+  for _ in range(40):
+   busy=[]
+   for _ in range(3):
+    start=rng.randrange(0,12)
+    length=rng.randrange(1,3)
+    busy.append(Block(NOW+timedelta(minutes=15*start),NOW+timedelta(minutes=15*(start+length))))
+   tasks=tuple(Task(f't{i}',rng.randrange(1,4)*900,date(2026,11,14),NOW,minimum_block_minutes=15) for i in range(3))
+   result=generate_schedule(PlanningInput(NOW,NOW+timedelta(hours=4),tasks=tasks,fixed_blocks=tuple(busy)))
+   emitted=[(datetime.fromisoformat(b['starts_at']),datetime.fromisoformat(b['ends_at'])) for b in result.blocks]
+   self.assertTrue(all(a<b for a,b in emitted))
+   for start,end in emitted:
+    self.assertFalse(any(start<block.ends_at and block.starts_at<end for block in busy))
+   for (a,b),(c,d) in itertools.combinations(emitted,2):
+    self.assertFalse(a<d and c<b)
+  base=NOW
+  for deadlines in itertools.product(range(1,5),repeat=3):
+   tasks=tuple(Task(f't{i}',900,base+timedelta(minutes=15*deadlines[i]),base,minimum_block_minutes=15) for i in range(3))
+   result=generate_schedule(PlanningInput(base,base+timedelta(hours=1),tasks=tasks,slot_minutes=15))
+   def oracle(i,used):
+    if i==len(tasks): return True
+    task=tasks[i]
+    return any(slot not in used and slot+1<=deadlines[i] and oracle(i+1,used|{slot}) for slot in range(4))
+   self.assertEqual(result.feasible,oracle(0,set()))
  def test_delay_still_feasible(self):
   result=simulate_delay(self.make(), 'a', NOW+timedelta(hours=1))
   self.assertTrue(result['before_feasible']); self.assertTrue(result['after_feasible'])
@@ -64,11 +134,26 @@ class PolicyTests(unittest.TestCase):
   self.assertEqual(risk[0]['risk_key'],evaluate_risks([{'task_id':'a','remaining_seconds':300,'available_capacity_seconds':100}],evaluated_at=NOW)[0]['risk_key'])
   for style in ('gentle','balanced','direct'):
    self.assertEqual(render_risk(risk[0],style)['facts'],risk[0])
+ def test_date_only_deadline_risk_uses_inclusive_local_day(self):
+  from checkd_planning_engine.risk import evaluate_risks
+  date_only=evaluate_risks([{'task_id':'date-task','deadline':date(2026,11,14)}],evaluated_at=datetime(2026,11,15,0,tzinfo=Z))
+  self.assertIn('deadline_passed',[item['risk_type'] for item in date_only])
  def test_inferred_preference_cannot_be_hard(self):
   with self.assertRaises(ValueError): Preference('study_time','morning','inferred',True)
  def test_intervention_cooldown_and_ignore(self):
   p=InterventionPolicy(); self.assertTrue(p.should_notify('u','r',NOW)); p.record('u','r',NOW)
   self.assertFalse(p.should_notify('u','r',NOW+timedelta(hours=1)))
-  p.ignored.add('r'); self.assertFalse(p.should_notify('u','r',NOW+timedelta(days=2)))
+  p.ignore('u','r'); self.assertFalse(p.should_notify('u','r',NOW+timedelta(days=2)))
+ def test_user_rest_and_daily_cap_are_scoped(self):
+  p=InterventionPolicy(daily_limit=1); p.choose_rest('u',NOW+timedelta(hours=4))
+  self.assertFalse(p.should_notify('u','risk',NOW+timedelta(hours=1)))
+  self.assertTrue(p.should_notify('other','risk',NOW+timedelta(hours=1)))
+  p.record('other','risk',NOW+timedelta(hours=1))
+  self.assertFalse(p.should_notify('other','second',NOW+timedelta(hours=2)))
+ def test_inferred_context_and_leisure_are_not_hard_rules(self):
+  Preference('play_time','balanced','inferred',category='leisure_balance')
+  Preference('morning','preferred','contextual',category='contextual')
+  with self.assertRaises(ValueError):
+   Preference('play_time','blocked','inferred',True,category='hard_rule')
 
 if __name__=='__main__': unittest.main()

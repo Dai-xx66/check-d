@@ -132,7 +132,12 @@ void main() {
 
     test('corrupted and unsupported payloads stay distinct', () async {
       final remote = _FakeRemoteStore();
-      final repository = DefaultCourseShareRepository(remote: remote);
+      final repository = DefaultCourseShareRepository(
+        remote: remote,
+        // The fixtures expire on 2026-09-20; keep this test independent of
+        // the machine's wall clock so it continues testing payload decoding.
+        now: () => DateTime.utc(2026, 9, 14),
+      );
       remote.records['ABCD2345'] = CourseShareRemoteRecord(
         status: CourseShareRemoteStatus.found,
         expiresAt: DateTime(2026, 9, 20),
