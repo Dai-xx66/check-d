@@ -21,13 +21,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "from": {"type": "string", "format": "date"},
-          "to": {"type": "string", "format": "date"}
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
         },
-        "required": ["from", "to"],
+        "required": [
+          "from",
+          "to"
+        ],
         "additionalProperties": false
       },
-      "_meta": {"checkd/permission": "read:self"}
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
     },
     {
       "name": "preview_schedule",
@@ -35,14 +46,28 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "from": {"type": "string", "format": "date"},
-          "to": {"type": "string", "format": "date"},
-          "expected_version": {"type": "string", "minLength": 1}
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "expected_version": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "required": ["from", "to"],
+        "required": [
+          "from",
+          "to"
+        ],
         "additionalProperties": false
       },
-      "_meta": {"checkd/permission": "read:self"}
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
     },
     {
       "name": "simulate_task_delay",
@@ -50,15 +75,34 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "task_id": {"type": "string", "minLength": 1},
-          "until": {"type": "string", "format": "date-time"},
-          "from": {"type": "string", "format": "date"},
-          "to": {"type": "string", "format": "date"}
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
         },
-        "required": ["task_id", "until", "from", "to"],
+        "required": [
+          "task_id",
+          "until",
+          "from",
+          "to"
+        ],
         "additionalProperties": false
       },
-      "_meta": {"checkd/permission": "read:self"}
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
     },
     {
       "name": "list_plan_risks",
@@ -66,13 +110,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "from": {"type": "string", "format": "date"},
-          "to": {"type": "string", "format": "date"}
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
         },
-        "required": ["from", "to"],
+        "required": [
+          "from",
+          "to"
+        ],
         "additionalProperties": false
       },
-      "_meta": {"checkd/permission": "read:self"}
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
     }
   ],
   "future_workflows_not_registered": {
@@ -89,5 +144,37 @@
     "INVALID_INPUT": "Request arguments or snapshot structure are invalid.",
     "NO_PLAN_FOUND": "The heuristic did not find a schedule; this is not a proof of mathematical infeasibility."
   },
-  "production_ready": false
+  "production_ready": false,
+  "flutter_local_preview_bridge": {
+    "status": "developer_only_loopback",
+    "host": "127.0.0.1",
+    "requires_bearer_token": true,
+    "token_is_checkd_auth": false,
+    "persistence": "none",
+    "writes": false,
+    "routes": {
+      "POST /v0/preview": {
+        "input": [
+          "snapshot",
+          "expected_version?"
+        ],
+        "result": "PlanningService preview response"
+      },
+      "POST /v0/delay": {
+        "input": [
+          "snapshot",
+          "task_id",
+          "until"
+        ],
+        "result": "before/after delay analysis"
+      },
+      "POST /v0/risks": {
+        "input": [
+          "snapshot"
+        ],
+        "result": "risk assessment for snapshot"
+      }
+    },
+    "device_note": "The bridge runs on a developer host; non-desktop Flutter devices require a separately secured tunnel or HTTPS host and are not enabled by this contract."
+  }
 }

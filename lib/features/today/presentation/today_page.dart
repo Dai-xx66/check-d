@@ -23,6 +23,7 @@ import '../../schedule/application/day_schedule_providers.dart';
 import '../../schedule/domain/day_schedule_models.dart';
 import '../../statistics/application/statistics_providers.dart';
 import '../../statistics/domain/statistics_models.dart';
+import '../../planning/presentation/planning_preview_page.dart';
 import '../data/today_repository.dart';
 import '../domain/today_models.dart';
 
@@ -205,6 +206,18 @@ class _DesktopTodayWorkspaceState
                   _DesktopWorkspaceHeader(
                     data: data,
                     onToday: () => widget.onDateSelected(DateTime.now()),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const PlanningPreviewPage(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+                      label: const Text('智能规划预览'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _DesktopAgenda(
@@ -2098,6 +2111,18 @@ class _MobileLayout extends StatelessWidget {
           child: Column(
             children: [
               _MobileHeader(data: data),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const PlanningPreviewPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+                  label: const Text('智能规划预览'),
+                ),
+              ),
               if (!data.isToday) ...[
                 const SizedBox(height: 4),
                 Align(
