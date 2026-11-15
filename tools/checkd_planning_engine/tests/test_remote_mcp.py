@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import http.client
 import json
+from pathlib import Path
 import threading
 import unittest
 
@@ -85,7 +86,14 @@ class RemoteMcpTests(unittest.TestCase):
         status,_,body=self.rpc("tools/list",token=token)
         tools=json.loads(body)["result"]["tools"]
         self.assertEqual(status,200)
-        self.assertEqual({x["name"] for x in tools},{"get_planning_context","preview_schedule","simulate_task_delay","list_plan_risks"})
+        contract_path = Path(__file__).resolve().parents[3] / "docs/contracts/agent-planning-v0.json"
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        self.assertEqual(tools, contract["registered_read_only_tools"])
+        self.assertFalse(contract["production_ready"])
+        self.assertEqual(
+            {x["name"] for x in tools},
+            {"get_planning_context", "preview_schedule", "simulate_task_delay", "list_plan_risks"},
+        )
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self" for x in tools))
 
     def test_shared_endpoint_keeps_user_snapshots_and_workbuddy_subjects_separate(self):

@@ -15,6 +15,7 @@ import base64
 import hashlib
 import hmac
 import json
+from pathlib import Path
 import secrets
 import socketserver
 from typing import Any, Callable, Protocol
@@ -25,47 +26,26 @@ from .service import PlanningService
 
 PROTOCOL_VERSION = "2025-11-25"
 RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource"
-TOOLS: tuple[dict[str, Any], ...] = (
-    {
-        "name": "get_planning_context",
-        "description": "Read the authenticated user's current planning snapshot.",
-        "inputSchema": {"type":"object","properties":{
-            "from":{"type":"string","format":"date"},
-            "to":{"type":"string","format":"date"}},
-            "required":["from","to"],"additionalProperties":False},
-        "_meta": {"checkd/permission":"read:self"},
-    },
-    {
-        "name": "preview_schedule",
-        "description": "Generate a read-only schedule preview from a server-owned snapshot.",
-        "inputSchema": {"type":"object","properties":{
-            "from":{"type":"string","format":"date"},
-            "to":{"type":"string","format":"date"},
-            "expected_version":{"type":"string"}},
-            "required":["from","to"],"additionalProperties":False},
-        "_meta": {"checkd/permission":"read:self"},
-    },
-    {
-        "name": "simulate_task_delay",
-        "description": "Simulate delaying one task using the authenticated user's server-owned snapshot.",
-        "inputSchema": {"type":"object","properties":{
-            "task_id":{"type":"string","minLength":1},
-            "until":{"type":"string","format":"date-time"},
-            "from":{"type":"string","format":"date"},
-            "to":{"type":"string","format":"date"}},
-            "required":["task_id","until","from","to"],"additionalProperties":False},
-        "_meta": {"checkd/permission":"read:self"},
-    },
-    {
-        "name": "list_plan_risks",
-        "description": "Read risks calculated for the authenticated user's current snapshot.",
-        "inputSchema": {"type":"object","properties":{
-            "from":{"type":"string","format":"date"},
-            "to":{"type":"string","format":"date"}},
-            "required":["from","to"],"additionalProperties":False},
-        "_meta": {"checkd/permission":"read:self"},
-    },
-)
+
+
+def _load_registered_tools() -> tuple[dict[str, Any], ...]:
+    """Load tool schemas from the repository's canonical candidate contract."""
+    repository_root = Path(__file__).resolve().parents[4]
+    contract_path = repository_root / "docs/contracts/agent-planning-v0.json"
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    tools = contract.get("registered_read_only_tools")
+    if not isinstance(tools, list) or not tools:
+        raise RuntimeError("planning MCP contract has no registered read-only tools")
+    names = [tool.get("name") for tool in tools if isinstance(tool, dict)]
+    if len(names) != len(tools) or len(set(names)) != len(names):
+        raise RuntimeError("planning MCP contract contains invalid tool definitions")
+    if any(tool.get("_meta", {}).get("checkd/permission") != "read:self"
+           for tool in tools):
+        raise RuntimeError("planning MCP prototype only registers read:self tools")
+    return tuple(tools)
+
+
+TOOLS = _load_registered_tools()
 
 
 @dataclass(frozen=True)
