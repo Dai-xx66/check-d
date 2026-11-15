@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/sync/sync_queue_service.dart';
 
 enum LocalPlanStatus { draft, confirmed, applied, superseded, failed }
 
@@ -52,17 +53,22 @@ class SavedLocalPlan {
   final List<CandidatePlanBlock> blocks;
 }
 
-/// Persists local confirmed plans only. It never queues a Supabase operation.
+/// Persists confirmed plans in Drift first. When the existing sync queue is
+/// supplied, matching outbox operations are committed in the same database
+/// transaction; this is sync intent, not server approval or cloud execution.
 /// The owner is injected from CheckD's current data-owner provider, not input.
 class PlanningPlanRepository {
   PlanningPlanRepository({
     required AppDatabase database,
     required String userId,
+    SyncQueueService? syncQueue,
   }) : _database = database,
-       _userId = userId;
+       _userId = userId,
+       _syncQueue = syncQueue;
 
   final AppDatabase _database;
   final String _userId;
+  final SyncQueueService? _syncQueue;
   static const _uuid = Uuid();
 
   Future<SavedLocalPlan> confirmPlan({
@@ -188,10 +194,26 @@ class PlanningPlanRepository {
                 updatedAt: createdAt,
               ),
             );
+        await _syncQueue?.enqueue(
+          entityType: 'task_effort_estimates',
+          entityId: entry.key,
+          operation: SyncOperationType.upsert,
+          payload: {'task_id': entry.key},
+          userId: _userId,
+        );
       }
 
       // Supersede currently confirmed local plans that overlap this date range;
       // their history and blocks remain available for review.
+      final overlappingConfirmed =
+          await (_database.select(_database.taskPlanVersionRecords)..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    row.status.equals(LocalPlanStatus.confirmed.name) &
+                    row.startsOn.isSmallerOrEqualValue(_date(endsOn)) &
+                    row.endsOn.isBiggerOrEqualValue(_date(startsOn)),
+              ))
+              .get();
       await (_database.update(_database.taskPlanVersionRecords)..where(
             (row) =>
                 row.userId.equals(_userId) &
@@ -204,6 +226,15 @@ class PlanningPlanRepository {
               status: Value(LocalPlanStatus.superseded.name),
             ),
           );
+      for (final previous in overlappingConfirmed) {
+        await _syncQueue?.enqueue(
+          entityType: 'task_plan_versions',
+          entityId: previous.id,
+          operation: SyncOperationType.upsert,
+          payload: {'id': previous.id},
+          userId: _userId,
+        );
+      }
 
       await _database
           .into(_database.taskPlanVersionRecords)
@@ -223,12 +254,20 @@ class PlanningPlanRepository {
               confirmedAt: Value(createdAt),
             ),
           );
+      await _syncQueue?.enqueue(
+        entityType: 'task_plan_versions',
+        entityId: id,
+        operation: SyncOperationType.upsert,
+        payload: {'id': id},
+        userId: _userId,
+      );
       for (final block in blocks) {
+        final blockId = _uuid.v4();
         await _database
             .into(_database.plannedTimeBlockRecords)
             .insert(
               PlannedTimeBlockRecordsCompanion.insert(
-                id: _uuid.v4(),
+                id: blockId,
                 userId: _userId,
                 planVersionId: id,
                 taskId: block.taskId,
@@ -237,6 +276,13 @@ class PlanningPlanRepository {
                 plannedSeconds: block.plannedSeconds,
               ),
             );
+        await _syncQueue?.enqueue(
+          entityType: 'task_time_blocks',
+          entityId: blockId,
+          operation: SyncOperationType.upsert,
+          payload: {'id': blockId},
+          userId: _userId,
+        );
       }
       return _readPlan(id);
     });
@@ -292,6 +338,16 @@ class PlanningPlanRepository {
               linkedAt: linkedAt ?? DateTime.now().toUtc(),
             ),
           );
+      await _syncQueue?.enqueue(
+        entityType: 'planned_block_timer_links',
+        entityId: '$plannedBlockId:$timerSessionId',
+        operation: SyncOperationType.upsert,
+        payload: {
+          'planned_block_id': plannedBlockId,
+          'timer_session_id': timerSessionId,
+        },
+        userId: _userId,
+      );
     });
   }
 

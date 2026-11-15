@@ -3,6 +3,7 @@ import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/core/sync/sync_upload_service.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
+import 'package:check_d/features/planning/data/planning_plan_repository.dart';
 import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -147,6 +148,61 @@ void main() {
       containsAll(<String>[first, second]),
     );
   });
+
+  test(
+    'confirmed planning records enter owner-scoped outbox and upload idempotently',
+    () async {
+      final taskId = await tasks.saveOneTimeReminder(
+        const OneTimeReminderDraft(name: '规划同步任务', colorValue: 0xFFABCDEF),
+      );
+      final planning = PlanningPlanRepository(
+        database: database,
+        userId: userId,
+        syncQueue: queue,
+      );
+      final now = DateTime.now().toUtc();
+      final start = now.add(const Duration(hours: 2));
+      final saved = await planning.confirmPlan(
+        expectedSnapshotVersion: 'local-v1',
+        readCurrentSnapshotVersion: () async => 'local-v1',
+        startsOn: DateTime(now.year, now.month, now.day),
+        endsOn: DateTime(now.year, now.month, now.day),
+        rulesVersion: 'local-edf-v1',
+        confirmedRemainingSeconds: {taskId: 1800},
+        blocks: [
+          CandidatePlanBlock(
+            taskId: taskId,
+            startsAt: start,
+            endsAt: start.add(const Duration(minutes: 30)),
+            plannedSeconds: 1800,
+          ),
+        ],
+        now: now,
+      );
+      final queued = await queue.loadRetryableForUser(userId);
+      expect(
+        queued.map((op) => op.entityType),
+        containsAll([
+          'task_effort_estimates',
+          'task_plan_versions',
+          'task_time_blocks',
+        ]),
+      );
+      expect(queued.every((op) => op.userId == userId), isTrue);
+
+      final first = await executor.flush();
+      final second = await executor.flush(force: true);
+      final block = await database
+          .select(database.plannedTimeBlockRecords)
+          .getSingle();
+      expect(first.failed, 0);
+      expect(first.uploaded, queued.length);
+      expect(second.uploaded, 0);
+      expect(remote.value('task_effort_estimates', taskId)?['user_id'], userId);
+      expect(remote.value('task_plan_versions', saved.id)?['user_id'], userId);
+      expect(remote.value('task_time_blocks', block.id)?['user_id'], userId);
+    },
+  );
 }
 
 Future<SyncOperation> operationFor(

@@ -60,10 +60,22 @@ class AccessTokenVerifier(Protocol):
     def verify(self, token: str, *, audience: str, now: datetime) -> RemoteIdentity: ...
 
 
+class CheckDIdentityBindingResolver(Protocol):
+    """Server-side WorkBuddy identity -> CheckD account binding lookup.
+
+    A WorkBuddy subject is not a CheckD user id. Production implementations
+    must resolve a persisted, consented, revocable binding; request arguments
+    and arbitrary token claims are not a substitute.
+    """
+    def resolve(self, *, issuer: str, subject: str, tenant_id: str | None) -> str | None: ...
+
+
 class IntrospectionTokenVerifier:
-    """Production-facing adapter contract; the injected introspector must be trusted."""
-    def __init__(self, introspect: Callable[[str], dict[str, Any] | None]):
+    """Adapter contract for trusted WorkBuddy introspection plus server binding."""
+    def __init__(self, introspect: Callable[[str], dict[str, Any] | None],
+                 resolve_checkd_user: CheckDIdentityBindingResolver):
         self._introspect = introspect
+        self._resolve_checkd_user = resolve_checkd_user
 
     def verify(self, token: str, *, audience: str, now: datetime) -> RemoteIdentity:
         claims = self._introspect(token)
@@ -74,14 +86,23 @@ class IntrospectionTokenVerifier:
         if isinstance(audiences, str):
             audiences = [audiences]
         workbuddy_subject = claims.get("sub")
-        checkd_user_id = claims.get("checkd_uid")
+        workbuddy_issuer = claims.get("iss")
+        tenant_id = claims.get("tid")
         raw_scopes = claims.get("scope", "")
         scopes = frozenset(raw_scopes.split()) if isinstance(raw_scopes, str) else frozenset(raw_scopes or [])
         if (not isinstance(expiry, int) or int(now.timestamp()) >= expiry
                 or not isinstance(audiences, list) or audience not in audiences
                 or not isinstance(workbuddy_subject, str) or not workbuddy_subject
-                or not isinstance(checkd_user_id, str) or not checkd_user_id):
+                or not isinstance(workbuddy_issuer, str) or not workbuddy_issuer
+                or (tenant_id is not None and not isinstance(tenant_id, str))):
             raise PermissionError("token claims invalid")
+        checkd_user_id = self._resolve_checkd_user.resolve(
+            issuer=workbuddy_issuer,
+            subject=workbuddy_subject,
+            tenant_id=tenant_id,
+        )
+        if not isinstance(checkd_user_id, str) or not checkd_user_id.strip():
+            raise PermissionError("CheckD account is not bound")
         return RemoteIdentity(checkd_user_id, workbuddy_subject, scopes, expiry)
 
 
@@ -251,14 +272,51 @@ class RemoteMcpApplication:
             snapshot=self.snapshot_provider(principal.checkd_user_id,from_date,to_date)
         except Exception:
             return {"ok":False,"error":{"code":"SNAPSHOT_UNAVAILABLE","message":"Planning data unavailable."}}
+        if not isinstance(snapshot, dict) or snapshot.get("subject_ref") != principal.checkd_user_id:
+            return {"ok":False,"error":{"code":"NOT_FOUND","message":"Planning data unavailable."}}
         if name == "get_planning_context":
-            if snapshot.get("subject_ref") != principal.checkd_user_id:
-                return {"ok":False,"error":{"code":"NOT_FOUND","message":"Planning data unavailable."}}
             return {"ok":True,"snapshot":snapshot,"provisional":bool(snapshot.get("provisional",True)),
+                    "execution_eligible":False}
+        if name == "list_tasks":
+            tasks = snapshot.get("tasks", [])
+            if not isinstance(tasks, list):
+                return {"ok":False,"error":{"code":"SNAPSHOT_UNAVAILABLE","message":"Planning data unavailable."}}
+            incomplete = [task for task in tasks
+                          if isinstance(task, dict) and task.get("completion_status") != "completed"]
+            # A fixed server-side cap avoids unbounded tool responses. Task IDs
+            # and fields are copied from the owner-scoped normalized snapshot.
+            safe_tasks = [{key: task[key] for key in (
+                "task_id", "name", "task_type", "completion_status",
+                "deadline_date", "deadline_at", "planned_at",
+                "remaining_seconds", "remaining_effort_state",
+            ) if key in task} for task in incomplete[:100]]
+            return {"ok":True,"scope":"snapshot_tasks","tasks":safe_tasks,
+                    "truncated":len(incomplete)>100,
+                    "provisional":bool(snapshot.get("provisional",True)),
+                    "execution_eligible":False}
+        if name == "get_current_plan":
+            current_plan = snapshot.get("current_plan")
+            if current_plan is None:
+                current_plan = {"status":"not_available_in_snapshot","blocks":[]}
+            return {"ok":True,"current_plan":current_plan,
+                    "snapshot_version":snapshot.get("version"),
+                    "provisional":bool(snapshot.get("provisional",True)),
                     "execution_eligible":False}
         if name == "preview_schedule":
             return self.service.handle({"snapshot":snapshot,"operation":"preview",
                 "expected_version":arguments.get("expected_version")},principal)
+        if name == "check_schedule_feasibility":
+            return self.service.handle({"snapshot":snapshot,"operation":"feasibility",
+                "expected_version":arguments.get("expected_version")},principal)
+        if name == "generate_adjustment_draft":
+            result = self.service.handle({"snapshot":snapshot,"operation":"preview",
+                "expected_version":arguments.get("expected_version")},principal)
+            # This is a calculation result only: no durable proposal, approval,
+            # task write, or time-block write is created by this prototype.
+            if result.get("ok"):
+                result["draft"] = {"status":"preview_only","persistent":False,
+                                   "approval_required_before_write":True}
+            return result
         if name == "list_plan_risks":
             return self.service.handle({"snapshot":snapshot,"operation":"risk"},principal)
         if name == "simulate_task_delay":

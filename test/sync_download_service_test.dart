@@ -247,6 +247,150 @@ void main() {
       expect(notifications.scheduled.single.when, DateTime(2030, 1, 1, 10));
     },
   );
+
+  test(
+    'planning snapshot restores estimates plans blocks and timer links',
+    () async {
+      remote.tables['tasks'] = [
+        _row('planning-task', {
+          'name': '规划任务',
+          'type': 'one_time',
+          'color': 1,
+          'status': 'active',
+        }),
+      ];
+      remote.tables['task_effort_estimates'] = [
+        _row('ignored-id', {
+          'task_id': 'planning-task',
+          'estimated_seconds': 3600,
+          'remaining_seconds': 1800,
+          'source': 'user_confirmed',
+        }),
+      ];
+      remote.tables['task_plan_versions'] = [
+        _row('planning-version', {
+          'revision': 1,
+          'source_snapshot_version': 'server-v1',
+          'proposal_digest': 'digest',
+          'rules_version': 'rules-v1',
+          'starts_on': '2030-01-01',
+          'ends_on': '2030-01-01',
+          'status': 'confirmed',
+          'idempotency_key': 'idem-v1',
+          'confirmed_at': _time(10),
+          'applied_at': null,
+        }),
+      ];
+      remote.tables['task_time_blocks'] = [
+        _row('planning-block', {
+          'plan_version_id': 'planning-version',
+          'task_id': 'planning-task',
+          'starts_at': _time(12),
+          'ends_at': _time(13),
+          'planned_seconds': 3600,
+        }),
+      ];
+      remote.tables['timer_sessions'] = [
+        _timer('planning-timer', 'planning-task')..['state'] = 'finished',
+      ];
+      remote.tables['planned_block_timer_links'] = [
+        _row('ignored-link-id', {
+          'planned_block_id': 'planning-block',
+          'timer_session_id': 'planning-timer',
+          'linked_at': _time(13),
+        }),
+      ];
+
+      final result = await executor.reconcile();
+
+      expect(result.succeeded, isTrue);
+      expect(
+        (await database.select(database.taskEffortRecords).getSingle())
+            .remainingSeconds,
+        1800,
+      );
+      expect(
+        (await database.select(database.taskPlanVersionRecords).getSingle())
+            .sourceSnapshotVersion,
+        'server-v1',
+      );
+      expect(
+        (await database.select(database.plannedTimeBlockRecords).getSingle())
+            .taskId,
+        'planning-task',
+      );
+      expect(
+        await database.select(database.plannedBlockTimerLinks).get(),
+        hasLength(1),
+      );
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    },
+  );
+
+  test(
+    'pending local planning outbox prevents cloud snapshot overwrite',
+    () async {
+      final stamp = DateTime.utc(2030, 1, 1, 12);
+      await database
+          .into(database.localTasks)
+          .insert(
+            LocalTasksCompanion.insert(
+              id: 'local-planning-task',
+              userId: const Value(userId),
+              name: '本地任务',
+              taskType: 'one_time',
+              colorValue: 1,
+              createdAt: stamp,
+              updatedAt: stamp,
+            ),
+          );
+      await database
+          .into(database.taskEffortRecords)
+          .insert(
+            TaskEffortRecordsCompanion.insert(
+              taskId: 'local-planning-task',
+              userId: userId,
+              estimatedSeconds: const Value(3600),
+              remainingSeconds: const Value(2400),
+              source: 'user_confirmed',
+              updatedAt: stamp,
+            ),
+          );
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              id: 'pending-effort',
+              userId: const Value(userId),
+              entityType: 'task_effort_estimates',
+              entityId: 'local-planning-task',
+              operation: 'upsert',
+              payloadJson: '{"task_id":"local-planning-task"}',
+              createdAt: stamp,
+              updatedAt: stamp,
+            ),
+          );
+      remote.tables['task_effort_estimates'] = [
+        _row('ignored-id', {
+          'task_id': 'local-planning-task',
+          'estimated_seconds': 1800,
+          'remaining_seconds': 600,
+          'source': 'other-device',
+          'updated_at': _time(10),
+        }),
+      ];
+
+      final result = await executor.reconcile();
+
+      expect(result.succeeded, isTrue);
+      expect(result.skipped, greaterThanOrEqualTo(1));
+      expect(
+        (await database.select(database.taskEffortRecords).getSingle())
+            .remainingSeconds,
+        2400,
+      );
+    },
+  );
 }
 
 Future<LocalTask> taskFor(AppDatabase database, String id) => (database.select(

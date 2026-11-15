@@ -26,9 +26,13 @@ class RemoteMcpTests(unittest.TestCase):
                 "captured_at":"2026-11-15T02:00:00+00:00","version":f"server-{user_id}-1",
                 "sync_state":"current","provisional":False,"timezone":"Asia/Shanghai",
                 "now":"2026-11-15T10:00:00+08:00","horizon_end":"2026-11-15T18:00:00+08:00",
-                "tasks":[{"task_id":f"task-{user_id}","remaining_seconds":1800,
+                "tasks":[{"task_id":f"task-{user_id}","name":f"task for {user_id}",
+                    "task_type":"one_time","remaining_effort_state":"known",
+                    "remaining_seconds":1800,
                     "deadline_date":"2026-11-15","earliest_start":"2026-11-15T10:00:00+08:00",
-                    "completion_status":"pending"}],
+                    "completion_status":"pending"},
+                    {"task_id":f"done-{user_id}","name":"done","completion_status":"completed"}],
+                "current_plan":{"status":"confirmed","blocks":[]},
                 "course_occurrences":[],"occupied_blocks":[],
                 "unmodeled_recurring_occurrence_ids":[],
             }
@@ -92,7 +96,9 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertFalse(contract["production_ready"])
         self.assertEqual(
             {x["name"] for x in tools},
-            {"get_planning_context", "preview_schedule", "simulate_task_delay", "list_plan_risks"},
+            {"get_planning_context", "preview_schedule", "simulate_task_delay", "list_plan_risks",
+             "list_tasks", "get_current_plan", "check_schedule_feasibility",
+             "generate_adjustment_draft"},
         )
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self" for x in tools))
 
@@ -110,6 +116,57 @@ class RemoteMcpTests(unittest.TestCase):
             ("checkd-a","2026-11-15","2026-11-15"),
             ("checkd-b","2026-11-15","2026-11-15"),
         ])
+
+    def test_new_read_tools_are_user_scoped_and_adjustment_draft_is_non_persistent(self):
+        token_a=self.token("checkd-a")
+        token_b=self.token("checkd-b")
+        for token, expected_user in ((token_a,"checkd-a"),(token_b,"checkd-b")):
+            status,_,body=self.rpc("tools/call",{"name":"list_tasks","arguments":{
+                "from":"2026-11-15","to":"2026-11-15"}},token)
+            result=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(status,200)
+            self.assertEqual([task["task_id"] for task in result["tasks"]],
+                             [f"task-{expected_user}"])
+            self.assertFalse(result["execution_eligible"])
+
+            status,_,body=self.rpc("tools/call",{"name":"get_current_plan","arguments":{
+                "from":"2026-11-15","to":"2026-11-15"}},token)
+            plan=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(plan["current_plan"]["status"],"confirmed")
+            self.assertFalse(plan["execution_eligible"])
+
+            status,_,body=self.rpc("tools/call",{"name":"check_schedule_feasibility","arguments":{
+                "from":"2026-11-15","to":"2026-11-15"}},token)
+            feasibility=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(feasibility["operation"],"feasibility")
+            self.assertFalse(feasibility["execution_eligible"])
+
+            status,_,body=self.rpc("tools/call",{"name":"generate_adjustment_draft","arguments":{
+                "from":"2026-11-15","to":"2026-11-15"}},token)
+            draft=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(draft["draft"],{"status":"preview_only","persistent":False,
+                "approval_required_before_write":True})
+            self.assertFalse(draft["execution_eligible"])
+        self.assertEqual(self.provider_calls,[("checkd-a","2026-11-15","2026-11-15")]*4 +
+                         [("checkd-b","2026-11-15","2026-11-15")]*4)
+
+    def test_misbound_snapshot_is_rejected_for_every_tool(self):
+        def misbound(user_id, start, end):
+            return {"subject_ref":"another-user","tasks":[]}
+        app=RemoteMcpApplication(verifier=self.authority,audience=self.audience,
+            snapshot_provider=misbound,resource_metadata_url=self.metadata_url,
+            authorization_server_url=self.issuer_url)
+        token=self.token("user-a")
+        for name in ("list_tasks","get_current_plan","preview_schedule",
+                     "check_schedule_feasibility","generate_adjustment_draft","list_plan_risks"):
+            status,_,body=app.dispatch_http(method="POST",path="/mcp",headers={
+                "accept":"application/json, text/event-stream","content-type":"application/json",
+                "authorization":f"Bearer {token}"},body=json.dumps({"jsonrpc":"2.0","id":1,
+                "method":"tools/call","params":{"name":name,"arguments":{
+                    "from":"2026-11-15","to":"2026-11-15"}}}).encode())
+            response=json.loads(body)["result"]["structuredContent"]
+            self.assertEqual(status,200)
+            self.assertEqual(response["error"]["code"],"NOT_FOUND")
 
     def test_user_id_argument_and_cross_user_task_are_rejected_without_leak(self):
         token=self.token("checkd-b")
@@ -164,14 +221,26 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertNotIn(token.encode(),body)
 
     def test_introspection_adapter_requires_active_expiry_audience_and_binding(self):
-        claims={"active":True,"sub":"workbuddy-user","checkd_uid":"checkd-user",
+        claims={"active":True,"iss":"https://workbuddy.example/tenant","sub":"workbuddy-user",
+                "tid":"tenant-a","checkd_uid":"spoofed-claim-is-ignored",
                 "aud":[self.audience],"exp":int(datetime.now(timezone.utc).timestamp())+100,
                 "scope":"planning:read"}
-        verifier=IntrospectionTokenVerifier(lambda token:claims if token=="opaque" else None)
+        class BindingResolver:
+            def resolve(self, *, issuer, subject, tenant_id):
+                self.last=(issuer,subject,tenant_id)
+                return "checkd-user" if (issuer,subject,tenant_id)==(
+                    "https://workbuddy.example/tenant","workbuddy-user","tenant-a") else None
+        bindings=BindingResolver()
+        verifier=IntrospectionTokenVerifier(lambda token:claims if token=="opaque" else None,bindings)
         identity=verifier.verify("opaque",audience=self.audience,now=datetime.now(timezone.utc))
         self.assertEqual(identity.workbuddy_subject,"workbuddy-user")
         self.assertEqual(identity.checkd_user_id,"checkd-user")
+        self.assertEqual(bindings.last,("https://workbuddy.example/tenant","workbuddy-user","tenant-a"))
         claims["exp"]=int(datetime.now(timezone.utc).timestamp())
+        with self.assertRaises(PermissionError):
+            verifier.verify("opaque",audience=self.audience,now=datetime.now(timezone.utc))
+        claims["exp"]=int(datetime.now(timezone.utc).timestamp())+100
+        claims["sub"]="unbound-workbuddy-user"
         with self.assertRaises(PermissionError):
             verifier.verify("opaque",audience=self.audience,now=datetime.now(timezone.utc))
 

@@ -208,6 +208,10 @@ class SyncUploadExecutor {
     'alarm_rules' => 7,
     'ad_hoc_timers' => 8,
     'ad_hoc_timer_intervals' => 9,
+    'task_effort_estimates' => 6,
+    'task_plan_versions' => 7,
+    'task_time_blocks' => 8,
+    'planned_block_timer_links' => 10,
     _ => 10,
   };
 
@@ -249,6 +253,14 @@ class SyncUploadExecutor {
       'plan_tasks' => _planTaskWrites(operation, payload, userId),
       'reviews' => _reviewWrites(operation, payload, userId),
       'user_preferences' => _preferenceWrites(operation, payload, userId),
+      'task_effort_estimates' => _planningEffortWrites(operation, userId),
+      'task_plan_versions' => _planningVersionWrites(operation, userId),
+      'task_time_blocks' => _planningBlockWrites(operation, userId),
+      'planned_block_timer_links' => _planningTimerLinkWrites(
+        operation,
+        payload,
+        userId,
+      ),
       _ => throw UnsupportedError(
         'Unsupported sync entity: ${operation.entityType}',
       ),
@@ -989,6 +1001,143 @@ class SyncUploadExecutor {
           'deleted_at': payload['deleted_at'],
         }),
         'id',
+      ),
+    ];
+  }
+
+  Future<List<_CloudWrite>> _planningEffortWrites(
+    SyncOperation op,
+    String userId,
+  ) async {
+    final row =
+        await (_database.select(_database.taskEffortRecords)..where(
+              (r) => r.userId.equals(userId) & r.taskId.equals(op.entityId),
+            ))
+            .getSingleOrNull();
+    if (row == null) return const [];
+    final task =
+        await (_database.select(_database.localTasks)
+              ..where((r) => r.id.equals(row.taskId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (task == null) return const [];
+    return [
+      _CloudWrite(
+        'task_effort_estimates',
+        _owned(userId, {
+          'task_id': row.taskId,
+          'estimated_seconds': row.estimatedSeconds,
+          'remaining_seconds': row.remainingSeconds,
+          'source': row.source,
+          'updated_at': _iso(row.updatedAt),
+        }),
+        'user_id,task_id',
+      ),
+    ];
+  }
+
+  Future<List<_CloudWrite>> _planningVersionWrites(
+    SyncOperation op,
+    String userId,
+  ) async {
+    final row =
+        await (_database.select(
+              _database.taskPlanVersionRecords,
+            )..where((r) => r.id.equals(op.entityId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (row == null) return const [];
+    return [
+      _CloudWrite(
+        'task_plan_versions',
+        _owned(userId, {
+          'id': row.id,
+          'revision': row.revision,
+          'source_snapshot_version': row.sourceSnapshotVersion,
+          'proposal_digest': row.proposalDigest,
+          'rules_version': row.rulesVersion,
+          'starts_on': row.startsOn,
+          'ends_on': row.endsOn,
+          'status': row.status,
+          'idempotency_key': row.idempotencyKey,
+          'created_at': _iso(row.createdAt),
+          'confirmed_at': _isoOrNull(row.confirmedAt),
+          'applied_at': _isoOrNull(row.appliedAt),
+        }),
+        'id',
+      ),
+    ];
+  }
+
+  Future<List<_CloudWrite>> _planningBlockWrites(
+    SyncOperation op,
+    String userId,
+  ) async {
+    final row =
+        await (_database.select(
+              _database.plannedTimeBlockRecords,
+            )..where((r) => r.id.equals(op.entityId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (row == null) return const [];
+    final version =
+        await (_database.select(_database.taskPlanVersionRecords)..where(
+              (r) => r.id.equals(row.planVersionId) & r.userId.equals(userId),
+            ))
+            .getSingleOrNull();
+    final task =
+        await (_database.select(_database.localTasks)
+              ..where((r) => r.id.equals(row.taskId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (version == null || task == null) return const [];
+    return [
+      _CloudWrite(
+        'task_time_blocks',
+        _owned(userId, {
+          'id': row.id,
+          'plan_version_id': row.planVersionId,
+          'task_id': row.taskId,
+          'starts_at': _iso(row.startsAt),
+          'ends_at': _iso(row.endsAt),
+          'planned_seconds': row.plannedSeconds,
+        }),
+        'id',
+      ),
+    ];
+  }
+
+  Future<List<_CloudWrite>> _planningTimerLinkWrites(
+    SyncOperation op,
+    Map<String, Object?> payload,
+    String userId,
+  ) async {
+    final blockId = payload['planned_block_id'];
+    final timerId = payload['timer_session_id'];
+    if (blockId is! String || timerId is! String) return const [];
+    final link =
+        await (_database.select(_database.plannedBlockTimerLinks)..where(
+              (r) =>
+                  r.userId.equals(userId) &
+                  r.plannedBlockId.equals(blockId) &
+                  r.timerSessionId.equals(timerId),
+            ))
+            .getSingleOrNull();
+    if (link == null) return const [];
+    final block =
+        await (_database.select(_database.plannedTimeBlockRecords)
+              ..where((r) => r.id.equals(blockId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    final timer =
+        await (_database.select(_database.timerSessionRecords)
+              ..where((r) => r.id.equals(timerId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (block == null || timer == null) return const [];
+    return [
+      _CloudWrite(
+        'planned_block_timer_links',
+        _owned(userId, {
+          'planned_block_id': link.plannedBlockId,
+          'timer_session_id': link.timerSessionId,
+          'linked_at': _iso(link.linkedAt),
+        }),
+        'user_id,planned_block_id,timer_session_id',
       ),
     ];
   }

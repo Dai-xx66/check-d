@@ -24,8 +24,27 @@ class SupabaseSyncRemoteReader implements SyncRemoteReader {
     String table, {
     required String userId,
   }) async {
-    final response = await _client.from(table).select().eq('user_id', userId);
-    return [for (final row in response) Map<String, Object?>.from(row as Map)];
+    try {
+      final response = await _client.from(table).select().eq('user_id', userId);
+      return [
+        for (final row in response) Map<String, Object?>.from(row as Map),
+      ];
+    } on PostgrestException catch (error) {
+      // Planning tables are additive and may not exist on older Dev/Production
+      // schemas yet. Treat only PostgREST's explicit missing-relation code for
+      // these four optional tables as an empty snapshot; all other failures
+      // remain visible and fail the restore.
+      if (error.code == 'PGRST205' &&
+          const {
+            'task_effort_estimates',
+            'task_plan_versions',
+            'task_time_blocks',
+            'planned_block_timer_links',
+          }.contains(table)) {
+        return const [];
+      }
+      rethrow;
+    }
   }
 }
 
@@ -91,6 +110,10 @@ class SyncDownloadExecutor {
     'reviews',
     'tag_revisions',
     'user_preferences',
+    'task_effort_estimates',
+    'task_plan_versions',
+    'task_time_blocks',
+    'planned_block_timer_links',
   ];
 
   final AppDatabase _database;
@@ -165,6 +188,10 @@ class SyncDownloadExecutor {
           skipped++;
           continue;
         }
+        if (await _hasPendingPlanningWrite(table, row, userId)) {
+          skipped++;
+          continue;
+        }
         if (await apply(row)) {
           applied++;
         } else {
@@ -185,6 +212,18 @@ class SyncDownloadExecutor {
     await applyRows('courses', (row) => _applyCourse(row, userId));
     await applyRows('tasks', (row) => _applyTask(row, userId));
     await applyRows(
+      'task_effort_estimates',
+      (row) => _applyPlanningEffort(row, userId),
+    );
+    await applyRows(
+      'task_plan_versions',
+      (row) => _applyPlanningVersion(row, userId),
+    );
+    await applyRows(
+      'task_time_blocks',
+      (row) => _applyPlanningBlock(row, userId),
+    );
+    await applyRows(
       'long_term_tasks',
       (row) => _applyLongTermTask(row, userId),
     );
@@ -203,6 +242,10 @@ class SyncDownloadExecutor {
     );
     await applyRows('task_completions', (row) => _applyCompletion(row, userId));
     await applyRows('timer_sessions', (row) => _applyTimerSession(row, userId));
+    await applyRows(
+      'planned_block_timer_links',
+      (row) => _applyPlanningTimerLink(row, userId),
+    );
     await applyRows('ad_hoc_timers', (row) => _applyAdHocTimer(row, userId));
     await applyRows(
       'ad_hoc_timer_intervals',
@@ -232,6 +275,175 @@ class SyncDownloadExecutor {
     return remoteVersion != null &&
         localSyncVersion != null &&
         remoteVersion > localSyncVersion;
+  }
+
+  Future<bool> _hasPendingPlanningWrite(
+    String table,
+    Map<String, Object?> row,
+    String userId,
+  ) async {
+    final entityType = switch (table) {
+      'task_effort_estimates' => 'task_effort_estimates',
+      'task_plan_versions' => 'task_plan_versions',
+      'task_time_blocks' => 'task_time_blocks',
+      'planned_block_timer_links' => 'planned_block_timer_links',
+      _ => null,
+    };
+    if (entityType == null) return false;
+    final entityId = switch (table) {
+      'task_effort_estimates' => _string(row, 'task_id'),
+      'task_plan_versions' || 'task_time_blocks' => _id(row),
+      'planned_block_timer_links' =>
+        '${_string(row, 'planned_block_id')}:${_string(row, 'timer_session_id')}',
+      _ => '',
+    };
+    final pending =
+        await (_database.select(_database.syncOperations)..where(
+              (op) =>
+                  op.userId.equals(userId) &
+                  op.entityType.equals(entityType) &
+                  op.entityId.equals(entityId) &
+                  (op.status.equals('pending') | op.status.equals('failed')),
+            ))
+            .get();
+    return pending.isNotEmpty;
+  }
+
+  Future<bool> _applyPlanningEffort(
+    Map<String, Object?> row,
+    String userId,
+  ) async {
+    final taskId = _string(row, 'task_id');
+    if (await _task(taskId, userId) == null) return false;
+    final local =
+        await (_database.select(_database.taskEffortRecords)
+              ..where((r) => r.userId.equals(userId) & r.taskId.equals(taskId)))
+            .getSingleOrNull();
+    if (!_isRemoteNewer(localUpdatedAt: local?.updatedAt, remote: row)) {
+      return false;
+    }
+    await _database
+        .into(_database.taskEffortRecords)
+        .insertOnConflictUpdate(
+          TaskEffortRecordsCompanion.insert(
+            taskId: taskId,
+            userId: userId,
+            estimatedSeconds: Value(_intOrNull(row['estimated_seconds'])),
+            remainingSeconds: Value(_intOrNull(row['remaining_seconds'])),
+            source: _string(row, 'source'),
+            updatedAt: _dateTime(row, 'updated_at'),
+          ),
+        );
+    return true;
+  }
+
+  Future<bool> _applyPlanningVersion(
+    Map<String, Object?> row,
+    String userId,
+  ) async {
+    final id = _id(row);
+    final local =
+        await (_database.select(_database.taskPlanVersionRecords)
+              ..where((r) => r.id.equals(id) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (!_isRemoteNewer(localUpdatedAt: local?.createdAt, remote: row)) {
+      return false;
+    }
+    await _database
+        .into(_database.taskPlanVersionRecords)
+        .insertOnConflictUpdate(
+          TaskPlanVersionRecordsCompanion.insert(
+            id: id,
+            userId: userId,
+            revision: _int(row, 'revision'),
+            sourceSnapshotVersion: _string(row, 'source_snapshot_version'),
+            proposalDigest: _string(row, 'proposal_digest'),
+            rulesVersion: _string(row, 'rules_version'),
+            startsOn: _string(row, 'starts_on'),
+            endsOn: _string(row, 'ends_on'),
+            status: _string(row, 'status'),
+            idempotencyKey: _string(row, 'idempotency_key'),
+            createdAt: _dateTime(row, 'created_at'),
+            confirmedAt: Value(_dateTimeOrNull(row, 'confirmed_at')),
+            appliedAt: Value(_dateTimeOrNull(row, 'applied_at')),
+          ),
+        );
+    return true;
+  }
+
+  Future<bool> _applyPlanningBlock(
+    Map<String, Object?> row,
+    String userId,
+  ) async {
+    final id = _id(row);
+    final versionId = _string(row, 'plan_version_id');
+    final taskId = _string(row, 'task_id');
+    if (await (_database.select(_database.taskPlanVersionRecords)..where(
+                  (r) => r.id.equals(versionId) & r.userId.equals(userId),
+                ))
+                .getSingleOrNull() ==
+            null ||
+        await _task(taskId, userId) == null) {
+      return false;
+    }
+    final existing =
+        await (_database.select(_database.plannedTimeBlockRecords)
+              ..where((r) => r.id.equals(id) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    // Time blocks are immutable after plan confirmation; a repeated download
+    // is idempotent and cannot replace a local row with cloud data.
+    if (existing != null) return false;
+    await _database
+        .into(_database.plannedTimeBlockRecords)
+        .insert(
+          PlannedTimeBlockRecordsCompanion.insert(
+            id: id,
+            userId: userId,
+            planVersionId: versionId,
+            taskId: taskId,
+            startsAt: _dateTime(row, 'starts_at'),
+            endsAt: _dateTime(row, 'ends_at'),
+            plannedSeconds: _int(row, 'planned_seconds'),
+          ),
+        );
+    return true;
+  }
+
+  Future<bool> _applyPlanningTimerLink(
+    Map<String, Object?> row,
+    String userId,
+  ) async {
+    final blockId = _string(row, 'planned_block_id');
+    final timerId = _string(row, 'timer_session_id');
+    final block =
+        await (_database.select(_database.plannedTimeBlockRecords)
+              ..where((r) => r.id.equals(blockId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    final timer =
+        await (_database.select(_database.timerSessionRecords)
+              ..where((r) => r.id.equals(timerId) & r.userId.equals(userId)))
+            .getSingleOrNull();
+    if (block == null || timer == null) return false;
+    final existing =
+        await (_database.select(_database.plannedBlockTimerLinks)..where(
+              (r) =>
+                  r.userId.equals(userId) &
+                  r.plannedBlockId.equals(blockId) &
+                  r.timerSessionId.equals(timerId),
+            ))
+            .getSingleOrNull();
+    if (existing != null) return false;
+    await _database
+        .into(_database.plannedBlockTimerLinks)
+        .insert(
+          PlannedBlockTimerLinksCompanion.insert(
+            userId: userId,
+            plannedBlockId: blockId,
+            timerSessionId: timerId,
+            linkedAt: _dateTime(row, 'linked_at'),
+          ),
+        );
+    return true;
   }
 
   Future<bool> _applyTag(Map<String, Object?> row, String userId) async {
