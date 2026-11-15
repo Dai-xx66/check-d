@@ -526,7 +526,47 @@ class TaskRepository {
         throw StateError('End the active timer before changing task mode.');
       }
     }
-    final payload = _oneTimePayload(id, draft, now);
+    final planningDates = draft.clearPlanningDates
+        ? const <DateTime?>[null, null, null, null]
+        : <DateTime?>[
+            draft.availableFrom ?? existing?.availableFrom,
+            draft.plannedDate ?? existing?.plannedDate,
+            draft.dueDate ?? existing?.dueDate,
+            draft.dueAt ?? existing?.dueAt,
+          ];
+    final availableFrom = planningDates[0];
+    final dueDate = planningDates[2];
+    final dueAt = planningDates[3];
+    if (dueDate != null && dueAt != null) {
+      throw ArgumentError('Date-only and exact-time deadlines are exclusive.');
+    }
+    if (availableFrom != null &&
+        dueDate != null &&
+        localDateKey(availableFrom).compareTo(localDateKey(dueDate)) > 0) {
+      throw ArgumentError('availableFrom must not follow the deadline.');
+    }
+    if (availableFrom != null &&
+        dueAt != null &&
+        localDateKey(availableFrom).compareTo(localDateKey(dueAt.toLocal())) >
+            0) {
+      throw ArgumentError('availableFrom must not follow the deadline.');
+    }
+    final effectiveDraft = OneTimeReminderDraft(
+      tagId: draft.tagId,
+      name: draft.name,
+      colorValue: draft.colorValue,
+      iconName: draft.iconName,
+      scheduledAt: draft.scheduledAt,
+      executionMode: draft.executionMode,
+      remindBeforeMinutes: draft.remindBeforeMinutes,
+      availableFrom: planningDates[0],
+      plannedDate: planningDates[1],
+      dueDate: planningDates[2],
+      dueAt: planningDates[3],
+      clearPlanningDates: draft.clearPlanningDates,
+      notes: draft.notes,
+    );
+    final payload = _oneTimePayload(id, effectiveDraft, now);
 
     await _database.transaction(() async {
       if (existing == null) {
@@ -568,6 +608,22 @@ class TaskRepository {
               taskId: id,
               userId: _userId,
               scheduledAt: (draft.scheduledAt ?? DateTime.now()).toUtc(),
+              availableFrom: Value(
+                effectiveDraft.availableFrom == null
+                    ? null
+                    : localDateKey(effectiveDraft.availableFrom!),
+              ),
+              plannedDate: Value(
+                effectiveDraft.plannedDate == null
+                    ? null
+                    : localDateKey(effectiveDraft.plannedDate!),
+              ),
+              dueDate: Value(
+                effectiveDraft.dueDate == null
+                    ? null
+                    : localDateKey(effectiveDraft.dueDate!),
+              ),
+              dueAt: Value(effectiveDraft.dueAt?.toUtc()),
               hasScheduledDate: Value(draft.scheduledAt != null),
               remindBeforeMinutes: Value(draft.remindBeforeMinutes),
               isTimed: Value(draft.executionMode == OneTimeExecutionMode.timed),
@@ -1094,6 +1150,16 @@ class TaskRepository {
           ? OneTimeExecutionMode.timed
           : OneTimeExecutionMode.untimed,
       oneTimeCompletedAt: reminder.completedAt?.toLocal(),
+      availableFrom: reminder.availableFrom == null
+          ? null
+          : _parseLocalDate(reminder.availableFrom!),
+      plannedDate: reminder.plannedDate == null
+          ? null
+          : _parseLocalDate(reminder.plannedDate!),
+      dueDate: reminder.dueDate == null
+          ? null
+          : _parseLocalDate(reminder.dueDate!),
+      dueAt: reminder.dueAt?.toLocal(),
       todayActualDurationSeconds: reminder.isTimed
           ? await _durationForLogicalDate(
               task.id,
@@ -1417,6 +1483,14 @@ class TaskRepository {
       'tag_id': draft.tagId,
       'notes': _normalizedNotes(draft.notes),
       'scheduled_at': draft.scheduledAt?.toUtc().toIso8601String(),
+      'available_from': draft.availableFrom == null
+          ? null
+          : localDateKey(draft.availableFrom!),
+      'planned_date': draft.plannedDate == null
+          ? null
+          : localDateKey(draft.plannedDate!),
+      'due_date': draft.dueDate == null ? null : localDateKey(draft.dueDate!),
+      'due_at': draft.dueAt?.toUtc().toIso8601String(),
       'has_scheduled_date': draft.scheduledAt != null,
       'remind_before_minutes': draft.remindBeforeMinutes,
       'is_timed': draft.executionMode == OneTimeExecutionMode.timed,
@@ -1453,10 +1527,24 @@ class TaskRepository {
           ? null
           : localDateKey(task.schedule!.endsOn!),
       'scheduled_at': task.scheduledAt?.toUtc().toIso8601String(),
+      'available_from': task.availableFrom == null
+          ? null
+          : localDateKey(task.availableFrom!),
+      'planned_date': task.plannedDate == null
+          ? null
+          : localDateKey(task.plannedDate!),
+      'due_date': task.dueDate == null ? null : localDateKey(task.dueDate!),
+      'due_at': task.dueAt?.toUtc().toIso8601String(),
       'remind_before_minutes': task.remindBeforeMinutes,
       'is_timed': task.oneTimeExecutionMode == OneTimeExecutionMode.timed,
       'updated_at': task.updatedAt.toIso8601String(),
     };
+  }
+
+  DateTime _parseLocalDate(String value) {
+    final parts = value.split('-').map(int.parse).toList(growable: false);
+    if (parts.length != 3) throw FormatException('Invalid local date');
+    return DateTime(parts[0], parts[1], parts[2]);
   }
 
   List<int> _sortedWeekdays(Iterable<int> weekdays) {

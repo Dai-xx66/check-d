@@ -60,6 +60,10 @@ class OneTimeReminderRecords extends Table {
       text().references(LocalTasks, #id, onDelete: KeyAction.cascade)();
   TextColumn get userId => text()();
   DateTimeColumn get scheduledAt => dateTime()();
+  TextColumn get availableFrom => text().nullable()();
+  TextColumn get plannedDate => text().nullable()();
+  TextColumn get dueDate => text().nullable()();
+  DateTimeColumn get dueAt => dateTime().nullable()();
   BoolColumn get hasScheduledDate =>
       boolean().withDefault(const Constant(true))();
   IntColumn get remindBeforeMinutes => integer().nullable()();
@@ -139,12 +143,30 @@ class SyncOperations extends Table {
   TextColumn get payloadJson => text()();
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
+  IntColumn get localGeneration => integer().nullable()();
   TextColumn get lastError => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Per-account, per-installation local outbox watermark. Server acknowledgment
+/// is tracked separately from local completion so an offline queue can never
+/// be mistaken for cloud confirmation.
+class SyncDeviceStates extends Table {
+  TextColumn get userId => text()();
+  TextColumn get deviceId => text()();
+  IntColumn get localGeneration => integer().withDefault(const Constant(0))();
+  IntColumn get acknowledgedGeneration =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get serverAcknowledgedGeneration =>
+      integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId};
 }
 
 class AppSettings extends Table {
@@ -583,6 +605,7 @@ class AdHocTimerIntervalRecords extends Table {
     TimerSessionRecords,
     TaskRevisionRecords,
     SyncOperations,
+    SyncDeviceStates,
     AppSettings,
     TagRecords,
     TagRevisionRecords,
@@ -612,7 +635,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -921,6 +944,38 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         await migrator.createTable(planningSyncConflicts);
+      }
+      if (from < 22 && await hasTable('one_time_reminder_records')) {
+        if (!await hasColumn('one_time_reminder_records', 'available_from')) {
+          await customStatement(
+            'ALTER TABLE one_time_reminder_records ADD COLUMN available_from TEXT NULL',
+          );
+        }
+        if (!await hasColumn('one_time_reminder_records', 'planned_date')) {
+          await customStatement(
+            'ALTER TABLE one_time_reminder_records ADD COLUMN planned_date TEXT NULL',
+          );
+        }
+        if (!await hasColumn('one_time_reminder_records', 'due_date')) {
+          await customStatement(
+            'ALTER TABLE one_time_reminder_records ADD COLUMN due_date TEXT NULL',
+          );
+        }
+        if (!await hasColumn('one_time_reminder_records', 'due_at')) {
+          await customStatement(
+            'ALTER TABLE one_time_reminder_records ADD COLUMN due_at INTEGER NULL',
+          );
+        }
+      }
+      if (from < 23 && await hasTable('sync_operations')) {
+        if (!await hasColumn('sync_operations', 'local_generation')) {
+          await customStatement(
+            'ALTER TABLE sync_operations ADD COLUMN local_generation INTEGER NULL',
+          );
+        }
+        if (!await hasTable('sync_device_states')) {
+          await migrator.createTable(syncDeviceStates);
+        }
       }
     },
     beforeOpen: (details) async {

@@ -2014,6 +2014,48 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _availableFromMeta = const VerificationMeta(
+    'availableFrom',
+  );
+  @override
+  late final GeneratedColumn<String> availableFrom = GeneratedColumn<String>(
+    'available_from',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _plannedDateMeta = const VerificationMeta(
+    'plannedDate',
+  );
+  @override
+  late final GeneratedColumn<String> plannedDate = GeneratedColumn<String>(
+    'planned_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<DateTime> dueAt = GeneratedColumn<DateTime>(
+    'due_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _hasScheduledDateMeta = const VerificationMeta(
     'hasScheduledDate',
   );
@@ -2092,6 +2134,10 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
     taskId,
     userId,
     scheduledAt,
+    availableFrom,
+    plannedDate,
+    dueDate,
+    dueAt,
     hasScheduledDate,
     remindBeforeMinutes,
     isTimed,
@@ -2137,6 +2183,36 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
       );
     } else if (isInserting) {
       context.missing(_scheduledAtMeta);
+    }
+    if (data.containsKey('available_from')) {
+      context.handle(
+        _availableFromMeta,
+        availableFrom.isAcceptableOrUnknown(
+          data['available_from']!,
+          _availableFromMeta,
+        ),
+      );
+    }
+    if (data.containsKey('planned_date')) {
+      context.handle(
+        _plannedDateMeta,
+        plannedDate.isAcceptableOrUnknown(
+          data['planned_date']!,
+          _plannedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('due_at')) {
+      context.handle(
+        _dueAtMeta,
+        dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta),
+      );
     }
     if (data.containsKey('has_scheduled_date')) {
       context.handle(
@@ -2208,6 +2284,22 @@ class $OneTimeReminderRecordsTable extends OneTimeReminderRecords
         DriftSqlType.dateTime,
         data['${effectivePrefix}scheduled_at'],
       )!,
+      availableFrom: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}available_from'],
+      ),
+      plannedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}planned_date'],
+      ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      ),
+      dueAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_at'],
+      ),
       hasScheduledDate: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}has_scheduled_date'],
@@ -2246,6 +2338,10 @@ class OneTimeReminderRecord extends DataClass
   final String taskId;
   final String userId;
   final DateTime scheduledAt;
+  final String? availableFrom;
+  final String? plannedDate;
+  final String? dueDate;
+  final DateTime? dueAt;
   final bool hasScheduledDate;
   final int? remindBeforeMinutes;
   final bool isTimed;
@@ -2256,6 +2352,10 @@ class OneTimeReminderRecord extends DataClass
     required this.taskId,
     required this.userId,
     required this.scheduledAt,
+    this.availableFrom,
+    this.plannedDate,
+    this.dueDate,
+    this.dueAt,
     required this.hasScheduledDate,
     this.remindBeforeMinutes,
     required this.isTimed,
@@ -2269,6 +2369,18 @@ class OneTimeReminderRecord extends DataClass
     map['task_id'] = Variable<String>(taskId);
     map['user_id'] = Variable<String>(userId);
     map['scheduled_at'] = Variable<DateTime>(scheduledAt);
+    if (!nullToAbsent || availableFrom != null) {
+      map['available_from'] = Variable<String>(availableFrom);
+    }
+    if (!nullToAbsent || plannedDate != null) {
+      map['planned_date'] = Variable<String>(plannedDate);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<String>(dueDate);
+    }
+    if (!nullToAbsent || dueAt != null) {
+      map['due_at'] = Variable<DateTime>(dueAt);
+    }
     map['has_scheduled_date'] = Variable<bool>(hasScheduledDate);
     if (!nullToAbsent || remindBeforeMinutes != null) {
       map['remind_before_minutes'] = Variable<int>(remindBeforeMinutes);
@@ -2287,6 +2399,18 @@ class OneTimeReminderRecord extends DataClass
       taskId: Value(taskId),
       userId: Value(userId),
       scheduledAt: Value(scheduledAt),
+      availableFrom: availableFrom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(availableFrom),
+      plannedDate: plannedDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(plannedDate),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      dueAt: dueAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueAt),
       hasScheduledDate: Value(hasScheduledDate),
       remindBeforeMinutes: remindBeforeMinutes == null && nullToAbsent
           ? const Value.absent()
@@ -2309,6 +2433,10 @@ class OneTimeReminderRecord extends DataClass
       taskId: serializer.fromJson<String>(json['taskId']),
       userId: serializer.fromJson<String>(json['userId']),
       scheduledAt: serializer.fromJson<DateTime>(json['scheduledAt']),
+      availableFrom: serializer.fromJson<String?>(json['availableFrom']),
+      plannedDate: serializer.fromJson<String?>(json['plannedDate']),
+      dueDate: serializer.fromJson<String?>(json['dueDate']),
+      dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       hasScheduledDate: serializer.fromJson<bool>(json['hasScheduledDate']),
       remindBeforeMinutes: serializer.fromJson<int?>(
         json['remindBeforeMinutes'],
@@ -2326,6 +2454,10 @@ class OneTimeReminderRecord extends DataClass
       'taskId': serializer.toJson<String>(taskId),
       'userId': serializer.toJson<String>(userId),
       'scheduledAt': serializer.toJson<DateTime>(scheduledAt),
+      'availableFrom': serializer.toJson<String?>(availableFrom),
+      'plannedDate': serializer.toJson<String?>(plannedDate),
+      'dueDate': serializer.toJson<String?>(dueDate),
+      'dueAt': serializer.toJson<DateTime?>(dueAt),
       'hasScheduledDate': serializer.toJson<bool>(hasScheduledDate),
       'remindBeforeMinutes': serializer.toJson<int?>(remindBeforeMinutes),
       'isTimed': serializer.toJson<bool>(isTimed),
@@ -2339,6 +2471,10 @@ class OneTimeReminderRecord extends DataClass
     String? taskId,
     String? userId,
     DateTime? scheduledAt,
+    Value<String?> availableFrom = const Value.absent(),
+    Value<String?> plannedDate = const Value.absent(),
+    Value<String?> dueDate = const Value.absent(),
+    Value<DateTime?> dueAt = const Value.absent(),
     bool? hasScheduledDate,
     Value<int?> remindBeforeMinutes = const Value.absent(),
     bool? isTimed,
@@ -2349,6 +2485,12 @@ class OneTimeReminderRecord extends DataClass
     taskId: taskId ?? this.taskId,
     userId: userId ?? this.userId,
     scheduledAt: scheduledAt ?? this.scheduledAt,
+    availableFrom: availableFrom.present
+        ? availableFrom.value
+        : this.availableFrom,
+    plannedDate: plannedDate.present ? plannedDate.value : this.plannedDate,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    dueAt: dueAt.present ? dueAt.value : this.dueAt,
     hasScheduledDate: hasScheduledDate ?? this.hasScheduledDate,
     remindBeforeMinutes: remindBeforeMinutes.present
         ? remindBeforeMinutes.value
@@ -2367,6 +2509,14 @@ class OneTimeReminderRecord extends DataClass
       scheduledAt: data.scheduledAt.present
           ? data.scheduledAt.value
           : this.scheduledAt,
+      availableFrom: data.availableFrom.present
+          ? data.availableFrom.value
+          : this.availableFrom,
+      plannedDate: data.plannedDate.present
+          ? data.plannedDate.value
+          : this.plannedDate,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       hasScheduledDate: data.hasScheduledDate.present
           ? data.hasScheduledDate.value
           : this.hasScheduledDate,
@@ -2388,6 +2538,10 @@ class OneTimeReminderRecord extends DataClass
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
+          ..write('availableFrom: $availableFrom, ')
+          ..write('plannedDate: $plannedDate, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dueAt: $dueAt, ')
           ..write('hasScheduledDate: $hasScheduledDate, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('isTimed: $isTimed, ')
@@ -2403,6 +2557,10 @@ class OneTimeReminderRecord extends DataClass
     taskId,
     userId,
     scheduledAt,
+    availableFrom,
+    plannedDate,
+    dueDate,
+    dueAt,
     hasScheduledDate,
     remindBeforeMinutes,
     isTimed,
@@ -2417,6 +2575,10 @@ class OneTimeReminderRecord extends DataClass
           other.taskId == this.taskId &&
           other.userId == this.userId &&
           other.scheduledAt == this.scheduledAt &&
+          other.availableFrom == this.availableFrom &&
+          other.plannedDate == this.plannedDate &&
+          other.dueDate == this.dueDate &&
+          other.dueAt == this.dueAt &&
           other.hasScheduledDate == this.hasScheduledDate &&
           other.remindBeforeMinutes == this.remindBeforeMinutes &&
           other.isTimed == this.isTimed &&
@@ -2430,6 +2592,10 @@ class OneTimeReminderRecordsCompanion
   final Value<String> taskId;
   final Value<String> userId;
   final Value<DateTime> scheduledAt;
+  final Value<String?> availableFrom;
+  final Value<String?> plannedDate;
+  final Value<String?> dueDate;
+  final Value<DateTime?> dueAt;
   final Value<bool> hasScheduledDate;
   final Value<int?> remindBeforeMinutes;
   final Value<bool> isTimed;
@@ -2441,6 +2607,10 @@ class OneTimeReminderRecordsCompanion
     this.taskId = const Value.absent(),
     this.userId = const Value.absent(),
     this.scheduledAt = const Value.absent(),
+    this.availableFrom = const Value.absent(),
+    this.plannedDate = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.hasScheduledDate = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     this.isTimed = const Value.absent(),
@@ -2453,6 +2623,10 @@ class OneTimeReminderRecordsCompanion
     required String taskId,
     required String userId,
     required DateTime scheduledAt,
+    this.availableFrom = const Value.absent(),
+    this.plannedDate = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.hasScheduledDate = const Value.absent(),
     this.remindBeforeMinutes = const Value.absent(),
     this.isTimed = const Value.absent(),
@@ -2469,6 +2643,10 @@ class OneTimeReminderRecordsCompanion
     Expression<String>? taskId,
     Expression<String>? userId,
     Expression<DateTime>? scheduledAt,
+    Expression<String>? availableFrom,
+    Expression<String>? plannedDate,
+    Expression<String>? dueDate,
+    Expression<DateTime>? dueAt,
     Expression<bool>? hasScheduledDate,
     Expression<int>? remindBeforeMinutes,
     Expression<bool>? isTimed,
@@ -2481,6 +2659,10 @@ class OneTimeReminderRecordsCompanion
       if (taskId != null) 'task_id': taskId,
       if (userId != null) 'user_id': userId,
       if (scheduledAt != null) 'scheduled_at': scheduledAt,
+      if (availableFrom != null) 'available_from': availableFrom,
+      if (plannedDate != null) 'planned_date': plannedDate,
+      if (dueDate != null) 'due_date': dueDate,
+      if (dueAt != null) 'due_at': dueAt,
       if (hasScheduledDate != null) 'has_scheduled_date': hasScheduledDate,
       if (remindBeforeMinutes != null)
         'remind_before_minutes': remindBeforeMinutes,
@@ -2496,6 +2678,10 @@ class OneTimeReminderRecordsCompanion
     Value<String>? taskId,
     Value<String>? userId,
     Value<DateTime>? scheduledAt,
+    Value<String?>? availableFrom,
+    Value<String?>? plannedDate,
+    Value<String?>? dueDate,
+    Value<DateTime?>? dueAt,
     Value<bool>? hasScheduledDate,
     Value<int?>? remindBeforeMinutes,
     Value<bool>? isTimed,
@@ -2508,6 +2694,10 @@ class OneTimeReminderRecordsCompanion
       taskId: taskId ?? this.taskId,
       userId: userId ?? this.userId,
       scheduledAt: scheduledAt ?? this.scheduledAt,
+      availableFrom: availableFrom ?? this.availableFrom,
+      plannedDate: plannedDate ?? this.plannedDate,
+      dueDate: dueDate ?? this.dueDate,
+      dueAt: dueAt ?? this.dueAt,
       hasScheduledDate: hasScheduledDate ?? this.hasScheduledDate,
       remindBeforeMinutes: remindBeforeMinutes ?? this.remindBeforeMinutes,
       isTimed: isTimed ?? this.isTimed,
@@ -2529,6 +2719,18 @@ class OneTimeReminderRecordsCompanion
     }
     if (scheduledAt.present) {
       map['scheduled_at'] = Variable<DateTime>(scheduledAt.value);
+    }
+    if (availableFrom.present) {
+      map['available_from'] = Variable<String>(availableFrom.value);
+    }
+    if (plannedDate.present) {
+      map['planned_date'] = Variable<String>(plannedDate.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    if (dueAt.present) {
+      map['due_at'] = Variable<DateTime>(dueAt.value);
     }
     if (hasScheduledDate.present) {
       map['has_scheduled_date'] = Variable<bool>(hasScheduledDate.value);
@@ -2560,6 +2762,10 @@ class OneTimeReminderRecordsCompanion
           ..write('taskId: $taskId, ')
           ..write('userId: $userId, ')
           ..write('scheduledAt: $scheduledAt, ')
+          ..write('availableFrom: $availableFrom, ')
+          ..write('plannedDate: $plannedDate, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dueAt: $dueAt, ')
           ..write('hasScheduledDate: $hasScheduledDate, ')
           ..write('remindBeforeMinutes: $remindBeforeMinutes, ')
           ..write('isTimed: $isTimed, ')
@@ -4479,6 +4685,17 @@ class $SyncOperationsTable extends SyncOperations
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _localGenerationMeta = const VerificationMeta(
+    'localGeneration',
+  );
+  @override
+  late final GeneratedColumn<int> localGeneration = GeneratedColumn<int>(
+    'local_generation',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _lastErrorMeta = const VerificationMeta(
     'lastError',
   );
@@ -4522,6 +4739,7 @@ class $SyncOperationsTable extends SyncOperations
     payloadJson,
     status,
     retryCount,
+    localGeneration,
     lastError,
     createdAt,
     updatedAt,
@@ -4596,6 +4814,15 @@ class $SyncOperationsTable extends SyncOperations
         retryCount.isAcceptableOrUnknown(data['retry_count']!, _retryCountMeta),
       );
     }
+    if (data.containsKey('local_generation')) {
+      context.handle(
+        _localGenerationMeta,
+        localGeneration.isAcceptableOrUnknown(
+          data['local_generation']!,
+          _localGenerationMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_error')) {
       context.handle(
         _lastErrorMeta,
@@ -4659,6 +4886,10 @@ class $SyncOperationsTable extends SyncOperations
         DriftSqlType.int,
         data['${effectivePrefix}retry_count'],
       )!,
+      localGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_generation'],
+      ),
       lastError: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}last_error'],
@@ -4689,6 +4920,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
   final String payloadJson;
   final String status;
   final int retryCount;
+  final int? localGeneration;
   final String? lastError;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -4701,6 +4933,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     required this.payloadJson,
     required this.status,
     required this.retryCount,
+    this.localGeneration,
     this.lastError,
     required this.createdAt,
     required this.updatedAt,
@@ -4718,6 +4951,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     map['payload_json'] = Variable<String>(payloadJson);
     map['status'] = Variable<String>(status);
     map['retry_count'] = Variable<int>(retryCount);
+    if (!nullToAbsent || localGeneration != null) {
+      map['local_generation'] = Variable<int>(localGeneration);
+    }
     if (!nullToAbsent || lastError != null) {
       map['last_error'] = Variable<String>(lastError);
     }
@@ -4738,6 +4974,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       payloadJson: Value(payloadJson),
       status: Value(status),
       retryCount: Value(retryCount),
+      localGeneration: localGeneration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localGeneration),
       lastError: lastError == null && nullToAbsent
           ? const Value.absent()
           : Value(lastError),
@@ -4760,6 +4999,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       payloadJson: serializer.fromJson<String>(json['payloadJson']),
       status: serializer.fromJson<String>(json['status']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
+      localGeneration: serializer.fromJson<int?>(json['localGeneration']),
       lastError: serializer.fromJson<String?>(json['lastError']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -4777,6 +5017,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       'payloadJson': serializer.toJson<String>(payloadJson),
       'status': serializer.toJson<String>(status),
       'retryCount': serializer.toJson<int>(retryCount),
+      'localGeneration': serializer.toJson<int?>(localGeneration),
       'lastError': serializer.toJson<String?>(lastError),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -4792,6 +5033,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     String? payloadJson,
     String? status,
     int? retryCount,
+    Value<int?> localGeneration = const Value.absent(),
     Value<String?> lastError = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -4804,6 +5046,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     payloadJson: payloadJson ?? this.payloadJson,
     status: status ?? this.status,
     retryCount: retryCount ?? this.retryCount,
+    localGeneration: localGeneration.present
+        ? localGeneration.value
+        : this.localGeneration,
     lastError: lastError.present ? lastError.value : this.lastError,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -4824,6 +5069,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       retryCount: data.retryCount.present
           ? data.retryCount.value
           : this.retryCount,
+      localGeneration: data.localGeneration.present
+          ? data.localGeneration.value
+          : this.localGeneration,
       lastError: data.lastError.present ? data.lastError.value : this.lastError,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -4841,6 +5089,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ..write('payloadJson: $payloadJson, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
+          ..write('localGeneration: $localGeneration, ')
           ..write('lastError: $lastError, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -4858,6 +5107,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     payloadJson,
     status,
     retryCount,
+    localGeneration,
     lastError,
     createdAt,
     updatedAt,
@@ -4874,6 +5124,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           other.payloadJson == this.payloadJson &&
           other.status == this.status &&
           other.retryCount == this.retryCount &&
+          other.localGeneration == this.localGeneration &&
           other.lastError == this.lastError &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -4888,6 +5139,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
   final Value<String> payloadJson;
   final Value<String> status;
   final Value<int> retryCount;
+  final Value<int?> localGeneration;
   final Value<String?> lastError;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -4901,6 +5153,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.payloadJson = const Value.absent(),
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
+    this.localGeneration = const Value.absent(),
     this.lastError = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -4915,6 +5168,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     required String payloadJson,
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
+    this.localGeneration = const Value.absent(),
     this.lastError = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -4935,6 +5189,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Expression<String>? payloadJson,
     Expression<String>? status,
     Expression<int>? retryCount,
+    Expression<int>? localGeneration,
     Expression<String>? lastError,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -4949,6 +5204,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       if (payloadJson != null) 'payload_json': payloadJson,
       if (status != null) 'status': status,
       if (retryCount != null) 'retry_count': retryCount,
+      if (localGeneration != null) 'local_generation': localGeneration,
       if (lastError != null) 'last_error': lastError,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4965,6 +5221,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Value<String>? payloadJson,
     Value<String>? status,
     Value<int>? retryCount,
+    Value<int?>? localGeneration,
     Value<String?>? lastError,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -4979,6 +5236,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       payloadJson: payloadJson ?? this.payloadJson,
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
+      localGeneration: localGeneration ?? this.localGeneration,
       lastError: lastError ?? this.lastError,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -5013,6 +5271,9 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     if (retryCount.present) {
       map['retry_count'] = Variable<int>(retryCount.value);
     }
+    if (localGeneration.present) {
+      map['local_generation'] = Variable<int>(localGeneration.value);
+    }
     if (lastError.present) {
       map['last_error'] = Variable<String>(lastError.value);
     }
@@ -5039,8 +5300,459 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
           ..write('payloadJson: $payloadJson, ')
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
+          ..write('localGeneration: $localGeneration, ')
           ..write('lastError: $lastError, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncDeviceStatesTable extends SyncDeviceStates
+    with TableInfo<$SyncDeviceStatesTable, SyncDeviceState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncDeviceStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localGenerationMeta = const VerificationMeta(
+    'localGeneration',
+  );
+  @override
+  late final GeneratedColumn<int> localGeneration = GeneratedColumn<int>(
+    'local_generation',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _acknowledgedGenerationMeta =
+      const VerificationMeta('acknowledgedGeneration');
+  @override
+  late final GeneratedColumn<int> acknowledgedGeneration = GeneratedColumn<int>(
+    'acknowledged_generation',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _serverAcknowledgedGenerationMeta =
+      const VerificationMeta('serverAcknowledgedGeneration');
+  @override
+  late final GeneratedColumn<int> serverAcknowledgedGeneration =
+      GeneratedColumn<int>(
+        'server_acknowledged_generation',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    deviceId,
+    localGeneration,
+    acknowledgedGeneration,
+    serverAcknowledgedGeneration,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_device_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncDeviceState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('local_generation')) {
+      context.handle(
+        _localGenerationMeta,
+        localGeneration.isAcceptableOrUnknown(
+          data['local_generation']!,
+          _localGenerationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('acknowledged_generation')) {
+      context.handle(
+        _acknowledgedGenerationMeta,
+        acknowledgedGeneration.isAcceptableOrUnknown(
+          data['acknowledged_generation']!,
+          _acknowledgedGenerationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_acknowledged_generation')) {
+      context.handle(
+        _serverAcknowledgedGenerationMeta,
+        serverAcknowledgedGeneration.isAcceptableOrUnknown(
+          data['server_acknowledged_generation']!,
+          _serverAcknowledgedGenerationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  SyncDeviceState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncDeviceState(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      localGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_generation'],
+      )!,
+      acknowledgedGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}acknowledged_generation'],
+      )!,
+      serverAcknowledgedGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_acknowledged_generation'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncDeviceStatesTable createAlias(String alias) {
+    return $SyncDeviceStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncDeviceState extends DataClass implements Insertable<SyncDeviceState> {
+  final String userId;
+  final String deviceId;
+  final int localGeneration;
+  final int acknowledgedGeneration;
+  final int serverAcknowledgedGeneration;
+  final DateTime updatedAt;
+  const SyncDeviceState({
+    required this.userId,
+    required this.deviceId,
+    required this.localGeneration,
+    required this.acknowledgedGeneration,
+    required this.serverAcknowledgedGeneration,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['device_id'] = Variable<String>(deviceId);
+    map['local_generation'] = Variable<int>(localGeneration);
+    map['acknowledged_generation'] = Variable<int>(acknowledgedGeneration);
+    map['server_acknowledged_generation'] = Variable<int>(
+      serverAcknowledgedGeneration,
+    );
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncDeviceStatesCompanion toCompanion(bool nullToAbsent) {
+    return SyncDeviceStatesCompanion(
+      userId: Value(userId),
+      deviceId: Value(deviceId),
+      localGeneration: Value(localGeneration),
+      acknowledgedGeneration: Value(acknowledgedGeneration),
+      serverAcknowledgedGeneration: Value(serverAcknowledgedGeneration),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncDeviceState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncDeviceState(
+      userId: serializer.fromJson<String>(json['userId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      localGeneration: serializer.fromJson<int>(json['localGeneration']),
+      acknowledgedGeneration: serializer.fromJson<int>(
+        json['acknowledgedGeneration'],
+      ),
+      serverAcknowledgedGeneration: serializer.fromJson<int>(
+        json['serverAcknowledgedGeneration'],
+      ),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'localGeneration': serializer.toJson<int>(localGeneration),
+      'acknowledgedGeneration': serializer.toJson<int>(acknowledgedGeneration),
+      'serverAcknowledgedGeneration': serializer.toJson<int>(
+        serverAcknowledgedGeneration,
+      ),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncDeviceState copyWith({
+    String? userId,
+    String? deviceId,
+    int? localGeneration,
+    int? acknowledgedGeneration,
+    int? serverAcknowledgedGeneration,
+    DateTime? updatedAt,
+  }) => SyncDeviceState(
+    userId: userId ?? this.userId,
+    deviceId: deviceId ?? this.deviceId,
+    localGeneration: localGeneration ?? this.localGeneration,
+    acknowledgedGeneration:
+        acknowledgedGeneration ?? this.acknowledgedGeneration,
+    serverAcknowledgedGeneration:
+        serverAcknowledgedGeneration ?? this.serverAcknowledgedGeneration,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncDeviceState copyWithCompanion(SyncDeviceStatesCompanion data) {
+    return SyncDeviceState(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      localGeneration: data.localGeneration.present
+          ? data.localGeneration.value
+          : this.localGeneration,
+      acknowledgedGeneration: data.acknowledgedGeneration.present
+          ? data.acknowledgedGeneration.value
+          : this.acknowledgedGeneration,
+      serverAcknowledgedGeneration: data.serverAcknowledgedGeneration.present
+          ? data.serverAcknowledgedGeneration.value
+          : this.serverAcknowledgedGeneration,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncDeviceState(')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('localGeneration: $localGeneration, ')
+          ..write('acknowledgedGeneration: $acknowledgedGeneration, ')
+          ..write(
+            'serverAcknowledgedGeneration: $serverAcknowledgedGeneration, ',
+          )
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    userId,
+    deviceId,
+    localGeneration,
+    acknowledgedGeneration,
+    serverAcknowledgedGeneration,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncDeviceState &&
+          other.userId == this.userId &&
+          other.deviceId == this.deviceId &&
+          other.localGeneration == this.localGeneration &&
+          other.acknowledgedGeneration == this.acknowledgedGeneration &&
+          other.serverAcknowledgedGeneration ==
+              this.serverAcknowledgedGeneration &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncDeviceStatesCompanion extends UpdateCompanion<SyncDeviceState> {
+  final Value<String> userId;
+  final Value<String> deviceId;
+  final Value<int> localGeneration;
+  final Value<int> acknowledgedGeneration;
+  final Value<int> serverAcknowledgedGeneration;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SyncDeviceStatesCompanion({
+    this.userId = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.localGeneration = const Value.absent(),
+    this.acknowledgedGeneration = const Value.absent(),
+    this.serverAcknowledgedGeneration = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncDeviceStatesCompanion.insert({
+    required String userId,
+    required String deviceId,
+    this.localGeneration = const Value.absent(),
+    this.acknowledgedGeneration = const Value.absent(),
+    this.serverAcknowledgedGeneration = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       deviceId = Value(deviceId),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncDeviceState> custom({
+    Expression<String>? userId,
+    Expression<String>? deviceId,
+    Expression<int>? localGeneration,
+    Expression<int>? acknowledgedGeneration,
+    Expression<int>? serverAcknowledgedGeneration,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (deviceId != null) 'device_id': deviceId,
+      if (localGeneration != null) 'local_generation': localGeneration,
+      if (acknowledgedGeneration != null)
+        'acknowledged_generation': acknowledgedGeneration,
+      if (serverAcknowledgedGeneration != null)
+        'server_acknowledged_generation': serverAcknowledgedGeneration,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncDeviceStatesCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? deviceId,
+    Value<int>? localGeneration,
+    Value<int>? acknowledgedGeneration,
+    Value<int>? serverAcknowledgedGeneration,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncDeviceStatesCompanion(
+      userId: userId ?? this.userId,
+      deviceId: deviceId ?? this.deviceId,
+      localGeneration: localGeneration ?? this.localGeneration,
+      acknowledgedGeneration:
+          acknowledgedGeneration ?? this.acknowledgedGeneration,
+      serverAcknowledgedGeneration:
+          serverAcknowledgedGeneration ?? this.serverAcknowledgedGeneration,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (localGeneration.present) {
+      map['local_generation'] = Variable<int>(localGeneration.value);
+    }
+    if (acknowledgedGeneration.present) {
+      map['acknowledged_generation'] = Variable<int>(
+        acknowledgedGeneration.value,
+      );
+    }
+    if (serverAcknowledgedGeneration.present) {
+      map['server_acknowledged_generation'] = Variable<int>(
+        serverAcknowledgedGeneration.value,
+      );
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncDeviceStatesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('localGeneration: $localGeneration, ')
+          ..write('acknowledgedGeneration: $acknowledgedGeneration, ')
+          ..write(
+            'serverAcknowledgedGeneration: $serverAcknowledgedGeneration, ',
+          )
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -18632,6 +19344,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskRevisionRecordsTable taskRevisionRecords =
       $TaskRevisionRecordsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
+  late final $SyncDeviceStatesTable syncDeviceStates = $SyncDeviceStatesTable(
+    this,
+  );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $TagRecordsTable tagRecords = $TagRecordsTable(this);
   late final $TagRevisionRecordsTable tagRevisionRecords =
@@ -18685,6 +19400,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     timerSessionRecords,
     taskRevisionRecords,
     syncOperations,
+    syncDeviceStates,
     appSettings,
     tagRecords,
     tagRevisionRecords,
@@ -20740,6 +21456,10 @@ typedef $$OneTimeReminderRecordsTableCreateCompanionBuilder =
       required String taskId,
       required String userId,
       required DateTime scheduledAt,
+      Value<String?> availableFrom,
+      Value<String?> plannedDate,
+      Value<String?> dueDate,
+      Value<DateTime?> dueAt,
       Value<bool> hasScheduledDate,
       Value<int?> remindBeforeMinutes,
       Value<bool> isTimed,
@@ -20753,6 +21473,10 @@ typedef $$OneTimeReminderRecordsTableUpdateCompanionBuilder =
       Value<String> taskId,
       Value<String> userId,
       Value<DateTime> scheduledAt,
+      Value<String?> availableFrom,
+      Value<String?> plannedDate,
+      Value<String?> dueDate,
+      Value<DateTime?> dueAt,
       Value<bool> hasScheduledDate,
       Value<int?> remindBeforeMinutes,
       Value<bool> isTimed,
@@ -20809,6 +21533,26 @@ class $$OneTimeReminderRecordsTableFilterComposer
 
   ColumnFilters<DateTime> get scheduledAt => $composableBuilder(
     column: $table.scheduledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get availableFrom => $composableBuilder(
+    column: $table.availableFrom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get plannedDate => $composableBuilder(
+    column: $table.plannedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20885,6 +21629,26 @@ class $$OneTimeReminderRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get availableFrom => $composableBuilder(
+    column: $table.availableFrom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get plannedDate => $composableBuilder(
+    column: $table.plannedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get hasScheduledDate => $composableBuilder(
     column: $table.hasScheduledDate,
     builder: (column) => ColumnOrderings(column),
@@ -20955,6 +21719,22 @@ class $$OneTimeReminderRecordsTableAnnotationComposer
     column: $table.scheduledAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get availableFrom => $composableBuilder(
+    column: $table.availableFrom,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get plannedDate => $composableBuilder(
+    column: $table.plannedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
 
   GeneratedColumn<bool> get hasScheduledDate => $composableBuilder(
     column: $table.hasScheduledDate,
@@ -21046,6 +21826,10 @@ class $$OneTimeReminderRecordsTableTableManager
                 Value<String> taskId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<DateTime> scheduledAt = const Value.absent(),
+                Value<String?> availableFrom = const Value.absent(),
+                Value<String?> plannedDate = const Value.absent(),
+                Value<String?> dueDate = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<bool> hasScheduledDate = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 Value<bool> isTimed = const Value.absent(),
@@ -21057,6 +21841,10 @@ class $$OneTimeReminderRecordsTableTableManager
                 taskId: taskId,
                 userId: userId,
                 scheduledAt: scheduledAt,
+                availableFrom: availableFrom,
+                plannedDate: plannedDate,
+                dueDate: dueDate,
+                dueAt: dueAt,
                 hasScheduledDate: hasScheduledDate,
                 remindBeforeMinutes: remindBeforeMinutes,
                 isTimed: isTimed,
@@ -21070,6 +21858,10 @@ class $$OneTimeReminderRecordsTableTableManager
                 required String taskId,
                 required String userId,
                 required DateTime scheduledAt,
+                Value<String?> availableFrom = const Value.absent(),
+                Value<String?> plannedDate = const Value.absent(),
+                Value<String?> dueDate = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<bool> hasScheduledDate = const Value.absent(),
                 Value<int?> remindBeforeMinutes = const Value.absent(),
                 Value<bool> isTimed = const Value.absent(),
@@ -21081,6 +21873,10 @@ class $$OneTimeReminderRecordsTableTableManager
                 taskId: taskId,
                 userId: userId,
                 scheduledAt: scheduledAt,
+                availableFrom: availableFrom,
+                plannedDate: plannedDate,
+                dueDate: dueDate,
+                dueAt: dueAt,
                 hasScheduledDate: hasScheduledDate,
                 remindBeforeMinutes: remindBeforeMinutes,
                 isTimed: isTimed,
@@ -22471,6 +23267,7 @@ typedef $$SyncOperationsTableCreateCompanionBuilder =
       required String payloadJson,
       Value<String> status,
       Value<int> retryCount,
+      Value<int?> localGeneration,
       Value<String?> lastError,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -22486,6 +23283,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
       Value<String> payloadJson,
       Value<String> status,
       Value<int> retryCount,
+      Value<int?> localGeneration,
       Value<String?> lastError,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -22538,6 +23336,11 @@ class $$SyncOperationsTableFilterComposer
 
   ColumnFilters<int> get retryCount => $composableBuilder(
     column: $table.retryCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -22606,6 +23409,11 @@ class $$SyncOperationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get lastError => $composableBuilder(
     column: $table.lastError,
     builder: (column) => ColumnOrderings(column),
@@ -22661,6 +23469,11 @@ class $$SyncOperationsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get lastError =>
       $composableBuilder(column: $table.lastError, builder: (column) => column);
 
@@ -22712,6 +23525,7 @@ class $$SyncOperationsTableTableManager
                 Value<String> payloadJson = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
+                Value<int?> localGeneration = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -22725,6 +23539,7 @@ class $$SyncOperationsTableTableManager
                 payloadJson: payloadJson,
                 status: status,
                 retryCount: retryCount,
+                localGeneration: localGeneration,
                 lastError: lastError,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -22740,6 +23555,7 @@ class $$SyncOperationsTableTableManager
                 required String payloadJson,
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
+                Value<int?> localGeneration = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -22753,6 +23569,7 @@ class $$SyncOperationsTableTableManager
                 payloadJson: payloadJson,
                 status: status,
                 retryCount: retryCount,
+                localGeneration: localGeneration,
                 lastError: lastError,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -22790,6 +23607,246 @@ typedef $$SyncOperationsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
       ),
       SyncOperation,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncDeviceStatesTableCreateCompanionBuilder =
+    SyncDeviceStatesCompanion Function({
+      required String userId,
+      required String deviceId,
+      Value<int> localGeneration,
+      Value<int> acknowledgedGeneration,
+      Value<int> serverAcknowledgedGeneration,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncDeviceStatesTableUpdateCompanionBuilder =
+    SyncDeviceStatesCompanion Function({
+      Value<String> userId,
+      Value<String> deviceId,
+      Value<int> localGeneration,
+      Value<int> acknowledgedGeneration,
+      Value<int> serverAcknowledgedGeneration,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncDeviceStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverAcknowledgedGeneration => $composableBuilder(
+    column: $table.serverAcknowledgedGeneration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncDeviceStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverAcknowledgedGeneration => $composableBuilder(
+    column: $table.serverAcknowledgedGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncDeviceStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverAcknowledgedGeneration => $composableBuilder(
+    column: $table.serverAcknowledgedGeneration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncDeviceStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncDeviceStatesTable,
+          SyncDeviceState,
+          $$SyncDeviceStatesTableFilterComposer,
+          $$SyncDeviceStatesTableOrderingComposer,
+          $$SyncDeviceStatesTableAnnotationComposer,
+          $$SyncDeviceStatesTableCreateCompanionBuilder,
+          $$SyncDeviceStatesTableUpdateCompanionBuilder,
+          (
+            SyncDeviceState,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncDeviceStatesTable,
+              SyncDeviceState
+            >,
+          ),
+          SyncDeviceState,
+          PrefetchHooks Function()
+        > {
+  $$SyncDeviceStatesTableTableManager(
+    _$AppDatabase db,
+    $SyncDeviceStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncDeviceStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncDeviceStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncDeviceStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> localGeneration = const Value.absent(),
+                Value<int> acknowledgedGeneration = const Value.absent(),
+                Value<int> serverAcknowledgedGeneration = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncDeviceStatesCompanion(
+                userId: userId,
+                deviceId: deviceId,
+                localGeneration: localGeneration,
+                acknowledgedGeneration: acknowledgedGeneration,
+                serverAcknowledgedGeneration: serverAcknowledgedGeneration,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String deviceId,
+                Value<int> localGeneration = const Value.absent(),
+                Value<int> acknowledgedGeneration = const Value.absent(),
+                Value<int> serverAcknowledgedGeneration = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncDeviceStatesCompanion.insert(
+                userId: userId,
+                deviceId: deviceId,
+                localGeneration: localGeneration,
+                acknowledgedGeneration: acknowledgedGeneration,
+                serverAcknowledgedGeneration: serverAcknowledgedGeneration,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncDeviceStatesTable, SyncDeviceState>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncDeviceStatesTable,
+                    SyncDeviceState
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncDeviceStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncDeviceStatesTable,
+      SyncDeviceState,
+      $$SyncDeviceStatesTableFilterComposer,
+      $$SyncDeviceStatesTableOrderingComposer,
+      $$SyncDeviceStatesTableAnnotationComposer,
+      $$SyncDeviceStatesTableCreateCompanionBuilder,
+      $$SyncDeviceStatesTableUpdateCompanionBuilder,
+      (
+        SyncDeviceState,
+        BaseReferences<_$AppDatabase, $SyncDeviceStatesTable, SyncDeviceState>,
+      ),
+      SyncDeviceState,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -30947,6 +32004,8 @@ class $AppDatabaseManager {
       $$TaskRevisionRecordsTableTableManager(_db, _db.taskRevisionRecords);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
+  $$SyncDeviceStatesTableTableManager get syncDeviceStates =>
+      $$SyncDeviceStatesTableTableManager(_db, _db.syncDeviceStates);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$TagRecordsTableTableManager get tagRecords =>

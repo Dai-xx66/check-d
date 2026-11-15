@@ -84,18 +84,24 @@ class PlanningSnapshotAdapter {
                 remainingSecondsByTask[task.id] != null
             ? 'known'
             : 'unknown',
-        // The committed TaskDetails model has only the existing one-time
-        // scheduledAt value. It does not expose date-only deadline or
-        // available-from metadata, so preserve those as unknown/null.
-        'earliest_start': now.add(previewSafetyLead).toUtc().toIso8601String(),
+        'earliest_start': _earliestStart(
+          now.add(previewSafetyLead),
+          task.availableFrom,
+        ).toIso8601String(),
         'effort_source': remainingSecondsByTask[task.id] == null
             ? null
             : 'provided_snapshot',
         'planned_at': task.scheduledAt?.toUtc().toIso8601String(),
-        'planned_date': null,
-        'available_from': null,
-        'deadline_date': null,
-        'deadline_at': null,
+        'planned_date': task.plannedDate == null
+            ? null
+            : localDateKey(task.plannedDate!),
+        'available_from': task.availableFrom == null
+            ? null
+            : localDateKey(task.availableFrom!),
+        'deadline_date': task.dueDate == null
+            ? null
+            : localDateKey(task.dueDate!),
+        'deadline_at': task.dueAt?.toUtc().toIso8601String(),
         'updated_at': task.updatedAt.toUtc().toIso8601String(),
       });
     }
@@ -132,4 +138,15 @@ class PlanningSnapshotAdapter {
     0,
     minute,
   ).subtract(const Duration(hours: 8));
+
+  static DateTime _earliestStart(DateTime now, DateTime? availableFrom) {
+    final candidate = now.toUtc();
+    if (availableFrom == null) return candidate;
+    final localDayStart = DateTime.utc(
+      availableFrom.year,
+      availableFrom.month,
+      availableFrom.day,
+    ).subtract(const Duration(hours: 8));
+    return localDayStart.isAfter(candidate) ? localDayStart : candidate;
+  }
 }

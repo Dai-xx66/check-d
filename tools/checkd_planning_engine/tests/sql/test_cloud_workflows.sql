@@ -250,8 +250,8 @@ begin
     raise exception 'risk disappearing from snapshot was not resolved'; end if;
   reset role;
 
-  -- The snapshot RPC derives identity from auth.uid and reads only synced
-  -- server rows. Current cloud schema has no authoritative task deadline.
+-- The snapshot RPC derives identity from auth.uid and reads only synced
+-- server rows. Stage 14A deadline fields are present in this isolated baseline.
   insert into public.tasks(id,user_id,name,type,color)
     values('20000000-0000-4000-8000-000000000002',user_b,'Snapshot task B','one_time',1);
   insert into public.courses(id,user_id,name,color)
@@ -261,8 +261,10 @@ begin
     values(course_rule_b,course_b,user_b,2,'everyWeek',600,660,'customTime');
   insert into public.task_effort_estimates(user_id,task_id,estimated_seconds,remaining_seconds,source)
     values(user_b,'20000000-0000-4000-8000-000000000002',3600,2400,'synthetic_user_confirmed');
-  insert into public.one_time_reminders(task_id,user_id,scheduled_at,has_scheduled_date,is_timed)
-    values('20000000-0000-4000-8000-000000000002',user_b,'2030-01-01T10:00:00+08:00',true,true);
+  insert into public.one_time_reminders(task_id,user_id,scheduled_at,has_scheduled_date,is_timed,
+    available_from,planned_date,due_date)
+    values('20000000-0000-4000-8000-000000000002',user_b,'2030-01-01T10:00:00+08:00',true,true,
+      '2029-12-30','2030-01-01','2030-01-03');
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub',user_b::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',user_b,'role','authenticated')::text,true);
@@ -270,11 +272,12 @@ begin
   snapshot_version_b:=snapshot_b->>'snapshot_version';
   if snapshot_b->>'planning_ready'<>'false' or snapshot_b->>'execution_eligible'<>'false' then
     raise exception 'incomplete source snapshot was marked ready'; end if;
-  if snapshot_b#>>'{source,deadline_columns_available}'<>'false'
-     or not (snapshot_b->'readiness_blockers' @> '["cloud_deadline_fields_absent_or_history_unavailable"]'::jsonb) then
-    raise exception 'missing cloud deadline schema was not exposed as a readiness blocker'; end if;
-  if snapshot_b#>>'{source,tasks,0,deadline_state}'<>'unknown_no_deadline_record' then
-    raise exception 'missing deadline was not preserved as unknown: %',snapshot_b#>>'{source,tasks,0,deadline_state}'; end if;
+  if snapshot_b#>>'{source,deadline_columns_available}'<>'true'
+     or snapshot_b#>>'{source,tasks,0,available_from}'<>'2029-12-30'
+     or snapshot_b#>>'{source,tasks,0,planned_date}'<>'2030-01-01'
+     or snapshot_b#>>'{source,tasks,0,deadline_date}'<>'2030-01-03'
+     or snapshot_b#>>'{source,tasks,0,deadline_at}' is not null then
+    raise exception 'Stage 14A task date fields did not round-trip into trusted snapshot'; end if;
   if snapshot_b#>>'{source,tasks,0,remaining_effort_state}'<>'known'
      or (snapshot_b#>>'{source,tasks,0,remaining_seconds}')::integer<>2400 then
     raise exception 'snapshot did not include the same task effort row'; end if;

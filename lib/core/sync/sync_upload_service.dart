@@ -27,6 +27,12 @@ abstract interface class SyncRemoteStore {
     required String planId,
     required List<Map<String, Object?>> rows,
   });
+
+  Future<void> acknowledgeDeviceGeneration({
+    required String userId,
+    required String deviceId,
+    required int generation,
+  });
 }
 
 class SupabaseSyncRemoteStore implements SyncRemoteStore {
@@ -75,6 +81,20 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
           .upsert(rows, onConflict: 'plan_id,task_id');
     }
   }
+
+  @override
+  Future<void> acknowledgeDeviceGeneration({
+    required String userId,
+    required String deviceId,
+    required int generation,
+  }) async {
+    await _client.from('agent_device_sync_watermarks').upsert({
+      'user_id': userId,
+      'device_id': deviceId,
+      'acknowledged_generation': generation,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'user_id,device_id');
+  }
 }
 
 class SyncFlushResult {
@@ -83,12 +103,14 @@ class SyncFlushResult {
     required this.failed,
     required this.skipped,
     this.unauthenticated = false,
+    this.watermarkFailed = false,
   });
 
   final int uploaded;
   final int failed;
   final int skipped;
   final bool unauthenticated;
+  final bool watermarkFailed;
 }
 
 /// Upload-only durable outbox processor. Drift remains authoritative until a
@@ -172,10 +194,28 @@ class SyncUploadExecutor {
           failed++;
         }
       }
+      var watermarkFailed = false;
+      final watermark = await _queue.nextServerAcknowledgement(userId);
+      if (watermark != null) {
+        try {
+          await _remote.acknowledgeDeviceGeneration(
+            userId: watermark.userId,
+            deviceId: watermark.deviceId,
+            generation: watermark.generation,
+          );
+          await _queue.markServerAcknowledged(watermark);
+        } on Object {
+          // The entity writes may already be durable remotely, but without
+          // the separate watermark acknowledgment they are not eligible to
+          // authorize planning/apply. A later flush retries only this mark.
+          watermarkFailed = true;
+        }
+      }
       return SyncFlushResult(
         uploaded: uploaded,
         failed: failed,
         skipped: skipped,
+        watermarkFailed: watermarkFailed,
       );
     } finally {
       _isFlushing = false;
@@ -390,7 +430,7 @@ class SyncUploadExecutor {
         _owned(userId, {
           'id': row.id,
           'name': row.name,
-          'color': row.colorValue,
+          'color': _cloudColor(row.colorValue),
           'teacher': row.teacher,
           'classroom': row.classroom,
           'semester': row.semester,
@@ -507,7 +547,7 @@ class SyncUploadExecutor {
           'id': task.id,
           'name': task.name,
           'type': task.taskType == 'recurring' ? 'long_term' : 'one_time',
-          'color': task.colorValue,
+          'color': _cloudColor(task.colorValue),
           'icon_name': task.iconName,
           'tag_id': task.tagId,
           'notes': task.notes,
@@ -582,6 +622,10 @@ class SyncUploadExecutor {
             _owned(userId, {
               'task_id': task.id,
               'scheduled_at': _iso(oneTime.scheduledAt),
+              'available_from': oneTime.availableFrom,
+              'planned_date': oneTime.plannedDate,
+              'due_date': oneTime.dueDate,
+              'due_at': _isoOrNull(oneTime.dueAt),
               'has_scheduled_date': oneTime.hasScheduledDate,
               'remind_before_minutes': oneTime.remindBeforeMinutes,
               'is_timed': oneTime.isTimed,
@@ -624,6 +668,10 @@ class SyncUploadExecutor {
         _owned(userId, {
           'task_id': row.taskId,
           'scheduled_at': _iso(row.scheduledAt),
+          'available_from': row.availableFrom,
+          'planned_date': row.plannedDate,
+          'due_date': row.dueDate,
+          'due_at': _isoOrNull(row.dueAt),
           'has_scheduled_date': row.hasScheduledDate,
           'remind_before_minutes': row.remindBeforeMinutes,
           'is_timed': row.isTimed,
@@ -728,7 +776,7 @@ class SyncUploadExecutor {
           'id': row.id,
           'title': row.title,
           'tag_id': row.tagId,
-          'color': row.colorValue,
+          'color': _cloudColor(row.colorValue),
           'notes': row.notes,
           'started_at': _iso(row.startedAt),
           'timer_status': row.timerStatus,
@@ -792,7 +840,7 @@ class SyncUploadExecutor {
         _owned(userId, {
           'id': row.id,
           'name': row.name,
-          'color': row.colorValue,
+          'color': _cloudColor(row.colorValue),
           'archived': row.archived,
           'created_at': _iso(row.createdAt),
           'updated_at': _iso(row.updatedAt),
@@ -911,7 +959,7 @@ class SyncUploadExecutor {
           'id': row.id,
           'name': row.name,
           'type': row.type,
-          'color': row.colorValue,
+          'color': _cloudColor(row.colorValue),
           'goal': row.goal,
           'starts_on': row.startsOn,
           'ends_on': row.endsOn,
@@ -1177,6 +1225,11 @@ class SyncUploadExecutor {
 
   String _iso(DateTime value) => value.toUtc().toIso8601String();
   String? _isoOrNull(DateTime? value) => value == null ? null : _iso(value);
+
+  int _cloudColor(int color) {
+    final argb = color & 0xffffffff;
+    return argb > 0x7fffffff ? argb - 0x100000000 : argb;
+  }
 }
 
 class SyncUploadCoordinator {

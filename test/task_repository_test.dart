@@ -2,7 +2,7 @@ import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,6 +69,40 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'one-time planning date fields persist and can be explicitly cleared',
+    () async {
+      final id = await repository.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: '期限夹具',
+          colorValue: 0xff998877,
+          availableFrom: DateTime(2026, 11, 16),
+          plannedDate: DateTime(2026, 11, 17),
+          dueDate: DateTime(2026, 11, 20),
+        ),
+      );
+      var task = await repository.getTask(id);
+      expect(task!.availableFrom, DateTime(2026, 11, 16));
+      expect(task.plannedDate, DateTime(2026, 11, 17));
+      expect(task.dueDate, DateTime(2026, 11, 20));
+      expect(task.dueAt, isNull);
+
+      await repository.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: task.name,
+          colorValue: task.colorValue,
+          clearPlanningDates: true,
+        ),
+        taskId: id,
+      );
+      task = await repository.getTask(id);
+      expect(task!.availableFrom, isNull);
+      expect(task.plannedDate, isNull);
+      expect(task.dueDate, isNull);
+      expect(task.dueAt, isNull);
+    },
+  );
 
   test('untimed completion toggles without deleting history', () async {
     final day = DateTime(2026, 9, 2);

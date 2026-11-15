@@ -49,8 +49,14 @@ void main() {
       completion('completed'),
     );
     expect(remote.value('tasks', taskId)?['user_id'], userId);
+    expect(
+      remote.value('tasks', taskId)?['color'],
+      0xFFFF6B9A - 0x100000000,
+    );
     expect(remote.value('long_term_tasks', taskId)?['task_id'], taskId);
     expect(remote.value('task_schedules', taskId)?['task_id'], taskId);
+    expect(remote.lastWatermarkGeneration, greaterThan(0));
+    expect(remote.lastWatermarkUserId, userId);
   });
 
   test(
@@ -83,6 +89,11 @@ void main() {
       expect(taskOperation.status, 'failed');
       expect(taskOperation.retryCount, 1);
       expect(remote.value('user_preferences', userId), isNotNull);
+      expect(remote.lastWatermarkGeneration, 0);
+      final deviceState = await (database.select(database.syncDeviceStates)
+            ..where((row) => row.userId.equals(userId)))
+          .getSingle();
+      expect(deviceState.serverAcknowledgedGeneration, 0);
     },
   );
 
@@ -267,6 +278,8 @@ class _FakeRemoteStore implements SyncRemoteStore {
   final List<_Upsert> upserts = [];
   final Set<String> failTables = {};
   final Map<String, Map<String, Object?>> _rows = {};
+  int lastWatermarkGeneration = 0;
+  String? lastWatermarkUserId;
 
   @override
   Future<void> upsert(
@@ -294,6 +307,16 @@ class _FakeRemoteStore implements SyncRemoteStore {
     required String planId,
     required List<Map<String, Object?>> rows,
   }) async {}
+
+  @override
+  Future<void> acknowledgeDeviceGeneration({
+    required String userId,
+    required String deviceId,
+    required int generation,
+  }) async {
+    lastWatermarkUserId = userId;
+    lastWatermarkGeneration = generation;
+  }
 
   Map<String, Object?>? value(String table, String id) => _rows['$table:$id'];
 

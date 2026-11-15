@@ -220,6 +220,38 @@ class PlanningContextRepository {
         });
       }
 
+      final activePlanVersions =
+          await (_database.select(_database.taskPlanVersionRecords)..where(
+                (row) =>
+                    row.userId.equals(_userId) &
+                    (row.status.equals('confirmed') |
+                        row.status.equals('applied')) &
+                    row.startsOn.isSmallerOrEqualValue(_date(through)) &
+                    row.endsOn.isBiggerOrEqualValue(_date(from)),
+              ))
+              .get();
+      if (activePlanVersions.isNotEmpty) {
+        final activePlanIds = activePlanVersions.map((row) => row.id).toList();
+        final planBlocks =
+            await (_database.select(_database.plannedTimeBlockRecords)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.deletedAt.isNull() &
+                      row.planVersionId.isIn(activePlanIds),
+                ))
+                .get();
+        for (final block in planBlocks) {
+          occupied.add({
+            'source_id': block.id,
+            'source_type': 'planned_time_block',
+            'task_id': block.taskId,
+            'starts_at': block.startsAt.toUtc().toIso8601String(),
+            'ends_at': block.endsAt.toUtc().toIso8601String(),
+            'kind': 'existing_plan_block',
+          });
+        }
+      }
+
       final localDate = DateTime(now.year, now.month, now.day);
       final result = _adapter.build(
         subjectRef: _userId,

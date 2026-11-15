@@ -576,7 +576,7 @@ class SyncDownloadExecutor {
             id: id,
             userId: userId,
             name: _string(row, 'name'),
-            colorValue: _int(row, 'color'),
+            colorValue: _colorFromCloud(row, 'color'),
             archived: Value(_bool(row, 'archived') || _deleted(row)),
             createdAt: _dateTime(row, 'created_at'),
             updatedAt: _dateTime(row, 'updated_at'),
@@ -677,7 +677,7 @@ class SyncDownloadExecutor {
             id: id,
             userId: userId,
             name: _string(row, 'name'),
-            colorValue: _int(row, 'color'),
+            colorValue: _colorFromCloud(row, 'color'),
             teacher: Value(_stringOrNull(row, 'teacher')),
             classroom: Value(_stringOrNull(row, 'classroom')),
             semester: Value(_stringOrNull(row, 'semester')),
@@ -714,7 +714,7 @@ class SyncDownloadExecutor {
             taskType: _string(row, 'type') == 'long_term'
                 ? 'recurring'
                 : 'oneTime',
-            colorValue: _int(row, 'color'),
+            colorValue: _colorFromCloud(row, 'color'),
             iconName: Value(_stringOr(row, 'icon_name', 'target')),
             tagId: Value(_stringOrNull(row, 'tag_id')),
             notes: Value(_stringOrNull(row, 'notes')),
@@ -827,6 +827,10 @@ class SyncDownloadExecutor {
             taskId: taskId,
             userId: userId,
             scheduledAt: _dateTime(row, 'scheduled_at'),
+            availableFrom: Value(_dateOnlyOrNull(row['available_from'])),
+            plannedDate: Value(_dateOnlyOrNull(row['planned_date'])),
+            dueDate: Value(_dateOnlyOrNull(row['due_date'])),
+            dueAt: Value(_dateTimeOrNull(row, 'due_at')),
             hasScheduledDate: Value(_boolOr(row, 'has_scheduled_date', true)),
             remindBeforeMinutes: Value(
               _intOrNull(row['remind_before_minutes']),
@@ -1020,7 +1024,7 @@ class SyncDownloadExecutor {
             userId: userId,
             title: _string(row, 'title'),
             tagId: Value(_stringOrNull(row, 'tag_id')),
-            colorValue: _int(row, 'color'),
+            colorValue: _colorFromCloud(row, 'color'),
             notes: Value(_stringOrNull(row, 'notes')),
             startedAt: _dateTime(row, 'started_at'),
             timerStatus: Value(_stringOr(row, 'timer_status', 'idle')),
@@ -1157,7 +1161,7 @@ class SyncDownloadExecutor {
             userId: userId,
             name: _string(row, 'name'),
             type: _string(row, 'type'),
-            colorValue: _int(row, 'color'),
+            colorValue: _colorFromCloud(row, 'color'),
             goal: Value(_stringOrNull(row, 'goal')),
             startsOn: _string(row, 'starts_on'),
             endsOn: _string(row, 'ends_on'),
@@ -1390,6 +1394,9 @@ class SyncDownloadExecutor {
   int _intOr(Map<String, Object?> row, String key, int fallback) =>
       _intOrNull(row[key]) ?? fallback;
 
+  int _colorFromCloud(Map<String, Object?> row, String key) =>
+      _int(row, key) & 0xffffffff;
+
   int? _intOrNull(Object? value) => switch (value) {
     int value => value,
     num value => value.toInt(),
@@ -1422,6 +1429,14 @@ class SyncDownloadExecutor {
     final value = row[key];
     if (value is! String || value.isEmpty) return null;
     return DateTime.tryParse(value)?.toUtc();
+  }
+
+  String? _dateOnlyOrNull(Object? value) {
+    if (value == null) return null;
+    if (value is! String || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+      throw SyncRestoreSnapshotException('Cloud date-only value is invalid.');
+    }
+    return value;
   }
 
   String _json(Object? value, {required String fallback}) {

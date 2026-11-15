@@ -78,3 +78,55 @@
 - `dart analyze` reports 59 existing lint/info issues; none is in the Dart files changed in this task. Targeted analysis for changed Dart files is clean.
 - The server snapshot is trusted as a view of **committed cloud rows only**. It deliberately remains non-executable when device freshness, full deadline schema/history, or course parity is unverified.
 - Full Android → Supabase → approval → Android readback remains the next integration blocker, not a passed test.
+
+## Device-level closure follow-up — 2026-11-16
+
+**Goal:** Run one synthetic authenticated dataset through Android Drift, the real SyncQueue, isolated Supabase snapshot/proposal/apply RPCs, and Android reconciliation/readback.
+
+**Architecture:** Add the missing additive date/deadline fields to the current local/cloud schema path; use an Android `integration_test` against the local Supabase API and the same AVD-owned Drift database. Server RPCs derive the authenticated owner and current server snapshot; explicit test-only approval is confined to local test SQL and never presented as WorkBuddy authorization.
+
+**Review focus:** stale device outbox with an empty queue query; cloud commit lag vs local state; approval concurrent with a source mutation; date-only deadline/time-zone boundaries; duplicate apply/download; AVD cleartext/network permission and test-account reuse.
+
+### Task 7: Stage 14A field compatibility
+
+**Files:** `lib/core/database/app_database.dart`, generated `app_database.g.dart`, `task_models.dart`, `task_repository.dart`, sync upload/download services, `PlanningSnapshotAdapter`, tests, new forward Supabase migration.
+
+- [ ] Add four nullable/optional local fields (`available_from`, `planned_date`, `due_date`, `due_at`) at Drift schema v22 using ISO local date text for date-only values and UTC instant for `due_at`.
+- [ ] Keep legacy `scheduled_at` execution semantics intact; do not synthesize deadline instants.
+- [ ] Add forward cloud migration and round-trip field mapping tests.
+- [ ] Verify schema v21 upgrade preserves all existing task/reminder values.
+
+### Task 8: Device sync watermark and trusted-source fence
+
+**Files:** new/updated planning sync coordinator, snapshot migration and SQL tests.
+
+- [ ] Track per-device outbox generation and server-acknowledged generation; only mark a device snapshot acknowledged after all captured operations commit.
+- [ ] Treat empty SyncQueue as insufficient evidence unless its generation is acknowledged.
+- [ ] Server proposal creation requires an acknowledged device generation and recomputes the trusted snapshot/version in the same transaction.
+- [ ] Test mutation during upload and between proposal and approval; stale proposal must fail with zero writes.
+
+### Task 9: Proposal/approval RPC boundary
+
+**Files:** forward SQL migration, Dart service and tests.
+
+- [ ] Create proposal only under `auth.uid()` from an expected server snapshot, exact changes, expiry and user-scoped idempotency key.
+- [ ] Validate task ownership, block shape, date range, course conflict and content digest before persistence.
+- [ ] Add explicit owner approval RPC bound to proposal digest/base version; local integration approval must be an authenticated test user action or a clearly test-only SQL fixture.
+- [ ] Reuse the existing atomic apply RPC and authoritative readback; do not introduce a client-supplied user ID.
+
+### Task 10: Single AVD end-to-end integration test
+
+**Files:** `integration_test/planning_cloud_e2e_test.dart`, test runner/setup helper, tests/documented cleanup.
+
+- [ ] Start only `/tmp/checkd-planning-sync-validation`; create/reuse a named synthetic local Auth account without printing credentials.
+- [ ] In one AVD integration run, use the same Drift task/course/effort rows, run the real SyncQueue, assert Postgres rows, call snapshot + planner + proposal + approval + apply, then run real download reconciliation and assert the exact block in Drift.
+- [ ] Repeat apply/download to prove idempotency; mutate task/course and prove the old proposal is rejected.
+- [ ] Run a separate concurrency test against the same isolated DB and preserve exact fixture cleanup.
+
+### Task 11: Remaining conflict/risk and WorkBuddy gates
+
+- [ ] Exercise conflict recovery, tombstone download, retry/restart and two-user isolation against local Supabase using one chosen conflict dataset.
+- [ ] Only after the Android closure, add the repeatable risk scan/read path or record a specific remaining external dependency.
+- [ ] Keep WorkBuddy OAuth/HTTPS steps in the integration guide; no production expert changes or public deployment.
+
+**Execution boundary:** The repository snapshot/approval work is still in progress. The current branch does not yet contain a completed Android→Supabase→Android run; this checkbox list is an implementation checklist, not evidence of completion.

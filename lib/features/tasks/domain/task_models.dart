@@ -104,6 +104,11 @@ class OneTimeReminderDraft {
     this.scheduledAt,
     this.executionMode = OneTimeExecutionMode.untimed,
     this.remindBeforeMinutes,
+    this.availableFrom,
+    this.plannedDate,
+    this.dueDate,
+    this.dueAt,
+    this.clearPlanningDates = false,
     this.notes,
   });
 
@@ -113,6 +118,11 @@ class OneTimeReminderDraft {
   final DateTime? scheduledAt;
   final OneTimeExecutionMode executionMode;
   final int? remindBeforeMinutes;
+  final DateTime? availableFrom;
+  final DateTime? plannedDate;
+  final DateTime? dueDate;
+  final DateTime? dueAt;
+  final bool clearPlanningDates;
   final String? notes;
 }
 
@@ -140,6 +150,10 @@ class TaskDetails {
     this.remindBeforeMinutes,
     this.oneTimeExecutionMode,
     this.oneTimeCompletedAt,
+    this.availableFrom,
+    this.plannedDate,
+    this.dueDate,
+    this.dueAt,
     this.todayProgressPercent = 0,
     this.todayActualDurationSeconds = 0,
     this.todayCompleted = false,
@@ -166,6 +180,10 @@ class TaskDetails {
   final int? remindBeforeMinutes;
   final OneTimeExecutionMode? oneTimeExecutionMode;
   final DateTime? oneTimeCompletedAt;
+  final DateTime? availableFrom;
+  final DateTime? plannedDate;
+  final DateTime? dueDate;
+  final DateTime? dueAt;
   final double todayProgressPercent;
   final int todayActualDurationSeconds;
   final bool todayCompleted;
