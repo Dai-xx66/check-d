@@ -1,0 +1,185 @@
+"""Disposable non-production Supabase -> M1 account MCP isolation check.
+
+Run only against an isolated Supabase project. Creates two synthetic users and
+one task/reminder/effort row per user using the publishable key and each user's
+own access token. It never uses service_role and prints no token, key, task ID,
+email, or task name.
+"""
+from __future__ import annotations
+
+import json
+import os
+import secrets
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+from urllib.parse import urlparse
+import urllib.request
+import uuid
+
+SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+M1_DIR = os.path.dirname(SERVER_DIR)
+REPO_DIR = os.path.dirname(os.path.dirname(M1_DIR))
+MOCK_DIR = os.path.join(REPO_DIR, "tools", "m1-mock")
+
+
+def _request(url: str, *, method="GET", payload=None, headers=None):
+    data = None if payload is None else json.dumps(payload).encode()
+    request = urllib.request.Request(url, data=data, method=method, headers=headers or {})
+    try:
+        with urllib.request.urlopen(request, timeout=12) as response:
+            raw = response.read(1_000_001)
+            if len(raw) > 1_000_000:
+                raise RuntimeError("response limit exceeded")
+            return response.status, json.loads(raw) if raw else None
+    except urllib.error.HTTPError as exc:
+        # Do not include upstream response text: Auth/PostgREST may echo user data.
+        raise RuntimeError(f"HTTP {exc.code} at {urlparse(url).path}") from None
+
+
+def _auth(base: str, key: str, label: str):
+    email = f"{label}-{uuid.uuid4().hex}@example.invalid"
+    password = secrets.token_urlsafe(24)
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    _, result = _request(base + "/auth/v1/signup", method="POST",
+                         payload={"email": email, "password": password}, headers=headers)
+    token = result.get("access_token") if isinstance(result, dict) else None
+    user = result.get("user") if isinstance(result, dict) else None
+    if not token:
+        _, result = _request(base + "/auth/v1/token?grant_type=password", method="POST",
+                             payload={"email": email, "password": password}, headers=headers)
+        token = result.get("access_token") if isinstance(result, dict) else None
+        user = result.get("user") if isinstance(result, dict) else None
+    if not isinstance(token, str) or not isinstance(user, dict) or not isinstance(user.get("id"), str):
+        raise RuntimeError("isolated Auth did not issue a user session")
+    return user["id"], token
+
+
+def _insert(base: str, key: str, token: str, table: str, row: dict):
+    _request(base + "/rest/v1/" + table, method="POST", payload=row, headers={
+        "apikey": key,
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    })
+
+
+def _rpc(base: str, port: int, token: str, method: str, params=None):
+    return _request(f"http://127.0.0.1:{port}/mcp/user", method="POST",
+        payload={"jsonrpc": "2.0", "id": secrets.token_hex(4), "method": method,
+                 **({"params": params} if params is not None else {})},
+        headers={"Authorization": "Bearer " + token,
+                 "Content-Type": "application/json",
+                 "Accept": "application/json, text/event-stream"})[1]
+
+
+def main():
+    base = os.environ.get("CHECKD_TEST_SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("CHECKD_TEST_SUPABASE_PUBLISHABLE_KEY", "")
+    if not base or not key or "127.0.0.1" not in base and "localhost" not in base:
+        raise RuntimeError("Set isolated local Supabase URL and publishable key")
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    service_url = f"http://127.0.0.1:{port}"
+    env = dict(os.environ)
+    env.update({
+        "PORT": str(port), "BIND": "127.0.0.1",
+        "CHECKD_DEMO_TOKEN": "local-route-compatibility-only",
+        "CHECKD_USER_MCP_ENABLED": "1",
+        "CHECKD_USER_MCP_ENV": "development",
+        "CHECKD_USER_SUPABASE_URL": base,
+        "CHECKD_USER_SUPABASE_PUBLISHABLE_KEY": key,
+        "CHECKD_USER_MCP_PUBLIC_URL": service_url,
+        "CHECKD_USER_SUPABASE_ISSUER": base + "/auth/v1",
+        "CHECKD_USER_MCP_UPSTREAM_TIMEOUT_SECONDS": "8",
+        "PYTHONPATH": os.pathsep.join([M1_DIR, MOCK_DIR]),
+    })
+    server = subprocess.Popen([sys.executable, os.path.join(M1_DIR, "app.py")],
+        cwd=M1_DIR, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if server.poll() is not None:
+                raise RuntimeError("isolated M1 service failed to start")
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=.25):
+                    break
+            except OSError:
+                time.sleep(.1)
+        else:
+            raise RuntimeError("isolated M1 service did not start")
+
+        users = [_auth(base, key, f"checkd-user-{i}") for i in ("a", "b")]
+        task_ids = []
+        for index, (user_id, token) in enumerate(users):
+            task_id = str(uuid.uuid4())
+            task_ids.append(task_id)
+            _insert(base, key, token, "tasks", {
+                "id": task_id, "user_id": user_id,
+                "name": f"isolated-agent-task-{index}", "type": "one_time",
+                "color": 1, "status": "active",
+            })
+            _insert(base, key, token, "one_time_reminders", {
+                "task_id": task_id, "user_id": user_id,
+                "scheduled_at": "2026-11-18T10:00:00+08:00",
+                "available_from": "2026-11-16", "planned_date": "2026-11-18",
+                "due_date": "2026-11-20",
+            })
+            _insert(base, key, token, "task_effort_estimates", {
+                "user_id": user_id, "task_id": task_id,
+                "estimated_seconds": 1800, "remaining_seconds": 1800,
+                "source": "isolated-integration-fixture",
+            })
+
+        listed = _rpc(base, port, users[0][1], "tools/list")["result"]["tools"]
+        names = {tool["name"] for tool in listed}
+        if len(names) != 13 or len(names) != len(listed) or "list_tasks" not in names:
+            raise RuntimeError("account route did not expose the expected planning tool set")
+        visible = []
+        for _, token in users:
+            result = _rpc(base, port, token, "tools/call", {"name": "list_tasks",
+                "arguments": {}})
+            list_content = result["result"].get("structuredContent", {})
+            if not list_content.get("ok"):
+                error = list_content.get("error") or {}
+                details = error.get("details") or {}
+                raise RuntimeError(f"personal list_tasks failed; code={error.get('code', 'none')}; field={details.get('invalid_field', ','.join(details.get('unknown_fields', [])))}")
+            tasks = list_content.get("items", [])
+            visible.append([task.get("name") for task in tasks])
+            searched = _rpc(base, port, token, "tools/call", {"name": "search_tasks",
+                "arguments": {"query": f"isolated-agent-task-{len(visible)-1}"}})
+            search_content = searched["result"].get("structuredContent", {})
+            search_count = len(search_content.get("items", []))
+            if search_count != 1:
+                error_code = (search_content.get("error") or {}).get("code", "none")
+                raise RuntimeError(f"per-user task search failed; code={error_code}; count={search_count}")
+            preview = _rpc(base, port, token, "tools/call", {"name": "preview_schedule",
+                "arguments": {"from": "2026-11-16", "to": "2026-11-20"}})
+            content = preview["result"].get("structuredContent", {})
+            if (not content.get("ok") or not content.get("provisional")
+                    or content.get("execution_eligible") is not False):
+                raise RuntimeError("planning preview did not remain provisional/read-only")
+        if visible[0] != ["isolated-agent-task-0"] or visible[1] != ["isolated-agent-task-1"]:
+            raise RuntimeError("RLS/account isolation assertion failed")
+        cross_user = _rpc(base, port, users[1][1], "tools/call", {"name": "get_task_detail",
+            "arguments": {"task_id": str(task_ids[0])}})
+        cross_payload = cross_user["result"].get("structuredContent", {})
+        if cross_payload.get("error", {}).get("code") != "NOT_FOUND":
+            raise RuntimeError("cross-user task detail was not concealed")
+        print("local Supabase -> M1 /mcp/user: 2 Auth scopes isolated; task list/search/detail and planning preview passed; previews provisional")
+    finally:
+        if server.poll() is None:
+            server.terminate()
+            server.wait(timeout=8)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(f"integration failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise SystemExit(1)

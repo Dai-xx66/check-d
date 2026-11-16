@@ -1,0 +1,240 @@
+{
+  "contract_version": "checkd.agent-planning.v0",
+  "status": "candidate_local_prototype",
+  "identity": {
+    "principal_source": "per-request AccessTokenVerifier",
+    "production_binding": "BLOCKED",
+    "workbuddy_subject_is_checkd_user_id": false,
+    "checkd_account_binding": "server-side persisted consent lookup required; never trust request fields or an unverified token claim",
+    "request_user_id": "forbidden",
+    "local_test_identity_is_production_auth": false
+  },
+  "snapshot": {
+    "current_source": "user-scoped Flutter Drift snapshot in local integration tests",
+    "cloud_freshness": "not_proven",
+    "provisional_results_are_display_only": true,
+    "execution_eligible": false,
+    "version": "content version is local or test-server supplied; not production authority"
+  },
+  "registered_read_only_tools": [
+    {
+      "name": "get_planning_context",
+      "description": "Read the authenticated user's planning snapshot for an inclusive date range.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
+    },
+    {
+      "name": "preview_schedule",
+      "description": "Generate a read-only deterministic schedule preview from the authenticated user's server-owned snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "expected_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
+    },
+    {
+      "name": "list_tasks",
+      "description": "List bounded, incomplete tasks from the authenticated user's planning snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string", "format": "date" },
+          "to": { "type": "string", "format": "date" }
+        },
+        "required": ["from", "to"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
+    },
+    {
+      "name": "get_current_plan",
+      "description": "Read the authenticated user's current saved plan, when present, from the same scoped snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string", "format": "date" },
+          "to": { "type": "string", "format": "date" }
+        },
+        "required": ["from", "to"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
+    },
+    {
+      "name": "check_schedule_feasibility",
+      "description": "Check schedule feasibility for the authenticated user's snapshot; heuristic failure is not a proof of impossibility.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string", "format": "date" },
+          "to": { "type": "string", "format": "date" },
+          "expected_version": { "type": "string", "minLength": 1 }
+        },
+        "required": ["from", "to"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
+    },
+    {
+      "name": "generate_adjustment_draft",
+      "description": "Generate a non-persistent adjustment draft for the authenticated user's snapshot; no approval or write occurs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string", "format": "date" },
+          "to": { "type": "string", "format": "date" },
+          "expected_version": { "type": "string", "minLength": 1 }
+        },
+        "required": ["from", "to"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
+    },
+    {
+      "name": "simulate_task_delay",
+      "description": "Simulate delaying one of the authenticated user's tasks; does not write changes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "task_id",
+          "until",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
+    },
+    {
+      "name": "list_plan_risks",
+      "description": "Read risks calculated for the authenticated user's planning snapshot.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      },
+      "_meta": {
+        "checkd/permission": "read:self"
+      }
+    }
+  ],
+  "future_workflows_not_registered": {
+    "task_create_query_edit": "Must be bound to the same verified CheckD principal; current personal stdio task tools are not integrated into this remote service.",
+    "schedule_proposal_approval_apply": "BLOCKED until durable server snapshots, trusted human approval, atomic version compare, allowlisted writes, and authoritative readback exist.",
+    "background_risk_worker_and_notifications": "Local SQLite prototype only; production worker and notification delivery are not integrated."
+  },
+  "errors": {
+    "AUTH_REQUIRED": "No valid per-request principal; deny without a fallback user.",
+    "AUTH_EXPIRED": "Token expired or revoked; production revocation propagation is not yet integrated.",
+    "NOT_FOUND": "Resource absent or owned by another user; do not reveal which.",
+    "SNAPSHOT_STALE": "Expected content version differs from the loaded snapshot.",
+    "SNAPSHOT_UNAVAILABLE": "Snapshot source failed or is unavailable.",
+    "INVALID_INPUT": "Request arguments or snapshot structure are invalid.",
+    "NO_PLAN_FOUND": "The heuristic did not find a schedule; this is not a proof of mathematical infeasibility."
+  },
+  "production_ready": false,
+  "flutter_local_preview_bridge": {
+    "status": "developer_only_loopback",
+    "host": "127.0.0.1",
+    "requires_bearer_token": true,
+    "token_is_checkd_auth": false,
+    "persistence": "none",
+    "writes": false,
+    "routes": {
+      "POST /v0/preview": {
+        "input": [
+          "snapshot",
+          "expected_version?"
+        ],
+        "result": "PlanningService preview response"
+      },
+      "POST /v0/delay": {
+        "input": [
+          "snapshot",
+          "task_id",
+          "until"
+        ],
+        "result": "before/after delay analysis"
+      },
+      "POST /v0/risks": {
+        "input": [
+          "snapshot"
+        ],
+        "result": "risk assessment for snapshot"
+      }
+    },
+    "device_note": "The bridge runs on a developer host; non-desktop Flutter devices require a separately secured tunnel or HTTPS host and are not enabled by this contract."
+  }
+}

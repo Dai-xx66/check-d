@@ -228,6 +228,14 @@ SNAPSHOT_TOOLS = frozenset({
 
 _store = {"instance": None, "error": None}
 
+# User-authenticated planning MCP is opt-in and isolated from the legacy M1
+# static demo-token route. No CheckD access token is stored in process-global
+# state; the RemoteMcpApplication verifies each request independently.
+USER_MCP_ENABLED = os.environ.get("CHECKD_USER_MCP_ENABLED", "0") == "1"
+_USER_MCP_LOCK = threading.Lock()
+_USER_MCP_APP = None
+_USER_MCP_INIT_FAILED = False
+
 
 # --------------------------------------------------------------- REAL-READ
 #
@@ -1294,6 +1302,60 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(n).decode("utf-8")
         return json.loads(raw)
 
+    def _dispatch_user_mcp(self, method):
+        """Serve the opt-in, per-request CheckD-authenticated planning MCP.
+
+        This is a separate route so the existing /mcp static-token behavior and
+        seven-tool schema remain unchanged. It accepts no demo-token fallback.
+        """
+        if not USER_MCP_ENABLED:
+            self._fail(503, "DEPENDENCY_UNAVAILABLE",
+                       "用户授权规划工具尚未在此环境启用。")
+            return
+        global _USER_MCP_APP, _USER_MCP_INIT_FAILED
+        if _USER_MCP_APP is None and not _USER_MCP_INIT_FAILED:
+            with _USER_MCP_LOCK:
+                if _USER_MCP_APP is None and not _USER_MCP_INIT_FAILED:
+                    try:
+                        import unified_user_mcp
+                        _USER_MCP_APP = unified_user_mcp.build_from_env()
+                    except Exception:
+                        # Configuration errors are fail-closed and not logged;
+                        # they may include deployment metadata.
+                        _USER_MCP_INIT_FAILED = True
+        if _USER_MCP_APP is None:
+            self._fail(503, "DEPENDENCY_UNAVAILABLE",
+                       "用户授权规划服务配置不可用。")
+            return
+
+        path = self.path.split("?", 1)[0]
+        if method == "POST":
+            try:
+                size = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                size = -1
+            if size < 0:
+                self._fail(400, "INVALID_ARGUMENT", "请求长度无效。")
+                return
+            if size > MAX_BODY_BYTES:
+                self._body_too_large(_BodyTooLarge(size))
+                return
+            body = self.rfile.read(size)
+        else:
+            body = b""
+        headers = {key.lower(): value for key, value in self.headers.items()}
+        status, response_headers, response_body = _USER_MCP_APP.dispatch_http(
+            method=method, path="/mcp" if path == "/mcp/user" else path,
+            headers=headers, body=body,
+        )
+        self.send_response(status)
+        for key, value in response_headers.items():
+            self.send_header(key, value)
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if response_body:
+            self.wfile.write(response_body)
+
     def _body_too_large(self, exc):
         self._fail(413, "INVALID_ARGUMENT",
                    "请求体超过上限 %d 字节（收到 %d）。" % (MAX_BODY_BYTES, exc.size))
@@ -1434,6 +1496,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
 
+        if path == "/.well-known/oauth-protected-resource":
+            self._dispatch_user_mcp("GET")
+            return
+        if path == "/mcp/user":
+            self._dispatch_user_mcp("GET")
+            return
+
         if path in ("/", "/health"):
             # 健康检查不鉴权，但也不给攻击者任何可用情报。
             # CHECKD_HEALTH_MINIMAL=1（公网默认）只回三样：活着、叫什么、什么版本。
@@ -1535,6 +1604,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self._rate_check():
             return
         path = self.path.split("?")[0]
+
+        if path == "/mcp/user":
+            self._dispatch_user_mcp("POST")
+            return
 
         if path == "/admin/reset":
             if not self._admin_ok():
