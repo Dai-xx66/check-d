@@ -26,7 +26,52 @@ python3 tools/checkd_planning_engine/examples/run_snapshot.py < snapshot.json
 
 `TrustedSnapshotStore` is an isolated SQLite model for a server-owned cloud snapshot revision, per-device local/upload/download watermarks, provisional-vs-current results, TTL-bound proposals, one-time approval, idempotent apply, and readback-only recovery. The apply transaction is atomic inside this local test database; it does not call CheckD or Supabase. A pending local edit or a cloud revision not acknowledged by the device permits display of a provisional suggestion but blocks proposal creation. A concurrent server version change supersedes the proposal before any business write.
 
-`remote_mcp.py` is a loopback-only Streamable HTTP protocol/authentication skeleton exposing read-only planning tools. Its `TestJwtAuthority` is only a local test issuer; `IntrospectionTokenVerifier` is an injected boundary, not a completed OAuth server or Supabase identity binding. The remote endpoint is not WorkBuddy-tested or deployable as-is: the authorization-code flow, OAuth metadata/registration, CheckD Auth consent and revocation, production token verification/introspection, TLS/hosting, and tenant/Connector approval remain blocked. It never accepts `user_id` from tool arguments and it has no write or approval tool.
+`remote_mcp.py` implements the stateless Streamable HTTP MCP protocol surface and remains testable with `TestJwtAuthority` (local tests only). `remote_server.py` is the runnable deployment host. It validates each bearer through CheckD Supabase Auth `/auth/v1/user`, then uses that same user's JWT and the publishable key for PostgREST `GET` requests; it does not contain a service-role path. The request body cannot select a `user_id`. The service intentionally marks every fetched snapshot provisional because it cannot prove that all device-local changes reached the server. It also refuses schedule calculations when course rules exist but canonical Flutter course occurrences have not been resolved. This is a deployable non-production service skeleton, not a WorkBuddy OAuth/Connector integration: no external HTTPS host, CheckD OAuth consent setup, platform allowlist, Connector, or two-account WorkBuddy run has been completed.
+
+### Remote MCP local run / container
+
+The service uses only Python standard-library modules. Set configuration in a local secret manager or untracked environment file; do not put credentials in command arguments, source, connector files, or logs. `SUPABASE_PUBLISHABLE_KEY` must be a publishable/anon key, never a service-role key. Production startup also requires an allowlist of registered WorkBuddy OAuth client IDs, so an ordinary authenticated CheckD App session is not accepted as a WorkBuddy connection.
+
+```sh
+export SUPABASE_URL='https://<non-production-project>.supabase.co'
+export SUPABASE_PUBLISHABLE_KEY='<non-production-publishable-key>'
+export CHECKD_MCP_PUBLIC_URL='https://<temporary-public-host>'
+export CHECKD_MCP_OAUTH_ISSUER_URL="$SUPABASE_URL/auth/v1"
+export CHECKD_MCP_ENV=development
+export PORT=8080
+PYTHONPATH=tools/checkd_planning_engine/src python3 -m checkd_planning_engine.remote_server
+```
+
+`GET /healthz` returns process health only and is unauthenticated. MCP is `POST /mcp`; OAuth protected-resource metadata is `GET /.well-known/oauth-protected-resource`. For a local-only smoke test, use `CHECKD_MCP_PUBLIC_URL=http://127.0.0.1:8080`; real WorkBuddy cannot call loopback. The Docker image is built from the repository root:
+
+```sh
+docker build -f tools/checkd_planning_engine/Dockerfile -t checkd-planning-mcp:dev .
+docker run --rm -p 8080:8080 \
+  -e SUPABASE_URL -e SUPABASE_PUBLISHABLE_KEY \
+  -e CHECKD_MCP_PUBLIC_URL -e CHECKD_MCP_OAUTH_ISSUER_URL \
+  -e CHECKD_MCP_OAUTH_CLIENT_IDS \
+  checkd-planning-mcp:dev
+```
+
+For a short-lived non-production tunnel only, start the service bound to a local port and run `cloudflared tunnel --url http://localhost:8080` in another terminal. Copy its temporary HTTPS hostname into `CHECKD_MCP_PUBLIC_URL`, restart the service, and probe `https://<hostname>/healthz`. Do not use this for stable Connector publication; temporary tunnel URLs change and expose the service publicly. Restrict the Supabase project to disposable test users and disable the tunnel after testing.
+
+Configuration variables:
+
+| Variable | Required | Meaning |
+| --- | --- | --- |
+| `SUPABASE_URL` | yes | Non-production Supabase project URL |
+| `SUPABASE_PUBLISHABLE_KEY` | yes | Publishable/anon key, not service role |
+| `CHECKD_MCP_PUBLIC_URL` | yes | Externally visible base URL; HTTPS required for production |
+| `CHECKD_MCP_OAUTH_ISSUER_URL` | no | Defaults to `${SUPABASE_URL}/auth/v1` |
+| `CHECKD_MCP_OAUTH_CLIENT_IDS` | production required | Comma-separated allowlist of registered WorkBuddy OAuth `client_id` values |
+| `CHECKD_MCP_BIND_HOST` | no | Defaults to `0.0.0.0` |
+| `PORT` / `CHECKD_MCP_PORT` | no | Defaults to `8080` |
+| `CHECKD_MCP_UPSTREAM_TIMEOUT_SECONDS` | no | Defaults to `8` |
+| `CHECKD_MCP_ENV` | no | `production` enforces an HTTPS public URL |
+
+The eight contract tools remain registered. `get_planning_context` returns owner-scoped task, course, rule, plan, and effort records with private notes omitted. Task and course reads use PostgREST `GET` plus the verified user's bearer, so existing owner RLS applies. Existing course rules are included, but the Python service does not reproduce Flutter's odd/even week, cancellation, reschedule, or makeup occurrence semantics. Until a pure, permission-reviewed server occurrence read model is available, affected scheduling previews fail closed with `PLANNING_BLOCKED`. Ordinary preview results are provisional and never write data. The present migrations' public snapshot-building RPC has side effects on snapshot/proposal metadata, so this MCP does not call it as a read workaround.
+
+Supabase OAuth scopes are not database read-only grants. Supabase documents its OAuth scopes as controlling OIDC identity data, while table access continues to follow JWT role/grants and RLS. Therefore the MCP tool allowlist and GET-only adapter constrain this service, but do not make a Supabase authenticated JWT intrinsically read-only if it is copied elsewhere. Production use requires a reviewed client-specific read-only RLS/grant design or a dedicated read-only data layer, plus a non-production test first. No Production RLS or schema change is included here.
 
 The Flutter app's **Smart Planning Preview** page can call a separate developer-only bridge, `local_preview_http.py`. It runs on the developer machine, binds to `127.0.0.1`, requires a temporary local bearer guard, accepts only a submitted read-only Drift snapshot, and offers preview/delay/risk computation without persistence or writes. Start it from the repository root:
 

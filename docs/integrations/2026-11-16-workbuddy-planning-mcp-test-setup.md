@@ -1,6 +1,6 @@
 # CheckD WorkBuddy 远程 MCP 非生产联调准备
 
-状态：**准备说明；实际 WorkBuddy Connector/OAuth 联调仍 BLOCKED**。当前仓库的 Streamable HTTP MCP 与认证适配器只在本地协议测试中运行；本说明不表示已有公开服务、测试租户、OAuth 客户端或真实用户授权。
+状态：**远程 MCP 可运行骨架已实现；实际 WorkBuddy Connector/OAuth 联调仍 BLOCKED**。本说明不表示已有公开服务、测试租户、OAuth 客户端或真实用户授权。
 
 ## 平台侧准备
 
@@ -16,7 +16,8 @@
 - 用户需在 OAuth 授权页面单独登录 CheckD，并明确同意 MCP 权限范围。授权服务把已验证的 CheckD Auth 主体绑定到 WorkBuddy OAuth 授权记录；每次 MCP 请求都校验有效、未撤销的绑定。
 - 请求体不得包含可选用户 ID。服务端从验证后的 MCP access token / 授权记录派生 CheckD 主体，再使用该主体的权限访问数据。
 - 不得使用个人 Mac Keychain JWT、共享静态用户 JWT 或 service-role 密钥替代用户授权。service-role 仅限受控服务端实现所需操作且不能暴露给 MCP 客户端；当前生产接入尚未建立。
-- 当前 `remote_mcp.py` 的 `TestJwtAuthority` 是本地测试签发器；`IntrospectionTokenVerifier` 是注入适配接口，并未连接 WorkBuddy introspection、CheckD OAuth broker 或真实 Supabase 用户绑定。
+- `TestJwtAuthority` 仅用于本地单元测试。新增 `SupabaseAccessTokenVerifier` 通过 Supabase Auth `/auth/v1/user` 验证每个请求的用户 JWT，并以 Auth 返回的 ID 作为 CheckD 用户；`SupabaseRestSnapshotProvider` 仅使用同一用户 JWT 和 publishable key 发出 owner-filtered PostgREST GET。未使用 WorkBuddy 主体替代 CheckD 用户 ID，也没有 service-role 访问路径。
+- Supabase OAuth 2.1 Server 是独立授权服务，不是本 MCP 自行实现的 OAuth Broker。授权服务的 DCR、consent 页面、WorkBuddy `server-side` 的实际兼容性仍需要管理员和 WorkBuddy 团队实测。OAuth 的 `scope` 不是数据库只读权限；MCP 目前只暴露 GET 数据读取和计算工具，但生产仍需专门只读权限方案审核。
 
 ## 两账号验收步骤
 
@@ -25,7 +26,7 @@
 1. 在同一个 WorkBuddy Connector 中分别完成 CheckD OAuth 授权，确认授权主体在服务端解析成不同 CheckD user ID。
 2. 分别调用只读 `get_planning_context`、`list_tasks`、`get_current_plan`、`list_plan_risks`。A 只看到 A 的夹具数据，B 只看到 B 的夹具数据；响应与日志不出现另一账号记录或凭证。
 3. 将 A 的 task/proposal 标识放入 B 的调用，检查返回统一 `NOT_FOUND`，并核对没有状态变化。
-4. 撤销 A 的 CheckD 授权后，A 的旧 MCP token 在服务端撤权检查/短 TTL 规则生效后应拒绝；B 仍可正常读取。
+4. 撤销 A 的 WorkBuddy Connector 授权后，验证 WorkBuddy 停止发送 A 的 token；另外检查旧 JWT 在 Auth 校验及 `exp` 到期前后的行为。不能假设 JWT 撤权即时生效；B 仍应正常读取。
 5. 重启 MCP 服务，重复验证绑定与撤权结果，确认服务不回退到个人账号或共享账号。
 6. 保存脱敏的请求 ID、HTTP 状态、工具结果摘要和数据库读计数作为验收证据。
 
@@ -33,9 +34,10 @@
 
 - WorkBuddy 非生产租户、Connector 创建/审核权限、OAuth server-side 配置权限：需平台管理员提供。
 - 公开可达 HTTPS 测试域名及部署环境：需环境所有者提供；本轮没有公开部署。
-- CheckD OAuth 授权 Broker、令牌签发/刷新/撤销及持久身份绑定：尚未实现。
+- Supabase OAuth Server 的开启状态、consent 页面、DCR/客户端 allowlist 与 WorkBuddy server-side 真实兼容性：尚未验证。
 - 两个可用的 CheckD 测试账号与脱敏夹具：需测试负责人提供/建立。
-- 当前远程 MCP 只在本地协议测试中注册只读规划工具；个人任务创建/编辑 MCP 尚未与该服务统一认证，计划 Proposal/Approval 写入不对 WorkBuddy 开放。
+- 已提供 Dockerfile 和启动说明；本轮 Docker 拉取基础镜像因 Registry 访问无响应而中止，容器镜像尚未完成构建，也未部署到 HTTPS。8 个只读/预览工具保留。任务/课程读取适配器已实现 Supabase Auth/PostgREST；计划计算遇到尚未解析的课程规则时会返回 `PLANNING_BLOCKED`。个人任务创建/编辑 MCP 尚未与该服务统一认证，Proposal/Approval 写入不对 WorkBuddy 开放。
+- 当前读取结果不能证明设备已完全同步，恒标记 provisional。Supabase 用户 JWT 可能直到过期前仍可用，需实际验收 WorkBuddy 撤权行为以及旧 token 的拒绝/到期边界。
 
 ## 官方资料
 

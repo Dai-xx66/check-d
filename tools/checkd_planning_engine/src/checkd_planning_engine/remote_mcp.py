@@ -7,7 +7,7 @@ explicit WorkBuddy-subject -> CheckD-user binding on every request.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -54,6 +54,9 @@ class RemoteIdentity:
     workbuddy_subject: str
     scopes: frozenset[str]
     expires_at: int
+    # Held only for the lifetime of this request so an upstream Supabase read
+    # can use the same user's RLS context. Never serialize or log this value.
+    access_token: str | None = field(default=None, repr=False, compare=False)
 
 
 class AccessTokenVerifier(Protocol):
@@ -169,7 +172,6 @@ class RemoteMcpApplication:
         return {
             "resource":self.audience,
             "authorization_servers":[self.authorization_server_url],
-            "scopes_supported":["planning:read"],
             "bearer_methods_supported":["header"],
         }
 
@@ -178,6 +180,8 @@ class RemoteMcpApplication:
         now=now or datetime.now(timezone.utc)
         if method == "GET" and path == RESOURCE_METADATA_PATH:
             return self._json_response(200,self.metadata())
+        if method == "GET" and path == "/healthz":
+            return self._json_response(200,{"status":"ok","service":"checkd-planning-mcp"})
         if path != "/mcp":
             return self._json_response(404,{"error":"not_found"})
         if method != "POST":
@@ -269,7 +273,11 @@ class RemoteMcpApplication:
             except ValueError:
                 return {"ok":False,"error":{"code":"INVALID_INPUT","message":"Delay timestamp invalid."}}
         try:
-            snapshot=self.snapshot_provider(principal.checkd_user_id,from_date,to_date)
+            fetch_authenticated = getattr(self.snapshot_provider, "fetch_authenticated", None)
+            if fetch_authenticated is not None:
+                snapshot=fetch_authenticated(principal,from_date,to_date)
+            else:
+                snapshot=self.snapshot_provider(principal.checkd_user_id,from_date,to_date)
         except Exception:
             return {"ok":False,"error":{"code":"SNAPSHOT_UNAVAILABLE","message":"Planning data unavailable."}}
         if not isinstance(snapshot, dict) or snapshot.get("subject_ref") != principal.checkd_user_id:
@@ -301,6 +309,14 @@ class RemoteMcpApplication:
             return {"ok":True,"current_plan":current_plan,
                     "snapshot_version":snapshot.get("version"),
                     "provisional":bool(snapshot.get("provisional",True)),
+                    "execution_eligible":False}
+        if name in {"preview_schedule", "check_schedule_feasibility",
+                    "generate_adjustment_draft", "simulate_task_delay"}:
+            blockers=snapshot.get("planning_blockers", [])
+            if blockers:
+                return {"ok":False,"error":{"code":"PLANNING_BLOCKED",
+                    "message":"Planning preview is unavailable until required source data is resolved.",
+                    "details":{"blockers":blockers}},"provisional":True,
                     "execution_eligible":False}
         if name == "preview_schedule":
             return self.service.handle({"snapshot":snapshot,"operation":"preview",
@@ -356,7 +372,14 @@ def make_http_server(app: RemoteMcpApplication, host: str = "127.0.0.1", port: i
             if body: self.wfile.write(body)
 
         def do_POST(self):
-            length=int(self.headers.get("Content-Length","0"))
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+            except ValueError:
+                self.send_error(400)
+                return
+            if length < 0:
+                self.send_error(400)
+                return
             if length > 1_048_576:
                 self.send_error(413)
                 return

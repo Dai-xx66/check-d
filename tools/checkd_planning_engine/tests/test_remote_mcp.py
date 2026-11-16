@@ -81,6 +81,9 @@ class RemoteMcpTests(unittest.TestCase):
         metadata=json.loads(body)
         self.assertEqual(metadata["resource"],self.audience)
         self.assertEqual(metadata["authorization_servers"],[self.issuer_url])
+        status,_,body=self.request({},method="GET",path="/healthz")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["status"],"ok")
 
     def test_streamable_http_initialize_and_tools_list_are_read_only(self):
         token=self.token("user-a")
