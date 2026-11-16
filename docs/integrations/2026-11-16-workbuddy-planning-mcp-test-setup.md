@@ -1,6 +1,13 @@
 # CheckD WorkBuddy 远程 MCP 非生产联调准备
 
-状态：**远程 MCP 可运行骨架已实现；实际 WorkBuddy Connector/OAuth 联调仍 BLOCKED**。本说明不表示已有公开服务、测试租户、OAuth 客户端或真实用户授权。
+状态：**现有 `checkd-agent-tools` 远程服务已通过本机配置验证在线；多用户 OAuth、独立用户身份和撤权尚未验证。** 本文中的新 Planning MCP 仍为未部署候选服务；不表示已完成真实用户授权。
+
+## 本轮对现有服务的实测补充
+
+- 使用本机既有 `~/.workbuddy/mcp.json` 配置调用现有 endpoint 的 `tools/list`，HTTP 200；实际注册 7 个工具：`list_tasks`、`get_calendar_events`、`generate_schedule`、`validate_schedule`、`apply_approved_changes`、`request_approval`、`get_approval_status`。
+- 仅对只读工具发现请求做凭证负向检查：去掉 `X-Demo-Token` 返回 HTTP 401；保留 header、去掉 URL sharecode 返回 HTTP 403。没有调用任务数据或写入工具。
+- 服务端源码不在本 worktree，凭证映射逻辑无法审计。本机现有 MCP 配置是静态 Demo header；这能证明服务的接入门禁，不证明调用者拥有独立 CheckD 身份。工具 schema 未包含 `user_id`。
+- 不创建第二个 Connector，不变更现有 WorkBuddy 配置，不轮换凭证。完整对照、复用建议与必要前置项见 [现有 MCP 复用审计](workbuddy-remote-mcp-nonproduction.md)。
 
 ## 平台侧准备
 

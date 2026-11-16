@@ -1,6 +1,14 @@
 # WorkBuddy 远程 CheckD MCP：非生产联调手册
 
-状态：**服务端骨架可本地运行；WorkBuddy 实机与真实账号授权未完成。** 本文不表示 Connector 已注册、HTTPS 已部署或已读取任何用户数据。
+状态：**规划 MCP 骨架可本地运行；现有 `checkd-agent-tools` 远程服务已在线并返回工具列表，但使用静态 Demo 凭证，未证实多用户 OAuth。** 本文不表示新规划服务已部署，或已有用户隔离授权。
+
+### 已有 WorkBuddy MCP 服务（本轮核验）
+
+本机 `~/.workbuddy/mcp.json` 已配置 `checkd-agent-tools`，远程 HTTPS 主机为 `checkd-agent-tools.app.workbuddy.host`。本轮使用现有配置对远程 `tools/list` 发起 MCP 请求，HTTP 200，返回 7 个工具：`list_tasks`、`get_calendar_events`、`generate_schedule`、`validate_schedule`、`apply_approved_changes`、`request_approval`、`get_approval_status`。本轮只读了工具清单/schema，没有调用任务或写入工具。
+
+对同一只读 `tools/list` 请求分别省略 header 或 URL 中的 sharecode：省略 `X-Demo-Token` 得到 HTTP 401；保留该 header 但省略 sharecode 得到 HTTP 403。两者都是访问门禁，但其部署端实现不在本仓库，**不能仅凭状态码确认凭证的签发/主体映射语义**。本机配置是一组静态 Demo header，没有每个 WorkBuddy 用户独立的 OAuth bearer；工具 schema 也没有 `user_id`。因此当前连接证明服务在线，不证明两个用户的身份或业务数据隔离。
+
+该线上 7 工具服务与本文件下述 `agent-planning-v0.json` 的 8 工具本地候选服务不同。线上已有 `apply_approved_changes`，属于写入边界，本轮未调用；新的 8 工具服务仍只在本地协议/adapter 测试中运行。
 
 ## 当前服务行为
 
@@ -28,12 +36,12 @@ Supabase 返回的 JWT 可能在退出/撤权后继续有效到 `exp`。WorkBudd
 - [Supabase MCP Authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication)
 - [Supabase OAuth Token Security & RLS](https://supabase.com/docs/guides/auth/oauth-server/token-security)
 
-## 管理员需要准备的测试环境
+## 管理员需要准备的多用户 OAuth 验收环境
 
 1. 创建或指定**非生产** Supabase 项目，准备两名可登录的专用测试用户 A/B，并只放入脱敏测试数据。不要把生产账号用于联调。
 2. 在 Supabase Dashboard 打开 `Authentication → OAuth Server`，启用 OAuth 2.1；配置实际 authorization/consent 页面。若采用 DCR，启用 Dynamic Client Registration 并审核客户端/redirect URI。不要把匿名开放注册当成默认安全配置。
 3. 管理员确认 Supabase DCR 与 WorkBuddy `server_auth.auth_type="mcp_oauth"` 的 client metadata（尤其 `client_name` 与 redirect URI）兼容。若不兼容，和 WorkBuddy 团队选择预注册 `oauth2_code`，不要在本服务中自写 OAuth Broker。
-4. 在 WorkBuddy 开放平台使用 Connector Meta 工具创建非生产 MCP Connector 草稿，选择远程 `streamableHttp`、`auth_mode="server-side"`。服务提供方需要和 WorkBuddy 团队完成 OAuth 接入，并在授权服务按 Connector 文档 allowlist `WorkBuddy Connector`、`CodeBuddy` 及该文档列出的 WorkBuddy/CodeBuddy 回调域名。
+4. 不要新建重复 Connector。先由现有 Connector/远程服务负责人确认能否在原服务上安全切换为 per-user `server-side OAuth`；若平台需要修改现有配置，先在测试副本验收，再由负责人安排原 Connector 的升级。服务提供方需要和 WorkBuddy 团队完成 OAuth 接入，并在授权服务按 Connector 文档 allowlist `WorkBuddy Connector`、`CodeBuddy` 及该文档列出的 WorkBuddy/CodeBuddy 回调域名。
 5. 提供可公开访问的非生产 HTTPS 主机。Cloudflare 临时 Tunnel 可用于短时联调，但要把生成的 HTTPS URL 配置进服务环境并重启。该地址变化后必须重配 Connector；不要把临时 Tunnel 视作生产托管。
 6. 使用本 README 的 Docker/环境变量启动服务。`SUPABASE_URL` 和 publishable key 只能来自非生产项目；不得设置或传入 service-role key。
 7. Connector 草稿配置 MCP URL 为 `https://<host>/mcp`，对照服务端 `/.well-known/oauth-protected-resource` 检查 issuer discovery。让测试用户 A 在浏览器中亲自登录、同意授权，不要把账号密码或 JWT 发给 Agent。
@@ -57,10 +65,11 @@ Supabase 返回的 JWT 可能在退出/撤权后继续有效到 `exp`。WorkBudd
 8. WorkBuddy 断开 A 的 Connector 授权，A 的后续 WorkBuddy 工具调用应停止。另用旧 A access token 直接对测试服务做撤权/过期验收，区分“Connector 停止发送”与“JWT 服务端立即失效”；确认 B 仍可用。
 9. 重启 MCP 服务后再次检查 A/B 各自状态，没有身份回退或共享缓存。
 
-**通过条件：**真实 WorkBuddy Connector 已发布到测试租户；A、B 都实际完成 OAuth；A/B 的 `list_tasks` 与课程结果隔离；撤权和旧 token 行为有真实结果；没有 mock verifier 或 TestJwtAuthority 参与。当前这些步骤尚未执行，因此本项目尚未达到任务的最终验收标准。
+**通过条件：**原有专家/Connector 可通过远程 HTTPS 服务继续调用；A、B 都分别完成 CheckD OAuth；A/B 的任务和课程结果隔离；撤权和旧 token 行为有真实结果；没有共享 Demo token、mock verifier 或 TestJwtAuthority 参与。当前仅证明现有远程 endpoint 的工具清单在线；账号授权、真实数据隔离和撤权步骤尚未完成，因此仍未达到多用户验收标准。
 
 ## 当前精确阻塞项
 
+- 现有 WorkBuddy `checkd-agent-tools` 7 工具托管服务的源码仓库、部署定义及负责人权限：当前规划 worktree 不含其服务端源码，需服务所有者提供，才能把 Personal Task Agent 能力安全并入原服务。
 - WorkBuddy 测试租户与 Connector 草稿创建/发布权限：需要平台管理员或租户所有者。
 - WorkBuddy `server-side OAuth` 接入协调及动态注册/预注册选择：需要 WorkBuddy Connector 团队确认。
 - 可公开 HTTPS 非生产主机：当前没有部署，不得把本地 MCP URL 当作 WorkBuddy 可访问 URL。
