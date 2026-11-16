@@ -103,6 +103,11 @@ class SupabaseRemoteTests(unittest.TestCase):
         def opener(request, timeout):
             calls.append(request)
             table = urlparse(request.full_url).path.rsplit("/", 1)[-1]
+            if table == "get_agent_planning_checkpoint_status":
+                return Response(200, {"planning_ready":False,
+                    "device_checkpoints_current":False,
+                    "course_occurrences_cover_window":False,
+                    "known_device_count":0,"server_data_version":0})
             return Response(200, rows.get(table, []))
         provider = SupabaseRestSnapshotProvider(supabase_url="https://supabase.test",
             publishable_key="public-test-key", opener=opener)
@@ -115,13 +120,71 @@ class SupabaseRemoteTests(unittest.TestCase):
         self.assertEqual(snapshot["course_rules"][0]["week_rule_type"], "oddWeeks")
         self.assertTrue(snapshot["provisional"])
         self.assertFalse(snapshot["execution_eligible"])
-        self.assertIn("course_occurrences_not_resolved_by_flutter_rules",
+        self.assertIn("flutter_course_occurrences_unavailable_or_stale",
                       snapshot["planning_blockers"])
         for request in calls:
-            query = parse_qs(urlparse(request.full_url).query)
-            self.assertEqual(query["user_id"], ["eq.user-a"])
             self.assertEqual(request.get_header("Authorization"), "Bearer per-user-jwt")
-            self.assertEqual(request.get_method(), "GET")
+            if request.get_method() == "GET":
+                query = parse_qs(urlparse(request.full_url).query)
+                self.assertEqual(query["user_id"], ["eq.user-a"])
+            else:
+                self.assertTrue(urlparse(request.full_url).path.endswith(
+                    "/rpc/get_agent_planning_checkpoint_status"))
+                self.assertNotIn("user_id", request.data.decode())
+
+    def test_fresh_flutter_occurrence_snapshot_becomes_schedule_blocks(self):
+        calls=[]
+        rows={
+            "tasks":[{"id":"task-a","name":"考试复习","type":"one_time",
+                "status":"active","updated_at":"2026-11-15T08:00:00+08:00"}],
+            "one_time_reminders":[{"task_id":"task-a","due_date":"2026-11-20",
+                "available_from":"2026-11-15","completed_at":None}],
+            "courses":[{"id":"course-a","name":"高数","status":"active"}],
+            "course_schedule_rules":[{"id":"rule-a","course_id":"course-a"}],
+            "task_effort_estimates":[{"task_id":"task-a","remaining_seconds":1800}],
+            "agent_course_occurrence_snapshots":[{
+                "device_id":"device-a","from_date":"2026-11-15",
+                "through_date":"2026-11-30","timezone":"Asia/Shanghai",
+                "builder_version":"checkd_flutter_course_occurrence_v1",
+                "course_data_version":"sha256:fixture",
+                "generated_at":datetime.now(timezone.utc).isoformat(),
+                "server_data_version":7,"occurrence_digest":"digest-a",
+                "local_generation":4,"occurrences":[{
+                    "occurrence_id":"course:rule-a:2026-11-16",
+                    "course_id":"course-a","schedule_rule_id":"rule-a",
+                    "local_date":"2026-11-16","start_minute":540,
+                    "end_minute":600,"timezone":"Asia/Shanghai"}]}],
+        }
+        def opener(request, timeout):
+            calls.append(request)
+            name=urlparse(request.full_url).path.rsplit("/",1)[-1]
+            if name == "get_agent_planning_checkpoint_status":
+                return Response(200,{"planning_ready":True,
+                    "device_checkpoints_current":True,
+                    "course_occurrences_cover_window":True,
+                    "known_device_count":1,"server_data_version":7})
+            return Response(200,rows.get(name,[]))
+        provider=SupabaseRestSnapshotProvider(supabase_url="https://supabase.test",
+            publishable_key="publishable-test",opener=opener)
+        identity=RemoteIdentity("user-a","test",frozenset({"planning:read"}),
+                                2**31,"jwt-user-a")
+        snapshot=provider.fetch_authenticated(identity,"2026-11-15","2026-11-20")
+        self.assertFalse(snapshot["provisional"])
+        self.assertTrue(snapshot["planning_ready"])
+        self.assertFalse(snapshot["execution_eligible"])
+        self.assertEqual(snapshot["course_occurrences"],[{
+            "starts_at":"2026-11-16T09:00:00+08:00",
+            "ends_at":"2026-11-16T10:00:00+08:00",
+            "course_id":"course-a","schedule_rule_id":"rule-a",
+            "occurrence_id":"course:rule-a:2026-11-16","kind":"course"}])
+        self.assertNotIn("flutter_course_occurrences_unavailable_or_stale",
+                         snapshot["planning_blockers"])
+        gets=[request for request in calls if request.get_method()=="GET"]
+        self.assertTrue(all(parse_qs(urlparse(request.full_url).query)["user_id"]
+                            == ["eq.user-a"] for request in gets))
+        rpc=next(request for request in calls if request.get_method()=="POST")
+        self.assertEqual(json.loads(rpc.data)["p_from_date"],"2026-11-15")
+        self.assertNotIn("user_id",rpc.data.decode())
 
     def test_proposal_reads_use_user_jwt_owner_filters_and_never_select_credentials(self):
         calls = []

@@ -5,6 +5,12 @@ import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/core/sync/sync_upload_service.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
+import 'package:check_d/features/courses/data/course_repository.dart';
+import 'package:check_d/features/courses/data/semester_repository.dart';
+import 'package:check_d/features/courses/domain/course_models.dart';
+import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
+import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
+import 'package:check_d/features/planning/data/course_occurrence_snapshot.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,6 +132,233 @@ void main() {
     expect(result.uploaded, 2);
     expect(remote.countFor('tasks', taskId), 2);
     expect(remote.value('tasks', taskId)?['name'], '幂等任务');
+  });
+
+  test(
+    'server checkpoint is acknowledged only after the full outbox clears',
+    () async {
+      final taskId = await tasks.saveRecurringTask(_timedDraft('检查点任务'));
+      final result = await executor.flush();
+
+      expect(result.failed, 0);
+      expect(result.checkpointAcknowledged, isTrue);
+      expect(remote.checkpoints, hasLength(1));
+      final state = await (database.select(
+        database.syncDeviceStates,
+      )..where((row) => row.userId.equals(userId))).getSingle();
+      expect(state.localGeneration, 1);
+      expect(state.acknowledgedGeneration, 1);
+      expect(
+        (await operationFor(database, 'tasks', taskId, userId)).localGeneration,
+        1,
+      );
+    },
+  );
+
+  test('failed or unscoped pending work prevents device checkpoint', () async {
+    final taskId = await tasks.saveRecurringTask(_timedDraft('失败不确认'));
+    remote.failTables.add('tasks');
+    final failed = await executor.flush();
+    expect(failed.checkpointAcknowledged, isFalse);
+    expect(remote.checkpoints, isEmpty);
+
+    remote.failTables.clear();
+    await queue.enqueue(
+      entityType: 'legacy_unscoped',
+      entityId: 'legacy',
+      operation: SyncOperationType.upsert,
+      payload: const {'id': 'legacy'},
+    );
+    final unsettled = await executor.flush(force: true);
+    expect(unsettled.checkpointAcknowledged, isFalse);
+    expect(remote.checkpoints, isEmpty);
+    expect(
+      (await operationFor(database, 'tasks', taskId, userId)).status,
+      'completed',
+    );
+  });
+
+  test(
+    'device generation advances per user without crossing accounts',
+    () async {
+      await tasks.saveRecurringTask(_timedDraft('账户一'));
+      final secondTasks = TaskRepository(
+        database: database,
+        syncQueue: queue,
+        userId: 'user-2',
+      );
+      await secondTasks.saveRecurringTask(_timedDraft('账户二'));
+      final rows = await database.select(database.syncDeviceStates).get();
+
+      expect(rows.map((row) => row.userId), containsAll(['user-1', 'user-2']));
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row.localGeneration), everyElement(1));
+      expect(rows.map((row) => row.deviceId).toSet(), hasLength(1));
+    },
+  );
+
+  test(
+    'local edit during checkpoint request is not locally acknowledged',
+    () async {
+      await tasks.saveRecurringTask(_timedDraft('检查点并发写'));
+      remote.onAcknowledge = () => queue.enqueue(
+        entityType: 'user_preferences',
+        entityId: userId,
+        operation: SyncOperationType.upsert,
+        payload: const {'id': 'preference'},
+        userId: userId,
+      );
+
+      final result = await executor.flush();
+
+      expect(result.checkpointAcknowledged, isFalse);
+      final state = await (database.select(
+        database.syncDeviceStates,
+      )..where((row) => row.userId.equals(userId))).getSingle();
+      expect(state.localGeneration, 2);
+      expect(state.acknowledgedGeneration, -1);
+    },
+  );
+
+  test('old server checkpoint gets a fresh course snapshot and watermark', () async {
+    final initial = await executor.flush();
+    expect(initial.checkpointAcknowledged, isTrue);
+    await (database.update(database.syncDeviceStates)
+          ..where((row) => row.userId.equals(userId)))
+        .write(
+          SyncDeviceStatesCompanion(
+            updatedAt: Value(DateTime.now().toUtc().subtract(const Duration(minutes: 11))),
+          ),
+        );
+    remote.checkpoints.clear();
+
+    final refreshed = await executor.flush();
+
+    expect(refreshed.checkpointAcknowledged, isTrue);
+    expect(remote.checkpoints, hasLength(1));
+    expect(remote.checkpoints.single.$2, 0);
+  });
+
+  test('course snapshot uploads canonical Flutter occurrences', () async {
+    final courseRepository = CourseRepository(
+      database: database,
+      syncQueue: queue,
+      userId: userId,
+    );
+    final semesterRepository = SemesterRepository(
+      database: database,
+      syncQueue: queue,
+      userId: userId,
+    );
+    final scheduleRepository = DayScheduleRepository(
+      database: database,
+      syncQueue: queue,
+      userId: userId,
+    );
+    final courseId = await courseRepository.saveCourse(
+      CourseDraft(
+        name: '合成课程',
+        colorValue: 1,
+        semesterStartsOn: DateTime(2026, 11, 16),
+        semesterEndsOn: DateTime(2026, 11, 23),
+      ),
+    );
+    await courseRepository.saveScheduleRule(
+      CourseScheduleRuleDraft(
+        courseId: courseId,
+        weekday: DateTime.monday,
+        weekRuleType: CourseWeekRuleType.everyWeek,
+        startsAtMinute: 9 * 60,
+        endsAtMinute: 10 * 60 + 30,
+      ),
+      ruleId: 'rule-monday',
+    );
+    await courseRepository.saveScheduleRule(
+      CourseScheduleRuleDraft(
+        courseId: courseId,
+        weekday: DateTime.tuesday,
+        weekRuleType: CourseWeekRuleType.everyWeek,
+        startsAtMinute: 11 * 60,
+        endsAtMinute: 12 * 60,
+      ),
+      ruleId: 'rule-tuesday',
+    );
+    await scheduleRepository.saveDailyOverride(
+      DailyItemOverrideDraft(
+        itemType: DayItemType.course,
+        itemId: 'rule-monday',
+        localDate: DateTime(2026, 11, 16),
+        action: DayOverrideAction.reschedule,
+        plannedStartMinute: 14 * 60,
+        plannedEndMinute: 15 * 60,
+      ),
+    );
+    await scheduleRepository.saveDailyOverride(
+      DailyItemOverrideDraft(
+        itemType: DayItemType.course,
+        itemId: 'rule-tuesday',
+        localDate: DateTime(2026, 11, 17),
+        action: DayOverrideAction.skip,
+      ),
+    );
+    await scheduleRepository.saveDailyOverride(
+      DailyItemOverrideDraft(
+        itemType: DayItemType.course,
+        itemId: courseId,
+        localDate: DateTime(2026, 11, 18),
+        action: DayOverrideAction.extraCourse,
+        plannedStartMinute: 16 * 60,
+        plannedEndMinute: 17 * 60,
+      ),
+    );
+    final snapshotRepository = DriftCourseOccurrenceSnapshotRepository(
+      userId: userId,
+      courses: courseRepository,
+      semesters: semesterRepository,
+      schedule: scheduleRepository,
+      syncQueue: queue,
+    );
+    executor = SyncUploadExecutor(
+      database: database,
+      queue: queue,
+      remote: remote,
+      currentUserId: () => authenticatedUserId,
+      publishCourseOccurrenceSnapshot: (checkpoint) async {
+        final snapshot = await snapshotRepository.build(
+          from: DateTime(2026, 11, 16),
+          through: DateTime(2026, 11, 24),
+        );
+        await remote.publishCourseOccurrenceSnapshot(
+          deviceId: checkpoint.deviceId,
+          snapshot: snapshot.toJson(),
+        );
+      },
+    );
+
+    final result = await executor.flush(force: true);
+
+    expect(result.failed, 0);
+    expect(result.checkpointAcknowledged, isTrue);
+    expect(remote.courseSnapshots, hasLength(1));
+    final payload = remote.courseSnapshots.single.$2;
+    expect(payload['from_date'], '2026-11-16');
+    expect(payload['through_date'], '2026-11-24');
+    expect(payload['timezone'], 'Asia/Shanghai');
+    expect(DateTime.tryParse(payload['generated_at']! as String), isNotNull);
+    expect(payload['builder_version'], 'checkd_flutter_course_occurrence_v1');
+    expect(payload['course_data_version'], startsWith('sha256:'));
+    expect(payload['local_generation'], 6);
+    final occurrences = payload['occurrences']! as List;
+    expect(occurrences, hasLength(3));
+    expect(occurrences.every((row) => row['course_id'] == courseId), isTrue);
+    final byDate = {for (final row in occurrences) row['local_date']: row};
+    expect(byDate['2026-11-16']['start_minute'], 840);
+    expect(byDate['2026-11-16']['end_minute'], 900);
+    expect(byDate['2026-11-18']['start_minute'], 960);
+    expect(byDate['2026-11-18']['end_minute'], 1020);
+    expect(byDate['2026-11-23']['start_minute'], 540);
+    expect(byDate.containsKey('2026-11-17'), isFalse);
+    expect(byDate.containsKey('2026-11-24'), isFalse);
   });
 
   test('archived task is uploaded as a soft archive', () async {
@@ -324,6 +557,9 @@ RecurringTaskDraft _timedDraft(String name) => RecurringTaskDraft(
 
 class _FakeRemoteStore implements SyncRemoteStore {
   final List<_Upsert> upserts = [];
+  final List<(String, int)> checkpoints = [];
+  final List<(String, Map<String, Object?>)> courseSnapshots = [];
+  Future<void> Function()? onAcknowledge;
   final Set<String> failTables = {};
   final Map<String, Object> failures = {};
   final Map<String, Map<String, Object?>> _rows = {};
@@ -357,6 +593,23 @@ class _FakeRemoteStore implements SyncRemoteStore {
     required String planId,
     required List<Map<String, Object?>> rows,
   }) async {}
+
+  @override
+  Future<void> acknowledgeDeviceCheckpoint({
+    required String deviceId,
+    required int localGeneration,
+  }) async {
+    checkpoints.add((deviceId, localGeneration));
+    await onAcknowledge?.call();
+  }
+
+  @override
+  Future<void> publishCourseOccurrenceSnapshot({
+    required String deviceId,
+    required Map<String, Object?> snapshot,
+  }) async {
+    courseSnapshots.add((deviceId, snapshot));
+  }
 
   Map<String, Object?>? value(String table, String id) => _rows['$table:$id'];
 

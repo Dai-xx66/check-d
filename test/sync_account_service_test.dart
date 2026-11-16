@@ -429,6 +429,18 @@ class _RemoteStore implements SyncRemoteStore {
   }) async {}
 
   @override
+  Future<void> acknowledgeDeviceCheckpoint({
+    required String deviceId,
+    required int localGeneration,
+  }) async {}
+
+  @override
+  Future<void> publishCourseOccurrenceSnapshot({
+    required String deviceId,
+    required Map<String, Object?> snapshot,
+  }) async {}
+
+  @override
   Future<void> upsert(
     String table,
     Map<String, Object?> values, {

@@ -81,20 +81,185 @@ class SyncQueueService {
   }) async {
     if (_applyScope?.isApplying ?? false) return;
     final now = DateTime.now().toUtc();
+    await _database.transaction(() async {
+      int? generation;
+      if (userId != null && userId.isNotEmpty) {
+        final deviceId = await _loadOrCreateDeviceId();
+        final state =
+            await (_database.select(_database.syncDeviceStates)..where(
+                  (row) =>
+                      row.userId.equals(userId) & row.deviceId.equals(deviceId),
+                ))
+                .getSingleOrNull();
+        generation = (state?.localGeneration ?? 0) + 1;
+        await _database
+            .into(_database.syncDeviceStates)
+            .insertOnConflictUpdate(
+              SyncDeviceStatesCompanion.insert(
+                userId: userId,
+                deviceId: deviceId,
+                localGeneration: Value(generation),
+                acknowledgedGeneration: Value(
+                  state?.acknowledgedGeneration ?? -1,
+                ),
+                updatedAt: now,
+              ),
+            );
+      }
+      await _database
+          .into(_database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              id: _uuid.v4(),
+              userId: Value(userId),
+              entityType: entityType,
+              entityId: entityId,
+              operation: operation.name,
+              payloadJson: jsonEncode(payload),
+              localGeneration: Value(generation),
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    });
+  }
+
+  /// A server checkpoint can only be requested after the entire relevant
+  /// outbox is settled. The server must still independently validate the
+  /// resulting business-data version before allowing an executable proposal.
+  Future<SyncDeviceCheckpoint?> checkpointCandidate(String userId) async {
+    final checkpoint = await settledCheckpoint(userId);
+    if (checkpoint == null) {
+      return null;
+    }
+    final needsFreshWatermark = DateTime.now().toUtc().difference(
+      checkpoint.updatedAt,
+    ) >= const Duration(minutes: 10);
+    if (checkpoint.localGeneration <= checkpoint.acknowledgedGeneration &&
+        !needsFreshWatermark) {
+      return null;
+    }
+    return checkpoint;
+  }
+
+  Future<SyncDeviceCheckpoint?> settledCheckpoint(String userId) =>
+      _database.transaction(() async {
+        final unsettled =
+            await (_database.selectOnly(_database.syncOperations)
+                  ..addColumns([_database.syncOperations.id.count()])
+                  ..where(
+                    (_database.syncOperations.userId.equals(userId) |
+                            _database.syncOperations.userId.isNull()) &
+                        (_database.syncOperations.status.equals('pending') |
+                            _database.syncOperations.status.equals('failed')),
+                  ))
+                .map(
+                  (row) => row.read(_database.syncOperations.id.count()) ?? 0,
+                )
+                .getSingle();
+        if (unsettled != 0) return null;
+
+        final deviceId = await _loadOrCreateDeviceId();
+        final state =
+            await (_database.select(_database.syncDeviceStates)..where(
+                  (row) =>
+                      row.userId.equals(userId) & row.deviceId.equals(deviceId),
+                ))
+                .getSingleOrNull();
+        if (state == null) return null;
+        return SyncDeviceCheckpoint(
+          userId: userId,
+          deviceId: deviceId,
+          localGeneration: state.localGeneration,
+          acknowledgedGeneration: state.acknowledgedGeneration,
+          updatedAt: state.updatedAt,
+        );
+      });
+
+  Future<int> currentLocalGeneration(SyncDeviceCheckpoint checkpoint) async {
+    final state =
+        await (_database.select(_database.syncDeviceStates)..where(
+              (row) =>
+                  row.userId.equals(checkpoint.userId) &
+                  row.deviceId.equals(checkpoint.deviceId),
+            ))
+            .getSingleOrNull();
+    return state?.localGeneration ?? -1;
+  }
+
+  Future<void> ensureDeviceState(String userId) async {
+    await _database.transaction(() async {
+      final deviceId = await _loadOrCreateDeviceId();
+      final state =
+          await (_database.select(_database.syncDeviceStates)..where(
+                (row) =>
+                    row.userId.equals(userId) & row.deviceId.equals(deviceId),
+              ))
+              .getSingleOrNull();
+      if (state != null) return;
+      await _database
+          .into(_database.syncDeviceStates)
+          .insert(
+            SyncDeviceStatesCompanion.insert(
+              userId: userId,
+              deviceId: deviceId,
+              localGeneration: const Value(0),
+              acknowledgedGeneration: const Value(-1),
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          );
+    });
+  }
+
+  Future<bool> markCheckpointAcknowledged(
+    SyncDeviceCheckpoint checkpoint,
+  ) async {
+    return _database.transaction(() async {
+      final current =
+          await (_database.select(_database.syncDeviceStates)..where(
+                (row) =>
+                    row.userId.equals(checkpoint.userId) &
+                    row.deviceId.equals(checkpoint.deviceId),
+              ))
+              .getSingleOrNull();
+      // A local write may have arrived while the network request was in
+      // flight. Never acknowledge a generation newer than the sent one.
+      if (current == null ||
+          current.localGeneration != checkpoint.localGeneration) {
+        return false;
+      }
+      await (_database.update(_database.syncDeviceStates)..where(
+            (row) =>
+                row.userId.equals(checkpoint.userId) &
+                row.deviceId.equals(checkpoint.deviceId),
+          ))
+          .write(
+            SyncDeviceStatesCompanion(
+              acknowledgedGeneration: Value(checkpoint.localGeneration),
+              updatedAt: Value(DateTime.now().toUtc()),
+            ),
+          );
+      return true;
+    });
+  }
+
+  Future<String> _loadOrCreateDeviceId() async {
+    const key = 'sync_device_id_v1';
+    final existing = await (_database.select(
+      _database.appSettings,
+    )..where((row) => row.key.equals(key))).getSingleOrNull();
+    if (existing != null && existing.value.isNotEmpty) return existing.value;
+    final id = _uuid.v4();
     await _database
-        .into(_database.syncOperations)
-        .insert(
-          SyncOperationsCompanion.insert(
-            id: _uuid.v4(),
-            userId: Value(userId),
-            entityType: entityType,
-            entityId: entityId,
-            operation: operation.name,
-            payloadJson: jsonEncode(payload),
-            createdAt: now,
-            updatedAt: now,
+        .into(_database.appSettings)
+        .insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+            key: key,
+            value: id,
+            updatedAt: DateTime.now().toUtc(),
           ),
         );
+    return id;
   }
 
   Stream<List<SyncOperation>> watchPending() {
@@ -316,6 +481,22 @@ class SyncQueueService {
     }
     return '未知同步错误';
   }
+}
+
+class SyncDeviceCheckpoint {
+  const SyncDeviceCheckpoint({
+    required this.userId,
+    required this.deviceId,
+    required this.localGeneration,
+    required this.acknowledgedGeneration,
+    required this.updatedAt,
+  });
+
+  final String userId;
+  final String deviceId;
+  final int localGeneration;
+  final int acknowledgedGeneration;
+  final DateTime updatedAt;
 }
 
 class _StructuredSyncFailure {

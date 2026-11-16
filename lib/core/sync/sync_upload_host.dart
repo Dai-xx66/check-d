@@ -22,6 +22,7 @@ class SyncUploadHost extends ConsumerStatefulWidget {
 class _SyncUploadHostState extends ConsumerState<SyncUploadHost>
     with WidgetsBindingObserver {
   ProviderSubscription<AuthState>? _authSubscription;
+  bool _authSyncScheduled = false;
 
   @override
   void initState() {
@@ -29,9 +30,19 @@ class _SyncUploadHostState extends ConsumerState<SyncUploadHost>
     WidgetsBinding.instance.addObserver(this);
     _authSubscription = ref.listenManual<AuthState>(
       authControllerProvider,
-      (_, state) => _syncFor(state),
+      (_, _) => _scheduleAuthSync(),
       fireImmediately: true,
     );
+  }
+
+  void _scheduleAuthSync() {
+    if (_authSyncScheduled) return;
+    _authSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _authSyncScheduled = false;
+      if (!mounted) return;
+      unawaited(_syncFor(ref.read(authControllerProvider)));
+    });
   }
 
   @override

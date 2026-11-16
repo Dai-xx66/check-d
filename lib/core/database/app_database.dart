@@ -144,11 +144,26 @@ class SyncOperations extends Table {
   TextColumn get status => text().withDefault(const Constant('pending'))();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  IntColumn get localGeneration => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Per-installation, per-account outbox generation. This is local sync state,
+/// not proof by itself that the server has authorized planning execution.
+class SyncDeviceStates extends Table {
+  TextColumn get userId => text()();
+  TextColumn get deviceId => text()();
+  IntColumn get localGeneration => integer().withDefault(const Constant(0))();
+  IntColumn get acknowledgedGeneration =>
+      integer().withDefault(const Constant(-1))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId, deviceId};
 }
 
 class AppSettings extends Table {
@@ -456,6 +471,7 @@ class AdHocTimerIntervalRecords extends Table {
     TimerSessionRecords,
     TaskRevisionRecords,
     SyncOperations,
+    SyncDeviceStates,
     AppSettings,
     TagRecords,
     TagRevisionRecords,
@@ -480,7 +496,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -510,6 +526,16 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(oneTimeReminderRecords);
         await migrator.createTable(taskCompletionRecords);
         await migrator.createTable(taskRevisionRecords);
+      }
+      if (from < 21) {
+        if (await hasTable('sync_operations') &&
+            !await hasColumn('sync_operations', 'local_generation')) {
+          await migrator.addColumn(
+            syncOperations,
+            syncOperations.localGeneration,
+          );
+        }
+        await migrator.createTable(syncDeviceStates);
       }
       if (from < 3) {
         await migrator.createTable(timerSessionRecords);

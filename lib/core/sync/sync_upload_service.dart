@@ -27,6 +27,18 @@ abstract interface class SyncRemoteStore {
     required String planId,
     required List<Map<String, Object?>> rows,
   });
+
+  /// Records a user-scoped checkpoint after the local outbox is fully settled.
+  /// Server-side business version checks remain mandatory for execution.
+  Future<void> acknowledgeDeviceCheckpoint({
+    required String deviceId,
+    required int localGeneration,
+  });
+
+  Future<void> publishCourseOccurrenceSnapshot({
+    required String deviceId,
+    required Map<String, Object?> snapshot,
+  });
 }
 
 class SupabaseSyncRemoteStore implements SyncRemoteStore {
@@ -75,6 +87,28 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
           .upsert(rows, onConflict: 'plan_id,task_id');
     }
   }
+
+  @override
+  Future<void> acknowledgeDeviceCheckpoint({
+    required String deviceId,
+    required int localGeneration,
+  }) async {
+    await _client.rpc(
+      'acknowledge_agent_device_sync_checkpoint',
+      params: {'p_device_id': deviceId, 'p_local_generation': localGeneration},
+    );
+  }
+
+  @override
+  Future<void> publishCourseOccurrenceSnapshot({
+    required String deviceId,
+    required Map<String, Object?> snapshot,
+  }) async {
+    await _client.rpc(
+      'publish_agent_course_occurrence_snapshot',
+      params: {'p_device_id': deviceId, 'p_snapshot': snapshot},
+    );
+  }
 }
 
 class SyncFlushResult {
@@ -84,6 +118,7 @@ class SyncFlushResult {
     required this.skipped,
     this.unauthenticated = false,
     this.busy = false,
+    this.checkpointAcknowledged = false,
   });
 
   final int uploaded;
@@ -91,6 +126,7 @@ class SyncFlushResult {
   final int skipped;
   final bool unauthenticated;
   final bool busy;
+  final bool checkpointAcknowledged;
 }
 
 /// Upload-only durable outbox processor. Drift remains authoritative until a
@@ -101,15 +137,20 @@ class SyncUploadExecutor {
     required SyncQueueService queue,
     required SyncRemoteStore remote,
     required String? Function() currentUserId,
+    Future<void> Function(SyncDeviceCheckpoint checkpoint)?
+    publishCourseOccurrenceSnapshot,
   }) : _database = database,
        _queue = queue,
        _remote = remote,
-       _currentUserId = currentUserId;
+       _currentUserId = currentUserId,
+       _publishCourseOccurrenceSnapshot = publishCourseOccurrenceSnapshot;
 
   final AppDatabase _database;
   final SyncQueueService _queue;
   final SyncRemoteStore _remote;
   final String? Function() _currentUserId;
+  final Future<void> Function(SyncDeviceCheckpoint checkpoint)?
+  _publishCourseOccurrenceSnapshot;
   bool _isFlushing = false;
 
   Future<SyncFlushResult> flush({bool force = false, int limit = 100}) async {
@@ -133,6 +174,7 @@ class SyncUploadExecutor {
 
     _isFlushing = true;
     try {
+      await _queue.ensureDeviceState(userId);
       final operations = await _queue.loadRetryableForUser(
         userId,
         limit: limit,
@@ -159,10 +201,30 @@ class SyncUploadExecutor {
           failed++;
         }
       }
+      var checkpointAcknowledged = false;
+      if (failed == 0 && skipped == 0) {
+        final checkpoint = await _queue.checkpointCandidate(userId);
+        if (checkpoint != null) {
+          try {
+            await _publishCourseOccurrenceSnapshot?.call(checkpoint);
+            await _remote.acknowledgeDeviceCheckpoint(
+              deviceId: checkpoint.deviceId,
+              localGeneration: checkpoint.localGeneration,
+            );
+            checkpointAcknowledged = await _queue.markCheckpointAcknowledged(
+              checkpoint,
+            );
+          } on Object {
+            // A failed checkpoint is not an upload failure and must not erase
+            // the queued business data. The next successful flush retries it.
+          }
+        }
+      }
       return SyncFlushResult(
         uploaded: uploaded,
         failed: failed,
         skipped: skipped,
+        checkpointAcknowledged: checkpointAcknowledged,
       );
     } finally {
       _isFlushing = false;

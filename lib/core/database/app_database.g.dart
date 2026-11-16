@@ -4696,6 +4696,17 @@ class $SyncOperationsTable extends SyncOperations
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _localGenerationMeta = const VerificationMeta(
+    'localGeneration',
+  );
+  @override
+  late final GeneratedColumn<int> localGeneration = GeneratedColumn<int>(
+    'local_generation',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4729,6 +4740,7 @@ class $SyncOperationsTable extends SyncOperations
     status,
     retryCount,
     lastError,
+    localGeneration,
     createdAt,
     updatedAt,
   ];
@@ -4808,6 +4820,15 @@ class $SyncOperationsTable extends SyncOperations
         lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
       );
     }
+    if (data.containsKey('local_generation')) {
+      context.handle(
+        _localGenerationMeta,
+        localGeneration.isAcceptableOrUnknown(
+          data['local_generation']!,
+          _localGenerationMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4869,6 +4890,10 @@ class $SyncOperationsTable extends SyncOperations
         DriftSqlType.string,
         data['${effectivePrefix}last_error'],
       ),
+      localGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_generation'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4896,6 +4921,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
   final String status;
   final int retryCount;
   final String? lastError;
+  final int? localGeneration;
   final DateTime createdAt;
   final DateTime updatedAt;
   const SyncOperation({
@@ -4908,6 +4934,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     required this.status,
     required this.retryCount,
     this.lastError,
+    this.localGeneration,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4926,6 +4953,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     map['retry_count'] = Variable<int>(retryCount);
     if (!nullToAbsent || lastError != null) {
       map['last_error'] = Variable<String>(lastError);
+    }
+    if (!nullToAbsent || localGeneration != null) {
+      map['local_generation'] = Variable<int>(localGeneration);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -4947,6 +4977,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       lastError: lastError == null && nullToAbsent
           ? const Value.absent()
           : Value(lastError),
+      localGeneration: localGeneration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(localGeneration),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4967,6 +5000,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       status: serializer.fromJson<String>(json['status']),
       retryCount: serializer.fromJson<int>(json['retryCount']),
       lastError: serializer.fromJson<String?>(json['lastError']),
+      localGeneration: serializer.fromJson<int?>(json['localGeneration']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4984,6 +5018,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       'status': serializer.toJson<String>(status),
       'retryCount': serializer.toJson<int>(retryCount),
       'lastError': serializer.toJson<String?>(lastError),
+      'localGeneration': serializer.toJson<int?>(localGeneration),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4999,6 +5034,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     String? status,
     int? retryCount,
     Value<String?> lastError = const Value.absent(),
+    Value<int?> localGeneration = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => SyncOperation(
@@ -5011,6 +5047,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     status: status ?? this.status,
     retryCount: retryCount ?? this.retryCount,
     lastError: lastError.present ? lastError.value : this.lastError,
+    localGeneration: localGeneration.present
+        ? localGeneration.value
+        : this.localGeneration,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -5031,6 +5070,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ? data.retryCount.value
           : this.retryCount,
       lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      localGeneration: data.localGeneration.present
+          ? data.localGeneration.value
+          : this.localGeneration,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5048,6 +5090,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
           ..write('lastError: $lastError, ')
+          ..write('localGeneration: $localGeneration, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5065,6 +5108,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     status,
     retryCount,
     lastError,
+    localGeneration,
     createdAt,
     updatedAt,
   );
@@ -5081,6 +5125,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           other.status == this.status &&
           other.retryCount == this.retryCount &&
           other.lastError == this.lastError &&
+          other.localGeneration == this.localGeneration &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5095,6 +5140,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
   final Value<String> status;
   final Value<int> retryCount;
   final Value<String?> lastError;
+  final Value<int?> localGeneration;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -5108,6 +5154,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.localGeneration = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5122,6 +5169,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.status = const Value.absent(),
     this.retryCount = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.localGeneration = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -5142,6 +5190,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Expression<String>? status,
     Expression<int>? retryCount,
     Expression<String>? lastError,
+    Expression<int>? localGeneration,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -5156,6 +5205,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       if (status != null) 'status': status,
       if (retryCount != null) 'retry_count': retryCount,
       if (lastError != null) 'last_error': lastError,
+      if (localGeneration != null) 'local_generation': localGeneration,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -5172,6 +5222,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Value<String>? status,
     Value<int>? retryCount,
     Value<String?>? lastError,
+    Value<int?>? localGeneration,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -5186,6 +5237,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
       lastError: lastError ?? this.lastError,
+      localGeneration: localGeneration ?? this.localGeneration,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -5222,6 +5274,9 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     if (lastError.present) {
       map['last_error'] = Variable<String>(lastError.value);
     }
+    if (localGeneration.present) {
+      map['local_generation'] = Variable<int>(localGeneration.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5246,7 +5301,391 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
           ..write('status: $status, ')
           ..write('retryCount: $retryCount, ')
           ..write('lastError: $lastError, ')
+          ..write('localGeneration: $localGeneration, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncDeviceStatesTable extends SyncDeviceStates
+    with TableInfo<$SyncDeviceStatesTable, SyncDeviceState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncDeviceStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localGenerationMeta = const VerificationMeta(
+    'localGeneration',
+  );
+  @override
+  late final GeneratedColumn<int> localGeneration = GeneratedColumn<int>(
+    'local_generation',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _acknowledgedGenerationMeta =
+      const VerificationMeta('acknowledgedGeneration');
+  @override
+  late final GeneratedColumn<int> acknowledgedGeneration = GeneratedColumn<int>(
+    'acknowledged_generation',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    deviceId,
+    localGeneration,
+    acknowledgedGeneration,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_device_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncDeviceState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceIdMeta);
+    }
+    if (data.containsKey('local_generation')) {
+      context.handle(
+        _localGenerationMeta,
+        localGeneration.isAcceptableOrUnknown(
+          data['local_generation']!,
+          _localGenerationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('acknowledged_generation')) {
+      context.handle(
+        _acknowledgedGenerationMeta,
+        acknowledgedGeneration.isAcceptableOrUnknown(
+          data['acknowledged_generation']!,
+          _acknowledgedGenerationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, deviceId};
+  @override
+  SyncDeviceState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncDeviceState(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      localGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}local_generation'],
+      )!,
+      acknowledgedGeneration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}acknowledged_generation'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncDeviceStatesTable createAlias(String alias) {
+    return $SyncDeviceStatesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncDeviceState extends DataClass implements Insertable<SyncDeviceState> {
+  final String userId;
+  final String deviceId;
+  final int localGeneration;
+  final int acknowledgedGeneration;
+  final DateTime updatedAt;
+  const SyncDeviceState({
+    required this.userId,
+    required this.deviceId,
+    required this.localGeneration,
+    required this.acknowledgedGeneration,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    map['device_id'] = Variable<String>(deviceId);
+    map['local_generation'] = Variable<int>(localGeneration);
+    map['acknowledged_generation'] = Variable<int>(acknowledgedGeneration);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SyncDeviceStatesCompanion toCompanion(bool nullToAbsent) {
+    return SyncDeviceStatesCompanion(
+      userId: Value(userId),
+      deviceId: Value(deviceId),
+      localGeneration: Value(localGeneration),
+      acknowledgedGeneration: Value(acknowledgedGeneration),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncDeviceState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncDeviceState(
+      userId: serializer.fromJson<String>(json['userId']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      localGeneration: serializer.fromJson<int>(json['localGeneration']),
+      acknowledgedGeneration: serializer.fromJson<int>(
+        json['acknowledgedGeneration'],
+      ),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'localGeneration': serializer.toJson<int>(localGeneration),
+      'acknowledgedGeneration': serializer.toJson<int>(acknowledgedGeneration),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SyncDeviceState copyWith({
+    String? userId,
+    String? deviceId,
+    int? localGeneration,
+    int? acknowledgedGeneration,
+    DateTime? updatedAt,
+  }) => SyncDeviceState(
+    userId: userId ?? this.userId,
+    deviceId: deviceId ?? this.deviceId,
+    localGeneration: localGeneration ?? this.localGeneration,
+    acknowledgedGeneration:
+        acknowledgedGeneration ?? this.acknowledgedGeneration,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncDeviceState copyWithCompanion(SyncDeviceStatesCompanion data) {
+    return SyncDeviceState(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      localGeneration: data.localGeneration.present
+          ? data.localGeneration.value
+          : this.localGeneration,
+      acknowledgedGeneration: data.acknowledgedGeneration.present
+          ? data.acknowledgedGeneration.value
+          : this.acknowledgedGeneration,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncDeviceState(')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('localGeneration: $localGeneration, ')
+          ..write('acknowledgedGeneration: $acknowledgedGeneration, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    userId,
+    deviceId,
+    localGeneration,
+    acknowledgedGeneration,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncDeviceState &&
+          other.userId == this.userId &&
+          other.deviceId == this.deviceId &&
+          other.localGeneration == this.localGeneration &&
+          other.acknowledgedGeneration == this.acknowledgedGeneration &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncDeviceStatesCompanion extends UpdateCompanion<SyncDeviceState> {
+  final Value<String> userId;
+  final Value<String> deviceId;
+  final Value<int> localGeneration;
+  final Value<int> acknowledgedGeneration;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SyncDeviceStatesCompanion({
+    this.userId = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.localGeneration = const Value.absent(),
+    this.acknowledgedGeneration = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncDeviceStatesCompanion.insert({
+    required String userId,
+    required String deviceId,
+    this.localGeneration = const Value.absent(),
+    this.acknowledgedGeneration = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       deviceId = Value(deviceId),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncDeviceState> custom({
+    Expression<String>? userId,
+    Expression<String>? deviceId,
+    Expression<int>? localGeneration,
+    Expression<int>? acknowledgedGeneration,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (deviceId != null) 'device_id': deviceId,
+      if (localGeneration != null) 'local_generation': localGeneration,
+      if (acknowledgedGeneration != null)
+        'acknowledged_generation': acknowledgedGeneration,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncDeviceStatesCompanion copyWith({
+    Value<String>? userId,
+    Value<String>? deviceId,
+    Value<int>? localGeneration,
+    Value<int>? acknowledgedGeneration,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncDeviceStatesCompanion(
+      userId: userId ?? this.userId,
+      deviceId: deviceId ?? this.deviceId,
+      localGeneration: localGeneration ?? this.localGeneration,
+      acknowledgedGeneration:
+          acknowledgedGeneration ?? this.acknowledgedGeneration,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (localGeneration.present) {
+      map['local_generation'] = Variable<int>(localGeneration.value);
+    }
+    if (acknowledgedGeneration.present) {
+      map['acknowledged_generation'] = Variable<int>(
+        acknowledgedGeneration.value,
+      );
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncDeviceStatesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('localGeneration: $localGeneration, ')
+          ..write('acknowledgedGeneration: $acknowledgedGeneration, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -15911,6 +16350,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TaskRevisionRecordsTable taskRevisionRecords =
       $TaskRevisionRecordsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
+  late final $SyncDeviceStatesTable syncDeviceStates = $SyncDeviceStatesTable(
+    this,
+  );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $TagRecordsTable tagRecords = $TagRecordsTable(this);
   late final $TagRevisionRecordsTable tagRevisionRecords =
@@ -15954,6 +16396,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     timerSessionRecords,
     taskRevisionRecords,
     syncOperations,
+    syncDeviceStates,
     appSettings,
     tagRecords,
     tagRevisionRecords,
@@ -19807,6 +20250,7 @@ typedef $$SyncOperationsTableCreateCompanionBuilder =
       Value<String> status,
       Value<int> retryCount,
       Value<String?> lastError,
+      Value<int?> localGeneration,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -19822,6 +20266,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
       Value<String> status,
       Value<int> retryCount,
       Value<String?> lastError,
+      Value<int?> localGeneration,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -19878,6 +20323,11 @@ class $$SyncOperationsTableFilterComposer
 
   ColumnFilters<String> get lastError => $composableBuilder(
     column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19946,6 +20396,11 @@ class $$SyncOperationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -19999,6 +20454,11 @@ class $$SyncOperationsTableAnnotationComposer
   GeneratedColumn<String> get lastError =>
       $composableBuilder(column: $table.lastError, builder: (column) => column);
 
+  GeneratedColumn<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -20048,6 +20508,7 @@ class $$SyncOperationsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
+                Value<int?> localGeneration = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -20061,6 +20522,7 @@ class $$SyncOperationsTableTableManager
                 status: status,
                 retryCount: retryCount,
                 lastError: lastError,
+                localGeneration: localGeneration,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -20076,6 +20538,7 @@ class $$SyncOperationsTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> retryCount = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
+                Value<int?> localGeneration = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -20089,6 +20552,7 @@ class $$SyncOperationsTableTableManager
                 status: status,
                 retryCount: retryCount,
                 lastError: lastError,
+                localGeneration: localGeneration,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -20125,6 +20589,225 @@ typedef $$SyncOperationsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
       ),
       SyncOperation,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncDeviceStatesTableCreateCompanionBuilder =
+    SyncDeviceStatesCompanion Function({
+      required String userId,
+      required String deviceId,
+      Value<int> localGeneration,
+      Value<int> acknowledgedGeneration,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncDeviceStatesTableUpdateCompanionBuilder =
+    SyncDeviceStatesCompanion Function({
+      Value<String> userId,
+      Value<String> deviceId,
+      Value<int> localGeneration,
+      Value<int> acknowledgedGeneration,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncDeviceStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncDeviceStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncDeviceStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncDeviceStatesTable> {
+  $$SyncDeviceStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get localGeneration => $composableBuilder(
+    column: $table.localGeneration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get acknowledgedGeneration => $composableBuilder(
+    column: $table.acknowledgedGeneration,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncDeviceStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncDeviceStatesTable,
+          SyncDeviceState,
+          $$SyncDeviceStatesTableFilterComposer,
+          $$SyncDeviceStatesTableOrderingComposer,
+          $$SyncDeviceStatesTableAnnotationComposer,
+          $$SyncDeviceStatesTableCreateCompanionBuilder,
+          $$SyncDeviceStatesTableUpdateCompanionBuilder,
+          (
+            SyncDeviceState,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncDeviceStatesTable,
+              SyncDeviceState
+            >,
+          ),
+          SyncDeviceState,
+          PrefetchHooks Function()
+        > {
+  $$SyncDeviceStatesTableTableManager(
+    _$AppDatabase db,
+    $SyncDeviceStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncDeviceStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncDeviceStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncDeviceStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> localGeneration = const Value.absent(),
+                Value<int> acknowledgedGeneration = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncDeviceStatesCompanion(
+                userId: userId,
+                deviceId: deviceId,
+                localGeneration: localGeneration,
+                acknowledgedGeneration: acknowledgedGeneration,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                required String deviceId,
+                Value<int> localGeneration = const Value.absent(),
+                Value<int> acknowledgedGeneration = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncDeviceStatesCompanion.insert(
+                userId: userId,
+                deviceId: deviceId,
+                localGeneration: localGeneration,
+                acknowledgedGeneration: acknowledgedGeneration,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncDeviceStatesTable, SyncDeviceState>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SyncDeviceStatesTable,
+                    SyncDeviceState
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncDeviceStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncDeviceStatesTable,
+      SyncDeviceState,
+      $$SyncDeviceStatesTableFilterComposer,
+      $$SyncDeviceStatesTableOrderingComposer,
+      $$SyncDeviceStatesTableAnnotationComposer,
+      $$SyncDeviceStatesTableCreateCompanionBuilder,
+      $$SyncDeviceStatesTableUpdateCompanionBuilder,
+      (
+        SyncDeviceState,
+        BaseReferences<_$AppDatabase, $SyncDeviceStatesTable, SyncDeviceState>,
+      ),
+      SyncDeviceState,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -26495,6 +27178,8 @@ class $AppDatabaseManager {
       $$TaskRevisionRecordsTableTableManager(_db, _db.taskRevisionRecords);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
+  $$SyncDeviceStatesTableTableManager get syncDeviceStates =>
+      $$SyncDeviceStatesTableTableManager(_db, _db.syncDeviceStates);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$TagRecordsTableTableManager get tagRecords =>

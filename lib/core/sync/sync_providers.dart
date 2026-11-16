@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../app/app_providers.dart';
 import 'sync_apply_scope.dart';
@@ -7,6 +9,10 @@ import 'sync_bootstrap_service.dart';
 import 'sync_download_service.dart';
 import 'sync_queue_service.dart';
 import 'sync_upload_service.dart';
+import '../../features/courses/data/course_repository.dart';
+import '../../features/courses/data/semester_repository.dart';
+import '../../features/schedule/data/day_schedule_repository.dart';
+import '../../features/planning/data/course_occurrence_snapshot.dart';
 
 final syncApplyScopeProvider = Provider<SyncApplyScope>((ref) {
   return SyncApplyScope();
@@ -66,6 +72,39 @@ final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
     queue: ref.watch(syncQueueServiceProvider),
     remote: SupabaseSyncRemoteStore(client),
     currentUserId: () => client.auth.currentUser?.id,
+    publishCourseOccurrenceSnapshot: (checkpoint) async {
+      tzdata.initializeTimeZones();
+      final now = tz.TZDateTime.now(tz.getLocation('Asia/Shanghai'));
+      final from = DateTime(now.year, now.month, now.day);
+      final through = from.add(
+        Duration(days: DriftCourseOccurrenceSnapshotRepository.maximumDays - 1),
+      );
+      final database = ref.read(appDatabaseProvider);
+      final queue = ref.read(syncQueueServiceProvider);
+      final snapshot = await DriftCourseOccurrenceSnapshotRepository(
+        userId: checkpoint.userId,
+        courses: CourseRepository(
+          database: database,
+          syncQueue: queue,
+          userId: checkpoint.userId,
+        ),
+        semesters: SemesterRepository(
+          database: database,
+          syncQueue: queue,
+          userId: checkpoint.userId,
+        ),
+        schedule: DayScheduleRepository(
+          database: database,
+          syncQueue: queue,
+          userId: checkpoint.userId,
+        ),
+        syncQueue: queue,
+      ).build(from: from, through: through);
+      await SupabaseSyncRemoteStore(client).publishCourseOccurrenceSnapshot(
+        deviceId: checkpoint.deviceId,
+        snapshot: snapshot.toJson(),
+      );
+    },
   );
   final coordinator = SyncUploadCoordinator(
     executor,

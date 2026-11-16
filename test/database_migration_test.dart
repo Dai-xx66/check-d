@@ -8,6 +8,65 @@ import 'package:check_d/core/database/app_database.dart';
 
 void main() {
   test(
+    'v20 to v21 preserves queued operations and adds device generations',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'check_d_sync_generation_migration_',
+      );
+      final file = File('${directory.path}/check_d.sqlite');
+      final legacy = AppDatabase.forTesting(NativeDatabase(file));
+      final now = DateTime.utc(2026, 11, 16);
+      try {
+        await legacy
+            .into(legacy.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                id: 'pending-1',
+                userId: const Value('user-1'),
+                entityType: 'tasks',
+                entityId: 'task-1',
+                operation: 'upsert',
+                payloadJson: '{"id":"task-1"}',
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        await legacy.customStatement(
+          'ALTER TABLE sync_operations DROP COLUMN local_generation',
+        );
+        await legacy.customStatement('DROP TABLE sync_device_states');
+        await legacy.customStatement('PRAGMA user_version = 20');
+        await legacy.close();
+
+        final upgraded = AppDatabase.forTesting(NativeDatabase(file));
+        try {
+          final queued = await (upgraded.select(
+            upgraded.syncOperations,
+          )..where((row) => row.id.equals('pending-1'))).getSingle();
+          expect(queued.status, 'pending');
+          expect(queued.localGeneration, isNull);
+          expect(
+            await upgraded.select(upgraded.syncDeviceStates).get(),
+            isEmpty,
+          );
+          final info = await upgraded
+              .customSelect('PRAGMA table_info(sync_operations)')
+              .get();
+          expect(
+            info.any((row) => row.read<String>('name') == 'local_generation'),
+            isTrue,
+          );
+        } finally {
+          await upgraded.close();
+        }
+      } finally {
+        await legacy.close();
+        await directory.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
     'v19 to v20 preserves old one-time dates without inventing deadlines',
     () async {
       final directory = await Directory.systemTemp.createTemp(
@@ -83,10 +142,10 @@ void main() {
             (row) => row.taskId == 'unscheduled',
           );
 
-        expect(scheduledRow.hasScheduledDate, isTrue);
-        expect(scheduledRow.scheduledAt.isAtSameMomentAs(scheduled), isTrue);
-        expect(unscheduledRow.hasScheduledDate, isFalse);
-        expect(unscheduledRow.scheduledAt.isAtSameMomentAs(now), isTrue);
+          expect(scheduledRow.hasScheduledDate, isTrue);
+          expect(scheduledRow.scheduledAt.isAtSameMomentAs(scheduled), isTrue);
+          expect(unscheduledRow.hasScheduledDate, isFalse);
+          expect(unscheduledRow.scheduledAt.isAtSameMomentAs(now), isTrue);
           for (final row in rows) {
             expect(row.availableFrom, isNull);
             expect(row.plannedDate, isNull);
