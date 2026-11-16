@@ -263,6 +263,44 @@ class SupabaseRestSnapshotProvider:
             "limitation_codes": execution_blockers + planning_blockers,
         }
 
+    def fetch_plan_proposals(self, identity: RemoteIdentity, *,
+                             proposal_id: str | None = None,
+                             limit: int = 20) -> list[dict[str, Any]]:
+        """Read proposal summaries using the current user's JWT and RLS.
+
+        Approval credentials are intentionally never selected. A proposal id
+        owned by another account is indistinguishable from an absent id because
+        both owner filtering and the database RLS policy apply.
+        """
+        token = identity.access_token
+        if not token:
+            raise SupabaseReadError("missing_user_token")
+        if not 1 <= limit <= 50:
+            raise ValueError("proposal limit out of range")
+        owner = identity.checkd_user_id
+        params = {
+            "user_id": f"eq.{owner}",
+            "select": "id,base_version,changes,change_digest,rules_version,starts_on,ends_on,status,expires_at,created_at,applied_at",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        }
+        if proposal_id is not None:
+            params["id"] = f"eq.{proposal_id}"
+            params["limit"] = "1"
+        proposals = self._get("agent_plan_proposals", params, token, required=True)
+        if proposal_id is None or not proposals:
+            return proposals
+        proposal = proposals[0]
+        approval_rows = self._get("agent_plan_approvals", {
+            "user_id": f"eq.{owner}",
+            "proposal_id": f"eq.{proposal_id}",
+            "select": "id,status,expires_at,created_at,decided_at",
+            "order": "created_at.desc",
+            "limit": "1",
+        }, token, required=True)
+        proposal["approval"] = approval_rows[0] if approval_rows else None
+        return proposals
+
     @staticmethod
     def _earliest_start(available_from: Any, range_start: str) -> str:
         value = available_from if isinstance(available_from, str) else range_start

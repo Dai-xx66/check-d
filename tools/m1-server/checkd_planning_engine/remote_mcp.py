@@ -21,6 +21,7 @@ import secrets
 import socketserver
 from typing import Any, Callable, Protocol
 from urllib.parse import urlparse
+from uuid import UUID
 
 from checkd_task_agent.mcp_server import McpApplication as PersonalMcpApplication
 from checkd_task_agent.mcp_server import TOOLS as PERSONAL_AGENT_TOOLS
@@ -299,6 +300,34 @@ class RemoteMcpApplication:
                     "details":{"invalid_field":key}}}
         if name in PERSONAL_TOOL_NAMES:
             return self._call_personal_task_tool(principal,name,arguments)
+        if name in {"list_plan_proposals", "get_plan_proposal"}:
+            fetch_proposals = getattr(self.snapshot_provider, "fetch_plan_proposals", None)
+            if fetch_proposals is None or not principal.access_token:
+                return {"ok":False,"error":{"code":"PROPOSAL_READ_UNAVAILABLE",
+                    "message":"Proposal status is unavailable."}}
+            limit = arguments.get("limit", 20)
+            if type(limit) is not int or not 1 <= limit <= 50:
+                return {"ok":False,"error":{"code":"INVALID_INPUT",
+                    "message":"Proposal page size must be between 1 and 50."}}
+            proposal_id = arguments.get("proposal_id")
+            if proposal_id is not None:
+                try:
+                    if str(UUID(proposal_id)) != proposal_id.lower():
+                        raise ValueError
+                except (ValueError, AttributeError):
+                    return {"ok":False,"error":{"code":"INVALID_INPUT",
+                        "message":"Proposal identifier is invalid."}}
+            try:
+                rows = fetch_proposals(principal, proposal_id=proposal_id, limit=limit)
+            except Exception:
+                return {"ok":False,"error":{"code":"PROPOSAL_READ_UNAVAILABLE",
+                    "message":"Proposal status is unavailable."}}
+            if proposal_id is not None:
+                if not rows:
+                    return {"ok":False,"error":{"code":"NOT_FOUND",
+                        "message":"Proposal is unavailable."}}
+                return {"ok":True,"proposal":rows[0],"execution_eligible":False}
+            return {"ok":True,"items":rows,"limit":limit,"execution_eligible":False}
         from_date=arguments.get("from")
         to_date=arguments.get("to")
         try:

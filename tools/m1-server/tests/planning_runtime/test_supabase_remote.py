@@ -123,6 +123,32 @@ class SupabaseRemoteTests(unittest.TestCase):
             self.assertEqual(request.get_header("Authorization"), "Bearer per-user-jwt")
             self.assertEqual(request.get_method(), "GET")
 
+    def test_proposal_reads_use_user_jwt_owner_filters_and_never_select_credentials(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(request)
+            table = urlparse(request.full_url).path.rsplit("/", 1)[-1]
+            if table == "agent_plan_proposals":
+                return Response(200, [{"id":"00000000-0000-4000-8000-000000000001",
+                    "status":"proposed","changes":[{"task_id":"synthetic"}]}])
+            return Response(200, [{"id":"approval-id","status":"pending"}])
+
+        provider = SupabaseRestSnapshotProvider(supabase_url="https://supabase.test",
+            publishable_key="public-test-key", opener=opener)
+        identity = RemoteIdentity("user-a", "test", frozenset({"planning:read"}),
+                                  2**31, "user-jwt-a")
+        rows = provider.fetch_plan_proposals(identity,
+            proposal_id="00000000-0000-4000-8000-000000000001")
+        self.assertEqual(rows[0]["approval"]["status"], "pending")
+        self.assertNotIn("approval_token", rows[0]["approval"])
+        self.assertEqual(len(calls), 2)
+        for request in calls:
+            self.assertEqual(request.get_method(), "GET")
+            self.assertEqual(request.get_header("Authorization"), "Bearer user-jwt-a")
+            query = parse_qs(urlparse(request.full_url).query)
+            self.assertEqual(query["user_id"], ["eq.user-a"])
+            self.assertNotIn("token", query.get("select", [""])[0].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

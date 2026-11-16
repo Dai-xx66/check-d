@@ -188,11 +188,36 @@
       "_meta": {
         "checkd/permission": "read:self"
       }
+    },
+    {
+      "name": "list_plan_proposals",
+      "description": "List recent planning proposals owned by the authenticated user, including their approval and execution statuses. This tool never returns approval secrets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+        },
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
+    },
+    {
+      "name": "get_plan_proposal",
+      "description": "Read one authenticated-user-owned proposal with its exact change set, version, expiry, and non-secret approval status.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "proposal_id": { "type": "string", "minLength": 36, "maxLength": 36 }
+        },
+        "required": ["proposal_id"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "read:self" }
     }
   ],
   "future_workflows_not_registered": {
     "task_create_query_edit": "Must be bound to the same verified CheckD principal; current personal stdio task tools are not integrated into this remote service.",
-    "schedule_proposal_approval_apply": "BLOCKED until durable server snapshots, trusted human approval, atomic version compare, allowlisted writes, and authoritative readback exist.",
+    "schedule_proposal_approval_apply": "Proposal list/status reads are registered and owner-scoped. Proposal creation, approval, and apply remain BLOCKED until the server can prove current device sync, normalize course occurrences with Flutter-equivalent semantics, bind a trusted human confirmation, and atomically verify/read back the exact approved change set.",
     "background_risk_worker_and_notifications": "Local SQLite prototype only; production worker and notification delivery are not integrated."
   },
   "errors": {

@@ -38,6 +38,20 @@ class RemoteMcpTests(unittest.TestCase):
                 "course_occurrences":[],"occupied_blocks":[],
                 "unmodeled_recurring_occurrence_ids":[],
             }
+        proposal_rows = {
+            "checkd-a": [{"id":"00000000-0000-4000-8000-000000000001",
+                "status":"proposed","base_version":"v-a","changes":[{"task_id":"task-a"}],
+                "approval":{"id":"approval-a","status":"pending"}}],
+            "checkd-b": [{"id":"00000000-0000-4000-8000-000000000002",
+                "status":"applied","base_version":"v-b","changes":[{"task_id":"task-b"}],
+                "approval":{"id":"approval-b","status":"consumed"}}],
+        }
+        def fetch_plan_proposals(identity, *, proposal_id=None, limit=20):
+            rows = proposal_rows.get(identity.checkd_user_id, [])
+            if proposal_id:
+                rows = [row for row in rows if row["id"] == proposal_id]
+            return rows[:limit]
+        provider.fetch_plan_proposals = fetch_plan_proposals
         self.app=RemoteMcpApplication(
             verifier=self.authority,audience=self.audience,snapshot_provider=provider,
             resource_metadata_url=self.metadata_url,authorization_server_url=self.issuer_url,
@@ -103,7 +117,7 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertFalse(contract["production_ready"])
         names={x["name"] for x in tools}
         self.assertEqual(len(names),len(tools))
-        self.assertEqual(len(tools),13)
+        self.assertEqual(len(tools),15)
         self.assertTrue({"list_tasks","search_tasks","get_tasks_by_date","list_overdue_tasks",
                          "get_task_detail","resolve_deadline"}.issubset(names))
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self"
@@ -120,7 +134,7 @@ class RemoteMcpTests(unittest.TestCase):
                 authorization_server_url=self.issuer_url,task_writes_enabled=True,
                 task_agent_state_dir=state_dir)
         names=[tool["name"] for tool in app.tools]
-        self.assertEqual(len(names),19)
+        self.assertEqual(len(names),21)
         self.assertEqual(len(names),len(set(names)))
         self.assertTrue({"prepare_task_creation","create_task","prepare_task_update",
                          "update_task"}.issubset(names))
@@ -194,6 +208,30 @@ class RemoteMcpTests(unittest.TestCase):
                 for risk in result["risks"] for task_id in risk["affected_task_ids"]
             ))
             self.assertFalse(result["execution_eligible"])
+
+    def test_proposal_status_tools_are_user_scoped_and_never_accept_user_id(self):
+        from checkd_planning_engine.remote_mcp import RemoteIdentity
+        principal_a=RemoteIdentity("checkd-a","wb-a",frozenset({"planning:read"}),
+                                    2**31,"test-user-jwt-a")
+        principal_b=RemoteIdentity("checkd-b","wb-b",frozenset({"planning:read"}),
+                                    2**31,"test-user-jwt-b")
+        listed=self.app._call_tool(principal_a,"list_plan_proposals",{})
+        self.assertTrue(listed["ok"])
+        self.assertEqual(listed["items"][0]["id"],"00000000-0000-4000-8000-000000000001")
+        self.assertFalse(listed["execution_eligible"])
+
+        foreign="00000000-0000-4000-8000-000000000002"
+        hidden=self.app._call_tool(principal_a,"get_plan_proposal",{"proposal_id":foreign})
+        self.assertFalse(hidden["ok"])
+        self.assertEqual(hidden["error"]["code"],"NOT_FOUND")
+
+        own=self.app._call_tool(principal_b,"get_plan_proposal",{"proposal_id":foreign})
+        self.assertTrue(own["ok"])
+        self.assertEqual(own["proposal"]["approval"]["status"],"consumed")
+
+        rejected=self.app._call_tool(principal_a,"get_plan_proposal",{"proposal_id":foreign,
+            "user_id":"checkd-b"})
+        self.assertEqual(rejected["error"]["code"],"INVALID_INPUT")
 
     def test_misbound_snapshot_is_rejected_for_every_tool(self):
         def misbound(user_id, start, end):

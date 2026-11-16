@@ -142,8 +142,8 @@ def main():
 
         listed = _rpc(base, port, users[0][1], "tools/list")["result"]["tools"]
         names = {tool["name"] for tool in listed}
-        if len(names) != 19 or len(names) != len(listed) or "list_tasks" not in names:
-            raise RuntimeError("account route did not expose 12 personal + 7 planning tools")
+        if len(names) != 21 or len(names) != len(listed) or "list_tasks" not in names:
+            raise RuntimeError("account route did not expose 12 personal + 9 planning tools")
         visible = []
         for _, token in users:
             result = _rpc(base, port, token, "tools/call", {"name": "list_tasks",
@@ -168,6 +168,17 @@ def main():
             if (not content.get("ok") or not content.get("provisional")
                     or content.get("execution_eligible") is not False):
                 raise RuntimeError("planning preview did not remain provisional/read-only")
+            proposals = _rpc(base, port, token, "tools/call", {
+                "name":"list_plan_proposals", "arguments":{"limit":5}})
+            proposal_content = proposals["result"].get("structuredContent", {})
+            if not proposal_content.get("ok") or proposal_content.get("execution_eligible") is not False:
+                code = (proposal_content.get("error") or {}).get("code", "none")
+                raise RuntimeError(f"user proposal listing failed; code={code}")
+            missing_proposal = _rpc(base, port, token, "tools/call", {
+                "name":"get_plan_proposal", "arguments":{"proposal_id":str(uuid.uuid4())}})
+            missing_content = missing_proposal["result"].get("structuredContent", {})
+            if missing_content.get("error", {}).get("code") != "NOT_FOUND":
+                raise RuntimeError("absent/foreign proposal was not concealed")
         created_ids = []
         for index, (user_id, token) in enumerate(users):
             # Same idempotency key across users verifies that confirmation state is
@@ -258,7 +269,7 @@ def main():
             "arguments":{"task_id":str(created_ids[0])}})
         if cross_created["result"].get("structuredContent", {}).get("error", {}).get("code") != "NOT_FOUND":
             raise RuntimeError("cross-user access to newly created task was not concealed")
-        print("local Supabase -> M1 /mcp/user: 2 Auth scopes isolated; read, create, duplicate replay, edit/readback, cancel and planning preview passed; planning remains provisional")
+        print("local Supabase -> M1 /mcp/user: 2 Auth scopes isolated; read, create, duplicate replay, edit/readback, cancel, planning preview, and owner-scoped Proposal status GET passed; planning remains provisional and no Proposal was created/applied")
     finally:
         if server.poll() is None:
             server.terminate()
