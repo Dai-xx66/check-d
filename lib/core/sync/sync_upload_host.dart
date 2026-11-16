@@ -55,7 +55,9 @@ class _SyncUploadHostState extends ConsumerState<SyncUploadHost>
   Future<void> _syncFor(AuthState state) async {
     final account = ref.read(syncAccountCoordinatorProvider);
     final userId = ref.read(supabaseClientProvider)?.auth.currentUser?.id;
-    if (state.status != AuthStatus.authenticated || userId == null) {
+    if (state.status != AuthStatus.authenticated ||
+        userId == null ||
+        state.userId != userId) {
       account?.signedOut();
       return;
     }
@@ -71,7 +73,13 @@ class _SyncUploadHostState extends ConsumerState<SyncUploadHost>
 
   Future<void> _reconcileOnResume() async {
     final userId = ref.read(supabaseClientProvider)?.auth.currentUser?.id;
-    if (userId == null) return;
+    final auth = ref.read(authControllerProvider);
+    if (userId == null ||
+        auth.status != AuthStatus.authenticated ||
+        auth.userId != userId) {
+      ref.read(syncAccountCoordinatorProvider)?.signedOut();
+      return;
+    }
     final result = await ref
         .read(syncAccountCoordinatorProvider)
         ?.onAppResumed(userId);

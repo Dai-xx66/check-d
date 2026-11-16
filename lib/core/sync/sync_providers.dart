@@ -101,6 +101,7 @@ final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
         syncQueue: queue,
       ).build(from: from, through: through);
       await SupabaseSyncRemoteStore(client).publishCourseOccurrenceSnapshot(
+        userId: checkpoint.userId,
         deviceId: checkpoint.deviceId,
         snapshot: snapshot.toJson(),
       );

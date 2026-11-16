@@ -220,24 +220,29 @@ void main() {
     },
   );
 
-  test('old server checkpoint gets a fresh course snapshot and watermark', () async {
-    final initial = await executor.flush();
-    expect(initial.checkpointAcknowledged, isTrue);
-    await (database.update(database.syncDeviceStates)
-          ..where((row) => row.userId.equals(userId)))
-        .write(
-          SyncDeviceStatesCompanion(
-            updatedAt: Value(DateTime.now().toUtc().subtract(const Duration(minutes: 11))),
+  test(
+    'old server checkpoint gets a fresh course snapshot and watermark',
+    () async {
+      final initial = await executor.flush();
+      expect(initial.checkpointAcknowledged, isTrue);
+      await (database.update(
+        database.syncDeviceStates,
+      )..where((row) => row.userId.equals(userId))).write(
+        SyncDeviceStatesCompanion(
+          updatedAt: Value(
+            DateTime.now().toUtc().subtract(const Duration(minutes: 11)),
           ),
-        );
-    remote.checkpoints.clear();
+        ),
+      );
+      remote.checkpoints.clear();
 
-    final refreshed = await executor.flush();
+      final refreshed = await executor.flush();
 
-    expect(refreshed.checkpointAcknowledged, isTrue);
-    expect(remote.checkpoints, hasLength(1));
-    expect(remote.checkpoints.single.$2, 0);
-  });
+      expect(refreshed.checkpointAcknowledged, isTrue);
+      expect(remote.checkpoints, hasLength(1));
+      expect(remote.checkpoints.single.$2, 0);
+    },
+  );
 
   test('course snapshot uploads canonical Flutter occurrences', () async {
     final courseRepository = CourseRepository(
@@ -329,6 +334,7 @@ void main() {
           through: DateTime(2026, 11, 24),
         );
         await remote.publishCourseOccurrenceSnapshot(
+          userId: checkpoint.userId,
           deviceId: checkpoint.deviceId,
           snapshot: snapshot.toJson(),
         );
@@ -596,6 +602,7 @@ class _FakeRemoteStore implements SyncRemoteStore {
 
   @override
   Future<void> acknowledgeDeviceCheckpoint({
+    required String userId,
     required String deviceId,
     required int localGeneration,
   }) async {
@@ -605,6 +612,7 @@ class _FakeRemoteStore implements SyncRemoteStore {
 
   @override
   Future<void> publishCourseOccurrenceSnapshot({
+    required String userId,
     required String deviceId,
     required Map<String, Object?> snapshot,
   }) async {

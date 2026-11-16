@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,22 +12,26 @@ enum AuthStatus { initializing, signedOut, authenticated, offline }
 class AuthState {
   const AuthState({
     required this.status,
+    this.userId,
     this.isSubmitting = false,
     this.errorMessage,
   });
 
   final AuthStatus status;
+  final String? userId;
   final bool isSubmitting;
   final String? errorMessage;
 
   AuthState copyWith({
     AuthStatus? status,
+    String? userId,
     bool? isSubmitting,
     String? errorMessage,
     bool clearError = false,
   }) {
     return AuthState(
       status: status ?? this.status,
+      userId: userId ?? this.userId,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
     );
@@ -36,20 +42,40 @@ final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(ref.watch(supabaseClientProvider)),
 );
 
+/// Supabase is the source of truth for session creation, refresh, sign-out and
+/// account switching. Keeping this stream injectable also lets provider tests
+/// exercise the account-bound repository lifecycle without network auth.
+final authStateChangesProvider = Provider<Stream<AuthState>>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  if (client == null) return const Stream<AuthState>.empty();
+  return client.auth.onAuthStateChange.map((change) {
+    final session = change.session;
+    if (session == null) return const AuthState(status: AuthStatus.signedOut);
+    return AuthState(status: AuthStatus.authenticated, userId: session.user.id);
+  });
+});
+
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
 );
 
 class AuthController extends Notifier<AuthState> {
   late final AuthRepository _repository;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   AuthState build() {
     _repository = ref.watch(authRepositoryProvider);
     final user = _repository.currentUser;
-    return AuthState(
+    final initial = AuthState(
       status: user == null ? AuthStatus.signedOut : AuthStatus.authenticated,
+      userId: user?.id,
     );
+    _authSubscription = ref
+        .watch(authStateChangesProvider)
+        .listen((next) => state = next);
+    ref.onDispose(() => _authSubscription?.cancel());
+    return initial;
   }
 
   Future<bool> signIn(String email, String password) async {
@@ -67,7 +93,10 @@ class AuthController extends Notifier<AuthState> {
         password: password,
       );
       if (hasSession) {
-        state = const AuthState(status: AuthStatus.authenticated);
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          userId: _repository.currentUser?.id,
+        );
       } else {
         state = const AuthState(
           status: AuthStatus.signedOut,
@@ -101,7 +130,10 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(isSubmitting: true, clearError: true);
     try {
       await action();
-      state = const AuthState(status: AuthStatus.authenticated);
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        userId: _repository.currentUser?.id,
+      );
       return true;
     } on Object catch (error) {
       _logAuthFailure(actionName, error);

@@ -31,14 +31,22 @@ abstract interface class SyncRemoteStore {
   /// Records a user-scoped checkpoint after the local outbox is fully settled.
   /// Server-side business version checks remain mandatory for execution.
   Future<void> acknowledgeDeviceCheckpoint({
+    required String userId,
     required String deviceId,
     required int localGeneration,
   });
 
   Future<void> publishCourseOccurrenceSnapshot({
+    required String userId,
     required String deviceId,
     required Map<String, Object?> snapshot,
   });
+}
+
+/// Raised locally when the live Auth identity no longer matches the owner a
+/// queued write was prepared for. It is intentionally credential-free.
+class SyncIdentityMismatch implements Exception {
+  const SyncIdentityMismatch();
 }
 
 class SupabaseSyncRemoteStore implements SyncRemoteStore {
@@ -52,6 +60,7 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
     Map<String, Object?> values, {
     required String onConflict,
   }) async {
+    _requireCurrentOwner(values['user_id'] as String?);
     await _client.from(table).upsert(values, onConflict: onConflict);
   }
 
@@ -62,6 +71,7 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
     required String id,
     required String flagColumn,
   }) async {
+    _requireCurrentOwner(userId);
     await _client
         .from(table)
         .update({flagColumn: false})
@@ -76,6 +86,7 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
     required String planId,
     required List<Map<String, Object?>> rows,
   }) async {
+    _requireCurrentOwner(userId);
     await _client
         .from('plan_tasks')
         .delete()
@@ -90,9 +101,13 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
 
   @override
   Future<void> acknowledgeDeviceCheckpoint({
+    required String userId,
     required String deviceId,
     required int localGeneration,
   }) async {
+    // The RPC derives the user from auth.uid(); do not issue it after an
+    // account switch, even if this device's previous checkpoint is valid.
+    _requireCurrentOwner(userId);
     await _client.rpc(
       'acknowledge_agent_device_sync_checkpoint',
       params: {'p_device_id': deviceId, 'p_local_generation': localGeneration},
@@ -101,13 +116,24 @@ class SupabaseSyncRemoteStore implements SyncRemoteStore {
 
   @override
   Future<void> publishCourseOccurrenceSnapshot({
+    required String userId,
     required String deviceId,
     required Map<String, Object?> snapshot,
   }) async {
+    _requireCurrentOwner(userId);
     await _client.rpc(
       'publish_agent_course_occurrence_snapshot',
       params: {'p_device_id': deviceId, 'p_snapshot': snapshot},
     );
+  }
+
+  void _requireCurrentOwner(String? expectedUserId) {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (expectedUserId == null ||
+        currentUserId == null ||
+        currentUserId != expectedUserId) {
+      throw const SyncIdentityMismatch();
+    }
   }
 }
 
@@ -119,6 +145,7 @@ class SyncFlushResult {
     this.unauthenticated = false,
     this.busy = false,
     this.checkpointAcknowledged = false,
+    this.identityMismatch = false,
   });
 
   final int uploaded;
@@ -127,6 +154,7 @@ class SyncFlushResult {
   final bool unauthenticated;
   final bool busy;
   final bool checkpointAcknowledged;
+  final bool identityMismatch;
 }
 
 /// Upload-only durable outbox processor. Drift remains authoritative until a
@@ -187,33 +215,62 @@ class SyncUploadExecutor {
       var uploaded = 0;
       var failed = 0;
       var skipped = operations.length - ready.length;
+      var identityMismatch = false;
 
-      for (final operation in ready) {
+      for (var index = 0; index < ready.length; index++) {
+        final operation = ready[index];
+        if (_currentUserId() != userId || operation.userId != userId) {
+          identityMismatch = true;
+          skipped += ready.length - index;
+          break;
+        }
         try {
           final writes = await _prepareWrites(operation, userId);
           for (final write in writes) {
+            if (_currentUserId() != userId) {
+              throw const SyncIdentityMismatch();
+            }
             await _executeWrite(write, userId);
+          }
+          if (_currentUserId() != userId) {
+            throw const SyncIdentityMismatch();
           }
           await _queue.markCompleted(operation.id);
           uploaded++;
+        } on SyncIdentityMismatch {
+          identityMismatch = true;
+          skipped += ready.length - index;
+          break;
         } on Object catch (error) {
           await _queue.markFailed(operation.id, error);
           failed++;
         }
       }
       var checkpointAcknowledged = false;
-      if (failed == 0 && skipped == 0) {
+      if (!identityMismatch &&
+          _currentUserId() == userId &&
+          failed == 0 &&
+          skipped == 0) {
         final checkpoint = await _queue.checkpointCandidate(userId);
         if (checkpoint != null) {
           try {
+            if (_currentUserId() != userId) {
+              throw const SyncIdentityMismatch();
+            }
             await _publishCourseOccurrenceSnapshot?.call(checkpoint);
+            if (_currentUserId() != userId) {
+              throw const SyncIdentityMismatch();
+            }
             await _remote.acknowledgeDeviceCheckpoint(
+              userId: userId,
               deviceId: checkpoint.deviceId,
               localGeneration: checkpoint.localGeneration,
             );
             checkpointAcknowledged = await _queue.markCheckpointAcknowledged(
               checkpoint,
             );
+          } on SyncIdentityMismatch {
+            identityMismatch = true;
           } on Object {
             // A failed checkpoint is not an upload failure and must not erase
             // the queued business data. The next successful flush retries it.
@@ -225,6 +282,7 @@ class SyncUploadExecutor {
         failed: failed,
         skipped: skipped,
         checkpointAcknowledged: checkpointAcknowledged,
+        identityMismatch: identityMismatch,
       );
     } finally {
       _isFlushing = false;
@@ -243,7 +301,9 @@ class SyncUploadExecutor {
   }
 
   Future<void> _executeWrite(_CloudWrite write, String userId) async {
+    if (_currentUserId() != userId) throw const SyncIdentityMismatch();
     if (write.clearOtherActiveFlag != null) {
+      if (_currentUserId() != userId) throw const SyncIdentityMismatch();
       try {
         await _remote.clearOtherActiveFlag(
           write.table,
@@ -260,6 +320,7 @@ class SyncUploadExecutor {
       }
     }
     if (write.planTaskRows != null) {
+      if (_currentUserId() != userId) throw const SyncIdentityMismatch();
       try {
         await _remote.replacePlanTasks(
           userId: userId,
@@ -275,6 +336,7 @@ class SyncUploadExecutor {
       }
       return;
     }
+    if (_currentUserId() != userId) throw const SyncIdentityMismatch();
     try {
       await _remote.upsert(
         write.table,
