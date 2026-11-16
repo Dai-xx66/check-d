@@ -18,6 +18,16 @@ route also includes `get_planning_context`, `get_current_plan`,
 `get_task_detail`. Full WorkBuddy Connector/OAuth integration remains blocked
 on platform user-token forwarding and registration details.
 
+The six Personal Task Agent prepare/confirm/cancel tools for task create and edit
+can be enabled only in an isolated test deployment with
+`CHECKD_USER_MCP_TASK_WRITES_ENABLED=1` and a persistent state directory. They
+are omitted by default. Each CheckD user receives a separate SQLite confirmation
+ledger file whose name is a hash of the verified Auth user ID; the directory is
+restricted to the service account. The adapter maps the explicit local test
+switch to `task:write`, but the production builder rejects this mode until a
+real WorkBuddy OAuth grant verifier exists. A user JWT still drives PostgREST
+and RLS; no service-role credential is used.
+
 ## Account route configuration
 
 Enable only in a non-production test deployment until OAuth and data coverage
@@ -32,6 +42,8 @@ have been verified:
 | `CHECKD_USER_SUPABASE_ISSUER` | Optional issuer expected in the CheckD access token; defaults to `<Supabase URL>/auth/v1`. |
 | `CHECKD_USER_MCP_OAUTH_CLIENT_IDS` | Comma-separated allowed client IDs; required in production mode. |
 | `CHECKD_USER_MCP_ENV` | `development` by default; production requires HTTPS and a client allowlist. |
+| `CHECKD_USER_MCP_TASK_WRITES_ENABLED` | Isolated development/test only; enables Personal Task Agent create/edit confirmation tools. Production startup rejects this setting until verified WorkBuddy OAuth grants are implemented. |
+| `CHECKD_USER_AGENT_STATE_DIR` | Persistent, access-restricted directory for user-separated confirmation ledgers; required when isolated task writes are enabled. |
 
 The tool server validates each Bearer access token against Supabase Auth `/user`,
 binds the authenticated response ID to the token subject, and uses that same
@@ -45,10 +57,11 @@ query. The token is not cached or logged. No request may provide `user_id`.
   authorization-code flow or persisted WorkBuddy-subject-to-CheckD binding.
 - WorkBuddy ability to forward each user's CheckD token to the route is not
   verified. Do not replace the existing connector configuration yet.
-- Task create/edit tools remain unregistered on this route until per-user
-  confirmation state can be stored in a durable multi-instance server store and
-  the authenticated OAuth grant has an explicit write scope. The existing local
-  stdio creation/edit flow is not silently promoted to remote production use.
+- Task create/edit tools remain disabled by default. An isolated test deployment
+  can opt in to exercise the existing confirmation flow against synthetic data;
+  this is not production authorization. A durable shared ledger for multiple
+  server instances and a verified WorkBuddy per-user OAuth write grant are still
+  required before production enablement.
 - Planning snapshots are provisional. Device sync watermarks are unavailable;
   course rules are not converted through Flutter's occurrence builder, so
   schedule tools fail closed when unresolved course rules exist. No result is

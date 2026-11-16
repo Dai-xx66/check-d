@@ -15,6 +15,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 from pathlib import Path
 import secrets
 import socketserver
@@ -58,6 +59,11 @@ PERSONAL_READ_TOOL_NAMES = frozenset({
     "resolve_deadline", "list_tasks", "search_tasks", "get_tasks_by_date",
     "list_overdue_tasks", "get_task_detail",
 })
+PERSONAL_WRITE_TOOL_NAMES = frozenset({
+    "prepare_task_creation", "create_task", "cancel_task_creation",
+    "prepare_task_update", "update_task", "cancel_task_update",
+})
+PERSONAL_TOOL_NAMES = PERSONAL_READ_TOOL_NAMES | PERSONAL_WRITE_TOOL_NAMES
 _PERSONAL_READ_TOOLS = tuple(
     tool for tool in PERSONAL_AGENT_TOOLS if tool.get("name") in PERSONAL_READ_TOOL_NAMES
 )
@@ -177,7 +183,9 @@ class RemoteMcpApplication:
     def __init__(self, *, verifier: AccessTokenVerifier, audience: str,
                  snapshot_provider: Callable[[str, str, str], dict[str, Any]],
                  resource_metadata_url: str, authorization_server_url: str,
-                 supabase_url: str = "", supabase_publishable_key: str = ""):
+                 supabase_url: str = "", supabase_publishable_key: str = "",
+                 task_writes_enabled: bool = False,
+                 task_agent_state_dir: str | None = None):
         self.verifier=verifier
         self.audience=audience
         self.snapshot_provider=snapshot_provider
@@ -185,7 +193,16 @@ class RemoteMcpApplication:
         self.authorization_server_url=authorization_server_url
         self.supabase_url=supabase_url
         self.supabase_publishable_key=supabase_publishable_key
-        self.tools=tuple((*_PERSONAL_READ_TOOLS,*_PLANNING_TOOLS))
+        self.task_writes_enabled = bool(task_writes_enabled)
+        self.task_agent_state_dir = task_agent_state_dir
+        if self.task_writes_enabled and not self.task_agent_state_dir:
+            raise ValueError("persistent per-user task agent state directory is required")
+        personal_tools = tuple(
+            tool for tool in PERSONAL_AGENT_TOOLS
+            if tool.get("name") in (PERSONAL_TOOL_NAMES if self.task_writes_enabled
+                                    else PERSONAL_READ_TOOL_NAMES)
+        )
+        self.tools=tuple((*personal_tools,*_PLANNING_TOOLS))
         names=[tool.get("name") for tool in self.tools]
         if len(names) != len(set(names)):
             raise RuntimeError("unified MCP tool registry contains duplicate names")
@@ -280,8 +297,8 @@ class RemoteMcpApplication:
             if not self._valid_schema_value(schema["properties"].get(key, {}), value):
                 return {"ok":False,"error":{"code":"INVALID_INPUT","message":"Tool arguments invalid.",
                     "details":{"invalid_field":key}}}
-        if name in PERSONAL_READ_TOOL_NAMES:
-            return self._call_personal_read_tool(principal,name,arguments)
+        if name in PERSONAL_TOOL_NAMES:
+            return self._call_personal_task_tool(principal,name,arguments)
         from_date=arguments.get("from")
         to_date=arguments.get("to")
         try:
@@ -357,6 +374,9 @@ class RemoteMcpApplication:
     @staticmethod
     def _valid_schema_value(spec: dict[str, Any], value: Any) -> bool:
         expected=spec.get("type")
+        if isinstance(expected, list):
+            return any(RemoteMcpApplication._valid_schema_value(
+                {**spec, "type": option}, value) for option in expected)
         if expected == "string":
             return isinstance(value,str) and (not spec.get("minLength") or len(value)>=spec["minLength"])
         if expected == "integer":
@@ -369,7 +389,7 @@ class RemoteMcpApplication:
             return isinstance(value,list)
         return False
 
-    def _call_personal_read_tool(self, principal: RemoteIdentity, name: str,
+    def _call_personal_task_tool(self, principal: RemoteIdentity, name: str,
                                  arguments: dict[str, Any]) -> dict[str, Any]:
         if name == "resolve_deadline":
             try:
@@ -382,6 +402,11 @@ class RemoteMcpApplication:
                     "message":getattr(exc,"message","无法解析截止时间。")}}
         if not principal.access_token or not self.supabase_url or not self.supabase_publishable_key:
             return {"ok":False,"error":{"code":"AUTH_REQUIRED","message":"当前请求缺少可验证的 CheckD 会话。"}}
+        if name in PERSONAL_WRITE_TOOL_NAMES:
+            if not self.task_writes_enabled:
+                return {"ok":False,"error":{"code":"WRITE_BLOCKED","message":"当前环境未启用任务写入。"}}
+            if "task:write" not in principal.scopes:
+                return {"ok":False,"error":{"code":"INSUFFICIENT_SCOPE","message":"当前授权不允许任务写入。"}}
         try:
             repository=SupabaseTaskRepository(url=self.supabase_url,
                 publishable_key=self.supabase_publishable_key,
@@ -389,20 +414,34 @@ class RemoteMcpApplication:
             if repository.authenticated_user_id() != principal.checkd_user_id:
                 return {"ok":False,"error":{"code":"NOT_FOUND","message":"任务不可用。"}}
             query_service=TaskQueryService(repository)
-            personal=PersonalMcpApplication(None,query_service=query_service)
-            response=personal.handle({"jsonrpc":"2.0","id":1,"method":"tools/call",
-                "params":{"name":name,"arguments":arguments}})
-            if not isinstance(response,dict):
-                return {"ok":False,"error":{"code":"INTERNAL_ERROR","message":"任务读取失败。"}}
-            result=(response.get("result") or {}).get("structuredContent")
+            if name in PERSONAL_WRITE_TOOL_NAMES:
+                from checkd_task_agent.ledger import ConfirmationLedger
+                from checkd_task_agent.service import TaskCreationService
+                from checkd_task_agent.update_service import TaskUpdateService
+
+                user_ref = hashlib.sha256(principal.checkd_user_id.encode("utf-8")).hexdigest()
+                state_root = Path(self.task_agent_state_dir).expanduser().resolve()
+                state_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                try:
+                    os.chmod(state_root, 0o700)
+                except OSError:
+                    pass
+                ledger = ConfirmationLedger(state_root / f"{user_ref}.sqlite3")
+                personal = PersonalMcpApplication(
+                    TaskCreationService(ledger, repository), query_service=query_service,
+                    update_service=TaskUpdateService(ledger, repository))
+            else:
+                personal=PersonalMcpApplication(None,query_service=query_service)
+            result = personal.call_tool(name, arguments)
             return result if isinstance(result,dict) else {
-                "ok":False,"error":{"code":"INTERNAL_ERROR","message":"任务读取失败。"}}
+                "ok":False,"error":{"code":"INTERNAL_ERROR","message":"任务操作失败。"}}
         except Exception as exc:
             code=getattr(exc,"code",None)
             message=getattr(exc,"message",None)
             if code and message:
                 return {"ok":False,"error":{"code":code,"message":message,
-                    "retryable":bool(getattr(exc,"retryable",False))}}
+                    "retryable":bool(getattr(exc,"retryable",False)),
+                    "details":getattr(exc,"details",{})}}
             return {"ok":False,"error":{"code":"TASK_READ_FAILED","message":"任务读取失败。"}}
 
     @staticmethod

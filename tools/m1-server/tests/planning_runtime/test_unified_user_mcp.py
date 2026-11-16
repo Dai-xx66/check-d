@@ -39,6 +39,15 @@ class UnifiedUserMcpConfigTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "HTTPS"):
                 build_from_env()
 
+    def test_production_task_writes_require_real_workbuddy_oauth_adapter(self):
+        config = {**BASE, "CHECKD_USER_MCP_ENV": "production",
+                  "CHECKD_USER_MCP_OAUTH_CLIENT_IDS": "workbuddy-test-client",
+                  "CHECKD_USER_MCP_TASK_WRITES_ENABLED": "1",
+                  "CHECKD_USER_AGENT_STATE_DIR": "/tmp/checkd-state-test"}
+        with patch.dict(os.environ, config, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "verified WorkBuddy"):
+                build_from_env()
+
 
 if __name__ == "__main__":
     unittest.main()

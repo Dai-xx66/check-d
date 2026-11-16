@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import http.client
 import json
+import tempfile
 from pathlib import Path
 import threading
 import unittest
@@ -107,6 +108,37 @@ class RemoteMcpTests(unittest.TestCase):
                          "get_task_detail","resolve_deadline"}.issubset(names))
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self"
                             for x in contract["registered_read_only_tools"] if x["name"] != "list_tasks"))
+
+    def test_task_write_tools_are_opt_in_and_per_user_state_is_required(self):
+        with self.assertRaisesRegex(ValueError, "state directory"):
+            RemoteMcpApplication(verifier=self.authority,audience=self.audience,
+                snapshot_provider=lambda *_: {},resource_metadata_url=self.metadata_url,
+                authorization_server_url=self.issuer_url,task_writes_enabled=True)
+        with tempfile.TemporaryDirectory() as state_dir:
+            app=RemoteMcpApplication(verifier=self.authority,audience=self.audience,
+                snapshot_provider=lambda *_: {},resource_metadata_url=self.metadata_url,
+                authorization_server_url=self.issuer_url,task_writes_enabled=True,
+                task_agent_state_dir=state_dir)
+        names=[tool["name"] for tool in app.tools]
+        self.assertEqual(len(names),19)
+        self.assertEqual(len(names),len(set(names)))
+        self.assertTrue({"prepare_task_creation","create_task","prepare_task_update",
+                         "update_task"}.issubset(names))
+
+    def test_task_write_requires_verified_write_scope(self):
+        with tempfile.TemporaryDirectory() as state_dir:
+            app=RemoteMcpApplication(verifier=self.authority,audience=self.audience,
+                snapshot_provider=lambda *_: {},resource_metadata_url=self.metadata_url,
+                authorization_server_url=self.issuer_url,supabase_url="https://db.invalid",
+                supabase_publishable_key="public-test-key",task_writes_enabled=True,
+                task_agent_state_dir=state_dir)
+            principal=type("Principal",(),{
+                "access_token":"local-user-token","checkd_user_id":"user-a",
+                "scopes":frozenset({"planning:read"})})()
+            result=app._call_tool(principal,"prepare_task_creation",{
+                "name":"test","expected_duration_minutes":30,
+                "idempotency_key":"write-scope-test"})
+        self.assertEqual(result["error"]["code"],"INSUFFICIENT_SCOPE")
 
     def test_shared_endpoint_keeps_user_snapshots_and_workbuddy_subjects_separate(self):
         ta=self.token("checkd-a",subject="workbuddy-101")

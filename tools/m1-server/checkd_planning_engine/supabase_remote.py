@@ -45,13 +45,15 @@ class SupabaseAccessTokenVerifier:
     def __init__(self, *, supabase_url: str, publishable_key: str,
                  allowed_oauth_client_ids: frozenset[str] = frozenset(),
                  expected_issuer: str | None = None,
-                 timeout_seconds: float = 8.0, opener=urlopen):
+                 timeout_seconds: float = 8.0, opener=urlopen,
+                 task_writes_enabled: bool = False):
         self.base_url = supabase_url.rstrip("/")
         self.publishable_key = publishable_key
         self.allowed_oauth_client_ids = allowed_oauth_client_ids
         self.expected_issuer = expected_issuer
         self.timeout_seconds = timeout_seconds
         self.opener = opener
+        self.task_writes_enabled = bool(task_writes_enabled)
 
     def verify(self, token: str, *, audience: str, now: datetime) -> RemoteIdentity:
         if not token or len(token) > 16_384:
@@ -85,10 +87,16 @@ class SupabaseAccessTokenVerifier:
             if (self.allowed_oauth_client_ids
                     and claims.get("client_id") not in self.allowed_oauth_client_ids):
                 raise PermissionError("OAuth client is not enabled")
-            # Capability is granted by this server's fixed read-only tool allowlist,
-            # not by interpreting Supabase OAuth scopes as SQL/database permissions.
+            # Planning reads are the default. The isolated-test task-write switch
+            # adds a local capability only; production startup refuses that mode
+            # until an actual WorkBuddy OAuth grant verifier is available.
+            scopes = {"planning:read"}
+            if self.task_writes_enabled:
+                # This deployment gate is for isolated testing only. Production
+                # WorkBuddy OAuth must supply a separately verified write grant.
+                scopes.add("task:write")
             return RemoteIdentity(user_id, f"supabase-auth:{user_id}",
-                                  frozenset({"planning:read"}), expiry, token)
+                                  frozenset(scopes), expiry, token)
         except PermissionError:
             raise
         except HTTPError:

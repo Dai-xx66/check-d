@@ -10,10 +10,12 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import shutil
 import socket
 import subprocess
 import sys
 import time
+import tempfile
 import urllib.error
 from urllib.parse import urlparse
 import urllib.request
@@ -85,6 +87,7 @@ def main():
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     service_url = f"http://127.0.0.1:{port}"
+    state_dir = tempfile.mkdtemp(prefix="checkd-agent-e2e-state-")
     env = dict(os.environ)
     env.update({
         "PORT": str(port), "BIND": "127.0.0.1",
@@ -96,6 +99,8 @@ def main():
         "CHECKD_USER_MCP_PUBLIC_URL": service_url,
         "CHECKD_USER_SUPABASE_ISSUER": base + "/auth/v1",
         "CHECKD_USER_MCP_UPSTREAM_TIMEOUT_SECONDS": "8",
+        "CHECKD_USER_MCP_TASK_WRITES_ENABLED": "1",
+        "CHECKD_USER_AGENT_STATE_DIR": state_dir,
         "PYTHONPATH": os.pathsep.join([M1_DIR, MOCK_DIR]),
     })
     server = subprocess.Popen([sys.executable, os.path.join(M1_DIR, "app.py")],
@@ -137,8 +142,8 @@ def main():
 
         listed = _rpc(base, port, users[0][1], "tools/list")["result"]["tools"]
         names = {tool["name"] for tool in listed}
-        if len(names) != 13 or len(names) != len(listed) or "list_tasks" not in names:
-            raise RuntimeError("account route did not expose the expected planning tool set")
+        if len(names) != 19 or len(names) != len(listed) or "list_tasks" not in names:
+            raise RuntimeError("account route did not expose 12 personal + 7 planning tools")
         visible = []
         for _, token in users:
             result = _rpc(base, port, token, "tools/call", {"name": "list_tasks",
@@ -163,6 +168,85 @@ def main():
             if (not content.get("ok") or not content.get("provisional")
                     or content.get("execution_eligible") is not False):
                 raise RuntimeError("planning preview did not remain provisional/read-only")
+        created_ids = []
+        for index, (user_id, token) in enumerate(users):
+            # Same idempotency key across users verifies that confirmation state is
+            # scoped by the Auth principal rather than shared globally.
+            prepared = _rpc(base, port, token, "tools/call", {"name":"prepare_task_creation",
+                "arguments":{"name":f"isolated-created-task-{index}",
+                    "expected_duration_minutes":25,"deadline_date":"2026-11-25",
+                    "idempotency_key":"same-key-for-separate-users"}})
+            draft = prepared["result"].get("structuredContent", {})
+            if not draft.get("ok") or draft.get("write_performed") is not False:
+                error = draft.get("error") or {}
+                raise RuntimeError(
+                    f"task preparation did not remain a no-write draft; "
+                    f"code={error.get('code', 'none')}; "
+                    f"detail_keys={','.join(sorted((error.get('details') or {}).keys()))}"
+                )
+            if not isinstance(draft.get("confirmation_id"), str):
+                raise RuntimeError(
+                    f"task preparation response missing confirmation id; "
+                    f"keys={','.join(sorted(draft.keys()))}; status={draft.get('status', 'none')}"
+                )
+            created = _rpc(base, port, token, "tools/call", {"name":"create_task",
+                "arguments":{"confirmation_id":draft["confirmation_id"],
+                    "user_confirmation_text":draft["confirmation_phrase"]}})
+            created_payload = created["result"].get("structuredContent", {})
+            if not created_payload.get("ok") or not created_payload.get("readback_verified"):
+                error = created_payload.get("error") or {}
+                details = error.get("details") or {}
+                raise RuntimeError(
+                    f"confirmed task create/readback failed; code={error.get('code', 'none')}; "
+                    f"stage={details.get('table', 'unknown')}; http={details.get('http_status', 'unknown')}; "
+                    f"postgrest={details.get('postgrest_code', 'unknown')}"
+                )
+            replay = _rpc(base, port, token, "tools/call", {"name":"create_task",
+                "arguments":{"confirmation_id":draft["confirmation_id"],
+                    "user_confirmation_text":draft["confirmation_phrase"]}})
+            replay_payload = replay["result"].get("structuredContent", {})
+            if replay_payload.get("task_id") != created_payload.get("task_id"):
+                raise RuntimeError("duplicate create did not return the idempotent result")
+            search_created = _rpc(base, port, token, "tools/call", {"name":"search_tasks",
+                "arguments":{"query":f"isolated-created-task-{index}"}})
+            if len(search_created["result"].get("structuredContent", {}).get("items", [])) != 1:
+                raise RuntimeError("duplicate create produced more than one business task")
+            task_id = created_payload.get("task_id")
+            created_ids.append(task_id)
+
+            update_draft = _rpc(base, port, token, "tools/call", {"name":"prepare_task_update",
+                "arguments":{"task_id":task_id,"changes":{"name":f"isolated-updated-task-{index}"},
+                    "idempotency_key":"same-update-key-for-separate-users"}})
+            update_proposal = update_draft["result"].get("structuredContent", {})
+            if not update_proposal.get("ok") or update_proposal.get("write_performed") is not False:
+                error = update_proposal.get("error") or {}
+                raise RuntimeError(f"task update preparation failed; code={error.get('code', 'none')}")
+            if not isinstance(update_proposal.get("update_confirmation_id"), str):
+                raise RuntimeError("task update preparation response missing confirmation id")
+            updated = _rpc(base, port, token, "tools/call", {"name":"update_task",
+                "arguments":{"update_confirmation_id":update_proposal["update_confirmation_id"],
+                    "user_confirmation_text":update_proposal["confirmation_phrase"]}})
+            updated_payload = updated["result"].get("structuredContent", {})
+            if not updated_payload.get("ok") or not updated_payload.get("readback_verified"):
+                code = (updated_payload.get("error") or {}).get("code", "none")
+                raise RuntimeError(f"confirmed task update/readback failed; code={code}")
+
+            cancel_draft = _rpc(base, port, token, "tools/call", {"name":"prepare_task_creation",
+                "arguments":{"name":f"isolated-cancelled-task-{index}",
+                    "expected_duration_minutes":10,"deadline_date":"2026-11-26",
+                    "idempotency_key":f"cancel-key-{index}-{uuid.uuid4().hex}"}})
+            cancel_proposal = cancel_draft["result"].get("structuredContent", {})
+            if not isinstance(cancel_proposal.get("confirmation_id"), str):
+                error = cancel_proposal.get("error") or {}
+                raise RuntimeError(f"cancel draft preparation failed; code={error.get('code', 'none')}")
+            cancelled = _rpc(base, port, token, "tools/call", {"name":"cancel_task_creation",
+                "arguments":{"confirmation_id":cancel_proposal["confirmation_id"]}})
+            if cancelled["result"].get("structuredContent", {}).get("write_performed") is not False:
+                raise RuntimeError("cancelled task draft unexpectedly wrote business data")
+            search_cancelled = _rpc(base, port, token, "tools/call", {"name":"search_tasks",
+                "arguments":{"query":f"isolated-cancelled-task-{index}"}})
+            if search_cancelled["result"].get("structuredContent", {}).get("items"):
+                raise RuntimeError("cancelled task draft created a business task")
         if visible[0] != ["isolated-agent-task-0"] or visible[1] != ["isolated-agent-task-1"]:
             raise RuntimeError("RLS/account isolation assertion failed")
         cross_user = _rpc(base, port, users[1][1], "tools/call", {"name": "get_task_detail",
@@ -170,11 +254,16 @@ def main():
         cross_payload = cross_user["result"].get("structuredContent", {})
         if cross_payload.get("error", {}).get("code") != "NOT_FOUND":
             raise RuntimeError("cross-user task detail was not concealed")
-        print("local Supabase -> M1 /mcp/user: 2 Auth scopes isolated; task list/search/detail and planning preview passed; previews provisional")
+        cross_created = _rpc(base, port, users[1][1], "tools/call", {"name":"get_task_detail",
+            "arguments":{"task_id":str(created_ids[0])}})
+        if cross_created["result"].get("structuredContent", {}).get("error", {}).get("code") != "NOT_FOUND":
+            raise RuntimeError("cross-user access to newly created task was not concealed")
+        print("local Supabase -> M1 /mcp/user: 2 Auth scopes isolated; read, create, duplicate replay, edit/readback, cancel and planning preview passed; planning remains provisional")
     finally:
         if server.poll() is None:
             server.terminate()
             server.wait(timeout=8)
+        shutil.rmtree(state_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":

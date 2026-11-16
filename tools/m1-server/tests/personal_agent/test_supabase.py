@@ -123,6 +123,16 @@ class SupabaseTaskRepositoryTest(unittest.TestCase):
         self.assertEqual(caught.exception.code, "RLS_DENIED")
         self.assertNotIn("one_time_reminders", transport.rows)
 
+    def test_write_error_keeps_only_safe_postgrest_code_and_status(self) -> None:
+        repository = self.make_repository(FakeTransport())
+        body = json.dumps({"code":"42703", "message":"column missing; secret task text"}).encode()
+        with self.assertRaises(AgentError) as caught:
+            repository._require_write_success(HttpResponse(400, body), "tasks")
+        self.assertEqual(caught.exception.code, "REMOTE_WRITE_FAILED")
+        self.assertEqual(caught.exception.details, {
+            "table":"tasks", "http_status":400, "postgrest_code":"42703"})
+        self.assertNotIn("secret", json.dumps(caught.exception.to_dict()))
+
     def test_token_expiry_during_child_write_never_reports_success(self) -> None:
         transport = FakeTransport()
         transport.write_status["one_time_reminders"] = 401

@@ -31,6 +31,8 @@ def build_from_env() -> RemoteMcpApplication:
         "CHECKD_USER_SUPABASE_ISSUER", supabase_url + "/auth/v1"
     )
     mode = os.environ.get("CHECKD_USER_MCP_ENV", "development").lower()
+    task_writes_enabled = os.environ.get("CHECKD_USER_MCP_TASK_WRITES_ENABLED", "0") == "1"
+    task_agent_state_dir = os.environ.get("CHECKD_USER_AGENT_STATE_DIR")
     client_ids = frozenset(
         item.strip()
         for item in os.environ.get("CHECKD_USER_MCP_OAUTH_CLIENT_IDS", "").split(",")
@@ -41,6 +43,13 @@ def build_from_env() -> RemoteMcpApplication:
             raise RuntimeError("HTTPS is required in production")
         if not client_ids:
             raise RuntimeError("registered OAuth client IDs are required in production")
+        if task_writes_enabled:
+            raise RuntimeError(
+                "task writes require verified WorkBuddy per-user OAuth grants; "
+                "the direct Supabase JWT adapter is not sufficient"
+            )
+    if task_writes_enabled and not task_agent_state_dir:
+        raise RuntimeError("CHECKD_USER_AGENT_STATE_DIR is required when task writes are enabled")
 
     try:
         timeout = float(os.environ.get("CHECKD_USER_MCP_UPSTREAM_TIMEOUT_SECONDS", "8"))
@@ -56,6 +65,7 @@ def build_from_env() -> RemoteMcpApplication:
         allowed_oauth_client_ids=client_ids,
         expected_issuer=issuer,
         timeout_seconds=timeout,
+        task_writes_enabled=task_writes_enabled,
     )
     provider = SupabaseRestSnapshotProvider(
         supabase_url=supabase_url,
@@ -70,4 +80,6 @@ def build_from_env() -> RemoteMcpApplication:
         authorization_server_url=issuer,
         supabase_url=supabase_url,
         supabase_publishable_key=key,
+        task_writes_enabled=task_writes_enabled,
+        task_agent_state_dir=task_agent_state_dir,
     )

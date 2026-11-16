@@ -570,17 +570,31 @@ class SupabaseTaskRepository:
         return payload[0]
 
     def _require_write_success(self, response: HttpResponse, table: str) -> None:
+        details: dict[str, object] = {"table": table, "http_status": response.status}
+        # Keep only PostgreSQL's five-character diagnostic code. Error messages
+        # and details can echo submitted task values, so never place them in the
+        # Agent response or logs.
+        try:
+            error_payload = json.loads(response.body.decode("utf-8")) if response.body else {}
+            pg_code = error_payload.get("code") if isinstance(error_payload, dict) else None
+            if isinstance(pg_code, str) and re.fullmatch(r"[0-9A-Z]{5}", pg_code):
+                details["postgrest_code"] = pg_code
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
         if response.status == 401:
-            raise AgentError("AUTH_EXPIRED", "用户会话无效或已过期。", retryable=True)
+            raise AgentError("AUTH_EXPIRED", "用户会话无效或已过期。", retryable=True,
+                             details=details)
         if response.status == 403:
-            raise AgentError("RLS_DENIED", f"RLS 拒绝了对 {table} 的写入。")
+            raise AgentError("RLS_DENIED", f"RLS 拒绝了对 {table} 的写入。", details=details)
         if response.status in {409, 422}:
-            raise AgentError("DATA_CONSTRAINT_FAILED", f"{table} 写入不符合云端约束。")
+            raise AgentError("DATA_CONSTRAINT_FAILED", f"{table} 写入不符合云端约束。",
+                             details=details)
         if not 200 <= response.status < 300:
             raise AgentError(
                 "REMOTE_WRITE_FAILED",
                 f"{table} 写入失败。",
                 retryable=response.status >= 500,
+                details=details,
             )
 
     def _request(
