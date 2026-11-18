@@ -215,9 +215,40 @@
       "_meta": { "checkd/permission": "read:self" }
     }
   ],
+  "registered_proposal_tools": [
+    {
+      "name": "create_plan_proposal",
+      "description": "Generate a server-backed Proposal from the authenticated user's current trusted task and Flutter course snapshot. A proposal is created only when planning_ready is true, execution data is complete, and the server verifies the snapshot fence. This tool never approves or applies the proposal.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": { "type": "string", "format": "date" },
+          "to": { "type": "string", "format": "date" },
+          "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 128 }
+        },
+        "required": ["from", "to", "idempotency_key"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "propose:self" }
+    },
+    {
+      "name": "request_plan_approval",
+      "description": "Create or retrieve the current user's one-time approval request for an owned Proposal and return a short-lived confirmation link. The user must open the link and explicitly click approve or reject; tool invocation or model-generated fields are not approval.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "proposal_id": { "type": "string", "minLength": 36, "maxLength": 36 },
+          "idempotency_key": { "type": "string", "minLength": 8, "maxLength": 128 }
+        },
+        "required": ["proposal_id", "idempotency_key"],
+        "additionalProperties": false
+      },
+      "_meta": { "checkd/permission": "propose:self" }
+    }
+  ],
   "future_workflows_not_registered": {
     "task_create_query_edit": "Must be bound to the same verified CheckD principal; current personal stdio task tools are not integrated into this remote service.",
-    "schedule_proposal_approval_apply": "Proposal list/status reads are registered and owner-scoped. Proposal creation, approval, and apply remain BLOCKED until the server can prove current device sync, normalize course occurrences with Flutter-equivalent semantics, bind a trusted human confirmation, and atomically verify/read back the exact approved change set.",
+    "schedule_proposal_approval_apply": "Proposal creation and request-for-approval tools are opt-in in isolated deployments only. Approval requires the separately delivered one-time link; production WorkBuddy OAuth, trusted account binding, and deployment remain BLOCKED.",
     "background_risk_worker_and_notifications": "Local SQLite prototype only; production worker and notification delivery are not integrated."
   },
   "errors": {

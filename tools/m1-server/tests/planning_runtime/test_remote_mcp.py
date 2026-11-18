@@ -1,10 +1,26 @@
 from datetime import datetime, timedelta, timezone
+from datetime import date
+from zoneinfo import ZoneInfo
+from hashlib import sha256
 import http.client
 import json
 import tempfile
 from pathlib import Path
 import threading
 import unittest
+import importlib.util
+import os
+
+_M1_TOOLS_DIR = Path(__file__).resolve().parents[2] / ".." / "m1-mock"
+_M1_TOOL_FILE = _M1_TOOLS_DIR.resolve() / "tool_server.py"
+_saved_mock_env = {name: os.environ.pop(name, None) for name in (
+    "MOCK_TASKS_FILE", "MOCK_FLAGS_FILE", "MOCK_APPROVAL_FILE")}
+_legacy_spec = importlib.util.spec_from_file_location("checkd_original_m1_tool_server", _M1_TOOL_FILE)
+legacy_m1 = importlib.util.module_from_spec(_legacy_spec)
+_legacy_spec.loader.exec_module(legacy_m1)
+for _name, _value in _saved_mock_env.items():
+    if _value is not None:
+        os.environ[_name] = _value
 
 from checkd_planning_engine.remote_mcp import (
     IntrospectionTokenVerifier, RemoteMcpApplication, TestJwtAuthority,
@@ -52,9 +68,17 @@ class RemoteMcpTests(unittest.TestCase):
                 rows = [row for row in rows if row["id"] == proposal_id]
             return rows[:limit]
         provider.fetch_plan_proposals = fetch_plan_proposals
+        provider.fetch_legacy_tasks = lambda identity, *, statuses: [{
+            "task_id": f"task-{identity.checkd_user_id}", "kind": "one_time",
+            "name": "test task", "status": "active", "execution_mode": "unknown",
+            "available_from": None, "planned_date": None, "scheduled_at": None,
+            "deadline": None, "duration_target_seconds": None,
+            "completed_today": False,
+        }]
         self.app=RemoteMcpApplication(
             verifier=self.authority,audience=self.audience,snapshot_provider=provider,
             resource_metadata_url=self.metadata_url,authorization_server_url=self.issuer_url,
+            legacy_module=legacy_m1,
         )
         self.server=make_http_server(self.app)
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True)
@@ -96,6 +120,14 @@ class RemoteMcpTests(unittest.TestCase):
         metadata=json.loads(body)
         self.assertEqual(metadata["resource"],self.audience)
         self.assertEqual(metadata["authorization_servers"],[self.issuer_url])
+        status,_,body=self.request({},method="GET",
+            path="/.well-known/oauth-protected-resource/mcp/user")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body),metadata)
+        status,headers,body=self.request({},method="GET",path="/mcp")
+        self.assertEqual(status,401)
+        self.assertIn(self.metadata_url,headers["www-authenticate"])
+        self.assertEqual(json.loads(body),{"error":"invalid_token"})
         status,_,body=self.request({},method="GET",path="/healthz")
         self.assertEqual(status,200)
         self.assertEqual(json.loads(body)["status"],"ok")
@@ -117,9 +149,11 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertFalse(contract["production_ready"])
         names={x["name"] for x in tools}
         self.assertEqual(len(names),len(tools))
-        self.assertEqual(len(tools),15)
+        self.assertEqual(len(tools),21)
         self.assertTrue({"list_tasks","search_tasks","get_tasks_by_date","list_overdue_tasks",
-                         "get_task_detail","resolve_deadline"}.issubset(names))
+                         "get_task_detail","resolve_deadline","get_calendar_events"}.issubset(names))
+        for original in legacy_m1.tool_defs():
+            self.assertEqual(next(tool for tool in tools if tool["name"] == original["name"]), original)
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self"
                             for x in contract["registered_read_only_tools"] if x["name"] != "list_tasks"))
 
@@ -132,12 +166,131 @@ class RemoteMcpTests(unittest.TestCase):
             app=RemoteMcpApplication(verifier=self.authority,audience=self.audience,
                 snapshot_provider=lambda *_: {},resource_metadata_url=self.metadata_url,
                 authorization_server_url=self.issuer_url,task_writes_enabled=True,
-                task_agent_state_dir=state_dir)
+                task_agent_state_dir=state_dir,legacy_module=legacy_m1)
         names=[tool["name"] for tool in app.tools]
-        self.assertEqual(len(names),21)
+        self.assertEqual(len(names),27)
         self.assertEqual(len(names),len(set(names)))
         self.assertTrue({"prepare_task_creation","create_task","prepare_task_update",
                          "update_task"}.issubset(names))
+
+    def test_original_seven_tools_keep_envelope_schema_and_route_to_scoped_handlers(self):
+        from checkd_planning_engine.remote_mcp import RemoteIdentity
+        expected = {tool["name"]: tool for tool in legacy_m1.tool_defs()}
+        actual = {tool["name"]: tool for tool in self.app.tools
+                  if tool["name"] in expected}
+        self.assertEqual(actual, expected)
+        self.assertEqual(set(actual), {
+            "list_tasks", "get_calendar_events", "generate_schedule",
+            "validate_schedule", "apply_approved_changes", "request_approval",
+            "get_approval_status",
+        })
+        identity = RemoteIdentity("checkd-a", "supabase-auth:checkd-a",
+            frozenset({"planning:read"}), 2**31, "request-scoped-user-token")
+        legacy_list = {
+            "api_version": "checkd.agent.v1", "request_id": "legacy-list-1",
+            "timezone": "Asia/Shanghai", "input": {
+                "date_range": {"start": "2026-11-15", "end": "2026-11-15"},
+                "kinds": ["one_time"], "statuses": ["active"],
+            },
+        }
+        listed = self.app._call_tool(identity, "list_tasks", legacy_list)
+        self.assertEqual(listed["status"], "success")
+        self.assertEqual(listed["request_id"], "legacy-list-1")
+        self.assertEqual(listed["data"]["tasks"][0]["task_id"], "task-checkd-a")
+        self.assertNotIn("checkd-b", json.dumps(listed))
+
+        # The same exact v1 envelope is accepted at the mounted route path too.
+        status, _, body = self.app.dispatch_http(method="POST", path="/mcp/user", headers={
+            "authorization": f"Bearer {self.token('checkd-a')}",
+            "accept": "application/json, text/event-stream",
+            "content-type": "application/json",
+        }, body=json.dumps({"jsonrpc":"2.0","id":91,"method":"tools/call",
+            "params":{"name":"list_tasks","arguments":legacy_list}}).encode())
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["result"]["structuredContent"]["status"], "success")
+
+        preview_args = {
+            "api_version": "checkd.agent.v1", "request_id": "legacy-preview-1",
+            "timezone": "Asia/Shanghai", "input": {
+                "date_range": {"start": "2026-11-15", "end": "2026-11-15"},
+            },
+        }
+        preview = self.app._call_tool(identity, "generate_schedule", preview_args)
+        self.assertEqual(preview["status"], "success")
+        self.assertEqual(preview["data"]["proposal_status"], "preview_only")
+        self.assertFalse(preview["execution_eligible"])
+        for name, inputs, code in (
+            ("request_approval", {"proposal_id":"p","idempotency_key":"i"}, "WRITE_BLOCKED"),
+            ("apply_approved_changes", {"proposal_id":"p","base_version":"v",
+                "approval_token":"never-accept-demo-token","idempotency_key":"i"}, "WRITE_BLOCKED"),
+        ):
+            result = self.app._call_tool(identity, name, {
+                "api_version":"checkd.agent.v1", "request_id":f"{name}-1",
+                "timezone":"Asia/Shanghai", "input":inputs,
+            })
+            self.assertEqual(result["error"]["code"], code)
+            self.assertFalse(result["execution_eligible"])
+
+    def test_legacy_schema_rejects_unknown_nested_fields_and_never_uses_demo_fallback(self):
+        identity = self.token("checkd-a")
+        bad = {"api_version":"checkd.agent.v1", "request_id":"bad-1",
+            "timezone":"Asia/Shanghai", "input":{
+                "date_range":{"start":"2026-11-15","end":"2026-11-15",
+                               "user_id":"checkd-b"}}}
+        status, _, body = self.rpc("tools/call", {"name":"list_tasks","arguments":bad}, identity)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["error"]["code"], -32602)
+        self.assertEqual(self.provider_calls, [])
+
+    def test_expired_token_is_rejected_and_calendar_query_uses_authenticated_snapshot(self):
+        expired = self.token("checkd-a", expires=int(datetime.now(timezone.utc).timestamp()))
+        status,headers,body=self.rpc("tools/list",token=expired)
+        self.assertEqual(status,401)
+        self.assertIn('error="invalid_token"',headers["www-authenticate"])
+        self.assertEqual(json.loads(body),{"error":"invalid_token"})
+
+        token=self.token("checkd-a")
+        original_provider=self.app.snapshot_provider
+        def calendar_provider(user, start, end):
+            snapshot=original_provider(user, start, end)
+            snapshot["course_occurrences"]=[{
+                "occurrence_id":"occ-1","course_id":"course-a",
+                "starts_at":"2026-11-15T10:00:00+08:00",
+                "ends_at":"2026-11-15T11:00:00+08:00","kind":"course"}]
+            return snapshot
+        self.app.snapshot_provider=calendar_provider
+        legacy_calendar = {"api_version":"checkd.agent.v1", "request_id":"calendar-1",
+            "timezone":"Asia/Shanghai", "input":{
+                "date_range":{"start":"2026-11-15","end":"2026-11-15"}}}
+        status,_,body=self.rpc("tools/call",{
+            "name":"get_calendar_events",
+            "arguments":legacy_calendar,
+        },token)
+        result=json.loads(body)["result"]["structuredContent"]["data"]
+        self.assertEqual(status,200)
+        self.assertEqual(result["events"][0]["occurrence_id"],"occ-1")
+        self.assertEqual(result["events"][0]["starts_at"],
+                         "2026-11-15T10:00:00+08:00")
+        self.assertEqual(self.provider_calls[-1],("checkd-a","2026-11-15","2026-11-15"))
+
+        status,_,body=self.rpc("tools/call",{
+            "name":"get_calendar_events",
+            "arguments": {**legacy_calendar, "input": {
+                "date_range":{"start":"2026-11-15","end":"2026-11-15",
+                               "user_id":"checkd-b"}}},
+        },token)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["error"]["code"],-32602)
+        self.assertEqual(self.provider_calls[-1],("checkd-a","2026-11-15","2026-11-15"))
+
+    def test_recursive_schema_validation_accepts_declared_null_and_rejects_nested_extras(self):
+        nullable = {"type":"object","properties":{"planned_at":{"type":["string","null"]}},
+                    "required":["planned_at"],"additionalProperties":False}
+        self.assertTrue(RemoteMcpApplication._valid_schema_value(nullable,{"planned_at":None}))
+        calendar = next(tool for tool in self.app.tools if tool["name"]=="get_calendar_events")
+        nested = calendar["inputSchema"]["properties"]["input"]["properties"]["date_range"]
+        self.assertFalse(RemoteMcpApplication._valid_schema_value(nested,{
+            "start":"2026-11-15","end":"2026-11-15","user_id":"other-user"}))
 
     def test_task_write_requires_verified_write_scope(self):
         with tempfile.TemporaryDirectory() as state_dir:
@@ -327,6 +480,208 @@ class RemoteMcpTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             verifier.verify("opaque",audience=self.audience,now=datetime.now(timezone.utc))
 
+    def _proposal_app(self, *, blocked=False):
+        from checkd_planning_engine.remote_mcp import RemoteIdentity
+        test_user_id="11111111-1111-4111-8111-111111111111"
+        now = datetime.now(ZoneInfo("Asia/Shanghai")) + timedelta(minutes=1)
+        today = now.date()
+        snapshot = {
+            "schema_version":"checkd.planning.snapshot.v1",
+            "subject_ref":test_user_id,"source":"isolated_test_fixture",
+            "captured_at":now.isoformat(),"version":"content-v1","sync_state":"current",
+            "provisional":False,"timezone":"Asia/Shanghai","now":now.isoformat(),
+            "horizon_end":(now+timedelta(hours=5)).isoformat(),
+            "tasks":[{"task_id":"task-a","name":"E2E task","task_type":"one_time",
+                "remaining_effort_state":"known","remaining_seconds":3600,
+                "deadline_date":(today+timedelta(days=1)).isoformat(),
+                "earliest_start":(now+timedelta(minutes=5)).isoformat(),
+                "planned_at":None,"completion_status":"pending"}],
+            "course_occurrences":[],"occupied_blocks":[],"unmodeled_recurring_occurrence_ids":[],
+            "planning_ready":not blocked,"readiness_blockers":["device_checkpoint_conflict"] if blocked else [],
+            "planning_blockers":[],"source_snapshot_version":"trusted-snapshot-v1",
+            "course_occurrence_digest":"course-digest-v1",
+        }
 
+        class Provider:
+            def __init__(self):
+                self.snapshot=snapshot
+                self.create_calls=[]
+                self.request_calls=[]
+                self.bound={}
+                self.decisions=[]
+                self.write_count=0
+                self.approval_id="00000000-0000-4000-8000-000000000031"
+                self.proposal_id="00000000-0000-4000-8000-000000000032"
+
+            def fetch_authenticated(self, principal, start, end):
+                return {**self.snapshot,"subject_ref":principal.checkd_user_id}
+
+            def create_plan_proposal(self, identity, **kwargs):
+                self.create_calls.append((identity.checkd_user_id,kwargs))
+                return {"ok":True,"replayed":False,"proposal":{
+                    "id":self.proposal_id,"user_id":identity.checkd_user_id,
+                    "source_snapshot_version":kwargs["snapshot_version"],
+                    "changes":kwargs["changes"],"status":"proposed"}}
+
+            def request_plan_approval(self, identity, proposal_id, idempotency_key):
+                self.request_calls.append((identity.checkd_user_id,proposal_id,idempotency_key))
+                return {"ok":True,"approval_id":self.approval_id,"proposal_id":proposal_id,
+                    "status":"pending","expires_at":(datetime.now(timezone.utc)+timedelta(minutes=5)).isoformat(),
+                    "replayed":bool(len(self.request_calls)>1)}
+
+            def bind_plan_approval_token(self, identity, approval_id, token_digest):
+                self.bound[approval_id]=token_digest
+                return {"ok":True}
+
+            def get_plan_approval_preview(self, approval_id, token_digest):
+                if self.bound.get(approval_id)!=token_digest:
+                    return {"ok":False,"code":"APPROVAL_UNAVAILABLE"}
+                return {"ok":True,"user_id":test_user_id,
+                    "proposal_id":self.proposal_id,"changes":[{
+                    "task_name":"E2E task","starts_at":"2026-11-18T10:00:00+08:00",
+                    "ends_at":"2026-11-18T11:00:00+08:00","planned_seconds":3600}],
+                    "risk_summary":[],"buffer_minutes":None}
+
+            def decide_plan_proposal(self, approval_id, token_digest, decision):
+                if self.bound.get(approval_id)!=token_digest:
+                    return {"ok":False,"code":"APPROVAL_UNTRUSTED"}
+                self.decisions.append(decision)
+                if decision=="approve" and not self.write_count:
+                    self.write_count=1
+                result={"ok":True,"proposal_id":self.proposal_id,
+                    "proposal_status":"applied" if decision=="approve" else "rejected",
+                    "write_count":self.write_count if decision=="approve" else 0,
+                    "readback_verified":decision=="approve"}
+                return result
+
+        provider=Provider()
+        app=RemoteMcpApplication(verifier=self.authority,audience=self.audience,
+            snapshot_provider=provider,resource_metadata_url=self.metadata_url,
+            authorization_server_url=self.issuer_url,proposal_writes_enabled=True,
+            approval_signing_key=b"isolated-test-signing-key-at-least-32-bytes",
+            approval_base_url="https://isolated.example.test", legacy_module=legacy_m1)
+        identity=RemoteIdentity(test_user_id,"test-subject",
+            frozenset({"planning:read","planning:propose"}),2**31,"user-jwt")
+        return app,provider,identity
+
+    def test_proposal_tools_are_opt_in_and_do_not_duplicate_existing_tools(self):
+        names=[tool["name"] for tool in self.app.tools]
+        self.assertNotIn("create_plan_proposal",names)
+        app,_,_=self._proposal_app()
+        names=[tool["name"] for tool in app.tools]
+        self.assertIn("create_plan_proposal",names)
+        self.assertIn("request_plan_approval",names)
+        self.assertEqual(len(names),len(set(names)))
+        self.assertEqual(names.count("list_tasks"),1)
+
+    def test_proposal_creation_uses_verified_identity_and_rejects_unready_snapshot(self):
+        app,provider,identity=self._proposal_app(blocked=True)
+        denied=app._call_tool(identity,"create_plan_proposal",{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0001"})
+        self.assertFalse(denied["ok"])
+        self.assertEqual(denied["error"]["code"],"PLANNING_NOT_READY")
+        self.assertEqual(provider.create_calls,[])
+
+        app,provider,identity=self._proposal_app()
+        created=app._call_tool(identity,"create_plan_proposal",{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0002"})
+        self.assertTrue(created["ok"],created)
+        self.assertFalse(created["execution_eligible"])
+        self.assertTrue(created["approval_required_before_write"])
+        user_id,request=provider.create_calls[0]
+        self.assertEqual(user_id,identity.checkd_user_id)
+        self.assertEqual(request["snapshot_version"],"trusted-snapshot-v1")
+        self.assertEqual(request["course_digest"],"course-digest-v1")
+        self.assertEqual(len(request["changes"]),1)
+        self.assertEqual(request["changes"][0]["task_id"],"task-a")
+
+    def test_proposal_creation_requires_propose_scope_and_rejects_user_id(self):
+        app,provider,identity=self._proposal_app()
+        no_scope=type("Identity",(),{"checkd_user_id":identity.checkd_user_id,
+            "workbuddy_subject":"x","scopes":frozenset({"planning:read"}),
+            "expires_at":identity.expires_at,"access_token":"user-jwt"})()
+        result=app._call_tool(no_scope,"create_plan_proposal",{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0003"})
+        self.assertEqual(result["error"]["code"],"INSUFFICIENT_SCOPE")
+        self.assertEqual(provider.create_calls,[])
+        token=self.token("checkd-user-a",scopes=("planning:read","planning:propose"))
+        status,_,body=self.rpc("tools/call",{"name":"create_plan_proposal","arguments":{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0004","user_id":"victim"}},token)
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["error"]["code"],-32602)
+
+    def test_one_time_approval_page_binds_proposal_and_decision_and_does_not_expose_token(self):
+        app,provider,identity=self._proposal_app()
+        created=app._call_tool(identity,"create_plan_proposal",{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0005"})
+        approval=app._call_tool(identity,"request_plan_approval",{
+            "proposal_id":created["proposal"]["id"],"idempotency_key":"approval-request-0005"})
+        self.assertTrue(approval["ok"],approval)
+        self.assertIn("#",approval["approval_url"])
+        token=approval["approval_url"].split("#",1)[1]
+        digest=sha256(token.encode("ascii")).hexdigest()
+        self.assertEqual(provider.bound[approval["approval_id"]],digest)
+        status,headers,page=app.dispatch_http(method="GET",
+            path=f"/approval/{approval['approval_id']}",headers={},body=b"")
+        self.assertEqual(status,200)
+        self.assertEqual(headers["Cache-Control"],"no-store")
+        self.assertEqual(headers["Referrer-Policy"],"no-referrer")
+        self.assertNotIn(token.encode(),page)
+        status,_,preview=app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}/preview",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token}).encode())
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(preview)["proposal_id"],created["proposal"]["id"])
+        status,_,applied=app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token,"decision":"approve"}).encode())
+        self.assertEqual(status,200)
+        self.assertTrue(json.loads(applied)["readback_verified"])
+        self.assertEqual(provider.write_count,1)
+        status,_,replayed=app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token,"decision":"approve"}).encode())
+        self.assertEqual(status,200)
+        self.assertEqual(provider.write_count,1)
+
+    def test_reject_and_expired_or_wrong_proposal_capability_do_not_apply(self):
+        app,provider,identity=self._proposal_app()
+        created=app._call_tool(identity,"create_plan_proposal",{
+            "from":date.today().isoformat(),"to":(date.today()+timedelta(days=1)).isoformat(),
+            "idempotency_key":"proposal-request-0006"})
+        approval=app._call_tool(identity,"request_plan_approval",{
+            "proposal_id":created["proposal"]["id"],"idempotency_key":"approval-request-0006"})
+        token=approval["approval_url"].split("#",1)[1]
+        status,_,body=app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token,"decision":"reject"}).encode())
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["write_count"],0)
+        self.assertEqual(provider.write_count,0)
+        self.assertEqual(provider.decisions,["reject"])
+
+        wrong_app,_,_=self._proposal_app()
+        wrong_app.approval_signing_key=b"a-different-isolated-key-at-least-32-bytes!"
+        status,_,body=wrong_app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token,"decision":"approve"}).encode())
+        self.assertEqual(status,410)
+        status,_,body=app.dispatch_http(method="POST",
+            path=f"/approval/{approval['approval_id']}",
+            headers={"content-type":"application/json"},
+            body=json.dumps({"token":token,"decision":"approve"}).encode(),
+            now=datetime.now(timezone.utc)+timedelta(minutes=6))
+        self.assertEqual(status,410)
+        self.assertEqual(provider.write_count,0)
 if __name__ == "__main__":
     unittest.main()

@@ -1,22 +1,25 @@
 # M1 unified CheckD user MCP integration (candidate)
 
-This M1 server now contains an **opt-in**, per-request CheckD-authenticated
-account route at `POST /mcp/user`. The existing `POST /mcp` route and its seven
-static demo tools remain unchanged for compatibility. The new route merges the
-Personal Task Agent's six read-only tools with the seven non-duplicate planning
-tools, for 13 uniquely named tools. Its `list_tasks` is the Personal Task Agent
-query implementation; the planner's duplicate `list_tasks` schema is not
-registered. The route never falls back to demo data.
+This M1 server contains an **opt-in**, per-request CheckD-authenticated route at
+`POST /mcp/user`. Its Protected Resource Metadata is served at
+`/.well-known/oauth-protected-resource/mcp/user` (the root metadata path is a
+compatibility alias). The old `/mcp` route and its static Demo-token behavior are
+not changed by this candidate.
 
-The original seven legacy tools remain available unchanged at `/mcp`. On the
-account route the duplicate `list_tasks` name is registered once, with the
-Personal Task Agent schema and real user-JWT query implementation. The account
-route also includes `get_planning_context`, `get_current_plan`,
-`preview_schedule`, `check_schedule_feasibility`, `generate_adjustment_draft`,
-`simulate_task_delay`, `list_plan_risks`, `resolve_deadline`,
-`search_tasks`, `get_tasks_by_date`, `list_overdue_tasks`, and
-`get_task_detail`. Full WorkBuddy Connector/OAuth integration remains blocked
-on platform user-token forwarding and registration details.
+The user route registers 21 unique tools. It includes the **original seven M1
+tool names and exact input schemas**, sourced from `tools/m1-mock/tool_server.py`,
+then adds the five non-duplicate Personal Task Agent read tools and nine
+non-duplicate planning read tools. `list_tasks` is registered only once, using
+the original M1 envelope (`api_version`, `request_id`, `timezone`, `input`).
+Read and preview calls use the verified CheckD UID and the caller's own JWT for
+PostgREST/RLS. Legacy `validate_schedule`, `request_approval`, and
+`apply_approved_changes` are preserved as callable names/schema but fail closed
+with a compatibility error until connected to the durable trusted Proposal flow;
+legacy Demo approval tokens are never accepted. `generate_schedule` is preview
+only (`execution_eligible=false`); caller-supplied external events/preferences
+remain accepted by the schema but return an explicit unsupported-input error
+until the shared planner can apply them correctly. The route never falls back to
+Demo data.
 
 The six Personal Task Agent prepare/confirm/cancel tools for task create and edit
 can be enabled only in an isolated test deployment with
@@ -51,12 +54,77 @@ request token for PostgREST so RLS remains active. The Personal Task Agent
 query repository independently rechecks the authenticated user ID before each
 query. The token is not cached or logged. No request may provide `user_id`.
 
+## WorkBuddy server-side OAuth preparation
+
+The selected mode is WorkBuddy server-side OAuth with a pre-registered Supabase
+Confidential OAuth client (`oauth2_code`). Do not use DCR or `mcp_oauth` for
+this integration. Update only the existing Connector's `server_auth`; preserve
+its source, original seven tools, remaining tool registry, and both expert
+bindings. No Connector metadata is present locally, so the unpublished patch
+`oauth-consent/connector-oauth2-code.patch.json` deliberately contains only the
+`server_auth` object.
+
+The `/mcp/user` route has 21 unique tools and preserves the original seven
+names/schema. Its Protected Resource Metadata is served at
+`/.well-known/oauth-protected-resource/mcp/user`; requests require a user Bearer
+and use that same JWT for Supabase Auth validation and PostgREST/RLS. The old
+`/mcp` static Demo route was not changed. No request body selects `user_id`.
+Production startup requires HTTPS, the CheckD Auth issuer and an OAuth client ID
+allowlist; task/proposal writes remain disabled in production.
+
+Candidate WorkBuddy settings (`connector-oauth2-code.patch.json`):
+
+- Authorization URL: `https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/authorize`
+- Token/refresh URL: `https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/token`
+- Scopes: `openid offline_access`
+- `pkce_enabled=true`
+- `token_auth_method=basic_auth`
+- `token_content_type=application/x-www-form-urlencoded`
+- `refresh_enabled=true`; `refresh_auth_method=basic_auth`
+
+The check-c OIDC discovery response was HTTP 200 and advertised PKCE S256,
+`authorization_code` / `refresh_token`, and confidential-client auth methods
+`client_secret_basic` / `client_secret_post`. Supabase's documented confidential
+code exchange uses HTTP Basic plus form-urlencoded. This is a documented
+protocol match only; actual token exchange and refresh are unverified. The
+Supabase OAuth authorization-server discovery URL and a bare authorize endpoint
+request both returned HTTP 404, so the OAuth Server must first be enabled and
+configured in Dashboard. No token endpoint POST, OAuth client creation, or
+Production setting change was made.
+
+WorkBuddy documentation states its callback is generated from the Connector
+`source`, rather than entered in `oauth2_code`. Supabase OAuth Apps requires a
+redirect URI when creating the Confidential Client. The exact generated URI and
+actual Connector `source` are absent from this repository; the Connector owner
+must retrieve the callback from the existing Connector/admin preview and provide
+it before client creation. Do not change the source or create a second Connector.
+
+The Consent UI is a standalone Next.js app in `oauth-consent/`. It type-checks,
+builds and serves local routes, but no existing CheckD HTTPS website or hosting
+configuration is present in this repository. It is not deployed. The minimum
+hosting/configuration steps are documented in `oauth-consent/README.md`.
+
+A read-only request to the existing `checkd-agent-tools.app.workbuddy.host`
+Protected Resource Metadata and `/mcp/user` returned HTTP 403. The response
+does not identify which gateway/application layer produced it, so it does not
+verify application-level metadata, OAuth, or tool calls.
+
 ## Current limitations
 
 - This is direct CheckD JWT authentication, **not** a completed WorkBuddy OAuth
   authorization-code flow or persisted WorkBuddy-subject-to-CheckD binding.
-- WorkBuddy ability to forward each user's CheckD token to the route is not
-  verified. Do not replace the existing connector configuration yet.
+- Supabase Authentication → OAuth Server must be enabled and configured with
+  the deployed Consent UI path before this flow can run. DCR is intentionally
+  not part of the selected integration.
+- The OIDC endpoint does advertise PKCE S256, token exchange, and refresh
+  grant metadata. No authorization-code exchange, refresh, callback, or
+  revocation was executed. WorkBuddy will need its generated callback URL
+  allowlisted by the authorization server; exact Dashboard support remains
+  unverified.
+- WorkBuddy pre-registration, token delivery, current user task/course reads,
+  refresh, and expired-token behavior have not been tested with a real Connector.
+  The legacy `X-Demo-Token` route is not user OAuth and does not establish
+  individual CheckD identities.
 - Task create/edit tools remain disabled by default. An isolated test deployment
   can opt in to exercise the existing confirmation flow against synthetic data;
   this is not production authorization. A durable shared ledger for multiple
@@ -66,14 +134,13 @@ query. The token is not cached or logged. No request may provide `user_id`.
   course rules are not converted through Flutter's occurrence builder, so
   schedule tools fail closed when unresolved course rules exist. No result is
   executable or writable.
-- Proposal/approval/apply remain absent from the account route. The legacy
-  approval tools are demo-only and are not called by the account route. No task
-  create/edit/delete or plan apply is permitted there.
+- The original seven tools are now registered on `/mcp/user` with their exact
+  original input schemas. Approval/apply calls deliberately fail closed there;
+  this is schema/name compatibility, not a claim that trusted Proposal approval
+  or real plan writes are available through WorkBuddy.
 
 An isolated local Supabase run has verified two synthetic users can each read
 their own task list/search/detail and run a provisional planning preview through
 this route; cross-user task-detail lookup is concealed by RLS. This is a local
-integration test, not WorkBuddy OAuth or production evidence. Before a WorkBuddy
-test, deploy only to an isolated HTTPS service with a non-production Supabase
-project and verify the platform's per-user OAuth behavior. The existing online
-service and Connector have not been changed by this branch.
+integration test, not WorkBuddy OAuth evidence. The existing online service and
+Connector have not been changed by this branch.

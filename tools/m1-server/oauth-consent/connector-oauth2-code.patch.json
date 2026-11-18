@@ -1,0 +1,27 @@
+{
+  "server_auth": {
+    "auth_type": "oauth2_code",
+    "data": {
+      "oauth2": {
+        "client_id": "<Supabase OAuth App client_id>",
+        "client_secret": "<enter only in WorkBuddy managed secret field>",
+        "auth_url": "https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/authorize",
+        "token_url": "https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/token",
+        "scopes": "openid offline_access"
+      },
+      "provider_config": {
+        "auth_type": "oauth2_code",
+        "authorize_url": "https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/authorize",
+        "token_endpoint": "https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/token",
+        "scopes": ["openid", "offline_access"],
+        "pkce_enabled": true,
+        "token_auth_method": "basic_auth",
+        "token_content_type": "application/x-www-form-urlencoded",
+        "token_response_map": {},
+        "refresh_enabled": true,
+        "refresh_endpoint": "https://cjnrmgxaxkjzvezrurcc.supabase.co/auth/v1/oauth/token",
+        "refresh_auth_method": "basic_auth"
+      }
+    }
+  }
+}

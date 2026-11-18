@@ -22,7 +22,7 @@ _SHANGHAI = ZoneInfo("Asia/Shanghai")
 _ONE_TIME_SELECT = (
     "task_id,user_id,scheduled_at,has_scheduled_date,available_from,planned_date,"
     "due_date,due_at,remind_before_minutes,is_timed,completed_at,created_at,updated_at,"
-    "tasks!inner(id,user_id,name,type,color,icon_name,notes,status,created_at,updated_at,deleted_at)"
+    "tasks!inner(id,user_id,name,type,color,icon_name,notes,status,created_at,updated_at,deleted_at,remaining_effort_minutes)"
 )
 _REMINDER_RULE_SELECT = (
     "id,reminder_kind,enabled,scheduled_minute_of_day,remind_before_minutes,"
@@ -750,6 +750,9 @@ def _one_time_dto(row: dict[str, object], *, include_detail: bool) -> dict[str, 
                 "color": _required_int(task, "color"),
                 "icon_name": _required_string(task, "icon_name"),
                 "notes": _string_or_none(task.get("notes"), "notes"),
+                "remaining_effort_minutes": _int_or_none(
+                    task.get("remaining_effort_minutes"), "remaining_effort_minutes"
+                ),
                 "available_from": _date_or_none(row.get("available_from"), "available_from"),
                 "is_timed": _required_bool(row, "is_timed"),
                 "completed_at": _instant_or_none(row.get("completed_at"), "completed_at"),
@@ -782,6 +785,9 @@ def _one_time_snapshot(row: dict[str, object]) -> dict[str, object]:
         "completion_status": "completed" if row.get("completed_at") is not None else "pending",
         "deleted_at": task.get("deleted_at"),
         "notes": _string_or_none(task.get("notes"), "notes"),
+        "remaining_effort_minutes": _int_or_none(
+            task.get("remaining_effort_minutes"), "remaining_effort_minutes"
+        ),
         "scheduled_at": scheduled_at,
         "has_scheduled_date": has_scheduled_date,
         "planned_at": planned_at,
@@ -797,7 +803,7 @@ def _snapshot_business_equal(left: dict[str, object], right: dict[str, object]) 
     return all(left.get(key) == right.get(key) for key in (
         "id", "name", "task_type", "lifecycle_status", "completion_status", "deleted_at",
         "notes", "scheduled_at", "has_scheduled_date", "planned_at", "planned_date",
-        "deadline_date", "deadline_at",
+        "deadline_date", "deadline_at", "remaining_effort_minutes",
     ))
 
 

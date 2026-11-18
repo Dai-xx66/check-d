@@ -1318,7 +1318,7 @@ class Handler(BaseHTTPRequestHandler):
                 if _USER_MCP_APP is None and not _USER_MCP_INIT_FAILED:
                     try:
                         import unified_user_mcp
-                        _USER_MCP_APP = unified_user_mcp.build_from_env()
+                        _USER_MCP_APP = unified_user_mcp.build_from_env(legacy_module=mock)
                     except Exception:
                         # Configuration errors are fail-closed and not logged;
                         # they may include deployment metadata.
@@ -1489,17 +1489,24 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def log_message(self, fmt, *a):  # 请求日志进 stderr，不进响应
-        sys.stderr.write("%s %s\n" % (self.address_string(), fmt % a))
+        message = fmt % a
+        # Never write query-string capabilities or credentials to request logs.
+        message = re.sub(r'((?:GET|POST|PUT|DELETE) )([^ ?]+)\?[^ ]*', r'\1\2', message)
+        sys.stderr.write("%s %s\n" % (self.address_string(), message))
 
     # ---- 路由
 
     def do_GET(self):
         path = self.path.split("?")[0]
 
-        if path == "/.well-known/oauth-protected-resource":
+        if path in ("/.well-known/oauth-protected-resource",
+                    "/.well-known/oauth-protected-resource/mcp/user"):
             self._dispatch_user_mcp("GET")
             return
         if path == "/mcp/user":
+            self._dispatch_user_mcp("GET")
+            return
+        if path.startswith("/approval/"):
             self._dispatch_user_mcp("GET")
             return
 
@@ -1606,6 +1613,9 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
 
         if path == "/mcp/user":
+            self._dispatch_user_mcp("POST")
+            return
+        if path.startswith("/approval/"):
             self._dispatch_user_mcp("POST")
             return
 

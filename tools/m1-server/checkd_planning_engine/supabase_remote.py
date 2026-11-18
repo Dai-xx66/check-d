@@ -15,6 +15,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from .remote_mcp import RemoteIdentity
@@ -46,7 +47,8 @@ class SupabaseAccessTokenVerifier:
                  allowed_oauth_client_ids: frozenset[str] = frozenset(),
                  expected_issuer: str | None = None,
                  timeout_seconds: float = 8.0, opener=urlopen,
-                 task_writes_enabled: bool = False):
+                 task_writes_enabled: bool = False,
+                 proposal_writes_enabled: bool = False):
         self.base_url = supabase_url.rstrip("/")
         self.publishable_key = publishable_key
         self.allowed_oauth_client_ids = allowed_oauth_client_ids
@@ -54,6 +56,7 @@ class SupabaseAccessTokenVerifier:
         self.timeout_seconds = timeout_seconds
         self.opener = opener
         self.task_writes_enabled = bool(task_writes_enabled)
+        self.proposal_writes_enabled = bool(proposal_writes_enabled)
 
     def verify(self, token: str, *, audience: str, now: datetime) -> RemoteIdentity:
         if not token or len(token) > 16_384:
@@ -95,6 +98,8 @@ class SupabaseAccessTokenVerifier:
                 # This deployment gate is for isolated testing only. Production
                 # WorkBuddy OAuth must supply a separately verified write grant.
                 scopes.add("task:write")
+            if self.proposal_writes_enabled:
+                scopes.add("planning:propose")
             return RemoteIdentity(user_id, f"supabase-auth:{user_id}",
                                   frozenset(scopes), expiry, token)
         except PermissionError:
@@ -106,7 +111,7 @@ class SupabaseAccessTokenVerifier:
 
 
 class SupabaseRestSnapshotProvider:
-    """Fetch an owner-scoped, non-executable planning read model via PostgREST."""
+    """Fetch owner-scoped planning data and call user-bound proposal RPCs."""
     def __init__(self, *, supabase_url: str, publishable_key: str,
                  timeout_seconds: float = 8.0, opener=urlopen):
         self.rest_url = supabase_url.rstrip("/") + "/rest/v1"
@@ -140,6 +145,64 @@ class SupabaseRestSnapshotProvider:
         except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
             raise SupabaseReadError(table) from None
 
+    def fetch_legacy_tasks(self, identity: RemoteIdentity, *,
+                           statuses: list[str]) -> list[dict[str, Any]]:
+        """Read task definitions for the legacy M1 list_tasks contract via RLS."""
+        token = identity.access_token
+        if not token:
+            raise SupabaseReadError("missing_user_token")
+        allowed = {"active", "paused", "archived"}
+        if not isinstance(statuses, list) or not statuses or set(statuses) - allowed:
+            raise SupabaseReadError("invalid_task_status")
+        owner = identity.checkd_user_id
+        rows = self._get("tasks", {
+            "user_id": f"eq.{owner}", "status": "in.(" + ",".join(statuses) + ")",
+            "deleted_at": "is.null",
+            "select": "id,name,type,status,notes,color,updated_at,deleted_at",
+            "order": "updated_at.desc", "limit": "1000",
+        }, token, required=True)
+        one_time_ids = [row.get("id") for row in rows
+                        if row.get("type") in {"one_time", "short_term"}]
+        reminders: list[dict[str, Any]] = []
+        if one_time_ids:
+            try:
+                reminders = self._get("one_time_reminders", {
+                    "user_id": f"eq.{owner}",
+                    "task_id": "in.(" + ",".join(one_time_ids) + ")",
+                    "select": "task_id,scheduled_at,planned_date,due_date,due_at,available_from,completed_at",
+                    "limit": "1000",
+                }, token, required=True)
+            except SupabaseReadError as exc:
+                if exc.status not in {400, 404}:
+                    raise
+                reminders = self._get("one_time_reminders", {
+                    "user_id": f"eq.{owner}",
+                    "task_id": "in.(" + ",".join(one_time_ids) + ")",
+                    "select": "task_id,scheduled_at,completed_at", "limit": "1000",
+                }, token, required=True)
+        reminder_by_task = {str(row.get("task_id")): row for row in reminders}
+        local_today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+        result = []
+        for row in rows:
+            raw_type = row.get("type")
+            kind = "recurring" if raw_type in {"long_term", "recurring"} else "one_time"
+            reminder = reminder_by_task.get(str(row.get("id")), {})
+            due_at, due_date = reminder.get("due_at"), reminder.get("due_date")
+            deadline = ({"kind": "exact", "at": due_at} if due_at else
+                        {"kind": "date_only", "date": due_date} if due_date else None)
+            completed_at = reminder.get("completed_at")
+            result.append({
+                "task_id": row.get("id"), "kind": kind, "name": row.get("name"),
+                "status": row.get("status"), "execution_mode": "unknown",
+                "available_from": reminder.get("available_from"),
+                "planned_date": reminder.get("planned_date"),
+                "scheduled_at": reminder.get("scheduled_at"), "deadline": deadline,
+                "duration_target_seconds": None,
+                "completed_today": bool(completed_at and str(completed_at)[:10] == local_today),
+                "updated_at": row.get("updated_at"),
+            })
+        return result
+
     def _post_rpc(self, function: str, body: dict[str, Any], token: str) -> dict[str, Any]:
         request = Request(f"{self.rest_url}/rpc/{function}",
             data=json.dumps(body, separators=(",", ":")).encode(),
@@ -162,6 +225,78 @@ class SupabaseRestSnapshotProvider:
             raise
         except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
             raise SupabaseReadError(function) from None
+
+    def _post_public_rpc(self, function: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Call the narrowly scoped one-time-capability approval RPC as anon."""
+        request = Request(f"{self.rest_url}/rpc/{function}",
+            data=json.dumps(body, separators=(",", ":")).encode(),
+            headers={"apikey": self.publishable_key,
+                     "Content-Type": "application/json",
+                     "Accept": "application/json"}, method="POST")
+        try:
+            with self.opener(request, timeout=self.timeout_seconds) as response:
+                raw = response.read(1_000_001)
+                if response.status != 200 or len(raw) > 1_000_000:
+                    raise SupabaseReadError(function, response.status)
+            result = json.loads(raw)
+            if not isinstance(result, dict):
+                raise SupabaseReadError(function)
+            return result
+        except HTTPError as exc:
+            raise SupabaseReadError(function, exc.code) from None
+        except SupabaseReadError:
+            raise
+        except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+            raise SupabaseReadError(function) from None
+
+    def create_plan_proposal(self, identity: RemoteIdentity, *, start: str, end: str,
+                             snapshot_version: str, course_digest: str,
+                             rules_version: str, idempotency_key: str,
+                             changes: list[dict[str, Any]], risk_summary: Any,
+                             buffer_minutes: int | None) -> dict[str, Any]:
+        if not identity.access_token:
+            raise SupabaseReadError("missing_user_token")
+        return self._post_rpc("create_plan_proposal", {
+            "p_from": start, "p_through": end,
+            "p_expected_snapshot_version": snapshot_version,
+            "p_expected_course_digest": course_digest,
+            "p_rules_version": rules_version,
+            "p_idempotency_key": idempotency_key,
+            "p_changes": changes,
+            "p_risk_summary": risk_summary,
+            "p_buffer_minutes": buffer_minutes,
+        }, identity.access_token)
+
+    def request_plan_approval(self, identity: RemoteIdentity, proposal_id: str,
+                              idempotency_key: str) -> dict[str, Any]:
+        if not identity.access_token:
+            raise SupabaseReadError("missing_user_token")
+        return self._post_rpc("request_plan_approval", {
+            "p_proposal_id": proposal_id,
+            "p_idempotency_key": idempotency_key,
+        }, identity.access_token)
+
+    def bind_plan_approval_token(self, identity: RemoteIdentity,
+                                 approval_id: str, token_digest: str) -> dict[str, Any]:
+        if not identity.access_token:
+            raise SupabaseReadError("missing_user_token")
+        return self._post_rpc("bind_plan_approval_token", {
+            "p_approval_id": approval_id,
+            "p_token_digest": token_digest,
+        }, identity.access_token)
+
+    def get_plan_approval_preview(self, approval_id: str,
+                                  token_digest: str) -> dict[str, Any]:
+        return self._post_public_rpc("get_plan_approval_preview", {
+            "p_approval_id": approval_id, "p_token_digest": token_digest,
+        })
+
+    def decide_plan_proposal(self, approval_id: str, token_digest: str,
+                             decision: str) -> dict[str, Any]:
+        function = "apply_approved_plan" if decision == "approve" else "reject_plan_proposal"
+        return self._post_public_rpc(function, {
+            "p_approval_id": approval_id, "p_token_digest": token_digest,
+        })
 
     @staticmethod
     def _normalize_course_occurrences(rows: list[dict[str, Any]], start: str,
@@ -198,7 +333,7 @@ class SupabaseRestSnapshotProvider:
         owner = identity.checkd_user_id
         base = {"user_id": f"eq.{owner}", "limit": "1000"}
         task_rows = self._get("tasks", {**base,
-            "select": "id,name,type,status,updated_at,sync_version,deleted_at",
+            "select": "id,name,type,status,updated_at,sync_version,deleted_at,remaining_effort_minutes",
             "status": "eq.active", "deleted_at": "is.null", "order": "updated_at.desc"},
             token, required=True)
 
@@ -235,11 +370,9 @@ class SupabaseRestSnapshotProvider:
         overrides = self._get("daily_item_overrides", {**base,
             "select": "id,item_type,item_id,local_date,action,planned_start_minute,planned_end_minute,sync_version,deleted_at",
             "local_date": f"gte.{start}", "and": f"(local_date.lte.{end},deleted_at.is.null)"}, token)
-        effort = self._get("task_effort_estimates", {**base,
-            "select": "task_id,estimated_seconds,remaining_seconds,source,updated_at,sync_version"}, token)
         plan_versions = self._get("task_plan_versions", {**base,
-            "select": "id,revision,source_snapshot_version,starts_on,ends_on,status,updated_at,sync_version",
-            "status": "in.(confirmed,applied)", "order": "revision.desc", "limit": "100"}, token)
+            "select": "id,revision,source_snapshot_version,starts_on,ends_on,status,created_at,applied_at,sync_version",
+            "status": "eq.applied", "order": "revision.desc", "limit": "100"}, token)
         end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
         blocks = self._get("task_time_blocks", {**base,
             "select": "id,plan_version_id,task_id,starts_at,ends_at,planned_seconds,sync_version,deleted_at",
@@ -263,6 +396,13 @@ class SupabaseRestSnapshotProvider:
                                  "course_occurrences_cover_window": False,
                                  "known_device_count": 0,
                                  "server_data_version": None}
+        try:
+            planning_fence = self._post_rpc("get_agent_planning_fence", {
+                "p_from": start, "p_through": end,
+            }, token)
+        except SupabaseReadError:
+            planning_fence = {"ok": False, "ready": False,
+                              "blockers": ["trusted_planning_fence_unavailable"]}
         checkpoints_current = (
             checkpoint_status.get("planning_ready") is True
             and checkpoint_status.get("device_checkpoints_current") is True
@@ -275,16 +415,35 @@ class SupabaseRestSnapshotProvider:
             version = checkpoint_status.get("server_data_version")
             cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
             try:
-                course_snapshot_rows = self._get("agent_course_occurrence_snapshots", {
-                    **base,
-                    "select": "device_id,from_date,through_date,timezone,builder_version,course_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
-                    "server_data_version": f"eq.{version}",
-                    "from_date": f"lte.{start}", "through_date": f"gte.{end}",
-                    "timezone": "eq.Asia/Shanghai",
-                    "builder_version": "eq.checkd_flutter_course_occurrence_v1",
-                    "generated_at": f"gte.{cutoff}",
-                    "order": "generated_at.desc", "limit": "100",
+                active_devices = self._get("agent_device_sync_watermarks", {
+                    **base, "select": "device_id", "device_status": "eq.active",
+                    "order": "device_id.asc", "limit": "100",
                 }, token, required=True)
+                active_device_ids: list[str] = []
+                try:
+                    active_device_ids = sorted({str(UUID(row["device_id"]))
+                                                for row in active_devices
+                                                if isinstance(row, dict)
+                                                and isinstance(row.get("device_id"), str)})
+                except (ValueError, TypeError, KeyError):
+                    # Never broaden a malformed active-device list into a
+                    # query that could count a retired device snapshot.
+                    active_device_ids = []
+                if (type(checkpoint_status.get("known_device_count")) is int
+                        and len(active_device_ids)
+                        == checkpoint_status["known_device_count"]
+                        and active_device_ids):
+                    course_snapshot_rows = self._get("agent_course_occurrence_snapshots", {
+                        **base,
+                        "select": "device_id,from_date,through_date,timezone,builder_version,course_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
+                        "device_id": f"in.({','.join(active_device_ids)})",
+                        "server_data_version": f"eq.{version}",
+                        "from_date": f"lte.{start}", "through_date": f"gte.{end}",
+                        "timezone": "eq.Asia/Shanghai",
+                        "builder_version": "eq.checkd_flutter_course_occurrence_v1",
+                        "generated_at": f"gte.{cutoff}",
+                        "order": "generated_at.desc", "limit": "100",
+                    }, token, required=True)
             except SupabaseReadError:
                 course_snapshot_rows = []
             device_count = checkpoint_status.get("known_device_count")
@@ -299,11 +458,13 @@ class SupabaseRestSnapshotProvider:
                     course_snapshot_rows, start, end)
 
         by_task = {str(row.get("task_id")): row for row in reminders}
-        effort_by_task = {str(row.get("task_id")): row for row in effort}
         task_dtos: list[dict[str, Any]] = []
         for row in task_rows:
             reminder = by_task.get(str(row.get("id")), {})
-            estimate = effort_by_task.get(str(row.get("id")), {})
+            remaining_minutes = row.get("remaining_effort_minutes")
+            remaining_seconds = (remaining_minutes * 60
+                                 if type(remaining_minutes) is int
+                                 and remaining_minutes > 0 else None)
             task_type = row.get("type")
             task_dtos.append({
                 "task_id": row.get("id"), "name": row.get("name"),
@@ -314,8 +475,8 @@ class SupabaseRestSnapshotProvider:
                 "deadline_at": reminder.get("due_at"),
                 "planned_at": reminder.get("scheduled_at"),
                 "earliest_start": self._earliest_start(reminder.get("available_from"), start),
-                "remaining_seconds": estimate.get("remaining_seconds"),
-                "remaining_effort_state": "known" if estimate.get("remaining_seconds") else "unknown",
+                "remaining_seconds": remaining_seconds,
+                "remaining_effort_state": "known" if remaining_seconds is not None else "unknown",
                 "source_updated_at": row.get("updated_at"),
             })
 
@@ -328,13 +489,18 @@ class SupabaseRestSnapshotProvider:
             "tasks": task_dtos, "reminders": reminders, "courses": courses,
             "course_rules": rules, "semesters": semesters, "templates": templates,
             "template_segments": segments, "overrides": overrides,
-            "effort": effort, "plan_versions": plan_versions,
+            "plan_versions": plan_versions,
             "time_blocks": visible_blocks, "completions": completions,
             "course_snapshot": course_snapshot_rows,
         }
         digest = sha256(json.dumps(source_data, sort_keys=True, separators=(",", ":"),
                                   ensure_ascii=False, default=str).encode()).hexdigest()
-        execution_blockers = [] if checkpoints_current else [
+        fence_blockers = planning_fence.get("blockers", [])
+        if not isinstance(fence_blockers, list):
+            fence_blockers = ["trusted_planning_fence_invalid"]
+        execution_blockers = list(fence_blockers) if planning_fence.get("ready") is not True else []
+        if not checkpoints_current and not execution_blockers:
+            execution_blockers = [
             "device_sync_watermark_unavailable", "local_unsynced_changes_unknown"]
         if not checkpoints_current:
             execution_blockers.append("server_course_snapshot_unverified")
@@ -349,7 +515,8 @@ class SupabaseRestSnapshotProvider:
             "subject_ref": owner, "source": "supabase_postgrest_user_jwt",
             "captured_at": captured_at, "version": f"read:{digest}",
             "sync_state": "current" if checkpoints_current and course_snapshot_valid else "unknown",
-            "provisional": not (checkpoints_current and course_snapshot_valid),
+            "provisional": not (checkpoints_current and course_snapshot_valid
+                                 and planning_fence.get("ready") is True),
             "timezone": "Asia/Shanghai", "now": datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(),
             "horizon_end": datetime.combine(date.fromisoformat(end), datetime.max.time(),
                                                ZoneInfo("Asia/Shanghai")).isoformat(),
@@ -357,7 +524,13 @@ class SupabaseRestSnapshotProvider:
             "semesters": semesters, "schedule_templates": templates,
             "schedule_template_segments": segments, "daily_item_overrides": overrides,
             "course_occurrences": course_occurrences, "occupied_blocks": visible_blocks,
-            "effort_records": effort, "plan_versions": plan_versions,
+            "effort_records": [
+                {"task_id": row.get("id"),
+                 "remaining_effort_minutes": row.get("remaining_effort_minutes"),
+                 "source": "user_entered"}
+                for row in task_rows
+                if type(row.get("remaining_effort_minutes")) is int
+            ], "plan_versions": plan_versions,
             "completion_facts": completions,
             "current_plan": {"status": "read_only", "revision": plan_versions[0].get("revision")
                              if plan_versions else None, "blocks": visible_blocks},
@@ -365,12 +538,16 @@ class SupabaseRestSnapshotProvider:
             "planning_blockers": planning_blockers,
             "execution_eligible": False,
             "planning_ready": checkpoints_current and course_snapshot_valid,
+            "source_snapshot_version": planning_fence.get("snapshot_version"),
+            "course_occurrence_digest": planning_fence.get("course_occurrence_digest"),
             "course_snapshot": {
                 "validated": course_snapshot_valid,
                 "server_data_version": checkpoint_status.get("server_data_version"),
                 "builder_version": "checkd_flutter_course_occurrence_v1",
                 "device_count": checkpoint_status.get("known_device_count", 0),
                 "course_data_version": course_snapshot_rows[0].get("course_data_version")
+                    if course_snapshot_rows and course_snapshot_valid else None,
+                "occurrence_digest": course_snapshot_rows[0].get("occurrence_digest")
                     if course_snapshot_rows and course_snapshot_valid else None,
             },
             "limitation_codes": execution_blockers + planning_blockers,
@@ -393,7 +570,7 @@ class SupabaseRestSnapshotProvider:
         owner = identity.checkd_user_id
         params = {
             "user_id": f"eq.{owner}",
-            "select": "id,base_version,changes,change_digest,rules_version,starts_on,ends_on,status,expires_at,created_at,applied_at",
+            "select": "id,user_id,source_snapshot_version,source_data_version,course_occurrence_digest,changes,change_digest,rules_version,starts_on,ends_on,status,expires_at,created_at,decided_at,applied_at,buffer_minutes,risk_summary,apply_result",
             "order": "created_at.desc",
             "limit": str(limit),
         }
@@ -413,6 +590,11 @@ class SupabaseRestSnapshotProvider:
         }, token, required=True)
         proposal["approval"] = approval_rows[0] if approval_rows else None
         return proposals
+
+    def fetch_plan_proposal(self, identity: RemoteIdentity,
+                            proposal_id: str) -> dict[str, Any] | None:
+        rows = self.fetch_plan_proposals(identity, proposal_id=proposal_id, limit=1)
+        return rows[0] if rows else None
 
     @staticmethod
     def _earliest_start(available_from: Any, range_start: str) -> str:
