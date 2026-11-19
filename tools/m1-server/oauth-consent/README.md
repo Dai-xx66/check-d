@@ -99,7 +99,10 @@ The existing seven M1 tools remain the compatibility set:
 `list_tasks`, `get_calendar_events`, `generate_schedule`, `validate_schedule`,
 `apply_approved_changes`, `request_approval`, and `get_approval_status`.
 The `/mcp/user` route additionally registers the current Personal Task Agent
-and planning tools without duplicate names (21 total in the local registry).
+and planning tools without duplicate names (22 total in the default local registry;
+28 in isolated task-write mode). The original M1 `list_tasks` schema remains
+unchanged; the Personal Task Agent pagination schema is available as
+`list_one_time_tasks`.
 This OAuth patch changes no tool definitions; the two existing experts stay
 bound to the same Connector source when its owner applies a server-auth-only
 update.

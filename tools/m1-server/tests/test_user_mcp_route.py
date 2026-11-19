@@ -136,12 +136,27 @@ class UserMcpRouteTests(unittest.TestCase):
         self.assertEqual(metadata["resource"], "https://mcp.invalid/mcp/user")
         self.assertEqual(metadata["authorization_servers"],
                          ["https://supabase.invalid/auth/v1"])
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/.well-known/oauth-protected-resource/mcp/user?sharecode=route-code_123",
+            method="GET")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            status, raw = response.status, response.read()
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(raw), metadata)
         request = urllib.request.Request(f"http://127.0.0.1:{port}/mcp/user", method="GET")
         with self.assertRaises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(request, timeout=5)
         self.assertEqual(caught.exception.code, 401)
         self.assertIn("oauth-protected-resource/mcp/user",
                       caught.exception.headers["WWW-Authenticate"])
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/mcp/user?sharecode=route-code_123", method="GET")
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request, timeout=5)
+        self.assertEqual(caught.exception.code, 401)
+        self.assertIn(
+            "resource_metadata=\"https://mcp.invalid/.well-known/oauth-protected-resource/mcp/user?sharecode=route-code_123\"",
+            caught.exception.headers["WWW-Authenticate"])
 
 
 if __name__ == "__main__":

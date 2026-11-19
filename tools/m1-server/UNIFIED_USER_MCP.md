@@ -6,10 +6,11 @@ This M1 server contains an **opt-in**, per-request CheckD-authenticated route at
 compatibility alias). The old `/mcp` route and its static Demo-token behavior are
 not changed by this candidate.
 
-The user route registers 21 unique tools. It includes the **original seven M1
+The user route registers 22 unique tools by default. It includes the **original seven M1
 tool names and exact input schemas**, sourced from `tools/m1-mock/tool_server.py`,
-then adds the five non-duplicate Personal Task Agent read tools and nine
-non-duplicate planning read tools. `list_tasks` is registered only once, using
+then adds the five non-duplicate Personal Task Agent read tools, the personal
+pagination query as `list_one_time_tasks`, and nine non-duplicate planning read
+tools. `list_tasks` is registered only once, using
 the original M1 envelope (`api_version`, `request_id`, `timezone`, `input`).
 Read and preview calls use the verified CheckD UID and the caller's own JWT for
 PostgREST/RLS. Legacy `validate_schedule`, `request_approval`, and
@@ -64,7 +65,7 @@ bindings. No Connector metadata is present locally, so the unpublished patch
 `oauth-consent/connector-oauth2-code.patch.json` deliberately contains only the
 `server_auth` object.
 
-The `/mcp/user` route has 21 unique tools and preserves the original seven
+The `/mcp/user` route has 22 unique tools by default and preserves the original seven
 names/schema. Its Protected Resource Metadata is served at
 `/.well-known/oauth-protected-resource/mcp/user`; requests require a user Bearer
 and use that same JWT for Supabase Auth validation and PostgREST/RLS. The old

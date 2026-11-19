@@ -10,6 +10,7 @@ import threading
 import unittest
 import importlib.util
 import os
+from unittest.mock import patch
 
 _M1_TOOLS_DIR = Path(__file__).resolve().parents[2] / ".." / "m1-mock"
 _M1_TOOL_FILE = _M1_TOOLS_DIR.resolve() / "tool_server.py"
@@ -115,6 +116,24 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertEqual(status,401)
         self.assertIn(self.metadata_url,headers["www-authenticate"])
         self.assertEqual(json.loads(body),{"error":"invalid_token"})
+
+    def test_unauthorized_user_route_preserves_sharecode_in_metadata_challenge(self):
+        path="/mcp/user?sharecode=share-code_123"
+        status,headers,body=self.request({"jsonrpc":"2.0","id":8,
+            "method":"tools/list"},path=path)
+        self.assertEqual(status,401)
+        self.assertIn(
+            f'resource_metadata="{self.metadata_url}?sharecode=share-code_123"',
+            headers["www-authenticate"])
+        self.assertNotIn("sharecode",body.decode())
+        status,_,body=self.request({},method="GET",
+            path="/.well-known/oauth-protected-resource/mcp/user?sharecode=share-code_123")
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(body)["resource"],self.audience)
+        status,headers,_=self.request({"jsonrpc":"2.0","id":9,
+            "method":"tools/list"},path="/mcp/user?sharecode=bad%0d%0aInjected")
+        self.assertEqual(status,401)
+        self.assertNotIn("sharecode=",headers["www-authenticate"])
         status,_,body=self.request({},method="GET",path="/.well-known/oauth-protected-resource")
         self.assertEqual(status,200)
         metadata=json.loads(body)
@@ -149,9 +168,14 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertFalse(contract["production_ready"])
         names={x["name"] for x in tools}
         self.assertEqual(len(names),len(tools))
-        self.assertEqual(len(tools),21)
+        self.assertEqual(len(tools),22)
         self.assertTrue({"list_tasks","search_tasks","get_tasks_by_date","list_overdue_tasks",
-                         "get_task_detail","resolve_deadline","get_calendar_events"}.issubset(names))
+                         "get_task_detail","resolve_deadline","get_calendar_events",
+                         "list_one_time_tasks"}.issubset(names))
+        from checkd_task_agent.mcp_server import TOOLS as personal_tools
+        personal_list = next(tool for tool in personal_tools if tool["name"] == "list_tasks")
+        alias = next(tool for tool in tools if tool["name"] == "list_one_time_tasks")
+        self.assertEqual(alias["inputSchema"], personal_list["inputSchema"])
         for original in legacy_m1.tool_defs():
             self.assertEqual(next(tool for tool in tools if tool["name"] == original["name"]), original)
         self.assertTrue(all(x["_meta"]["checkd/permission"]=="read:self"
@@ -168,10 +192,78 @@ class RemoteMcpTests(unittest.TestCase):
                 authorization_server_url=self.issuer_url,task_writes_enabled=True,
                 task_agent_state_dir=state_dir,legacy_module=legacy_m1)
         names=[tool["name"] for tool in app.tools]
-        self.assertEqual(len(names),27)
+        self.assertEqual(len(names),28)
         self.assertEqual(len(names),len(set(names)))
         self.assertTrue({"prepare_task_creation","create_task","prepare_task_update",
                          "update_task"}.issubset(names))
+
+    def test_personal_list_alias_and_confirmation_ledger_are_user_scoped_after_restart(self):
+        from checkd_planning_engine.remote_mcp import RemoteIdentity
+        from checkd_task_agent.query_service import QueryPage
+
+        owners = {"token-a": "user-a", "token-b": "user-b"}
+        writes = []
+
+        class Repository:
+            def __init__(self, *, user_access_token, **_kwargs):
+                self.owner = owners[user_access_token]
+
+            def authenticated_user_id(self):
+                return self.owner
+
+            def list_one_time_tasks(self, *, include_completed, limit, offset):
+                return QueryPage([{"task_id": self.owner, "name": self.owner}], None)
+
+            def create_and_verify(self, draft, *, task_id, now):
+                writes.append((self.owner, task_id))
+                return {"task_id": task_id, "name": draft.name}
+
+        def identity(owner):
+            return RemoteIdentity(owner, "test-" + owner,
+                                  frozenset({"planning:read", "task:write"}),
+                                  2**31, "token-a" if owner == "user-a" else "token-b")
+
+        with tempfile.TemporaryDirectory() as state_dir, patch(
+                "checkd_planning_engine.remote_mcp.SupabaseTaskRepository", Repository):
+            def app():
+                return RemoteMcpApplication(
+                    verifier=self.authority, audience=self.audience,
+                    snapshot_provider=lambda *_: {},
+                    resource_metadata_url=self.metadata_url,
+                    authorization_server_url=self.issuer_url,
+                    supabase_url="https://supabase.invalid",
+                    supabase_publishable_key="public-test-key",
+                    task_writes_enabled=True, task_agent_state_dir=state_dir,
+                    legacy_module=legacy_m1)
+
+            first = app()
+            for owner in ("user-a", "user-b"):
+                listed = first._call_tool(identity(owner), "list_one_time_tasks", {})
+                self.assertEqual(listed["items"][0]["task_id"], owner)
+            a = first._call_tool(identity("user-a"), "prepare_task_creation", {
+                "name": "A task", "expected_duration_minutes": 60,
+                "deadline_date": "2099-01-01", "idempotency_key": "same-key"})
+            b = first._call_tool(identity("user-b"), "prepare_task_creation", {
+                "name": "B task", "expected_duration_minutes": 30,
+                "deadline_date": "2099-01-01", "idempotency_key": "same-key"})
+            self.assertTrue(a["ok"])
+            self.assertTrue(b["ok"])
+            self.assertNotEqual(a["confirmation_id"], b["confirmation_id"])
+            denied = first._call_tool(identity("user-b"), "create_task", {
+                "confirmation_id": a["confirmation_id"],
+                "user_confirmation_text": a["confirmation_phrase"]})
+            self.assertFalse(denied["ok"])
+            self.assertEqual(writes, [])
+            restarted = app()
+            created = restarted._call_tool(identity("user-a"), "create_task", {
+                "confirmation_id": a["confirmation_id"],
+                "user_confirmation_text": a["confirmation_phrase"]})
+            self.assertTrue(created["readback_verified"])
+            replay = restarted._call_tool(identity("user-a"), "create_task", {
+                "confirmation_id": a["confirmation_id"],
+                "user_confirmation_text": a["confirmation_phrase"]})
+            self.assertEqual(replay["task_id"], created["task_id"])
+            self.assertEqual(len(writes), 1)
 
     def test_original_seven_tools_keep_envelope_schema_and_route_to_scoped_handlers(self):
         from checkd_planning_engine.remote_mcp import RemoteIdentity

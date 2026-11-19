@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import base64
+import copy
 import hashlib
 import hmac
 import re
@@ -22,7 +23,7 @@ import secrets
 import socketserver
 import sys
 from typing import Any, Callable, Protocol
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import parse_qs, urlencode, urlparse, urlsplit
 from uuid import UUID
 
 from checkd_task_agent.mcp_server import McpApplication as PersonalMcpApplication
@@ -78,6 +79,15 @@ PERSONAL_WRITE_TOOL_NAMES = frozenset({
     "prepare_task_update", "update_task", "cancel_task_update",
 })
 PERSONAL_TOOL_NAMES = PERSONAL_READ_TOOL_NAMES | PERSONAL_WRITE_TOOL_NAMES
+PERSONAL_LIST_ALIAS = "list_one_time_tasks"
+_PERSONAL_LIST_TOOL = copy.deepcopy(next(
+    tool for tool in PERSONAL_AGENT_TOOLS if tool["name"] == "list_tasks"
+))
+_PERSONAL_LIST_TOOL["name"] = PERSONAL_LIST_ALIAS
+_PERSONAL_LIST_TOOL["description"] = (
+    "分页查询当前用户未完成的单次事项；保留个人任务助手的 list_tasks 参数，"
+    "与原 M1 list_tasks 请求信封区分。"
+)
 _PERSONAL_READ_TOOLS = tuple(
     tool for tool in PERSONAL_AGENT_TOOLS if tool.get("name") in PERSONAL_READ_TOOL_NAMES
 )
@@ -275,7 +285,7 @@ class RemoteMcpApplication:
         planning_tools = tuple(tool for tool in _PLANNING_TOOLS
                                if tool.get("name") not in legacy_names
                                and tool.get("name") not in personal_names)
-        self.tools=tuple((*legacy_tools,*personal_tools,*planning_tools,
+        self.tools=tuple((*legacy_tools,_PERSONAL_LIST_TOOL,*personal_tools,*planning_tools,
                           *(PROPOSAL_TOOLS if self.proposal_writes_enabled else ())))
         names=[tool.get("name") for tool in self.tools]
         if len(names) != len(set(names)):
@@ -318,7 +328,13 @@ class RemoteMcpApplication:
                 raise PermissionError("missing bearer token")
             principal=self.verifier.verify(token,audience=self.audience,now=now)
         except Exception:
-            challenge=f'Bearer resource_metadata="{self.resource_metadata_url}", error="invalid_token"'
+            metadata_url = self.resource_metadata_url
+            query = parse_qs(urlsplit(path).query, keep_blank_values=True)
+            sharecodes = query.get("sharecode", [])
+            if (len(sharecodes) == 1 and 1 <= len(sharecodes[0]) <= 128
+                    and re.fullmatch(r"[A-Za-z0-9_-]+", sharecodes[0])):
+                metadata_url += "?" + urlencode({"sharecode": sharecodes[0]})
+            challenge=f'Bearer resource_metadata="{metadata_url}", error="invalid_token"'
             return self._json_response(401,{"error":"invalid_token"},{"WWW-Authenticate":challenge})
         if method != "POST":
             return self._json_response(405,{"error":"method_not_allowed"},{"Allow":"POST"})
@@ -393,6 +409,8 @@ class RemoteMcpApplication:
                     "details":{"invalid_field":key}}}
         if name == "get_calendar_events":
             return self._get_calendar_events(principal, arguments)
+        if name == PERSONAL_LIST_ALIAS:
+            return self._call_personal_task_tool(principal,"list_tasks",arguments)
         if name in PERSONAL_TOOL_NAMES:
             return self._call_personal_task_tool(principal,name,arguments)
         if name in {tool["name"] for tool in PROPOSAL_TOOLS}:
@@ -1113,7 +1131,7 @@ def make_http_server(app: RemoteMcpApplication, host: str = "127.0.0.1", port: i
             sys.stderr.write(f"{self.address_string()} {safe_line}\n")
 
         def do_GET(self):
-            status,headers,body=app.dispatch_http(method="GET",path=urlparse(self.path).path,
+            status,headers,body=app.dispatch_http(method="GET",path=self.path,
                 headers={key.lower():value for key,value in self.headers.items()},body=b"")
             self.send_response(status)
             for name,value in headers.items(): self.send_header(name,value)
@@ -1133,7 +1151,7 @@ def make_http_server(app: RemoteMcpApplication, host: str = "127.0.0.1", port: i
                 self.send_error(413)
                 return
             body=self.rfile.read(length)
-            status,headers,response=app.dispatch_http(method="POST",path=urlparse(self.path).path,
+            status,headers,response=app.dispatch_http(method="POST",path=self.path,
                 headers={key.lower():value for key,value in self.headers.items()},body=body)
             self.send_response(status)
             for name,value in headers.items(): self.send_header(name,value)

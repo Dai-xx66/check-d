@@ -1328,7 +1328,8 @@ class Handler(BaseHTTPRequestHandler):
                        "用户授权规划服务配置不可用。")
             return
 
-        path = self.path.split("?", 1)[0]
+        request_path = self.path
+        path = request_path.split("?", 1)[0]
         if method == "POST":
             try:
                 size = int(self.headers.get("Content-Length") or 0)
@@ -1345,7 +1346,7 @@ class Handler(BaseHTTPRequestHandler):
             body = b""
         headers = {key.lower(): value for key, value in self.headers.items()}
         status, response_headers, response_body = _USER_MCP_APP.dispatch_http(
-            method=method, path="/mcp" if path == "/mcp/user" else path,
+            method=method, path=request_path,
             headers=headers, body=body,
         )
         self.send_response(status)
