@@ -188,7 +188,7 @@ class CheckDSurface extends StatelessWidget {
       padding: padding,
       child: CustomPaint(
         foregroundPainter: _isGlass(level)
-            ? _GlassRimPainter(radius: resolvedRadius)
+            ? _GlassRimPainter(radius: resolvedRadius, color: AppColors.border)
             : null,
         child: child,
       ),
@@ -248,7 +248,7 @@ class CheckDSectionTitle extends StatelessWidget {
               const SizedBox(width: 7),
               Text(
                 '$count',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -341,9 +341,10 @@ class _CheckDHoverLiftState extends State<CheckDHoverLift> {
 }
 
 class _GlassRimPainter extends CustomPainter {
-  const _GlassRimPainter({required this.radius});
+  const _GlassRimPainter({required this.radius, required this.color});
 
   final BorderRadius radius;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -352,10 +353,14 @@ class _GlassRimPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xA8FFFFFF), Color(0x30FFFFFF), Color(0x1640252B)],
+        colors: [
+          color,
+          color.withValues(alpha: .35),
+          color.withValues(alpha: .15),
+        ],
         stops: [0, .62, 1],
       ).createShader(rect);
     canvas.drawPath(path, paint);
@@ -363,7 +368,7 @@ class _GlassRimPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GlassRimPainter oldDelegate) =>
-      oldDelegate.radius != radius;
+      oldDelegate.radius != radius || oldDelegate.color != color;
 }
 
 class _CheckDPressableState extends State<CheckDPressable> {
@@ -421,30 +426,19 @@ BorderRadius _radiusFor(CheckDSurfaceLevel level) =>
     });
 
 Color _colorFor(CheckDSurfaceLevel level) => switch (level) {
-  CheckDSurfaceLevel.plain => const Color(0x72FFFFFF),
-  CheckDSurfaceLevel.raised => const Color(0xCCFFFFFF),
-  CheckDSurfaceLevel.glassSoft => const Color(0xA8FFFDFC),
-  CheckDSurfaceLevel.glassFloating => const Color(0xC4FFFDFC),
-  CheckDSurfaceLevel.glassActive => const Color(0xACFFF1F5),
+  CheckDSurfaceLevel.plain => AppColors.surface,
+  CheckDSurfaceLevel.raised => AppColors.surface,
+  CheckDSurfaceLevel.glassSoft => AppColors.glassStrong,
+  CheckDSurfaceLevel.glassFloating => AppColors.glassStrong,
+  CheckDSurfaceLevel.glassActive => AppColors.blush,
 };
 
-Color _borderFor(CheckDSurfaceLevel level) => switch (level) {
-  CheckDSurfaceLevel.plain => const Color(0x18FFFFFF),
-  CheckDSurfaceLevel.raised => const Color(0x60FFFFFF),
-  CheckDSurfaceLevel.glassSoft ||
-  CheckDSurfaceLevel.glassFloating => const Color(0x28FFFFFF),
-  CheckDSurfaceLevel.glassActive => const Color(0x34FFFFFF),
-};
+Color _borderFor(CheckDSurfaceLevel level) => AppColors.border;
 
 List<BoxShadow> _shadowsFor(CheckDSurfaceLevel level) => switch (level) {
   CheckDSurfaceLevel.plain => const [],
-  CheckDSurfaceLevel.raised => const [
-    BoxShadow(color: Color(0x0A40252B), blurRadius: 18, offset: Offset(0, 5)),
-  ],
-  CheckDSurfaceLevel.glassSoft => const [
-    BoxShadow(color: Color(0x0C754A55), blurRadius: 20, offset: Offset(0, 7)),
-  ],
-  CheckDSurfaceLevel.glassFloating || CheckDSurfaceLevel.glassActive => const [
-    BoxShadow(color: Color(0x14754A55), blurRadius: 24, offset: Offset(0, 9)),
-  ],
+  CheckDSurfaceLevel.raised => [AppShadows.soft],
+  CheckDSurfaceLevel.glassSoft => [AppShadows.soft],
+  CheckDSurfaceLevel.glassFloating ||
+  CheckDSurfaceLevel.glassActive => [AppShadows.glass],
 };

@@ -7,6 +7,7 @@ import '../../courses/presentation/schedule_template_page.dart';
 import '../../courses/presentation/semester_settings_page.dart';
 import '../../tags/presentation/tags_page.dart';
 import 'account_sync_page.dart';
+import 'appearance_settings_page.dart';
 import 'reminder_settings_page.dart';
 
 class MyPage extends StatelessWidget {
@@ -53,7 +54,7 @@ class _MyProfileHero extends StatelessWidget {
   Widget build(BuildContext context) => CheckDSurface(
     level: CheckDSurfaceLevel.glassSoft,
     radius: BorderRadius.circular(24),
-    color: const Color(0xD9FFF8F5),
+    color: AppColors.surfaceSoft,
     padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
     child: LayoutBuilder(
       builder: (context, constraints) {
@@ -78,13 +79,10 @@ class _MyProfileHero extends StatelessWidget {
                     ).textTheme.titleLarge?.copyWith(fontSize: wide ? 22 : 20),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
-                    '把每一天过成自己的节奏',
-                    style: TextStyle(color: AppColors.muted),
-                  ),
+                  Text('把每一天过成自己的节奏', style: TextStyle(color: AppColors.muted)),
                   if (wide) ...[
                     const SizedBox(height: 9),
-                    const Text(
+                    Text(
                       '记录每一步，也给自己留一点温柔。',
                       style: TextStyle(
                         color: AppColors.primaryStrong,
@@ -95,7 +93,7 @@ class _MyProfileHero extends StatelessWidget {
                 ],
               ),
             ),
-            const CheckDIcon(CheckDIconType.forward, color: AppColors.muted),
+            CheckDIcon(CheckDIconType.forward, color: AppColors.muted),
           ],
         );
       },
@@ -140,9 +138,9 @@ class _MyMobileSettings extends StatelessWidget {
             color: AppColors.accentLavender,
             title: '标签管理',
             subtitle: '编辑事项颜色与分类',
-            onTap: () => onOpen(context, const TagsPage()),
+            onTap: () => onOpen(context, TagsPage()),
           ),
-          const _MyTile(
+          _MyTile(
             icon: CheckDIconType.defaultItem,
             color: AppColors.accentLavender,
             title: '默认事项设置',
@@ -154,12 +152,21 @@ class _MyMobileSettings extends StatelessWidget {
       _MySection(
         title: '外观与小羊',
         tone: AppColors.lavender,
-        children: const [
+        children: [
           _MyTile(
             icon: CheckDIconType.appearance,
             color: AppColors.accentLavender,
-            title: '外观设置',
-            subtitle: '主题、背景与显示偏好',
+            title: '换皮肤',
+            subtitle: '小羊日常、雾蓝与素纸',
+            onTap: () => onOpen(context, const AppearanceSettingsPage()),
+          ),
+          _MyTile(
+            icon: CheckDIconType.widget,
+            color: AppColors.accentBlue,
+            title: '更换图标',
+            subtitle: '选择标识与下载桌面图标',
+            onTap: () =>
+                onOpen(context, const AppearanceSettingsPage(showIcons: true)),
           ),
           _MyTile(
             icon: CheckDIconType.mascot,
@@ -178,15 +185,15 @@ class _MyMobileSettings extends StatelessWidget {
             color: AppColors.accentMint,
             title: '账号与同步',
             subtitle: '查看云同步状态与本机数据',
-            onTap: () => onOpen(context, const AccountSyncPage()),
+            onTap: () => onOpen(context, AccountSyncPage()),
           ),
-          const _MyTile(
+          _MyTile(
             icon: CheckDIconType.backup,
             color: AppColors.accentMint,
             title: '数据备份',
             subtitle: '查看备份与同步状态',
           ),
-          const _MyTile(
+          _MyTile(
             icon: CheckDIconType.privacy,
             color: AppColors.accentMint,
             title: '数据与隐私',
@@ -197,7 +204,7 @@ class _MyMobileSettings extends StatelessWidget {
       _MySection(
         title: '其他',
         tone: AppColors.cream,
-        children: const [
+        children: [
           _MyTile(
             icon: CheckDIconType.help,
             color: AppColors.orange,
@@ -230,7 +237,7 @@ Widget _myReminderSection(
       subtitle: '管理事项与课程提醒',
       onTap: () => onOpen(context, const ReminderSettingsPage()),
     ),
-    const _MyTile(
+    _MyTile(
       icon: CheckDIconType.alarm,
       color: AppColors.primaryStrong,
       title: '闹钟设置',
@@ -268,7 +275,7 @@ class _MyDesktopSettings extends StatelessWidget {
         children: [
           Expanded(child: _myReminderSection(onOpen, context)),
           const SizedBox(width: 18),
-          Expanded(child: _appearanceSection()),
+          Expanded(child: _appearanceSection(context)),
         ],
       ),
       const SizedBox(height: 18),
@@ -313,9 +320,9 @@ class _MyDesktopSettings extends StatelessWidget {
         color: AppColors.accentLavender,
         title: '标签管理',
         subtitle: '编辑事项颜色与分类',
-        onTap: () => onOpen(context, const TagsPage()),
+        onTap: () => onOpen(context, TagsPage()),
       ),
-      const _MyTile(
+      _MyTile(
         icon: CheckDIconType.defaultItem,
         color: AppColors.accentLavender,
         title: '默认事项设置',
@@ -324,15 +331,24 @@ class _MyDesktopSettings extends StatelessWidget {
     ],
   );
 
-  Widget _appearanceSection() => _MySection(
+  Widget _appearanceSection(BuildContext context) => _MySection(
     title: '外观与小羊',
     tone: AppColors.lavender,
-    children: const [
+    children: [
       _MyTile(
         icon: CheckDIconType.appearance,
         color: AppColors.accentLavender,
-        title: '外观设置',
-        subtitle: '主题、背景与显示偏好',
+        title: '换皮肤',
+        subtitle: '小羊日常、雾蓝与素纸',
+        onTap: () => onOpen(context, const AppearanceSettingsPage()),
+      ),
+      _MyTile(
+        icon: CheckDIconType.widget,
+        color: AppColors.accentBlue,
+        title: '更换图标',
+        subtitle: '选择标识与下载桌面图标',
+        onTap: () =>
+            onOpen(context, const AppearanceSettingsPage(showIcons: true)),
       ),
       _MyTile(
         icon: CheckDIconType.mascot,
@@ -354,13 +370,13 @@ class _MyDesktopSettings extends StatelessWidget {
         subtitle: '查看云同步状态与本机数据',
         onTap: () => onOpen(context, const AccountSyncPage()),
       ),
-      const _MyTile(
+      _MyTile(
         icon: CheckDIconType.backup,
         color: AppColors.accentMint,
         title: '数据备份',
         subtitle: '查看备份与同步状态',
       ),
-      const _MyTile(
+      _MyTile(
         icon: CheckDIconType.privacy,
         color: AppColors.accentMint,
         title: '数据与隐私',
@@ -372,7 +388,7 @@ class _MyDesktopSettings extends StatelessWidget {
   Widget _otherSection() => _MySection(
     title: '其他',
     tone: AppColors.cream,
-    children: const [
+    children: [
       _MyTile(
         icon: CheckDIconType.help,
         color: AppColors.orange,
@@ -481,7 +497,7 @@ class _MyTile extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
@@ -491,16 +507,13 @@ class _MyTile extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const CheckDIcon(
+            CheckDIcon(
               CheckDIconType.forward,
               size: 19,
               color: AppColors.muted,

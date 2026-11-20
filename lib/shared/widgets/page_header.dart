@@ -31,7 +31,7 @@ class PageHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+              Text(subtitle, style: TextStyle(color: AppColors.muted)),
             ],
           ),
         ),

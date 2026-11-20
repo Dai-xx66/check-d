@@ -121,7 +121,7 @@ class FocusBarChart extends StatelessWidget {
                                         Text(
                                           report.buckets[index].label,
                                           maxLines: 1,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
                                             color: AppColors.muted,
                                           ),
@@ -148,7 +148,7 @@ class FocusBarChart extends StatelessWidget {
   static String _bucketDate(TimeBucket bucket) =>
       DateFormat('M月d日').format(bucket.start);
 
-  static Color _barColor(int index) => const [
+  static Color _barColor(int index) => [
     AppColors.primary,
     AppColors.purple,
     AppColors.green,
@@ -223,7 +223,7 @@ class MonthlyFocusHeatmap extends StatelessWidget {
           },
         ),
         const SizedBox(height: 14),
-        const Wrap(
+        Wrap(
           spacing: 14,
           runSpacing: 8,
           children: [
@@ -294,7 +294,7 @@ class SemesterFocusLineChart extends StatelessWidget {
                               child: Text(
                                 bucket.label,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 10,
                                   color: AppColors.muted,
                                 ),
@@ -433,7 +433,7 @@ class _HeatLegend extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+      Text(label, style: TextStyle(fontSize: 11, color: AppColors.muted)),
     ],
   );
 }

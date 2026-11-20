@@ -10,7 +10,7 @@ class GlassButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.color = AppColors.primary,
+    this.color,
     this.filled = false,
     super.key,
   });
@@ -18,13 +18,14 @@ class GlassButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final IconData? icon;
-  final Color color;
+  final Color? color;
   final bool filled;
 
   @override
   Widget build(BuildContext context) {
     final disabled = onPressed == null;
-    final foreground = disabled ? AppColors.muted : color;
+    final accent = color ?? AppColors.primary;
+    final foreground = disabled ? AppColors.muted : accent;
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
       child: BackdropFilter(
@@ -35,9 +36,11 @@ class GlassButton extends StatelessWidget {
             color: filled && !disabled ? null : AppColors.glass,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: disabled ? AppColors.border : color.withValues(alpha: .42),
+              color: disabled
+                  ? AppColors.border
+                  : accent.withValues(alpha: .42),
             ),
-            boxShadow: const [AppShadows.glass],
+            boxShadow: [AppShadows.glass],
           ),
           child: CheckDPressable(
             onTap: onPressed,
@@ -52,14 +55,14 @@ class GlassButton extends StatelessWidget {
                     Icon(
                       icon,
                       size: 16,
-                      color: filled ? Colors.white : foreground,
+                      color: filled ? AppColors.onPrimary : foreground,
                     ),
                     const SizedBox(width: 5),
                   ],
                   Text(
                     label,
                     style: TextStyle(
-                      color: filled ? Colors.white : foreground,
+                      color: filled ? AppColors.onPrimary : foreground,
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),

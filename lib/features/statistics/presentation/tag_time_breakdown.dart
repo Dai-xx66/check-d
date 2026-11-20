@@ -62,7 +62,7 @@ class TagTimeBreakdown extends StatelessWidget {
               ),
               Text(
                 timeLabel(report.seconds),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: AppColors.muted,
                 ),
@@ -71,7 +71,7 @@ class TagTimeBreakdown extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           if (entries.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 '当前周期暂无专注记录',
@@ -94,7 +94,7 @@ class TagTimeBreakdown extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           '标签投入',
                           style: TextStyle(
                             fontSize: 12,
@@ -168,7 +168,7 @@ class _TagLegend extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           '$duration · $percent',
-          style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          style: TextStyle(fontSize: 12, color: AppColors.muted),
         ),
       ],
     ),

@@ -434,7 +434,7 @@ class _CourseOverview extends StatelessWidget {
                         .take(3)
                         .map((course) => course.name)
                         .join('、'),
-              style: const TextStyle(color: AppColors.muted),
+              style: TextStyle(color: AppColors.muted),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
@@ -497,7 +497,7 @@ class _EmptyCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: AppColors.muted)),
+          Text(subtitle, style: TextStyle(color: AppColors.muted)),
           if (actionLabel != null) ...[
             const SizedBox(height: 14),
             FilledButton(onPressed: onAction, child: Text(actionLabel!)),
@@ -518,7 +518,7 @@ class _InfoRow extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: const TextStyle(color: AppColors.muted)),
+          child: Text(label, style: TextStyle(color: AppColors.muted)),
         ),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
       ],
@@ -538,7 +538,7 @@ class _StatusPill extends StatelessWidget {
     ),
     child: Text(
       label,
-      style: const TextStyle(fontSize: 11, color: AppColors.primary),
+      style: TextStyle(fontSize: 11, color: AppColors.primary),
     ),
   );
 }

@@ -17,6 +17,7 @@ import '../../tasks/domain/task_models.dart';
 import '../domain/calendar_models.dart';
 import '../domain/calendar_occurrence_builder.dart';
 import 'daily_detail_page.dart';
+import 'calendar_course_title_marquee.dart';
 
 class CalendarWorkspace extends ConsumerStatefulWidget {
   const CalendarWorkspace({super.key});
@@ -413,48 +414,55 @@ class _MonthView extends StatelessWidget {
       children: [
         Row(
           children: [
-            for (final label in const ['一', '二', '三', '四', '五', '六', '日'])
+            for (final label in const ['一', '二', '三', '四', '五', '六', '日']) ...[
               Expanded(
                 child: Center(
                   child: Text(
                     label,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ),
               ),
+              if (label != '日') const SizedBox(width: 4),
+            ],
           ],
         ),
         const SizedBox(height: 6),
         Expanded(
-          child: GridView.builder(
-            itemCount: dates.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1.12,
-              crossAxisSpacing: 4,
-              mainAxisSpacing: 4,
+          child: LayoutBuilder(
+            builder: (context, gridConstraints) => GridView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: dates.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                childAspectRatio: 1.12,
+                mainAxisExtent:
+                    !desktop && (gridConstraints.maxWidth - 24) / 7 < 68
+                    ? 58 * MediaQuery.textScalerOf(context).scale(14) / 14
+                    : null,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemBuilder: (context, index) {
+                final date = dates[index];
+                final items =
+                    data[_dayKey(date)] ?? const <CalendarOccurrence>[];
+                final selected = _sameDay(date, selectedDate);
+                final inMonth =
+                    date.month == focusedMonth.month &&
+                    date.year == focusedMonth.year;
+                return InkWell(
+                  onTap: () => onSelectDate(date),
+                  child: CalendarMonthDayCell(
+                    date: date,
+                    items: items,
+                    selected: selected,
+                    inMonth: inMonth,
+                    desktop: desktop,
+                  ),
+                );
+              },
             ),
-            itemBuilder: (context, index) {
-              final date = dates[index];
-              final items = data[_dayKey(date)] ?? const <CalendarOccurrence>[];
-              final selected = _sameDay(date, selectedDate);
-              final inMonth =
-                  date.month == focusedMonth.month &&
-                  date.year == focusedMonth.year;
-              return InkWell(
-                onTap: () => onSelectDate(date),
-                child: CalendarMonthDayCell(
-                  date: date,
-                  items: items,
-                  selected: selected,
-                  inMonth: inMonth,
-                  desktop: desktop,
-                ),
-              );
-            },
           ),
         ),
       ],
@@ -480,139 +488,197 @@ class CalendarMonthDayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final height = constraints.maxHeight;
-        final padding = height >= 72
-            ? 6.0
-            : height >= 48
-            ? 4.0
-            : 2.0;
-        final dateHeight = height >= 48 ? 18.0 : 14.0;
-        final gap = height >= 48 ? 2.0 : 0.0;
-        final summaryHeight = height >= 72
-            ? 15.0
-            : height >= 48
-            ? 13.0
-            : 0.0;
-        final availableForSummary = math.max(
-          0.0,
-          height - padding * 2 - dateHeight - gap,
-        );
-        final requestedCount = desktop ? 3 : 1;
-        final visibleCount = summaryHeight == 0
-            ? 0
-            : math.min(
-                requestedCount,
-                (availableForSummary / summaryHeight).floor(),
-              );
-        final shownItems = items.take(visibleCount).toList();
-        final hiddenCount = items.length - shownItems.length;
-        final showMarker = items.isNotEmpty && visibleCount == 0;
-        final markerText = showMarker
-            ? (items.length > 1 ? '+${items.length}' : '•')
-            : (hiddenCount > 0 ? '+$hiddenCount' : null);
-
-        return Container(
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.blush.withValues(alpha: .82)
-                : (_sameDay(date, DateTime.now())
-                      ? AppColors.surfaceSoft
-                      : Colors.transparent),
-            borderRadius: BorderRadius.circular(14),
-            border: selected
-                ? Border.all(color: AppColors.primary.withValues(alpha: .42))
-                : null,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned(
-                left: padding,
-                top: padding,
-                right: padding,
-                height: math.min(
-                  dateHeight,
-                  math.max(0.0, height - padding * 2),
-                ),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Text(
-                    '${date.day}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: inMonth ? AppColors.ink : AppColors.muted,
-                      fontSize: height < 48 ? 11 : 13,
-                      height: 1,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    final decoration = BoxDecoration(
+      color: selected
+          ? AppColors.blush.withValues(alpha: .82)
+          : (_sameDay(date, DateTime.now())
+                ? AppColors.surfaceSoft
+                : Colors.transparent),
+      borderRadius: BorderRadius.circular(14),
+      border: selected
+          ? Border.all(color: AppColors.primary.withValues(alpha: .42))
+          : null,
+    );
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final height = constraints.maxHeight;
+          final compact = constraints.maxWidth < 64 || height < 64;
+          if (compact) {
+            return DecoratedBox(
+              decoration: decoration,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${date.day}',
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: inMonth ? AppColors.ink : AppColors.muted,
+                            fontSize: 14,
+                            height: 1.35,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        SizedBox(
+                          height:
+                              MediaQuery.textScalerOf(context).scale(10) * 1.4,
+                          child: items.isEmpty
+                              ? null
+                              : Center(
+                                  child: Text(
+                                    '+${items.length}',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1.4,
+                                      color: AppColors.muted,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              if (shownItems.isNotEmpty)
+            );
+          }
+          final padding = height >= 72
+              ? 6.0
+              : height >= 48
+              ? 4.0
+              : 2.0;
+          final dateHeight = MediaQuery.textScalerOf(context).scale(13) * 1.4;
+          final gap = height >= 48 ? 2.0 : 0.0;
+          final summaryFontSize = height < 72 ? 9.0 : 11.0;
+          final summaryHeight = math.max(
+            height >= 72 ? 20.0 : 13.0,
+            MediaQuery.textScalerOf(context).scale(summaryFontSize) * 1.4 + 2,
+          );
+          final availableForSummary = math.max(
+            0.0,
+            height - padding * 2 - dateHeight - gap,
+          );
+          final requestedCount = desktop ? 3 : 1;
+          final visibleCount = summaryHeight == 0
+              ? 0
+              : math.min(
+                  requestedCount,
+                  (availableForSummary / summaryHeight).floor(),
+                );
+          final shownItems = items.take(visibleCount).toList();
+          final hiddenCount = items.length - shownItems.length;
+          final showMarker = items.isNotEmpty && visibleCount == 0;
+          final markerText = showMarker
+              ? (items.length > 1 ? '+${items.length}' : '•')
+              : (hiddenCount > 0 ? '+$hiddenCount' : null);
+
+          return Container(
+            decoration: decoration,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
                 Positioned(
                   left: padding,
+                  top: padding,
                   right: padding,
-                  bottom: padding,
-                  height: summaryHeight * shownItems.length,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final item in shownItems)
-                        SizedBox(
-                          height: summaryHeight,
-                          child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 1),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: Color(
-                                item.colorValue,
-                              ).withValues(alpha: .12),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              item.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: height < 72 ? 7 : 8,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+                  height: math.min(
+                    dateHeight,
+                    math.max(0.0, height - padding * 2),
                   ),
-                ),
-              if (markerText != null)
-                Positioned(
-                  right: padding,
-                  top: shownItems.isNotEmpty ? padding : null,
-                  bottom: shownItems.isNotEmpty
-                      ? null
-                      : math.max(1.0, padding - 1),
-                  height: math.min(12.0, math.max(8.0, height)),
-                  child: Text(
-                    markerText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: height < 48 ? 7 : 8,
-                      height: 1,
-                      color: AppColors.muted,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      '${date.day}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: inMonth ? AppColors.ink : AppColors.muted,
+                        fontSize: height < 48 ? 11 : 13,
+                        height: 1.3,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
-            ],
-          ),
-        );
-      },
+                if (shownItems.isNotEmpty)
+                  Positioned(
+                    left: padding,
+                    right: padding,
+                    bottom: padding,
+                    height: summaryHeight * shownItems.length,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final item in shownItems)
+                          SizedBox(
+                            height: summaryHeight,
+                            child: Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 1),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Color(
+                                  item.colorValue,
+                                ).withValues(alpha: .12),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: height < 72
+                                      ? 9
+                                      : (desktop ? 11 : 10),
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (markerText != null)
+                  Positioned(
+                    right: padding,
+                    top: shownItems.isNotEmpty ? padding : null,
+                    bottom: shownItems.isNotEmpty
+                        ? null
+                        : math.max(1.0, padding - 1),
+                    height: MediaQuery.textScalerOf(context).scale(8) * 1.4,
+                    child: Text(
+                      markerText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: height < 48 ? 7 : 8,
+                        height: 1.3,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -717,7 +783,7 @@ class _TimeGrid extends StatelessWidget {
                       children: [
                         Text(
                           DateFormat('E', 'zh_CN').format(day),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             color: AppColors.muted,
                           ),
@@ -772,7 +838,7 @@ class _TimeGrid extends StatelessWidget {
                                 right: 8,
                                 child: Text(
                                   '${hour.toString().padLeft(2, '0')}:00',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
                                     color: AppColors.muted,
                                   ),
@@ -860,7 +926,11 @@ class _TimeGrid extends StatelessWidget {
                 dayIndex * colWidth +
                 3 +
                 layout.lane * ((colWidth - 6) / layout.laneCount),
-            width: math.max(24, (colWidth - 6) / layout.laneCount - 3),
+            width: math.max(
+              24,
+              (colWidth - 6) / layout.laneCount -
+                  (layout.laneCount > 1 ? 3 : 0),
+            ),
             top: math.max(
               0,
               (layout.item.startMinute! - startHour * 60) / 60 * hourHeight,
@@ -897,17 +967,79 @@ class CalendarWeekEventBlock extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final height = constraints.maxHeight;
-      final showSubtitle = item.subtitle != null && height >= 52;
+      final narrow = constraints.maxWidth < 64;
+      final showSubtitle = !narrow && item.subtitle != null && height >= 52;
       final roomy = height >= 44;
       final compact = height < 32;
-      final showTitle = height >= 20;
+      final verticalPadding = narrow || compact ? 2.0 : (roomy ? 5.0 : 3.0);
+      final horizontalPadding = narrow ? 2.0 : verticalPadding;
+      final textScaler = MediaQuery.textScalerOf(context);
+      final textWidth = math.max(
+        1.0,
+        constraints.maxWidth - 3 - horizontalPadding * 2,
+      );
+      final textHeight = math.max(
+        0.0,
+        height -
+            verticalPadding * 2 -
+            (showSubtitle ? textScaler.scale(8) * 1.05 : 0),
+      );
+      final showTitle =
+          height >= 20 && textScaler.scale(8.5) * 1.15 <= textHeight;
+      var titleStyle = DefaultTextStyle.of(context).style.merge(
+        TextStyle(
+          fontSize: compact ? 8 : 10,
+          height: 1.15,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+      var titleLines = roomy ? 2 : 1;
+      var titleOverflows = false;
+      bool fitsTitle(TextStyle style, int lines) {
+        final painter = TextPainter(
+          text: TextSpan(text: item.title, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: textScaler,
+          locale: Localizations.maybeLocaleOf(context),
+          maxLines: lines,
+          ellipsis: '…',
+        )..layout(maxWidth: textWidth);
+        final fits = !painter.didExceedMaxLines && painter.height <= textHeight;
+        painter.dispose();
+        return fits;
+      }
+
+      if (narrow && showTitle) {
+        for (final fontSize in [10.0, 9.5, 9.0, 8.5]) {
+          titleStyle = titleStyle.copyWith(fontSize: fontSize);
+          titleLines = (textHeight / (textScaler.scale(fontSize) * 1.15))
+              .floor()
+              .clamp(1, 4);
+          titleOverflows = !fitsTitle(titleStyle, titleLines);
+          if (!titleOverflows) break;
+        }
+      } else if (showTitle) {
+        titleLines = math.min(
+          titleLines,
+          (textHeight / (textScaler.scale(titleStyle.fontSize!) * 1.15))
+              .floor()
+              .clamp(1, 4),
+        );
+        titleOverflows = !fitsTitle(titleStyle, titleLines);
+      }
+      var scrollingStyle = titleStyle;
+      for (final fontSize in [10.0, 9.5, 9.0, 8.5]) {
+        if (textScaler.scale(fontSize) * 1.15 <= textHeight) {
+          scrollingStyle = titleStyle.copyWith(fontSize: fontSize);
+          break;
+        }
+      }
+      final scrollTitle =
+          titleOverflows && !MediaQuery.of(context).disableAnimations;
       final block = Container(
-        padding: EdgeInsets.all(
-          compact
-              ? 2
-              : roomy
-              ? 5
-              : 3,
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: verticalPadding,
         ),
         decoration: BoxDecoration(
           color: Color(item.colorValue).withValues(alpha: .20),
@@ -921,22 +1053,26 @@ class CalendarWeekEventBlock extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (showTitle)
-              Text(
-                item.title,
-                maxLines: roomy ? 2 : 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: compact ? 8 : 10,
-                  height: 1.05,
-                  fontWeight: FontWeight.w700,
+              if (scrollTitle)
+                CalendarCourseTitleMarquee(
+                  key: const ValueKey('calendar-course-title-marquee'),
+                  text: item.title,
+                  style: scrollingStyle,
+                )
+              else
+                Text(
+                  item.title,
+                  maxLines: titleLines,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
                 ),
-              ),
             if (showSubtitle)
               Text(
                 item.subtitle!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 8,
                   height: 1.05,
                   color: AppColors.muted,
@@ -945,13 +1081,20 @@ class CalendarWeekEventBlock extends StatelessWidget {
           ],
         ),
       );
-      return onTap == null
+      final interactiveBlock = onTap == null
           ? block
           : InkWell(
               onTap: onTap,
               borderRadius: BorderRadius.circular(7),
               child: block,
             );
+      return narrow || titleOverflows || !showTitle
+          ? Tooltip(
+              message: item.title,
+              excludeFromSemantics: showTitle,
+              child: interactiveBlock,
+            )
+          : interactiveBlock;
     },
   );
 }
@@ -1011,15 +1154,12 @@ class _AgendaView extends StatelessWidget {
                         ),
                       ),
                       if (_sameDay(day, DateTime.now()))
-                        const Text(
-                          '今天',
-                          style: TextStyle(color: AppColors.primary),
-                        ),
+                        Text('今天', style: TextStyle(color: AppColors.primary)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   if (timed.isEmpty && untimed.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 5),
                       child: Text(
                         '暂无安排',
@@ -1029,7 +1169,7 @@ class _AgendaView extends StatelessWidget {
                   for (final item in timed) _AgendaTile(item: item),
                   if (untimed.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '待完成 / 时间未定',
                       style: TextStyle(
                         fontSize: 12,
@@ -1071,7 +1211,7 @@ class _AgendaTile extends ConsumerWidget {
                 item.startMinute == null
                     ? '—'
                     : _formatMinute(item.startMinute!),
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                style: TextStyle(fontSize: 12, color: AppColors.muted),
               ),
             ),
             CheckDStatusDot(color: Color(item.colorValue), size: 8),
@@ -1087,10 +1227,7 @@ class _AgendaTile extends ConsumerWidget {
                   if (item.subtitle != null)
                     Text(
                       item.subtitle!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.muted,
-                      ),
+                      style: TextStyle(fontSize: 11, color: AppColors.muted),
                     ),
                 ],
               ),
@@ -1117,6 +1254,30 @@ void _showCourseOccurrenceActions(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        if (item.startMinute != null && item.endMinute != null)
+                          '${_formatMinute(item.startMinute!)}–${_formatMinute(item.endMinute!)}',
+                        if (item.subtitle?.isNotEmpty ?? false) item.subtitle!,
+                      ].join(' · '),
+                      style: TextStyle(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.event_available_outlined),
               title: const Text('仅修改本次'),
@@ -1402,7 +1563,7 @@ class _DesktopContextPanel extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               semesterWeek!,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              style: TextStyle(color: AppColors.muted, fontSize: 12),
             ),
           ],
           const SizedBox(height: 14),

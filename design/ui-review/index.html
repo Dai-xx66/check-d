@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check D · 整体外观预览</title>
+<style>
+  * { box-sizing:border-box }
+  body { margin:0;background:#eaf0f5;color:#2c4055;font:14px/1.5 system-ui,"Microsoft YaHei",sans-serif }
+  header { display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:16px 24px;background:#ffffffd9;border-bottom:1px solid white }
+  h1 { font-size:18px;margin:0 0 2px;font-weight:650 }
+  p { margin:0;color:#5b6f81;font-size:12px }
+  .tools { display:flex;gap:8px;flex-wrap:wrap;margin-left:auto }
+  .group { display:flex;gap:4px;padding:4px;border-radius:14px;background:#e9eff4 }
+  button { display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:7px 13px;border:0;border-radius:11px;background:transparent;color:#53697b;font:inherit;cursor:pointer }
+  button[aria-pressed="true"] { color:#2c4055;background:white;box-shadow:0 2px 8px #48648213 }
+  button:focus-visible,a:focus-visible { outline:2px solid #4c7294;outline-offset:3px }
+  button img { width:29px;height:29px;border-radius:8px }
+  a { color:#3c678a;text-decoration:none;align-self:center;padding:8px }
+  main { max-width:1480px;margin:auto;padding:20px }
+  #stage { position:relative;margin:auto;overflow:hidden;border:1px solid #ffffffcc;border-radius:24px;box-shadow:0 16px 60px #536c8812;background:#f5f8fa }
+  iframe { display:block;border:0;transform-origin:top left;background:#edf3f8 }
+  footer { padding:10px 24px 24px;text-align:center;color:#5b6f81;font-size:12px }
+  @media(max-width:650px) { header{padding:14px 16px;gap:12px}.tools{margin-left:0}main{padding:12px}button{padding:6px 9px} }
+</style>
+<header>
+  <div><h1>Check D · 整体外观预览</h1><p>演示数据 · 可操作的真实页面</p></div>
+  <div class="tools">
+    <div class="group" aria-label="选择皮肤">
+      <button data-skin="slate" aria-pressed="true"><img src="../assets/assets/images/app_icon_mist_d.png" alt="">雾蓝</button>
+      <button data-skin="neutral" aria-pressed="false"><img src="../assets/assets/images/app_icon_cream_d.png" alt="">素纸</button>
+      <button data-skin="lamb" aria-pressed="false"><img src="../assets/assets/images/app_icon_lamb.png" alt="">小羊日常</button>
+    </div>
+    <div class="group" aria-label="选择布局">
+      <button data-device="desktop" aria-pressed="true">桌面</button>
+      <button data-device="mobile" aria-pressed="false">手机</button>
+    </div>
+    <a id="open" href="../?skin=slate" target="_blank" rel="noopener">单独打开</a>
+  </div>
+</header>
+<main><div id="stage"><iframe title="Check D 应用预览" src="../?skin=slate"></iframe></div></main>
+<footer>可在应用内查看今天、日历、统计、我的及外观设置。桌面布局为 1440 × 1000，手机布局为 390 × 844。</footer>
+<script>
+  const frame=document.querySelector('iframe');
+  const stage=document.querySelector('#stage');
+  let device='desktop';
+  function resize() {
+    const width=device==='desktop'?1440:390;
+    const height=device==='desktop'?1000:844;
+    const available=document.querySelector('main').clientWidth-40;
+    const scale=Math.min(1,available/width);
+    stage.style.width=`${width*scale}px`;
+    stage.style.height=`${height*scale}px`;
+    frame.style.width=`${width}px`;
+    frame.style.height=`${height}px`;
+    frame.style.transform=`scale(${scale})`;
+  }
+  document.querySelectorAll('[data-skin]').forEach(button=>button.addEventListener('click',()=>{
+    document.querySelectorAll('[data-skin]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    frame.src=`../?skin=${button.dataset.skin}`;
+    document.querySelector('#open').href=frame.src;
+  }));
+  document.querySelectorAll('[data-device]').forEach(button=>button.addEventListener('click',()=>{
+    device=button.dataset.device;
+    document.querySelectorAll('[data-device]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    resize();
+  }));
+  addEventListener('resize',resize);
+  resize();
+</script>
+</html>

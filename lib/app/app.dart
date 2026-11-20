@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/theme/app_skin.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/appearance_controller.dart';
 import '../core/notifications/reminder_scheduler_providers.dart';
 import '../core/platform/desktop_mini_window.dart';
 import '../core/sync/offline_data_merge_prompt.dart';
@@ -17,16 +19,30 @@ import '../features/lock_screen/presentation/lock_screen_status_host.dart';
 import '../features/shell/presentation/app_shell.dart';
 import 'app_providers.dart';
 
-class CheckDApp extends ConsumerWidget {
+class CheckDApp extends ConsumerStatefulWidget {
   const CheckDApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => const _AppGate()),
-      ],
-    );
+  ConsumerState<CheckDApp> createState() => _CheckDAppState();
+}
+
+class _CheckDAppState extends ConsumerState<CheckDApp> {
+  late final _router = GoRouter(
+    routes: [GoRoute(path: '/', builder: (context, state) => const _AppGate())],
+  );
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 皮肤：优先用已加载的偏好，首帧（偏好尚未读出）用启动时写好的运行时值。
+    final skinId =
+        ref.watch(appearanceControllerProvider).value?.skin ??
+        AppSkinHost.current.id;
 
     return DesktopMainWindowSyncHost(
       onRefresh: () => ref.read(miniWindowDataRevisionProvider.notifier).bump(),
@@ -37,8 +53,8 @@ class CheckDApp extends ConsumerWidget {
               child: MaterialApp.router(
                 title: 'Check D',
                 debugShowCheckedModeBanner: false,
-                theme: AppTheme.light,
-                routerConfig: router,
+                theme: AppTheme.build(AppSkin.of(skinId)),
+                routerConfig: _router,
               ),
             ),
           ),

@@ -122,7 +122,7 @@ class _ReminderSettingsPageState extends ConsumerState<ReminderSettingsPage> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Row(
+                        Row(
                           children: [
                             Icon(
                               Icons.notifications_active_outlined,
@@ -174,7 +174,7 @@ class _ReminderSettingsPageState extends ConsumerState<ReminderSettingsPage> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           '默认提醒仅用于新建内容，不会修改已有课程或事项。',
                           style: TextStyle(color: AppColors.muted),
                         ),
@@ -188,7 +188,7 @@ class _ReminderSettingsPageState extends ConsumerState<ReminderSettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
-          const Card(
+          Card(
             child: ListTile(
               leading: Icon(Icons.alarm_outlined, color: AppColors.lavender),
               title: Text('强提醒能力'),
@@ -220,7 +220,7 @@ class _PermissionMessage extends StatelessWidget {
       Text(title, style: Theme.of(context).textTheme.titleMedium),
       if (detail != null) ...[
         const SizedBox(height: 6),
-        Text(detail!, style: const TextStyle(color: AppColors.muted)),
+        Text(detail!, style: TextStyle(color: AppColors.muted)),
       ],
       if (action != null) ...[
         const SizedBox(height: 12),

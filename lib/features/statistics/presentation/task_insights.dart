@@ -69,7 +69,7 @@ class TaskInsights extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Text(
                         '目标 ${task.targetDays} 天 · 剩余 ${(task.targetDays! - stats.totalSuccess).clamp(0, task.targetDays!)} 天',
-                        style: const TextStyle(color: AppColors.muted),
+                        style: TextStyle(color: AppColors.muted),
                       ),
                     ],
                     const SizedBox(height: 12),
@@ -92,7 +92,7 @@ class TaskInsights extends ConsumerWidget {
                             children: [
                               Text(
                                 const ['本周完成率', '本月完成率', '本年完成率'][i],
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.muted,
                                 ),
