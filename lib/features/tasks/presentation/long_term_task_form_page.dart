@@ -330,7 +330,7 @@ class _RecurringTaskFormPageState extends ConsumerState<RecurringTaskFormPage> {
                             onTap: _pickScheduledTime,
                           ),
                           if (_scheduledMinuteOfDay == null)
-                            const Padding(
+                            Padding(
                               padding: EdgeInsets.only(top: 8),
                               child: Text(
                                 '设置安排时间后可开启提前提醒和到点提醒。',

@@ -140,7 +140,7 @@ class _DailyContent extends ConsumerWidget {
           _SectionTitle(title: '周期任务', count: longTermTasks.length),
           const SizedBox(height: 10),
           if (longTermTasks.isEmpty)
-            const Text('无', style: TextStyle(color: AppColors.muted))
+            Text('无', style: TextStyle(color: AppColors.muted))
           else
             ...longTermTasks.map(
               (task) => Padding(
@@ -156,7 +156,7 @@ class _DailyContent extends ConsumerWidget {
           _SectionTitle(title: '单次事项', count: reminders.length),
           const SizedBox(height: 10),
           if (reminders.isEmpty)
-            const Text('无', style: TextStyle(color: AppColors.muted))
+            Text('无', style: TextStyle(color: AppColors.muted))
           else
             ...reminders.map(
               (task) => Padding(
@@ -231,12 +231,12 @@ class _DailySummary extends StatelessWidget {
                   const SizedBox(height: 9),
                   Text(
                     '完成 $completedCount/$totalCount',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '计时 ${formatDuration(timedSeconds)}',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -320,7 +320,7 @@ class _DailyTaskCard extends StatelessWidget {
                         Text(
                           '${formatDuration(actualDurationSeconds)} / '
                           '${formatDuration(task.targetDurationSeconds ?? 0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.muted,
                             fontSize: 12,
                           ),
@@ -329,7 +329,7 @@ class _DailyTaskCard extends StatelessWidget {
                         const SizedBox(height: 7),
                         Text(
                           '计时 ${formatDuration(actualDurationSeconds)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.muted,
                             fontSize: 12,
                           ),
@@ -339,7 +339,7 @@ class _DailyTaskCard extends StatelessWidget {
                         const SizedBox(height: 7),
                         Text(
                           DateFormat('HH:mm').format(task.scheduledAt!),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.muted,
                             fontSize: 12,
                           ),
@@ -374,7 +374,7 @@ class _SectionTitle extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(width: 8),
-        Text('$count', style: const TextStyle(color: AppColors.muted)),
+        Text('$count', style: TextStyle(color: AppColors.muted)),
       ],
     );
   }

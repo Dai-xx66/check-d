@@ -474,9 +474,9 @@ class _TemplateEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(28),
       child: Column(
-        children: const [
+        children: [
           Icon(Icons.schedule_outlined, size: 44, color: AppColors.cyan),
           SizedBox(height: 10),
           Text('还没有作息模板'),
@@ -503,7 +503,7 @@ class _CurrentBadge extends StatelessWidget {
     ),
     child: Text(
       label,
-      style: const TextStyle(fontSize: 11, color: AppColors.primary),
+      style: TextStyle(fontSize: 11, color: AppColors.primary),
     ),
   );
 }

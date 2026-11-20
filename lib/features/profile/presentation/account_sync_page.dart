@@ -60,7 +60,7 @@ class AccountSyncPage extends ConsumerWidget {
                           const SizedBox(height: 3),
                           Text(
                             _statusDetail(sync, health),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.muted,
                               fontSize: 12,
                             ),
@@ -75,7 +75,7 @@ class AccountSyncPage extends ConsumerWidget {
                   sync.lastSuccessAt == null
                       ? '尚无成功同步记录'
                       : '上次成功同步：${DateFormat('yyyy年M月d日 HH:mm').format(sync.lastSuccessAt!.toLocal())}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
                 const SizedBox(height: 18),
                 SizedBox(
@@ -115,7 +115,7 @@ class AccountSyncPage extends ConsumerWidget {
             child: const Text('退出登录'),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             '退出登录不会删除本机数据或云端数据。',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted, fontSize: 12),
@@ -231,7 +231,7 @@ class _SyncDiagnosticsCard extends StatelessWidget {
         children: [
           diagnostics.when(
             data: (items) => items.isEmpty
-                ? const Align(
+                ? Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '当前账号没有失败操作',
@@ -250,7 +250,7 @@ class _SyncDiagnosticsCard extends StatelessWidget {
               padding: EdgeInsets.all(8),
               child: CircularProgressIndicator(),
             ),
-            error: (_, _) => const Align(
+            error: (_, _) => Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 '诊断信息暂时无法读取',
@@ -304,7 +304,7 @@ class _SyncDiagnosticRow extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '已重试 ${item.retryCount} 次 · 最近失败 $failedAt',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: AppColors.muted, fontSize: 12),
           ),
         ],
       ),
@@ -331,7 +331,7 @@ class _OfflineDataCard extends StatelessWidget {
         Text(
           '课程 ${summary.courses} · 任务 ${summary.tasks} · '
           '计时 ${summary.timerSessions} · 其他 ${summary.otherRecords}',
-          style: const TextStyle(color: AppColors.muted),
+          style: TextStyle(color: AppColors.muted),
         ),
         const SizedBox(height: 14),
         OutlinedButton(onPressed: onMerge, child: const Text('合并到当前账号')),

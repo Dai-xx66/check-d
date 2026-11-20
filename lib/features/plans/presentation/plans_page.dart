@@ -118,7 +118,7 @@ class _PlanCard extends ConsumerWidget {
                         const SizedBox(height: 3),
                         Text(
                           '${plan.type == PlanType.month ? '月度' : '年度'}计划 · ${plan.taskIds.length} 个周期任务',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.muted,
                             fontSize: 13,
                           ),
@@ -146,7 +146,7 @@ class _PlanCard extends ConsumerWidget {
                 const SizedBox(height: 14),
                 Text(
                   plan.goal!,
-                  style: const TextStyle(color: AppColors.muted),
+                  style: TextStyle(color: AppColors.muted),
                 ),
               ],
               const SizedBox(height: 16),
@@ -160,7 +160,7 @@ class _PlanCard extends ConsumerWidget {
               const SizedBox(height: 9),
               Text(
                 '${plan.completedCount}/${plan.dueCount} 次应执行任务已完成 · ${DateFormat('yyyy.M.d').format(plan.startsOn)} - ${DateFormat('yyyy.M.d').format(plan.endsOn)}',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
               ),
             ],
           ),
