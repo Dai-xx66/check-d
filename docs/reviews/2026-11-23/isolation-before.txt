@@ -1,0 +1,113 @@
+00:00 +0: loading test/repository_account_isolation_test.dart
+00:00 +0: course edit cannot take ownership of another account record
+00:00 +0 -1: course edit cannot take ownership of another account record [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted 'fc6e1193-ebcf-40f7-a74d-4ddcd7472ac3'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 31:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 30:16  main.<fn>
+
+00:00 +0 -1: course rule edit cannot take ownership of another account record
+00:00 +0 -2: course rule edit cannot take ownership of another account record [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted '8497c1e9-f45b-4bd6-9110-a44606737b35'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 52:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 41:22  main.<fn>
+
+00:00 +0 -2: template edit cannot replace another account segments
+00:00 +0 -3: template edit cannot replace another account segments [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted '80609ebe-24bd-4e3c-ac73-1e2655511839'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 66:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 65:16  main.<fn>
+
+00:00 +0 -3: semester edit cannot transfer another account semester
+00:00 +0 -4: semester edit cannot transfer another account semester [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted '8ffed7a9-e933-4f6d-8e44-5fc1c951dc56'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 77:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 76:16  main.<fn>
+
+00:00 +0 -4: daily override edit cannot transfer another account exception
+00:00 +0 -5: daily override edit cannot transfer another account exception [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted 'd2d7f366-ed64-4992-869c-2bd718959f1f'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 87:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 86:16  main.<fn>
+
+00:00 +0 -5: reminder edit cannot transfer another account rule
+00:00 +0 -6: reminder edit cannot transfer another account rule [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted '4ff32f21-28c5-4c4c-bb83-bef56137ee07'
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\repository_account_isolation_test.dart 94:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 93:16  main.<fn>
+
+00:00 +0 -6: alarm edit cannot transfer another account rule
+00:00 +0 -7: alarm edit cannot transfer another account rule [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted 'a421da4f-ee5e-45b9-8bdc-5cce23427254'
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test\repository_account_isolation_test.dart 101:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 100:16  main.<fn>
+
+00:00 +0 -7: ad hoc timer edit cannot transfer another account history
+00:00 +0 -8: ad hoc timer edit cannot transfer another account history [E]
+  Expected: throws <Instance of 'StateError'>
+    Actual: <Instance of 'Future<String>'>
+     Which: emitted '23914e94-8f14-42a7-b364-032b39939d46'
+
+  package:matcher                                     expectLater
+  package:flutter_test/src/widget_tester.dart 507:8   expectLater
+  test\repository_account_isolation_test.dart 108:11  main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                          _CustomZone.registerUnaryCallback
+  test\repository_account_isolation_test.dart 107:16  main.<fn>
+
+00:00 +0 -8: Some tests failed.
+
+Failing tests:
+  test/repository_account_isolation_test.dart: ad hoc timer edit cannot transfer another account history
+  test/repository_account_isolation_test.dart: alarm edit cannot transfer another account rule
+  test/repository_account_isolation_test.dart: course edit cannot take ownership of another account record
+  test/repository_account_isolation_test.dart: course rule edit cannot take ownership of another account record
+  ... and 4 more

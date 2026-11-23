@@ -1,0 +1,18 @@
+00:00 +0: loading test/plan_repository_test.dart
+00:00 +0: plan progress is calculated from linked recurring task completions
+00:00 +1: plan data validation rejects blank names and unrelated task types
+00:00 +2: an existing plan subscription follows completion and its cancellation
+00:05 +2 -1: an existing plan subscription follows completion and its cancellation [E]
+  TimeoutException after 0:00:05.000000: Future not completed
+  dart:async  _startMicrotaskLoop
+
+00:05 +2 -1: an existing plan subscription follows a linked task schedule edit
+00:10 +2 -2: an existing plan subscription follows a linked task schedule edit [E]
+  TimeoutException after 0:00:05.000000: Future not completed
+  dart:async  _startMicrotaskLoop
+
+00:10 +2 -2: Some tests failed.
+
+Failing tests:
+  test/plan_repository_test.dart: an existing plan subscription follows a linked task schedule edit
+  test/plan_repository_test.dart: an existing plan subscription follows completion and its cancellation

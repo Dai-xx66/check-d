@@ -1,0 +1,369 @@
+00:00 +0: loading test/account_sync_page_test.dart
+00:00 +0: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:00 +1: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:00 +2: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:00 +3: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:00 +4: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:01 +5: test/appearance_theme_test.dart: decorative poses keep their semantic status across skins
+00:01 +6: test/appearance_theme_test.dart: decorative poses keep their semantic status across skins
+00:01 +7: test/appearance_theme_test.dart: decorative poses keep their semantic status across skins
+00:01 +8: test/appearance_theme_test.dart: decorative poses keep their semantic status across skins
+00:01 +9: test/appearance_theme_test.dart: decorative poses keep their semantic status across skins
+00:01 +10: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +11: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +12: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +13: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +13: test/auth_controller_test.dart: failed sign-out remains on the account and reports a safe error
+[Auth][signOut] StateError
+00:01 +14: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +15: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +16: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +17: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +18: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +19: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +20: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +21: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +22: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +23: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +24: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +25: test/calendar_month_cell_test.dart: month cell stays bounded across adaptive density cases
+00:01 +26: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:01 +27: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:01 +28: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:01 +29: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:02 +30: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:02 +31: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:02 +32: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:03 +33: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:03 +34: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:03 +35: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:03 +36: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:03 +37: test/appearance_theme_test.dart: changing skin preserves the settings route and selection
+00:03 +38: test/appearance_theme_test.dart: changing skin preserves the settings route and selection
+00:03 +39: test/appearance_theme_test.dart: changing skin preserves the settings route and selection
+00:03 +40: test/appearance_theme_test.dart: changing skin preserves the settings route and selection
+00:03 +41: test/appearance_theme_test.dart: changing skin preserves the settings route and selection
+00:03 +42: test/check_d_design_system_test.dart: missing state artwork falls back without crashing
+00:03 +43: test/check_d_design_system_test.dart: sheep state resolver keeps execution priorities stable
+00:03 +44: test/check_d_design_system_test.dart: six sheep states expose stable semantic labels
+00:03 +45: test/check_d_design_system_test.dart: plain surfaces stay crisp and glass surfaces own the blur
+00:03 +46: test/check_d_design_system_test.dart: surface hierarchy keeps blur limited to three glass levels
+00:03 +47: test/check_d_design_system_test.dart: reduced motion removes sheep entrance animation
+00:03 +48: test/check_d_design_system_test.dart: sheep state change crossfades to its matching asset
+00:03 +49: test/check_d_design_system_test.dart: timer-like same-state rebuild does not restart sheep motion
+00:04 +50: test/check_d_design_system_test.dart: complete sheep feedback settles after one presentation
+00:04 +51: test/check_d_design_system_test.dart: section title survives narrow width and enlarged text
+00:04 +52: test/check_d_design_system_test.dart: pressable scales on pointer down and restores on release
+00:04 +53: test/course_document_import_adapter_test.dart: HTML table uses the shared tabular parser
+00:04 +54: test/course_document_import_adapter_test.dart: HTML timetable grid expands rowspan and colspan
+00:04 +55: test/course_document_import_adapter_test.dart: HTML reports no timetable rather than parsing a normal page
+00:04 +56: test/course_document_import_adapter_test.dart: malformed HTML has a clear category
+00:04 +57: test/course_document_import_adapter_test.dart: multiple HTML tables can be inspected and selected
+00:04 +58: test/course_document_import_adapter_test.dart: text PDF uses the same tabular course parser
+00:04 +59: test/course_document_import_adapter_test.dart: image-only PDF has an explicit safe error
+00:05 +60: test/course_import_pipeline_test.dart: unified import pipeline single and multiple OCR courses normalize into one draft
+00:05 +61: test/course_import_pipeline_test.dart: unified import pipeline week ranges and every week mode survive normalization
+00:05 +62: test/course_import_pipeline_test.dart: unified import pipeline odd even everyN and custom week modes remain explicit
+00:05 +63: test/course_import_pipeline_test.dart: unified import pipeline portable segments match local template without sharing local IDs
+00:05 +64: test/course_import_pipeline_test.dart: unified import pipeline unmatched portable segment falls back to custom time
+00:05 +65: test/course_import_pipeline_test.dart: unified import pipeline invalid week range is reported without inventing replacement data
+00:05 +66: test/course_import_pipeline_test.dart: unified import pipeline conflict checker reports existing and intra-import conflicts
+00:05 +67: test/course_import_pipeline_test.dart: share schema classifies current and future schema compatibility
+00:05 +68: test/course_import_pipeline_test.dart: share schema single and semester-wide packages round trip portably
+00:05 +69: test/course_import_pipeline_test.dart: share schema share payload excludes private activity and sync data
+00:05 +70: test/course_import_pipeline_test.dart: share schema notes can be excluded before sharing
+00:05 +71: test/course_import_pipeline_test.dart: share schema invalid payload and unsupported schema version are distinguished
+00:06 +72: test/course_import_ux_copy_test.dart: import sources have user-facing Chinese labels
+00:06 +73: test/course_import_ux_copy_test.dart: QR image uses the existing Check D share-code validation
+00:06 +74: test/course_import_ux_copy_test.dart: import warnings and image-only PDF errors are localized
+00:07 +75: test/course_occurrence_phase_test.dart: two selected segments create one occurrence with a derived break
+00:07 +76: test/course_occurrence_phase_test.dart: course phase and progress are derived from current time
+00:07 +77: test/course_occurrence_phase_test.dart: three selected segments preserve their teaching and break sequence
+00:07 +78: test/course_occurrence_phase_test.dart: old single-segment rules remain one teaching phase
+00:07 +79: test/course_occurrence_phase_test.dart: custom time, reschedule, cancellation and extra course stay effective
+00:07 +80: test/course_occurrence_phase_test.dart: a gap between different courses never becomes a course break
+00:07 +81: test/course_occurrence_phase_test.dart: overlapping course occurrences are all preserved
+00:07 +82: test/course_repository_test.dart: course is stored separately from tasks and supports multiple rules
+00:08 +83: test/course_repository_test.dart: schedule template preserves class and break segments
+00:08 +84: test/course_repository_test.dart: today course projection applies week rules and one-day overrides
+00:08 +85: test/course_repository_test.dart: today course projection respects semester date boundaries
+00:08 +86: test/course_schedule_import_service_test.dart: recognition stays a draft until the user confirms import
+00:09 +87: test/course_schedule_import_service_test.dart: spreadsheet import stays a draft until confirmation
+00:09 +88: test/course_schedule_import_service_test.dart: missing template never guesses periods and only creates one after confirmation
+00:09 +89: test/course_schedule_import_service_test.dart: recognized times never overwrite an existing semester template
+00:09 +90: test/course_schedule_layout_parser_test.dart: maps Monday course block and section range into one draft rule
+00:09 +91: test/course_schedule_layout_parser_test.dart: keeps non-contiguous sections and parses odd/even/custom weeks
+00:09 +92: test/course_schedule_layout_parser_test.dart: unknown week information remains needs-review instead of every week
+00:09 +93: test/course_schedule_layout_parser_test.dart: reports which table axis was not found
+00:09 +94: test/course_schedule_layout_parser_test.dart: same course with matching teacher and room is grouped across days
+00:09 +95: test/course_schedule_layout_parser_test.dart: filters schedule metadata, headers, labels and watermarks
+00:09 +96: test/course_schedule_layout_parser_test.dart: groups multiple OCR lines in a valid course cell into one draft
+00:09 +97: test/course_schedule_layout_parser_test.dart: rejects a course-like token outside the schedule body
+00:09 +98: test/course_schedule_layout_parser_test.dart: keeps an uncertain valid cell as needs-review, not every week
+00:09 +99: test/course_share_test.dart: course share repository local IDs and private notes are excluded by default
+00:09 +100: test/course_share_test.dart: course share repository single course encode store fetch decode round trip
+00:09 +101: test/course_share_test.dart: course share repository multi-course package remains complete
+00:09 +102: test/course_share_test.dart: course share repository invalid, missing and expired codes stay distinct
+00:09 +103: test/course_share_test.dart: course share repository corrupted and unsupported payloads stay distinct
+00:09 +104: test/course_share_test.dart: course share repository offline fetch returns a network-specific error
+00:09 +105: test/course_share_test.dart: course share repository creating requires authentication-capable remote
+00:09 +106: test/course_share_test.dart: course share repository course count and payload size limits are enforced
+00:09 +107: test/course_share_test.dart: course share repository QR payload parses deep links and rejects unrelated links
+00:09 +108: test/course_share_test.dart: shared course import confirmation preview writes nothing and confirm imports selected courses
+00:09 +109: test/course_share_test.dart: shared course import confirmation preview writes nothing and confirm imports selected courses
+00:09 +110: test/course_spreadsheet_import_adapter_test.dart: CourseSpreadsheetImportAdapter CSV supports weekday variants and odd even custom week rules
+00:09 +111: test/course_share_test.dart: shared course import confirmation existing duplicate is reported but never auto-merged
+00:09 +112: test/course_share_test.dart: shared course import confirmation existing duplicate is reported but never auto-merged
+00:09 +113: test/course_share_test.dart: shared course import confirmation existing duplicate is reported but never auto-merged
+00:09 +114: test/course_spreadsheet_import_adapter_test.dart: CourseSpreadsheetImportAdapter CSV rejects unrecognized headers instead of guessing columns
+00:09 +115: test/course_spreadsheet_import_adapter_test.dart: CourseSpreadsheetImportAdapter CSV marks invalid time and week values for preview correction
+00:09 +116: test/course_spreadsheet_import_adapter_test.dart: CourseSpreadsheetImportAdapter CSV enforces file and row limits before a draft is created
+00:09 +117: test/course_spreadsheet_import_adapter_test.dart: CourseSpreadsheetImportAdapter Excel selects an explicit non-empty sheet and parses standard xlsx
+00:10 +118: test/database_migration_test.dart: v19 to v20 preserves old one-time dates without inventing deadlines
+00:10 +119: test/database_test.dart: local task and its sync operation are persisted
+00:10 +120: test/database_migration_test.dart: latest-version database missing Multi Timer intervals self-heals without data loss
+00:10 +121: test/database_migration_test.dart: latest-version database missing Multi Timer intervals self-heals without data loss
+00:10 +122: test/database_test.dart: v5 migration retains sessions and leaves old tags unassigned
+00:10 +123: test/day_schedule_repository_test.dart: one-day override does not mutate recurring rule
+00:10 +124: test/day_schedule_repository_test.dart: due reminder, advance reminder and alarm are separate rules
+00:10 +125: test/day_schedule_repository_test.dart: ad hoc timer is queryable by date and splits cross-day duration
+00:10 +126: test/day_schedule_repository_test.dart: ad hoc timer lifecycle keeps timer state independent
+00:10 +127: test/day_schedule_repository_test.dart: ad hoc timer lifecycle keeps timer state independent
+00:10 +128: test/day_schedule_repository_test.dart: ad hoc timer lifecycle keeps timer state independent
+00:10 +129: test/day_schedule_repository_test.dart: ad hoc timers run independently and preserve pause intervals
+00:10 +130: test/home_widget_snapshot_test.dart: idle snapshot has safe current and untimed pending fallback
+00:10 +131: test/home_widget_snapshot_test.dart: course teaching is primary and keeps running timer concurrent
+00:10 +132: test/home_widget_snapshot_test.dart: course break remains primary and exposes paused timer
+00:10 +133: test/home_widget_snapshot_test.dart: timer-only projection keeps running before paused and counts extras
+00:10 +134: test/home_widget_snapshot_test.dart: paused timer is primary when no running timer exists
+00:10 +135: test/home_widget_snapshot_test.dart: course plus multiple timers exposes primary and extra count
+00:10 +136: test/home_widget_snapshot_test.dart: next prioritizes course, then precise item, then untimed pending
+00:10 +137: test/home_widget_snapshot_test.dart: today summary uses task counts and never includes a course
+00:10 +138: test/home_widget_snapshot_test.dart: serialization is v2, null-safe and date-specific
+00:10 +139: test/local_ocr_engine_test.dart: PNG bytes are passed to native OCR
+00:10 +140: test/local_ocr_engine_test.dart: JPEG bytes are passed to native OCR
+00:10 +141: test/local_ocr_engine_test.dart: native image decode failure has a readable error
+00:10 +142: test/local_ocr_engine_test.dart: empty native OCR result remains a valid no-text result
+00:10 +143: test/local_ocr_engine_test.dart: Chinese multiline tokens preserve native reading order
+00:10 +144: test/local_ocr_engine_test.dart: native recognizer initialization failure is distinguished
+00:10 +145: test/local_ocr_engine_test.dart: native recognition failure has a stable user-facing error
+00:10 +146: test/local_ocr_engine_test.dart: unsupported native platform has a stable user-facing error
+00:10 +147: test/local_ocr_engine_test.dart: null native result is not treated as an empty draft
+00:10 +148: test/lock_screen_status_snapshot_test.dart: course teaching remains primary and includes a running timer
+00:10 +149: test/lock_screen_status_snapshot_test.dart: multi-segment course exposes an actual derived break
+00:10 +150: test/lock_screen_status_snapshot_test.dart: running timer wins over paused timers with stable additional count
+00:10 +151: test/lock_screen_status_snapshot_test.dart: paused timer preserves accumulated time without a running timestamp
+00:10 +152: test/lock_screen_status_snapshot_test.dart: finished course and timer reconcile to idle and serialize safely
+00:10 +153: test/lock_screen_status_snapshot_test.dart: course with only a paused timer includes paused summary
+00:10 +154: test/lock_screen_status_snapshot_test.dart: course with multiple running timers preserves primary and count
+00:10 +155: test/lock_screen_status_snapshot_test.dart: course break remains primary while exposing a running timer
+00:10 +156: test/lock_screen_status_snapshot_test.dart: course without a timer remains a course-only projection
+00:10 +157: test/lock_screen_status_snapshot_test.dart: timer without a course keeps timer as the primary state
+00:10 +158: test/lock_screen_status_snapshot_test.dart: course and timer projection is read-only
+00:10 +159: test/lock_screen_status_snapshot_test.dart: next course in 30 minutes is visible without a current course
+00:10 +160: test/lock_screen_status_snapshot_test.dart: next course at exactly two hours is visible
+00:10 +161: test/lock_screen_status_snapshot_test.dart: next course after two hours and one minute is hidden
+00:10 +162: test/lock_screen_status_snapshot_test.dart: active timer does not alter the next-course window
+00:10 +163: test/lock_screen_status_snapshot_test.dart: next-course window is independent of reminder configuration
+00:11 +164: test/mini_window_repository_test.dart: keeps running timers before paused timers in stable activity order
+00:11 +165: test/plan_repository_test.dart: plan progress is calculated from linked recurring task completions
+00:11 +166: test/plan_repository_test.dart: plan progress is calculated from linked recurring task completions
+00:11 +167: test/plan_repository_test.dart: plan progress is calculated from linked recurring task completions
+00:11 +168: test/plan_repository_test.dart: plan data validation rejects blank names and unrelated task types
+00:11 +169: test/plan_repository_test.dart: an existing plan subscription follows completion and its cancellation
+00:11 +170: test/plan_repository_test.dart: an existing plan subscription follows a linked task schedule edit
+00:11 +171: test/reminder_defaults_test.dart: reminder defaults persist per user without changing saved rules
+00:11 +172: test/reminder_defaults_test.dart: time helper forces 24-hour picker media settings
+00:11 +173: test/reminder_defaults_test.dart: time helper forces 24-hour picker media settings
+00:11 +174: test/reminder_defaults_test.dart: time helper forces 24-hour picker media settings
+00:11 +175: test/reminder_defaults_test.dart: time helper forces 24-hour picker media settings
+00:11 +176: test/reminder_defaults_test.dart: time helper forces 24-hour picker media settings
+00:11 +177: test/repository_account_isolation_test.dart: course edit cannot take ownership of another account record
+00:11 +178: test/reminder_scheduler_test.dart: course advance and at-time reminder settings are independent
+00:11 +179: test/reminder_scheduler_test.dart: course advance and at-time reminder settings are independent
+00:11 +180: test/repository_account_isolation_test.dart: same owner can edit a course without replacing its creation time
+00:11 +181: test/reminder_scheduler_test.dart: course occurrence reminder override affects only that date
+00:11 +182: test/reminder_scheduler_test.dart: course occurrence reminder override affects only that date
+00:11 +183: test/repository_account_isolation_test.dart: course rule edit cannot take ownership of another account record
+00:11 +184: test/reminder_scheduler_test.dart: course reschedule and cancellation rebuild the effective occurrence reminders
+00:11 +185: test/reminder_scheduler_test.dart: course reschedule and cancellation rebuild the effective occurrence reminders
+00:11 +186: test/reminder_scheduler_test.dart: course reschedule and cancellation rebuild the effective occurrence reminders
+00:11 +187: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:11 +188: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:12 +189: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:12 +190: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:12 +191: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:12 +192: test/review_repository_test.dart: review snapshot combines completed tasks and timed sessions
+00:12 +193: test/review_repository_test.dart: one review per period is updated while preserving its identity
+00:12 +194: test/semester_repository_test.dart: templates persist periods and reject invalid or overlapping times
+00:12 +195: test/semester_repository_test.dart: only one semester is current and referenced templates stay protected
+00:12 +196: test/semester_repository_test.dart: editing a referenced template keeps period ids and blocks removal
+00:12 +197: test/semester_repository_test.dart: semantic weeks begin on the exact configured first-week date
+00:12 +198: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +199: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +200: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +201: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +202: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +203: test/statistics_charts_test.dart: StatisticsPeriod.week trend and distribution render without overflow
+00:12 +204: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +205: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +206: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +207: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +208: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +209: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +210: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +211: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +212: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +213: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +214: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +215: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +216: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +217: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +218: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +219: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +220: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +221: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:12 +222: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +223: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +224: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +225: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +226: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +227: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +228: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +229: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +230: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +231: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +232: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +233: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +234: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +235: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +236: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +237: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +238: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +239: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +240: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +241: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +242: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +243: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +244: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +245: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +246: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +247: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +248: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +249: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +250: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +251: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +252: test/statistics_widget_test.dart: statistics periods and layout at width 320.0
+00:13 +253: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +254: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +255: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +256: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +257: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +258: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +259: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +260: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +261: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +262: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +263: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +264: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +265: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +266: test/sync_gate_test.dart: first restore keeps the authenticated shell gated
+00:13 +267: test/statistics_widget_test.dart: statistics periods and layout at width 390.0
+00:13 +268: test/statistics_widget_test.dart: statistics periods and layout at width 390.0
+00:13 +269: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:13 +270: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:13 +271: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:13 +272: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:13 +273: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +274: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +275: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +276: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +277: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +278: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +279: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +280: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +281: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +282: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:14 +283: test/statistics_widget_test.dart: statistics empty state uses idle sheep without execution action
+00:14 +284: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +285: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +286: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +287: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +288: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +289: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +290: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +291: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +292: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +293: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +294: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +295: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +296: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +297: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +298: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +299: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +300: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +301: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +302: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +303: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +304: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +305: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +306: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +307: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +308: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +309: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +310: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +311: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +312: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +313: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +314: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +315: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +316: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +317: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +318: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +319: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +320: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +321: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +322: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +323: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +324: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +325: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +326: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +327: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +328: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +329: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +330: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +331: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +332: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +333: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +334: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +335: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +336: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +337: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +338: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +339: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +340: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +341: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +342: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +343: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +344: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +345: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +346: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +347: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +348: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +349: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +350: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +351: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +352: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +353: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:14 +354: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:15 +355: test/task_flow_widget_test.dart: creates an untimed recurring task from the add entry
+00:15 +356: test/widget_test.dart: offline entry opens the app shell
+00:16 +357: test/widget_test.dart: offline entry opens the app shell
+00:16 +358: test/widget_test.dart: mobile today splits pending and precisely scheduled items
+00:17 +359: test/widget_test.dart: desktop width uses the desktop sidebar
+00:18 +360: test/widget_test.dart: desktop pending timed task starts without opening details
+00:19 +361: test/widget_test.dart: mobile calendar opens the selected day details
+00:19 +362: test/widget_test.dart: desktop calendar keeps day details beside the month
+00:19 +363: test/widget_test.dart: my page keeps all settings entries across responsive widths
+00:20 +364: test/widget_test.dart: (tearDownAll)
+00:20 +364: All tests passed!

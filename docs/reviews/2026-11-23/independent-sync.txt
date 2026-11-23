@@ -1,0 +1,68 @@
+00:00 +0: loading test/sync_remote_reader_test.dart
+00:00 +0: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +1: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +2: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +3: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +4: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +5: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +6: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +7: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +8: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +9: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +10: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +11: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +12: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +13: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +14: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +15: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +16: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +17: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +18: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +19: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +20: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +21: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +22: test/sync_remote_reader_test.dart: restore reads all rows when the server caps each response
+00:00 +23: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +24: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +25: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +26: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +27: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +28: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +29: test/sync_download_service_test.dart: cloud deletion removes restored timer_sessions and blocks stale resurrection
+00:00 +30: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +31: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +32: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +33: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +34: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +35: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +36: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +37: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +38: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +39: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +40: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +41: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +42: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +43: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +44: test/sync_account_service_test.dart: initial restore exposes loading state before showing data
+00:00 +45: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +46: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +47: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +48: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +49: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +50: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +51: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +52: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +53: test/sync_queue_diagnostics_test.dart: diagnostics only expose failed operations for the requested UID
+00:00 +54: test/sync_account_service_test.dart: legacy last-success is accepted only for the same UID
+00:00 +55: test/sync_account_service_test.dart: legacy last-success is accepted only for the same UID
+00:00 +56: test/sync_queue_diagnostics_test.dart: reading diagnostics never changes or clears failed operations
+00:00 +57: test/sync_account_service_test.dart: table timeout closes loading state and exposes safe metadata
+00:00 +58: test/sync_account_service_test.dart: table timeout closes loading state and exposes safe metadata
+00:00 +59: test/sync_queue_diagnostics_test.dart: opaque legacy errors are not assigned invented diagnostics
+00:00 +60: test/sync_account_service_test.dart: download success opens the gate before a hanging upload
+00:00 +61: test/sync_account_service_test.dart: download success opens the gate before a hanging upload
+00:00 +62: test/sync_account_service_test.dart: permanently pending upload times out without relocking AppShell
+00:00 +63: test/sync_account_service_test.dart: upload failure remains visible without relocking the gate
+00:00 +64: test/sync_account_service_test.dart: late background upload from A cannot overwrite B account state
+00:00 +65: test/sync_account_service_test.dart: resume never relocks an account with a restore checkpoint
+00:00 +66: All tests passed!
