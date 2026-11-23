@@ -157,6 +157,88 @@ void main() {
   });
 
   test(
+    'supplemental agent reminders survive the common future rebuild',
+    () async {
+      final now = DateTime(2026, 9, 8, 9);
+      final common = ReminderScheduler(
+        notifications: notifications,
+        tasks: tasks,
+        courses: CourseRepository(
+          database: database,
+          syncQueue: SyncQueueService(database),
+          userId: 'user',
+        ),
+        semesters: SemesterRepository(
+          database: database,
+          syncQueue: SyncQueueService(database),
+          userId: 'user',
+        ),
+        schedule: schedule,
+        supplementalSource: (current, through) async => [
+          SupplementalReminder(
+            id: 123,
+            when: now.add(const Duration(hours: 1)),
+            title: '进度核对',
+            body: '不代表已读或完成',
+          ),
+        ],
+      );
+      await common.refreshFuture(now: now);
+      await common.refreshFuture(now: now);
+      expect(notifications.scheduled, hasLength(1));
+      expect(notifications.scheduled.single.id, 123);
+      expect(notifications.cancelledAll, isTrue);
+    },
+  );
+
+  test(
+    'agent start source does not duplicate an existing at-time reminder',
+    () async {
+      final day = DateTime(2026, 9, 8);
+      final id = await tasks.saveOneTimeReminder(
+        OneTimeReminderDraft(
+          name: '听力',
+          colorValue: 0xFF80A8F5,
+          scheduledAt: DateTime(2026, 9, 8, 10),
+        ),
+      );
+      await schedule.replaceReminderConfiguration(
+        ownerType: DayItemType.oneTime,
+        ownerId: id,
+        advanceEnabled: false,
+        atTimeEnabled: true,
+      );
+      final common = ReminderScheduler(
+        notifications: notifications,
+        tasks: tasks,
+        courses: CourseRepository(
+          database: database,
+          syncQueue: SyncQueueService(database),
+          userId: 'user',
+        ),
+        semesters: SemesterRepository(
+          database: database,
+          syncQueue: SyncQueueService(database),
+          userId: 'user',
+        ),
+        schedule: schedule,
+        supplementalSource: (_, _) async => [
+          SupplementalReminder(
+            id: 321,
+            when: DateTime(2026, 9, 8, 10),
+            title: '该开始听力了',
+            body: '开始',
+              atTimeOccurrenceId: 'task:$id:${day.toIso8601String()}',
+          ),
+        ],
+      );
+      await common.refreshFuture(now: DateTime(2026, 9, 8, 9));
+      expect(notifications.scheduled, hasLength(1));
+      expect(notifications.scheduled.single.id, isNot(321));
+    },
+  );
+
+  test(
     'course advance and at-time reminder settings are independent',
     () async {
       final day = DateTime(2026, 9, 7); // Monday

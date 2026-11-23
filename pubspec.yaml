@@ -30,6 +30,12 @@ dependencies:
   csv: ^8.0.0
   html: ^0.15.7
   syncfusion_flutter_pdf: ^33.2.13
+  archive: ^3.6.1
+  xml: ^6.6.1
+  pdfx: 2.11.0
+  webview_flutter: ^4.14.1
+  webview_windows: ^0.4.0
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:

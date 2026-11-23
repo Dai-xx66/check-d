@@ -223,6 +223,8 @@ void main() {
     Navigator.of(tester.element(find.text('今天做'))).pop();
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byType(PageView));
+    await tester.pumpAndSettle();
     await tester.drag(find.byType(PageView), const Offset(-140, 0));
     await tester.pumpAndSettle();
     expect(find.text('明日待完成'), findsOneWidget);

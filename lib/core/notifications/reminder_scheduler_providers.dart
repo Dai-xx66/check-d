@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/courses/application/course_providers.dart';
+import '../../features/agent/application/agent_reminder_providers.dart';
 import '../../features/schedule/application/day_schedule_providers.dart';
 import '../../features/tasks/application/task_providers.dart';
 import '../../features/tasks/domain/task_models.dart';
@@ -17,6 +18,7 @@ final reminderSchedulerProvider = Provider<ReminderScheduler>((ref) {
     courses: ref.watch(courseRepositoryProvider),
     semesters: ref.watch(semesterRepositoryProvider),
     schedule: ref.watch(dayScheduleRepositoryProvider),
+    supplementalSource: ref.watch(agentSupplementalReminderSourceProvider),
   );
 });
 
@@ -45,6 +47,7 @@ class _ReminderSchedulerHostState extends ConsumerState<ReminderSchedulerHost>
     ref.listenManual(semestersProvider, (_, _) => _queue());
     ref.listenManual(scheduleTemplatesProvider, (_, _) => _queue());
     ref.listenManual(reminderScheduleTriggerProvider, (_, _) => _queue());
+    ref.listenManual(agentReminderContextProvider, (_, _) => _queue());
     _queue();
   }
 

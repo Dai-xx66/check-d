@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
+import '../../agent/presentation/agent_page.dart';
 import '../../courses/presentation/schedule_template_page.dart';
 import '../../courses/presentation/semester_settings_page.dart';
 import '../../tags/presentation/tags_page.dart';
@@ -109,6 +110,8 @@ class _MyMobileSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
+      _myAgentSection(onOpen, context),
+      const SizedBox(height: 14),
       _MySection(
         title: '时间与课程',
         tone: AppColors.blueMist,
@@ -261,6 +264,8 @@ class _MyDesktopSettings extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
+      _myAgentSection(onOpen, context),
+      const SizedBox(height: 18),
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -404,6 +409,23 @@ class _MyDesktopSettings extends StatelessWidget {
     ],
   );
 }
+
+Widget _myAgentSection(
+  void Function(BuildContext, Widget) onOpen,
+  BuildContext context,
+) => _MySection(
+  title: '智能体',
+  tone: AppColors.blueMist,
+  children: [
+    _MyTile(
+      icon: CheckDIconType.insight,
+      color: AppColors.primaryStrong,
+      title: 'CheckD 智能体',
+      subtitle: '聊目标、读课表、调整任务与日程',
+      onTap: () => onOpen(context, const AgentPage()),
+    ),
+  ],
+);
 
 class _MySection extends StatelessWidget {
   const _MySection({

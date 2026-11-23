@@ -14,6 +14,9 @@ import '../core/sync/sync_providers.dart';
 import '../core/sync/sync_upload_host.dart';
 import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_page.dart';
+import '../features/agent/presentation/agent_reminder_host.dart';
+import '../features/agent/presentation/agent_page.dart';
+import '../shared/widgets/check_d_design.dart';
 import '../features/home_widget/presentation/home_widget_host.dart';
 import '../features/lock_screen/presentation/lock_screen_status_host.dart';
 import '../features/shell/presentation/app_shell.dart';
@@ -27,7 +30,9 @@ class CheckDApp extends ConsumerStatefulWidget {
 }
 
 class _CheckDAppState extends ConsumerState<CheckDApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final _router = GoRouter(
+    navigatorKey: _navigatorKey,
     routes: [GoRoute(path: '/', builder: (context, state) => const _AppGate())],
   );
 
@@ -54,6 +59,14 @@ class _CheckDAppState extends ConsumerState<CheckDApp> {
                 title: 'Check D',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.build(AppSkin.of(skinId)),
+                builder: (context, child) => AgentReminderHost(
+                  child: child ?? const SizedBox.shrink(),
+                  onOpen: (request) => _navigatorKey.currentState?.push<void>(
+                    checkDPageRoute<void>(
+                      builder: (_) => AgentPage(initialRequest: request),
+                    ),
+                  ),
+                ),
                 routerConfig: _router,
               ),
             ),
