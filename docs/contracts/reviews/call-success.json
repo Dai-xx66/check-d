@@ -1,0 +1,98 @@
+{
+ "tool": "checkd-m1.list_tasks",
+ "result": {
+  "api_version": "checkd.agent.v1",
+  "request_id": "c0c500ff-443c-434d-9420-1395b7c1c40a",
+  "trace_id": "trace_e0de08266854414f",
+  "status": "success",
+  "data": {
+   "query_version": "c131783c8ff28181ee3c39b066d9ddac8b47cd801fff024b199ff015b15daa1a",
+   "tasks": [
+    {
+     "task_id": "t_1001",
+     "kind": "one_time",
+     "name": "完成实验报告",
+     "status": "active",
+     "execution_mode": "timed",
+     "available_from": "2026-10-29",
+     "planned_date": null,
+     "scheduled_at": null,
+     "deadline": {
+      "kind": "exact",
+      "at": "2026-10-31T18:00:00+08:00"
+     },
+     "duration_target_seconds": 5400,
+     "updated_at": "2026-10-29T09:00:00+08:00"
+    },
+    {
+     "task_id": "t_1002",
+     "kind": "one_time",
+     "name": "英语六级听力复习",
+     "status": "active",
+     "execution_mode": "timed",
+     "available_from": "2026-10-29",
+     "planned_date": null,
+     "scheduled_at": null,
+     "deadline": {
+      "kind": "date_only",
+      "date": "2026-11-02"
+     },
+     "duration_target_seconds": 3600,
+     "updated_at": "2026-10-29T09:00:00+08:00"
+    },
+    {
+     "task_id": "t_1003",
+     "kind": "recurring",
+     "name": "背单词",
+     "status": "active",
+     "execution_mode": "timed",
+     "duration_target_seconds": 1800,
+     "updated_at": "2026-10-29T09:00:00+08:00",
+     "recurrence": {
+      "preset": "daily",
+      "weekdays": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "starts_on": "2026-10-20",
+      "ends_on": null,
+      "scheduled_minute_of_day": null
+     }
+    },
+    {
+     "task_id": "t_1004",
+     "kind": "recurring",
+     "name": "线性代数复习",
+     "status": "active",
+     "execution_mode": "timed",
+     "duration_target_seconds": 3600,
+     "updated_at": "2026-10-29T09:00:00+08:00",
+     "recurrence": {
+      "preset": "daily",
+      "weekdays": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7
+      ],
+      "starts_on": "2026-10-20",
+      "ends_on": null,
+      "scheduled_minute_of_day": null
+     }
+    }
+   ],
+   "date_range": {
+    "start": "2026-10-29",
+    "end": "2026-10-31"
+   }
+  }
+ }
+}

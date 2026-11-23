@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "checkd-agent-mock": {
+      "command": "python",
+      "args": [
+        "<ABSOLUTE_PATH_TO_REPO>/tools/m1-mock/tool_server.py"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "CHECKD_TOKEN": "demo-token-alice"
+      }
+    }
+  }
+}
