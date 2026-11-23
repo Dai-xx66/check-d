@@ -5,6 +5,7 @@ import 'package:check_d/features/courses/data/semester_repository.dart';
 import 'package:check_d/features/courses/domain/course_models.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,6 +28,22 @@ void main() {
     syncQueue: queue,
     userId: owner,
   );
+  Future<void> addTask(DayItemType type) async {
+    final now = DateTime(2026, 11, 23);
+    await database
+        .into(database.localTasks)
+        .insert(
+          LocalTasksCompanion.insert(
+            id: 'task',
+            userId: const Value('account-a'),
+            name: 'Task',
+            taskType: type.name,
+            colorValue: 1,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+  }
 
   test('course edit cannot take ownership of another account record', () async {
     const draft = CourseDraft(name: 'Account A course', colorValue: 1);
@@ -168,6 +185,7 @@ void main() {
   test(
     'daily override edit cannot transfer another account exception',
     () async {
+      await addTask(DayItemType.recurring);
       final draft = DailyItemOverrideDraft(
         itemType: DayItemType.recurring,
         itemId: 'task',
@@ -189,6 +207,7 @@ void main() {
   );
 
   test('reminder edit cannot transfer another account rule', () async {
+    await addTask(DayItemType.oneTime);
     const draft = ReminderRuleDraft(
       ownerType: DayItemType.oneTime,
       ownerId: 'task',
@@ -207,6 +226,7 @@ void main() {
   });
 
   test('alarm edit cannot transfer another account rule', () async {
+    await addTask(DayItemType.oneTime);
     const draft = AlarmRuleDraft(
       ownerType: DayItemType.oneTime,
       ownerId: 'task',

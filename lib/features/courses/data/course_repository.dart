@@ -73,6 +73,18 @@ class CourseRepository {
         if (draft.name.trim().isEmpty) {
           throw ArgumentError.value(draft.name, 'name', '请填写课程名称');
         }
+        final semesterId = draft.semesterId;
+        if (semesterId != null) {
+          final semester =
+              await (_database.select(_database.semesterRecords)..where(
+                    (row) =>
+                        row.id.equals(semesterId) &
+                        row.userId.equals(_userId) &
+                        row.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull();
+          if (semester == null) throw StateError('学期不存在');
+        }
         final now = DateTime.now().toUtc();
         final id = courseId ?? _uuid.v4();
         final existing = await (_database.select(
@@ -131,6 +143,7 @@ class CourseRepository {
     String? ruleId,
   }) => _database.transaction(() async {
     _validateScheduleRule(draft);
+    await _validateScheduleRuleParents(draft);
     final now = DateTime.now().toUtc();
     final id = ruleId ?? _uuid.v4();
     final existing = await (_database.select(
@@ -191,6 +204,51 @@ class CourseRepository {
     );
     return id;
   });
+
+  Future<void> _validateScheduleRuleParents(
+    CourseScheduleRuleDraft draft,
+  ) async {
+    final course =
+        await (_database.select(_database.courseRecords)..where(
+              (row) =>
+                  row.id.equals(draft.courseId) &
+                  row.userId.equals(_userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (course == null) throw StateError('课程不存在');
+
+    final templateId = draft.scheduleTemplateId;
+    if (templateId == null) {
+      if (draft.sectionIds.isNotEmpty) throw StateError('节次需要关联作息模板');
+      return;
+    }
+    final template =
+        await (_database.select(_database.scheduleTemplateRecords)..where(
+              (row) =>
+                  row.id.equals(templateId) &
+                  row.userId.equals(_userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (template == null) throw StateError('作息模板不存在');
+
+    final sectionIds = draft.sectionIds.toSet();
+    if (sectionIds.isEmpty) return;
+    final sections =
+        await (_database.select(_database.scheduleTemplateSegmentRecords)
+              ..where(
+                (row) =>
+                    row.id.isIn(sectionIds) &
+                    row.templateId.equals(templateId) &
+                    row.userId.equals(_userId) &
+                    row.deletedAt.isNull(),
+              ))
+            .get();
+    if (sections.length != sectionIds.length) {
+      throw StateError('节次不存在或不属于所选作息模板');
+    }
+  }
 
   Future<String> saveScheduleTemplate(
     ScheduleTemplateDraft draft, {

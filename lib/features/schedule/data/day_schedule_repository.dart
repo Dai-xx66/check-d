@@ -59,6 +59,7 @@ class DayScheduleRepository {
     String? overrideId,
   }) => _database.transaction(() async {
     _validateOverride(draft);
+    await _requireOwnedScheduleItem(draft.itemType, draft.itemId);
     final now = DateTime.now().toUtc();
     final id = overrideId ?? _uuid.v4();
     final existing = await (_database.select(
@@ -154,9 +155,9 @@ class DayScheduleRepository {
     }
     final now = DateTime.now().toUtc();
     final dateKey = localDate == null ? null : localDateKey(localDate);
-    final removedRuleIds = <String>[];
-    final addedRuleIds = <String>[];
     await _database.transaction(() async {
+      await _requireOwnedScheduleItem(ownerType, ownerId);
+      final addedRuleIds = <String>[];
       final existing =
           await (_database.select(_database.reminderRuleRecords)..where(
                 (row) =>
@@ -169,7 +170,6 @@ class DayScheduleRepository {
                     row.deletedAt.isNull(),
               ))
               .get();
-      removedRuleIds.addAll(existing.map((rule) => rule.id));
       await (_database.update(_database.reminderRuleRecords)..where(
             (row) =>
                 row.userId.equals(_userId) &
@@ -224,30 +224,31 @@ class DayScheduleRepository {
               ),
             );
       }
+      for (final rule in existing) {
+        await _syncQueue.enqueue(
+          entityType: 'reminder_rules',
+          entityId: rule.id,
+          operation: SyncOperationType.archive,
+          payload: {'id': rule.id, 'deleted_at': now.toIso8601String()},
+          userId: _userId,
+        );
+      }
+      for (final id in addedRuleIds) {
+        await _syncQueue.enqueue(
+          entityType: 'reminder_rules',
+          entityId: id,
+          operation: SyncOperationType.upsert,
+          payload: {'id': id, 'updated_at': now.toIso8601String()},
+          userId: _userId,
+        );
+      }
     });
-    for (final id in removedRuleIds) {
-      await _syncQueue.enqueue(
-        entityType: 'reminder_rules',
-        entityId: id,
-        operation: SyncOperationType.archive,
-        payload: {'id': id, 'deleted_at': now.toIso8601String()},
-        userId: _userId,
-      );
-    }
-    for (final id in addedRuleIds) {
-      await _syncQueue.enqueue(
-        entityType: 'reminder_rules',
-        entityId: id,
-        operation: SyncOperationType.upsert,
-        payload: {'id': id, 'updated_at': now.toIso8601String()},
-        userId: _userId,
-      );
-    }
   }
 
   Future<String> saveReminderRule(ReminderRuleDraft draft, {String? ruleId}) =>
       _database.transaction(() async {
         _validateReminderRule(draft);
+        await _requireOwnedScheduleItem(draft.ownerType, draft.ownerId);
         final now = DateTime.now().toUtc();
         final id = ruleId ?? _uuid.v4();
         final existing = await (_database.select(
@@ -304,6 +305,7 @@ class DayScheduleRepository {
   Future<String> saveAlarmRule(AlarmRuleDraft draft, {String? ruleId}) =>
       _database.transaction(() async {
         _validateAlarmRule(draft);
+        await _requireOwnedScheduleItem(draft.ownerType, draft.ownerId);
         final now = DateTime.now().toUtc();
         final id = ruleId ?? _uuid.v4();
         final existing = await (_database.select(
@@ -357,6 +359,15 @@ class DayScheduleRepository {
   }) => _database.transaction(() async {
     if (draft.title.trim().isEmpty) {
       throw ArgumentError.value(draft.title, 'title', '请填写计时名称');
+    }
+    final tagId = draft.tagId;
+    if (tagId != null) {
+      final tag =
+          await (_database.select(_database.tagRecords)..where(
+                (row) => row.id.equals(tagId) & row.userId.equals(_userId),
+              ))
+              .getSingleOrNull();
+      if (tag == null) throw StateError('标签不存在');
     }
     final now = DateTime.now().toUtc();
     final id = timerId ?? _uuid.v4();
@@ -750,6 +761,47 @@ class DayScheduleRepository {
       hash = (hash * 0x01000193) & 0x7fffffff;
     }
     return hash == 0 ? 1 : hash;
+  }
+
+  Future<void> _requireOwnedScheduleItem(DayItemType type, String id) async {
+    if (type == DayItemType.course) {
+      final courses = _database.courseRecords;
+      final course =
+          await (_database.select(courses)..where(
+                (row) =>
+                    row.id.equals(id) &
+                    row.userId.equals(_userId) &
+                    row.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (course != null) return;
+
+      // Per-lesson overrides and reminders name the rule, not the course.
+      final rules = _database.courseScheduleRuleRecords;
+      final ownedRule =
+          await (_database.select(rules).join([
+                innerJoin(courses, courses.id.equalsExp(rules.courseId)),
+              ])..where(
+                rules.id.equals(id) &
+                    rules.userId.equals(_userId) &
+                    rules.deletedAt.isNull() &
+                    courses.userId.equals(_userId) &
+                    courses.deletedAt.isNull(),
+              ))
+              .getSingleOrNull();
+      if (ownedRule != null) return;
+      throw StateError('课程或课程安排不存在');
+    }
+
+    final task =
+        await (_database.select(_database.localTasks)..where(
+              (row) =>
+                  row.id.equals(id) &
+                  row.userId.equals(_userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (task == null) throw StateError('事项不存在');
   }
 
   void _validateOverride(DailyItemOverrideDraft draft) {

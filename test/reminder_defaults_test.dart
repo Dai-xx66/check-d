@@ -3,6 +3,8 @@ import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/profile/data/reminder_defaults_repository.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/schedule/domain/day_schedule_models.dart';
+import 'package:check_d/features/tasks/data/task_repository.dart';
+import 'package:check_d/features/tasks/domain/task_models.dart';
 import 'package:check_d/shared/utils/app_time.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -36,9 +38,17 @@ void main() {
         syncQueue: syncQueue,
         userId: 'student-a',
       );
+      final id =
+          await TaskRepository(
+            database: database,
+            syncQueue: syncQueue,
+            userId: 'student-a',
+          ).saveOneTimeReminder(
+            const OneTimeReminderDraft(name: 'An existing item', colorValue: 1),
+          );
       await schedule.replaceReminderConfiguration(
         ownerType: DayItemType.oneTime,
-        ownerId: 'existing-item',
+        ownerId: id,
         advanceEnabled: true,
         advanceMinutes: 10,
         atTimeEnabled: false,
