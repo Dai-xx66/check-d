@@ -348,7 +348,7 @@ void main() {
         final original = Map<String, Object?>.from(remote.tables[table]!.first);
         final id = original['id']! as String;
         remote.tables[table] = [
-          {...original, 'updated_at': _time(12), 'deleted_at': _time(12)},
+          {...original, 'updated_at': _time(12), 'deleted_at': _time(11)},
         ];
 
         expect((await executor.reconcile()).succeeded, isTrue);
@@ -364,7 +364,7 @@ void main() {
 
         // An older deletion must not move the resurrection barrier backwards.
         remote.tables[table] = [
-          {...original, 'updated_at': _time(11), 'deleted_at': _time(11)},
+          {...original, 'updated_at': _time(11), 'deleted_at': _time(10)},
         ];
         expect((await executor.reconcile()).succeeded, isTrue);
         remote.tables[table] = [
@@ -379,6 +379,58 @@ void main() {
         expect(await database.select(database.syncOperations).get(), isEmpty);
       },
     );
+
+    test('cloud deletion preserves the subsecond version for $table', () async {
+      remote.tables.addAll(_fullSnapshot());
+      expect((await executor.reconcile()).succeeded, isTrue);
+      final original = remote.tables[table]!.first;
+      final id = original['id']! as String;
+      final key = 'sync-tombstone:$userId:$table:$id';
+      final localTable = table == 'task_completions'
+          ? 'task_completion_records'
+          : 'timer_session_records';
+      Future<int> matchingRows() async =>
+          (await database
+                  .customSelect(
+                    'SELECT COUNT(*) AS amount FROM $localTable WHERE id = ?',
+                    variables: [Variable<String>(id)],
+                  )
+                  .getSingle())
+              .read<int>('amount');
+
+      remote.tables[table] = [
+        {
+          ...original,
+          'updated_at': '2030-01-01T12:00:00.800Z',
+          'deleted_at': _time(11),
+        },
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+
+      remote.tables[table] = [
+        {
+          ...original,
+          'updated_at': '2030-01-01T12:00:00.700Z',
+          'deleted_at': _time(11),
+        },
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      remote.tables[table] = [
+        {...original, 'updated_at': '2030-01-01T12:00:00.750Z'},
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      expect(await matchingRows(), 0);
+
+      // Older apps stored deleted_at as plain ISO text. Retain that exact
+      // fraction when the old Drift updatedAt is only accurate to a second.
+      await (database.update(
+        database.appSettings,
+      )..where((r) => r.key.equals(key))).write(
+        const AppSettingsCompanion(value: Value('2030-01-01T12:00:00.800Z')),
+      );
+      expect((await executor.reconcile()).succeeded, isTrue);
+      expect(await matchingRows(), 0);
+    });
   }
 
   test(
@@ -421,6 +473,107 @@ void main() {
       );
     },
   );
+
+  test('restore rejects a parent present only in local data', () async {
+    final now = DateTime.utc(2030, 1, 1, 9);
+    await database
+        .into(database.tagRecords)
+        .insert(
+          TagRecordsCompanion.insert(
+            id: 'local-only-tag',
+            userId: userId,
+            name: '仅存在于本机',
+            colorValue: 1,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    remote.tables['tasks'] = [
+      _row('remote-task', {
+        'name': '缺少云端标签的任务',
+        'type': 'long_term',
+        'color': 1,
+        'tag_id': 'local-only-tag',
+      }),
+    ];
+    final result = await executor.reconcile();
+
+    expect(result.succeeded, isFalse);
+    expect(result.failure?.stage, SyncRestoreStage.validating);
+    expect(result.failure?.category, SyncRestoreErrorCategory.conflict);
+    expect(await database.select(database.localTasks).get(), isEmpty);
+    expect(await database.select(database.tagRecords).get(), hasLength(1));
+    expect(await database.select(database.syncOperations).get(), isEmpty);
+  });
+
+  test('restore rejects an omitted required parent before applying', () async {
+    remote.tables.addAll(_fullSnapshot());
+    remote.tables['course_schedule_rules']!.single.remove('course_id');
+
+    final result = await executor.reconcile();
+    expect(result.succeeded, isFalse);
+    expect(result.failure?.stage, SyncRestoreStage.validating);
+    expect(result.failure?.category, SyncRestoreErrorCategory.conflict);
+    expect(await database.select(database.courseRecords).get(), isEmpty);
+    expect(
+      await database.select(database.courseScheduleRuleRecords).get(),
+      isEmpty,
+    );
+  });
+
+  for (final table in [
+    'daily_item_overrides',
+    'reminder_rules',
+    'alarm_rules',
+  ]) {
+    test('restore rejects a foreign snapshot parent for $table', () async {
+      remote.tables.addAll(_fullSnapshot());
+      final parent = remote.tables['tasks']!.first;
+      remote.tables['tasks']!.add({
+        ...parent,
+        'id': 'foreign-task',
+        'user_id': 'another-account',
+      });
+      final row = remote.tables[table]!.single;
+      final reference = table == 'daily_item_overrides' ? 'item' : 'owner';
+      remote.tables[table] = [
+        {
+          ...row,
+          '${reference}_type': 'recurring',
+          '${reference}_id': 'foreign-task',
+        },
+      ];
+
+      final result = await executor.reconcile();
+      expect(result.succeeded, isFalse);
+      expect(result.failure?.stage, SyncRestoreStage.validating);
+      expect(result.failure?.category, SyncRestoreErrorCategory.conflict);
+      expect(await database.select(database.localTasks).get(), isEmpty);
+      expect(await database.select(database.courseRecords).get(), isEmpty);
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    });
+  }
+
+  test('restore rejects a section belonging to a different template', () async {
+    remote.tables.addAll(_fullSnapshot());
+    remote.tables['schedule_templates']!.add(
+      _row('template-2', {'name': '另一个作息'}),
+    );
+    final original = remote.tables['schedule_template_segments']!.single;
+    remote.tables['schedule_template_segments'] = [
+      {...original, 'template_id': 'template-2'},
+    ];
+
+    final result = await executor.reconcile();
+    expect(result.succeeded, isFalse);
+    expect(result.failure?.stage, SyncRestoreStage.validating);
+    expect(result.failure?.category, SyncRestoreErrorCategory.conflict);
+    expect(
+      await database.select(database.scheduleTemplateRecords).get(),
+      isEmpty,
+    );
+    expect(await database.select(database.syncOperations).get(), isEmpty);
+  });
 
   test(
     'cloud preference updates and tombstones preserve device appearance',

@@ -247,6 +247,326 @@ void main() {
     expect(segment.userId, offlineDataOwner);
     expect(await database.select(database.syncOperations).get(), isEmpty);
   });
+
+  for (final (reference, table) in [
+    ('daily override', 'daily_item_override_records'),
+    ('reminder', 'reminder_rule_records'),
+    ('alarm', 'alarm_rule_records'),
+    ('task revision', 'task_revision_records'),
+  ]) {
+    test('offline merge rejects an account-A parent for $reference', () async {
+      await _insertTask(database, id: 'foreign-task', owner: 'account-a');
+      await _insertTask(database, id: 'offline-task', owner: offlineDataOwner);
+      await _insertScheduleReference(
+        database,
+        table: table,
+        parentId: 'foreign-task',
+      );
+
+      await expectLater(
+        merge.mergeInto(userId),
+        throwsA(isA<OfflineDataConflict>()),
+      );
+
+      await _expectUnchangedOfflineReference(database, table);
+    });
+  }
+
+  test(
+    'offline merge rejects a reminder linked to a task with no account',
+    () async {
+      await _insertTask(database, id: 'unowned-task', owner: null);
+      await _insertTask(database, id: 'offline-task', owner: offlineDataOwner);
+      await _insertScheduleReference(
+        database,
+        table: 'reminder_rule_records',
+        parentId: 'unowned-task',
+      );
+
+      await expectLater(
+        merge.mergeInto(userId),
+        throwsA(isA<OfflineDataConflict>()),
+      );
+
+      await _expectUnchangedOfflineReference(database, 'reminder_rule_records');
+    },
+  );
+
+  test(
+    'offline merge rejects a destination reminder linked to offline data',
+    () async {
+      await _insertTask(database, id: 'offline-task', owner: offlineDataOwner);
+      await _insertScheduleReference(
+        database,
+        table: 'reminder_rule_records',
+        parentId: 'offline-task',
+        childOwner: userId,
+      );
+
+      await expectLater(
+        merge.mergeInto(userId),
+        throwsA(isA<OfflineDataConflict>()),
+      );
+      expect(
+        (await database.select(database.localTasks).getSingle()).userId,
+        offlineDataOwner,
+      );
+      expect(
+        (await database.select(database.reminderRuleRecords).getSingle())
+            .userId,
+        userId,
+      );
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    },
+  );
+
+  for (final (sectionOwner, sectionTemplateId, expectedConflict) in [
+    ('account-a', 'offline-template', 'other account'),
+    (offlineDataOwner, 'different-template', 'different template'),
+  ]) {
+    test(
+      'offline merge rejects a course section from $expectedConflict',
+      () async {
+        await _insertTask(
+          database,
+          id: 'offline-task',
+          owner: offlineDataOwner,
+        );
+        await _insertCourseGraph(
+          database,
+          sectionOwner: sectionOwner,
+          sectionTemplateId: sectionTemplateId,
+        );
+
+        await expectLater(
+          merge.mergeInto(userId),
+          throwsA(isA<OfflineDataConflict>()),
+        );
+
+        await _expectUnchangedOfflineReference(
+          database,
+          'course_schedule_rule_records',
+        );
+      },
+    );
+  }
+
+  test(
+    'offline merge preserves owned rule references and local task history',
+    () async {
+      await _insertTask(database, id: 'offline-task', owner: offlineDataOwner);
+      await _insertCourseGraph(database);
+      await _insertScheduleReference(
+        database,
+        table: 'daily_item_override_records',
+        parentId: 'offline-rule',
+        type: 'course',
+      );
+      await _insertScheduleReference(
+        database,
+        table: 'reminder_rule_records',
+        parentId: 'offline-rule',
+        type: 'course',
+      );
+      await _insertScheduleReference(
+        database,
+        table: 'alarm_rule_records',
+        parentId: 'offline-course',
+        type: 'course',
+      );
+      await _insertScheduleReference(
+        database,
+        table: 'task_revision_records',
+        parentId: 'offline-task',
+      );
+
+      await merge.mergeInto(userId);
+
+      expect(
+        (await database.select(database.courseScheduleRuleRecords).getSingle())
+            .sectionIdsJson,
+        '["section"]',
+      );
+      expect(
+        (await database.select(database.dailyItemOverrideRecords).getSingle())
+            .userId,
+        userId,
+      );
+      expect(
+        (await database.select(database.reminderRuleRecords).getSingle())
+            .userId,
+        userId,
+      );
+      expect(
+        (await database.select(database.alarmRuleRecords).getSingle()).userId,
+        userId,
+      );
+      final revision = await database
+          .select(database.taskRevisionRecords)
+          .getSingle();
+      expect(revision.userId, userId);
+      expect(revision.taskId, 'offline-task');
+      final outbox = await database.select(database.syncOperations).get();
+      expect(
+        outbox.map((op) => op.entityType),
+        containsAll([
+          'daily_item_overrides',
+          'reminder_rules',
+          'alarm_rules',
+          'course_schedule_rules',
+        ]),
+      );
+      expect(outbox.map((op) => op.entityId), isNot(contains(revision.id)));
+    },
+  );
+}
+
+Future<void> _expectUnchangedOfflineReference(
+  AppDatabase database,
+  String table,
+) async {
+  final child = await database
+      .customSelect('SELECT user_id FROM $table')
+      .getSingle();
+  expect(child.read<String>('user_id'), offlineDataOwner);
+  final task = await (database.select(
+    database.localTasks,
+  )..where((row) => row.id.equals('offline-task'))).getSingle();
+  expect(task.userId, offlineDataOwner);
+  expect(await database.select(database.syncOperations).get(), isEmpty);
+}
+
+Future<void> _insertScheduleReference(
+  AppDatabase database, {
+  required String table,
+  required String parentId,
+  String childOwner = offlineDataOwner,
+  String type = 'recurring',
+}) async {
+  final now = DateTime.utc(2030);
+  switch (table) {
+    case 'daily_item_override_records':
+      await database
+          .into(database.dailyItemOverrideRecords)
+          .insert(
+            DailyItemOverrideRecordsCompanion.insert(
+              id: 'override',
+              userId: childOwner,
+              itemType: type,
+              itemId: parentId,
+              localDate: '2030-01-01',
+              action: 'skip',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    case 'reminder_rule_records':
+      await database
+          .into(database.reminderRuleRecords)
+          .insert(
+            ReminderRuleRecordsCompanion.insert(
+              id: 'reminder',
+              userId: childOwner,
+              ownerType: type,
+              ownerId: parentId,
+              reminderKind: 'due',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    case 'alarm_rule_records':
+      await database
+          .into(database.alarmRuleRecords)
+          .insert(
+            AlarmRuleRecordsCompanion.insert(
+              id: 'alarm',
+              userId: childOwner,
+              ownerType: type,
+              ownerId: parentId,
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+    case 'task_revision_records':
+      await database
+          .into(database.taskRevisionRecords)
+          .insert(
+            TaskRevisionRecordsCompanion.insert(
+              id: 'revision',
+              userId: childOwner,
+              taskId: parentId,
+              afterJson: '{}',
+              changedAt: now,
+            ),
+          );
+    default:
+      throw ArgumentError.value(table, 'table');
+  }
+}
+
+Future<void> _insertCourseGraph(
+  AppDatabase database, {
+  String sectionOwner = offlineDataOwner,
+  String sectionTemplateId = 'offline-template',
+}) async {
+  final now = DateTime.utc(2030);
+  for (final templateId in {'offline-template', sectionTemplateId}) {
+    await database
+        .into(database.scheduleTemplateRecords)
+        .insert(
+          ScheduleTemplateRecordsCompanion.insert(
+            id: templateId,
+            userId: offlineDataOwner,
+            name: templateId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+  }
+  await database
+      .into(database.scheduleTemplateSegmentRecords)
+      .insert(
+        ScheduleTemplateSegmentRecordsCompanion.insert(
+          id: 'section',
+          templateId: sectionTemplateId,
+          userId: sectionOwner,
+          name: '第1节',
+          startsAtMinute: 480,
+          endsAtMinute: 540,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+  await database
+      .into(database.courseRecords)
+      .insert(
+        CourseRecordsCompanion.insert(
+          id: 'offline-course',
+          userId: offlineDataOwner,
+          name: '离线课程',
+          colorValue: 1,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+  await database
+      .into(database.courseScheduleRuleRecords)
+      .insert(
+        CourseScheduleRuleRecordsCompanion.insert(
+          id: 'offline-rule',
+          userId: offlineDataOwner,
+          courseId: 'offline-course',
+          weekday: 1,
+          weekRuleType: 'everyWeek',
+          scheduleTemplateId: const Value('offline-template'),
+          sectionIdsJson: const Value('["section"]'),
+          timeMode: const Value('periods'),
+          startsAtMinute: 480,
+          endsAtMinute: 540,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
 }
 
 class _ConflictRemoteReader implements SyncRemoteReader {
@@ -265,7 +585,7 @@ class _ConflictRemoteReader implements SyncRemoteReader {
 Future<void> _insertTask(
   AppDatabase database, {
   required String id,
-  required String owner,
+  required String? owner,
 }) {
   final now = DateTime.utc(2030);
   return database

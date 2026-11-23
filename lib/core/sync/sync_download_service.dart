@@ -69,35 +69,108 @@ class SupabaseSyncRemoteReader implements SyncRemoteReader {
     required String userId,
   }) async {
     const pageSize = 500;
-    final rows = <Map<String, Object?>>[];
-    while (true) {
-      // A select without pagination silently stops at the server's max_rows.
-      // Use a unique order and the actual returned length, since that cap may
-      // be smaller than our requested page size.
-      final primaryKey = switch (table) {
-        'long_term_tasks' || 'one_time_reminders' => 'task_id',
-        'plan_tasks' => 'plan_id',
-        _ => 'id',
-      };
-      var query = _client
-          .from(table)
-          .select()
-          .eq('user_id', userId)
-          .order(primaryKey, ascending: true);
-      if (table == 'plan_tasks') {
-        query = query.order('task_id', ascending: true);
-      }
-      final response = await query
-          .range(rows.length, rows.length + pageSize - 1)
-          .count(CountOption.exact);
-      rows.addAll(response.data);
-      if (rows.length >= response.count) return rows;
-      if (response.data.isEmpty) {
-        throw const FormatException(
-          'Cloud snapshot ended before its row count.',
+    final primaryKey = switch (table) {
+      'long_term_tasks' || 'one_time_reminders' => 'task_id',
+      'plan_tasks' => 'plan_id',
+      _ => 'id',
+    };
+    final secondaryKey = table == 'plan_tasks' ? 'task_id' : null;
+    PostgrestFilterBuilder<PostgrestList> select() =>
+        _client.from(table).select().eq('user_id', userId);
+
+    PostgrestTransformBuilder<PostgrestList> ordered(
+      PostgrestFilterBuilder<PostgrestList> query, {
+      required bool ascending,
+    }) {
+      final ordered = query.order(primaryKey, ascending: ascending);
+      return secondaryKey == null
+          ? ordered
+          : ordered.order(secondaryKey, ascending: ascending);
+    }
+
+    (String, String) keyOf(Map<String, Object?> row) => (
+      _readPageKey(row, primaryKey),
+      secondaryKey == null ? '' : _readPageKey(row, secondaryKey),
+    );
+
+    final firstPage = await ordered(
+      select(),
+      ascending: true,
+    ).limit(pageSize).count(CountOption.exact);
+    final rows = <Map<String, Object?>>[...firstPage.data];
+    if (rows.length >= firstPage.count) return rows;
+    if (rows.isEmpty) {
+      throw const SyncRestoreSnapshotException(
+        'The first cloud page is incomplete.',
+      );
+    }
+
+    // A server row cap can be smaller than pageSize. Continue strictly after
+    // the last returned primary key instead of offsetting past preceding rows.
+    // Fix the upper bound for this table so appends cannot prolong the read.
+    // This is a bounded scan, not a transaction spanning PostgREST requests.
+    final lastPage = await ordered(select(), ascending: false).limit(1);
+    if (lastPage.isEmpty) {
+      throw const SyncRestoreSnapshotException(
+        'Cloud rows changed during restore. Retry.',
+      );
+    }
+    final high = keyOf(lastPage.single);
+    var cursor = keyOf(rows.last);
+    if (_comparePageKeys(cursor, high) >= 0) {
+      throw const SyncRestoreSnapshotException(
+        'Cloud rows changed during restore. Retry.',
+      );
+    }
+    while (_comparePageKeys(cursor, high) < 0) {
+      var query = select().lte(primaryKey, high.$1);
+      query = secondaryKey == null
+          ? query.gt(primaryKey, cursor.$1)
+          : query.or(
+              '$primaryKey.gt.${cursor.$1},and($primaryKey.eq.${cursor.$1},'
+              '$secondaryKey.gt.${cursor.$2})',
+            );
+      final page = await ordered(query, ascending: true).limit(pageSize);
+      if (page.isEmpty) {
+        throw const SyncRestoreSnapshotException(
+          'Cloud rows changed during restore. Retry.',
         );
       }
+      for (final row in page) {
+        final next = keyOf(row);
+        if (_comparePageKeys(next, cursor) <= 0) {
+          throw const SyncRestoreSnapshotException(
+            'Cloud page is not ordered by its primary key.',
+          );
+        }
+        if (_comparePageKeys(next, high) > 0) {
+          throw const SyncRestoreSnapshotException(
+            'Cloud rows changed during restore. Retry.',
+          );
+        }
+        rows.add(row);
+        cursor = next;
+        if (cursor == high) return rows;
+      }
     }
+    return rows;
+  }
+
+  String _readPageKey(Map<String, Object?> row, String column) {
+    final value = row[column];
+    // All cloud keys are UUIDs. Restrict values before constructing a
+    // PostgREST composite-key expression.
+    if (value is String && RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value)) {
+      return value;
+    }
+    throw const SyncRestoreSnapshotException(
+      'Cloud row has an invalid primary key.',
+    );
+  }
+
+  int _comparePageKeys((String, String) a, (String, String) b) {
+    final primary = a.$1.compareTo(b.$1);
+    return primary == 0 ? a.$2.compareTo(b.$2) : primary;
   }
 }
 
@@ -230,30 +303,30 @@ class SyncDownloadExecutor {
         onProgress,
         const SyncRestoreProgress(stage: SyncRestoreStage.validating),
       );
-      final validationTime = readDeadline.difference(DateTime.now());
-      if (validationTime <= Duration.zero) {
-        throw TimeoutException('restore pre-commit deadline exceeded');
-      }
-      // Validation only reads local rows, so timing out this wait cannot leave
-      // a partially applied snapshot. The Drift write transaction below is
-      // deliberately never wrapped in Future.timeout because it is not
-      // cancellable.
-      await _validateForeignOwnerConflicts(
-        snapshot,
-        userId,
-      ).timeout(validationTime);
+      _ensureValidationTime(readDeadline);
+      final parentLookups = _validateSnapshotReferences(snapshot, userId);
       _validateTimerSnapshot(snapshot['timer_sessions'] ?? const [], userId);
-      if (DateTime.now().isAfter(readDeadline)) {
-        throw TimeoutException('restore pre-commit deadline exceeded');
-      }
-      _ensureCurrentUser(userId);
-      stage = SyncRestoreStage.applying;
-      _report(
-        onProgress,
-        const SyncRestoreProgress(stage: SyncRestoreStage.applying),
-      );
+      // Check local ownership inside the same transaction that writes the
+      // snapshot. A local edit cannot race between its check and the write.
       return await _applyScope.run(
-        () => _database.transaction(() => _applySnapshot(snapshot, userId)),
+        () => _database.transaction(() async {
+          _ensureCurrentUser(userId);
+          _ensureValidationTime(readDeadline);
+          await _validateForeignOwnerConflicts(
+            snapshot,
+            parentLookups,
+            userId,
+            readDeadline,
+          );
+          _ensureValidationTime(readDeadline);
+          _ensureCurrentUser(userId);
+          stage = SyncRestoreStage.applying;
+          _report(
+            onProgress,
+            const SyncRestoreProgress(stage: SyncRestoreStage.applying),
+          );
+          return _applySnapshot(snapshot, userId);
+        }),
       );
     } on Object catch (error) {
       final publicError = error is _SyncRestoreApplyException
@@ -270,36 +343,108 @@ class SyncDownloadExecutor {
     }
   }
 
-  Future<void> _validateForeignOwnerConflicts(
+  void _ensureValidationTime(DateTime deadline) {
+    if (!DateTime.now().isBefore(deadline)) {
+      throw TimeoutException('restore pre-commit deadline exceeded');
+    }
+  }
+
+  Map<(String, String), Set<String>> _validateSnapshotReferences(
     Map<String, List<Map<String, Object?>>> snapshot,
     String userId,
+  ) {
+    final parentsById = <(String, String), List<Map<String, Object?>>>{};
+    for (final table in snapshot.entries) {
+      for (final row in table.value) {
+        final id = _stringOrNull(row, 'id');
+        if (id != null) (parentsById[(table.key, id)] ??= []).add(row);
+      }
+    }
+    final localLookups = <(String, String), Set<String>>{};
+    for (final table in snapshot.entries) {
+      for (final row in table.value) {
+        if (_stringOrNull(row, 'user_id') != userId || _deleted(row)) continue;
+        try {
+          for (final reference in resolveSyncOwnerReferences(
+            table.key,
+            row,
+            local: false,
+          )) {
+            var present = false;
+            for (final parentTable in reference.remoteParentTables) {
+              for (final parent
+                  in parentsById[(parentTable, reference.id)] ??
+                      const <Map<String, Object?>>[]) {
+                if (_stringOrNull(parent, 'user_id') != userId) {
+                  throw SyncRestoreSnapshotException(
+                    'Cloud ${table.key} references a parent owned by another account.',
+                  );
+                }
+                if (reference.sectionTemplateId == null ||
+                    parent['template_id'] == reference.sectionTemplateId) {
+                  present = true;
+                }
+              }
+            }
+            if (!present) {
+              throw SyncRestoreSnapshotException(
+                'Cloud ${table.key} has an invalid or missing parent reference.',
+              );
+            }
+            for (final parentTable in reference.localParentTables) {
+              (localLookups[(parentTable, 'id')] ??= {}).add(reference.id);
+            }
+          }
+        } on FormatException {
+          throw SyncRestoreSnapshotException(
+            'Cloud ${table.key} has an invalid parent reference.',
+          );
+        }
+      }
+    }
+    return localLookups;
+  }
+
+  Future<void> _validateForeignOwnerConflicts(
+    Map<String, List<Map<String, Object?>>> snapshot,
+    Map<(String, String), Set<String>> localLookups,
+    String userId,
+    DateTime deadline,
   ) async {
-    for (final spec in [
-      ..._restoreIdentityCoverage,
-      for (final reference in syncOwnerReferences)
-        _RestoreIdentitySpec(
-          reference.remoteTable,
-          reference.parentColumn,
-          reference.parentTable,
-          'id',
-        ),
-    ]) {
+    for (final spec in _restoreIdentityCoverage) {
       for (final remoteRow in snapshot[spec.remoteTable] ?? const []) {
         if (_stringOrNull(remoteRow, 'user_id') != userId) continue;
         final remoteId = remoteRow[spec.remoteIdColumn]?.toString();
         if (remoteId == null || remoteId.isEmpty) continue;
+        (localLookups[(spec.localTable, spec.localIdColumn)] ??= {}).add(
+          remoteId,
+        );
+      }
+    }
+
+    const batchSize = 250;
+    for (final entry in localLookups.entries) {
+      final (table, column) = entry.key;
+      final ids = entry.value.toList(growable: false);
+      for (var index = 0; index < ids.length; index += batchSize) {
+        _ensureValidationTime(deadline);
+        _ensureCurrentUser(userId);
+        final end = index + batchSize < ids.length
+            ? index + batchSize
+            : ids.length;
         final local = await _database
             .customSelect(
-              'SELECT user_id FROM ${spec.localTable} '
-              'WHERE ${spec.localIdColumn} = ? LIMIT 1',
-              variables: [Variable<String>(remoteId)],
+              'SELECT 1 FROM $table WHERE (user_id IS NULL OR user_id != ?) '
+              'AND $column IN (${List.filled(end - index, '?').join(',')}) LIMIT 1',
+              variables: [
+                Variable<String>(userId),
+                for (var i = index; i < end; i++) Variable<String>(ids[i]),
+              ],
             )
             .getSingleOrNull();
-        final localOwner = local?.read<String>('user_id');
-        if (localOwner != null && localOwner != userId) {
+        if (local != null) {
           throw SyncRestoreSnapshotException(
-            'Remote ${spec.remoteTable} row conflicts with local data owned '
-            'by another account.',
+            'The cloud snapshot conflicts with $table data owned by another account.',
           );
         }
       }
@@ -1298,6 +1443,16 @@ class SyncDownloadExecutor {
   String _tombstoneKey(String table, String id, String userId) =>
       'sync-tombstone:$userId:$table:$id';
 
+  DateTime _tombstoneVersion(AppSetting record) {
+    // New rows store the exact event version as ISO text, which older app
+    // versions can also parse. With the old deleted_at value, keep the later
+    // of that timestamp and Drift's seconds-only event version.
+    final preciseVersion = DateTime.tryParse(record.value);
+    return preciseVersion != null && preciseVersion.isAfter(record.updatedAt)
+        ? preciseVersion
+        : record.updatedAt;
+  }
+
   Future<void> _recordTombstone(
     String table,
     String id,
@@ -1308,8 +1463,8 @@ class SyncDownloadExecutor {
     final existing = await (_database.select(
       _database.appSettings,
     )..where((setting) => setting.key.equals(key))).getSingleOrNull();
-    if (existing != null &&
-        !_dateTime(row, 'updated_at').isAfter(existing.updatedAt)) {
+    final version = _dateTime(row, 'updated_at');
+    if (existing != null && !version.isAfter(_tombstoneVersion(existing))) {
       return;
     }
     await _database
@@ -1317,8 +1472,8 @@ class SyncDownloadExecutor {
         .insertOnConflictUpdate(
           AppSettingsCompanion.insert(
             key: key,
-            value: _dateTime(row, 'deleted_at').toIso8601String(),
-            updatedAt: _dateTime(row, 'updated_at'),
+            value: version.toIso8601String(),
+            updatedAt: version,
           ),
         );
   }
@@ -1333,10 +1488,8 @@ class SyncDownloadExecutor {
         await (_database.select(_database.appSettings)
               ..where((r) => r.key.equals(_tombstoneKey(table, id, userId))))
             .getSingleOrNull();
-    if (record == null) return false;
-    final tombstoneAt = DateTime.tryParse(record.value)?.toUtc();
-    return tombstoneAt != null &&
-        !_dateTime(row, 'updated_at').isAfter(tombstoneAt);
+    return record != null &&
+        !_dateTime(row, 'updated_at').isAfter(_tombstoneVersion(record));
   }
 
   String _id(Map<String, Object?> row) => _string(row, 'id');

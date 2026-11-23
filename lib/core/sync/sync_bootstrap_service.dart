@@ -317,6 +317,73 @@ class OfflineDataMergeService {
         throw const OfflineDataConflict('本机数据与当前账号存在 ID 归属冲突，未执行合并。');
       }
     }
+    await _validateExpandedOwnershipGraph(userId);
+  }
+
+  Future<void> _validateExpandedOwnershipGraph(String userId) async {
+    final parents = <(String, String), QueryRow?>{};
+    for (final entry in localExpandedSyncReferenceColumns.entries) {
+      final children = await _database
+          .customSelect(
+            'SELECT user_id, ${entry.value} FROM ${entry.key} '
+            'WHERE user_id IN (?, ?)',
+            variables: [
+              const Variable<String>(offlineDataOwner),
+              Variable<String>(userId),
+            ],
+          )
+          .get();
+
+      for (final child in children) {
+        final adopting = child.read<String>('user_id') == offlineDataOwner;
+        final deleted = child.data['deleted_at'] != null;
+        try {
+          for (final reference in resolveExpandedSyncOwnerReferences(
+            entry.key,
+            child.data,
+            local: true,
+          )) {
+            var found = false;
+            for (final table in reference.localParentTables) {
+              final key = (table, reference.id);
+              if (!parents.containsKey(key)) {
+                final columns = table == 'schedule_template_segment_records'
+                    ? 'user_id, template_id'
+                    : 'user_id';
+                parents[key] = await _database
+                    .customSelect(
+                      'SELECT $columns FROM $table WHERE id = ? LIMIT 1',
+                      variables: [Variable<String>(reference.id)],
+                    )
+                    .getSingleOrNull();
+              }
+              final parent = parents[key];
+              if (parent == null) continue;
+              found = true;
+              final parentIsOffline =
+                  parent.readNullable<String>('user_id') == offlineDataOwner;
+              final templateId = reference.sectionTemplateId;
+              if ((adopting && !parentIsOffline) ||
+                  (!adopting && parentIsOffline) ||
+                  (adopting &&
+                      !deleted &&
+                      templateId != null &&
+                      parent.read<String>('template_id') != templateId)) {
+                throw const OfflineDataConflict('本机数据与当前账号存在 ID 归属冲突，未执行合并。');
+              }
+            }
+            // Historical tombstones may outlive a physically removed parent.
+            if (adopting && !deleted && !found) {
+              throw const OfflineDataConflict('本机数据缺少有效的关联记录，未执行合并。');
+            }
+          }
+        } on FormatException {
+          if (!deleted) {
+            throw const OfflineDataConflict('本机数据中有无效的关联记录，未执行合并。');
+          }
+        }
+      }
+    }
   }
 
   static const _ownedTables = <String>[
