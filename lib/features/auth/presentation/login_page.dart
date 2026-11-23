@@ -135,15 +135,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () =>
-                          setState(() => _isRegisterMode = !_isRegisterMode),
+                      onPressed: authState.isSubmitting
+                          ? null
+                          : () => setState(
+                              () => _isRegisterMode = !_isRegisterMode,
+                            ),
                       child: Text(_isRegisterMode ? '已有账号，去登录' : '没有账号，创建一个'),
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: ref
-                          .read(authControllerProvider.notifier)
-                          .continueOffline,
+                      onPressed: authState.isSubmitting
+                          ? null
+                          : ref
+                                .read(authControllerProvider.notifier)
+                                .continueOffline,
                       icon: const Icon(Icons.cloud_off_outlined),
                       label: const Text('离线体验'),
                     ),

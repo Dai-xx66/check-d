@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_providers.dart';
+import '../../features/auth/presentation/auth_controller.dart';
 import 'sync_apply_scope.dart';
 import 'sync_account_service.dart';
 import 'sync_bootstrap_service.dart';
@@ -42,7 +43,7 @@ final offlineDataSummaryProvider = FutureProvider<OfflineDataSummary>((ref) {
 });
 
 final syncOperationHealthProvider = StreamProvider<SyncOperationHealth>((ref) {
-  final userId = ref.watch(supabaseClientProvider)?.auth.currentUser?.id;
+  final userId = ref.watch(authenticatedUserIdProvider);
   if (userId == null) {
     return Stream.value(const SyncOperationHealth(pending: 0, failed: 0));
   }
@@ -51,7 +52,7 @@ final syncOperationHealthProvider = StreamProvider<SyncOperationHealth>((ref) {
 
 final syncFailureDiagnosticsProvider =
     StreamProvider<List<SyncFailureDiagnostic>>((ref) {
-      final userId = ref.watch(supabaseClientProvider)?.auth.currentUser?.id;
+      final userId = ref.watch(authenticatedUserIdProvider);
       if (userId == null) return Stream.value(const []);
       return ref
           .watch(syncQueueServiceProvider)

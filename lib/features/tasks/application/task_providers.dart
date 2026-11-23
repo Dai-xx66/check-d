@@ -4,12 +4,12 @@ import '../../../app/app_providers.dart';
 import '../../../core/holiday/holiday_providers.dart';
 import '../../../core/notifications/notification_providers.dart';
 import '../../../core/sync/sync_providers.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../data/task_repository.dart';
 import '../domain/task_models.dart';
 
 final currentDataOwnerProvider = Provider<String>((ref) {
-  return ref.watch(supabaseClientProvider)?.auth.currentUser?.id ??
-      'offline-user';
+  return ref.watch(authenticatedUserIdProvider) ?? 'offline-user';
 });
 
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
