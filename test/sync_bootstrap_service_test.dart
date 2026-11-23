@@ -2,6 +2,8 @@ import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_bootstrap_service.dart';
 import 'package:check_d/core/sync/sync_download_service.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
+import 'package:check_d/core/theme/app_skin.dart';
+import 'package:check_d/core/theme/appearance_preferences.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -163,6 +165,31 @@ void main() {
     expect(operations.single.entityId, 'task-b');
   });
 
+  test(
+    'offline merge and bootstrap never enqueue or clear device appearance',
+    () async {
+      final appearance = AppearancePreferencesRepository(database);
+      await appearance.save(
+        const AppearancePreferences(
+          skin: AppSkinId.neutral,
+          icon: AppIconStyle.slate,
+        ),
+      );
+      await _insertTask(database, id: 'offline-task', owner: offlineDataOwner);
+
+      await merge.mergeInto(userId);
+      await bootstrap.bootstrap(userId);
+      await bootstrap.bootstrap('other-user');
+
+      final operations = await database.select(database.syncOperations).get();
+      expect(operations, hasLength(1));
+      expect(operations.single.entityType, 'tasks');
+      final saved = await appearance.load();
+      expect(saved.skin, AppSkinId.neutral);
+      expect(saved.icon, AppIconStyle.slate);
+    },
+  );
+
   test('offline merge aborts before mutation on remote id conflict', () async {
     await _insertTask(database, id: 'shared-id', owner: offlineDataOwner);
     final guardedMerge = OfflineDataMergeService(
@@ -178,6 +205,46 @@ void main() {
 
     final task = await database.select(database.localTasks).getSingle();
     expect(task.userId, offlineDataOwner);
+    expect(await database.select(database.syncOperations).get(), isEmpty);
+  });
+
+  test('offline merge rejects a parent owned by a third account', () async {
+    final now = DateTime.utc(2030);
+    await database
+        .into(database.scheduleTemplateRecords)
+        .insert(
+          ScheduleTemplateRecordsCompanion.insert(
+            id: 'foreign-template',
+            userId: 'other-user',
+            name: '其他账号模板',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await database
+        .into(database.scheduleTemplateSegmentRecords)
+        .insert(
+          ScheduleTemplateSegmentRecordsCompanion.insert(
+            id: 'offline-segment',
+            templateId: 'foreign-template',
+            userId: offlineDataOwner,
+            name: '跨账号关联',
+            startsAtMinute: 480,
+            endsAtMinute: 540,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    await expectLater(
+      merge.mergeInto(userId),
+      throwsA(isA<OfflineDataConflict>()),
+    );
+
+    final segment = await database
+        .select(database.scheduleTemplateSegmentRecords)
+        .getSingle();
+    expect(segment.userId, offlineDataOwner);
     expect(await database.select(database.syncOperations).get(), isEmpty);
   });
 }

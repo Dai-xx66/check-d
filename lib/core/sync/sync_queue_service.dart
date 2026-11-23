@@ -114,7 +114,14 @@ class SyncQueueService {
             row.userId.equals(userId) &
             (row.status.equals('pending') | row.status.equals('failed')),
       )
-      ..orderBy([(row) => OrderingTerm.asc(row.createdAt)])
+      // New work must not be hidden behind a full batch of permanent failures.
+      // An attempted failure updates updatedAt, rotating retries fairly; the
+      // executor still applies dependency ordering and retry backoff.
+      ..orderBy([
+        (row) => OrderingTerm.desc(row.status.equals('pending')),
+        (row) => OrderingTerm.asc(row.updatedAt),
+        (row) => OrderingTerm.asc(row.createdAt),
+      ])
       ..limit(limit);
     return query.get();
   }

@@ -128,6 +128,63 @@ void main() {
     expect(remote.value('tasks', taskId)?['name'], '幂等任务');
   });
 
+  test('failed batch cannot starve a later pending task', () async {
+    final old = DateTime.utc(2020);
+    for (var index = 0; index < 2; index++) {
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              id: 'failed-$index',
+              userId: const Value(userId),
+              entityType: 'timer_sessions',
+              entityId: 'missing-$index',
+              operation: 'upsert',
+              payloadJson: '{}',
+              status: const Value('failed'),
+              createdAt: old.add(Duration(seconds: index)),
+              updatedAt: old.add(Duration(seconds: index)),
+            ),
+          );
+    }
+    final taskId = await tasks.saveRecurringTask(_timedDraft('后续正常任务'));
+
+    final result = await executor.flush(force: true, limit: 2);
+
+    expect(result.uploaded, 1);
+    expect(remote.value('tasks', taskId)?['name'], '后续正常任务');
+    expect(await statusFor(database, 'tasks', taskId, userId), 'completed');
+  });
+
+  test('failed operations rotate after an attempted retry', () async {
+    final old = DateTime.utc(2020);
+    for (var index = 0; index < 3; index++) {
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              id: 'failed-$index',
+              userId: const Value(userId),
+              entityType: 'timer_sessions',
+              entityId: 'missing-$index',
+              operation: 'upsert',
+              payloadJson: '{}',
+              status: const Value('failed'),
+              createdAt: old.add(Duration(seconds: index)),
+              updatedAt: old.add(Duration(seconds: index)),
+            ),
+          );
+    }
+
+    await executor.flush(force: true, limit: 1);
+    await executor.flush(force: true, limit: 1);
+
+    final rows = await (database.select(
+      database.syncOperations,
+    )..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
+    expect(rows.map((row) => row.retryCount), [1, 1, 0]);
+  });
+
   test('archived task is uploaded as a soft archive', () async {
     final taskId = await tasks.saveRecurringTask(_timedDraft('归档任务'));
     await tasks.archiveTask(taskId);

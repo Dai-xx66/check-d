@@ -6,6 +6,8 @@ import 'package:check_d/core/notifications/reminder_scheduler.dart';
 import 'package:check_d/core/sync/sync_apply_scope.dart';
 import 'package:check_d/core/sync/sync_download_service.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
+import 'package:check_d/core/theme/app_skin.dart';
+import 'package:check_d/core/theme/appearance_preferences.dart';
 import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
@@ -336,6 +338,144 @@ void main() {
     expect(local.userId, 'offline-user');
     expect(local.name, 'shared-id');
   });
+
+  for (final table in ['task_completions', 'timer_sessions']) {
+    test(
+      'cloud deletion removes restored $table and blocks stale resurrection',
+      () async {
+        remote.tables.addAll(_fullSnapshot());
+        expect((await executor.reconcile()).succeeded, isTrue);
+        final original = Map<String, Object?>.from(remote.tables[table]!.first);
+        final id = original['id']! as String;
+        remote.tables[table] = [
+          {...original, 'updated_at': _time(12), 'deleted_at': _time(12)},
+        ];
+
+        expect((await executor.reconcile()).succeeded, isTrue);
+        Future<int> countDeletedRow() async =>
+            (await database
+                    .customSelect(
+                      'SELECT COUNT(*) AS amount FROM ${table == 'task_completions' ? 'task_completion_records' : 'timer_session_records'} WHERE id = ?',
+                      variables: [Variable<String>(id)],
+                    )
+                    .getSingle())
+                .read<int>('amount');
+        expect(await countDeletedRow(), 0);
+
+        // An older deletion must not move the resurrection barrier backwards.
+        remote.tables[table] = [
+          {...original, 'updated_at': _time(11), 'deleted_at': _time(11)},
+        ];
+        expect((await executor.reconcile()).succeeded, isTrue);
+        remote.tables[table] = [
+          {...original, 'updated_at': '2030-01-01T11:30:00Z'},
+        ];
+        expect((await executor.reconcile()).succeeded, isTrue);
+        expect(await countDeletedRow(), 0);
+
+        remote.tables[table] = [original];
+        expect((await executor.reconcile()).succeeded, isTrue);
+        expect(await countDeletedRow(), 0);
+        expect(await database.select(database.syncOperations).get(), isEmpty);
+      },
+    );
+  }
+
+  test(
+    'restore rejects a segment referencing another account template',
+    () async {
+      final now = DateTime.utc(2030, 1, 1, 9);
+      await database
+          .into(database.scheduleTemplateRecords)
+          .insert(
+            ScheduleTemplateRecordsCompanion.insert(
+              id: 'foreign-template',
+              userId: 'other-user',
+              name: '其他账号私有模板',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      remote.tables['schedule_template_segments'] = [
+        _row('cross-owner-segment', {
+          'template_id': 'foreign-template',
+          'name': '跨账号关联',
+          'starts_at_minute': 480,
+          'ends_at_minute': 540,
+        }),
+      ];
+
+      final result = await executor.reconcile();
+
+      expect(result.succeeded, isFalse);
+      expect(result.error, isA<SyncRestoreSnapshotException>());
+      expect(
+        await database.select(database.scheduleTemplateSegmentRecords).get(),
+        isEmpty,
+      );
+      expect(
+        (await database.select(database.scheduleTemplateRecords).get())
+            .single
+            .userId,
+        'other-user',
+      );
+    },
+  );
+
+  test(
+    'cloud preference updates and tombstones preserve device appearance',
+    () async {
+      final appearance = AppearancePreferencesRepository(database);
+      await appearance.save(
+        const AppearancePreferences(
+          skin: AppSkinId.slate,
+          icon: AppIconStyle.neutral,
+        ),
+      );
+      await database
+          .into(database.appSettings)
+          .insert(
+            AppSettingsCompanion.insert(
+              key: 'reminder-defaults:$userId',
+              value: '{}',
+              updatedAt: DateTime.utc(2030, 1, 1, 9),
+            ),
+          );
+      remote.tables['user_preferences'] = [
+        _row('foreign-appearance', {
+          'preference_key': 'appearance.skin',
+          'value': 'lamb',
+          'updated_at': _time(12),
+        }),
+        _row('deleted-appearance', {
+          'preference_key': 'appearance.icon',
+          'updated_at': _time(12),
+          'deleted_at': _time(12),
+        }),
+        _row('reminder-defaults', {
+          'preference_key': 'reminder_defaults',
+          'updated_at': _time(12),
+          'deleted_at': _time(12),
+        }),
+      ];
+
+      final result = await executor.reconcile();
+
+      expect(result.succeeded, isTrue);
+      expect(result.applied, 1);
+      expect(result.skipped, 2);
+      final restored = await appearance.load();
+      expect(restored.skin, AppSkinId.slate);
+      expect(restored.icon, AppIconStyle.neutral);
+      expect(
+        await (database.select(database.appSettings)
+              ..where((row) => row.key.equals('reminder-defaults:$userId')))
+            .getSingleOrNull(),
+        isNull,
+      );
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    },
+  );
 
   test(
     'multiple timers for different tasks restore and future reminders use the existing scheduler',

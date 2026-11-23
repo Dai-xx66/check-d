@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../database/app_database.dart';
 import 'sync_apply_scope.dart';
+import 'sync_owner_references.dart';
 
 abstract interface class SyncRemoteReader {
   Future<List<Map<String, Object?>>> readTable(
@@ -67,8 +68,36 @@ class SupabaseSyncRemoteReader implements SyncRemoteReader {
     String table, {
     required String userId,
   }) async {
-    final response = await _client.from(table).select().eq('user_id', userId);
-    return [for (final row in response) Map<String, Object?>.from(row as Map)];
+    const pageSize = 500;
+    final rows = <Map<String, Object?>>[];
+    while (true) {
+      // A select without pagination silently stops at the server's max_rows.
+      // Use a unique order and the actual returned length, since that cap may
+      // be smaller than our requested page size.
+      final primaryKey = switch (table) {
+        'long_term_tasks' || 'one_time_reminders' => 'task_id',
+        'plan_tasks' => 'plan_id',
+        _ => 'id',
+      };
+      var query = _client
+          .from(table)
+          .select()
+          .eq('user_id', userId)
+          .order(primaryKey, ascending: true);
+      if (table == 'plan_tasks') {
+        query = query.order('task_id', ascending: true);
+      }
+      final response = await query
+          .range(rows.length, rows.length + pageSize - 1)
+          .count(CountOption.exact);
+      rows.addAll(response.data);
+      if (rows.length >= response.count) return rows;
+      if (response.data.isEmpty) {
+        throw const FormatException(
+          'Cloud snapshot ended before its row count.',
+        );
+      }
+    }
   }
 }
 
@@ -245,7 +274,16 @@ class SyncDownloadExecutor {
     Map<String, List<Map<String, Object?>>> snapshot,
     String userId,
   ) async {
-    for (final spec in _restoreIdentityCoverage) {
+    for (final spec in [
+      ..._restoreIdentityCoverage,
+      for (final reference in syncOwnerReferences)
+        _RestoreIdentitySpec(
+          reference.remoteTable,
+          reference.parentColumn,
+          reference.parentTable,
+          'id',
+        ),
+    ]) {
       for (final remoteRow in snapshot[spec.remoteTable] ?? const []) {
         if (_stringOrNull(remoteRow, 'user_id') != userId) continue;
         final remoteId = remoteRow[spec.remoteIdColumn]?.toString();
@@ -852,6 +890,10 @@ class SyncDownloadExecutor {
     }
     if (_deleted(row)) {
       await _recordTombstone('task_completions', id, userId, row);
+      await (_database.delete(_database.taskCompletionRecords)..where(
+            (record) => record.id.equals(id) & record.userId.equals(userId),
+          ))
+          .go();
       return true;
     }
     if (await _hasNewerTombstone('task_completions', id, userId, row)) {
@@ -895,6 +937,10 @@ class SyncDownloadExecutor {
     }
     if (_deleted(row)) {
       await _recordTombstone('timer_sessions', id, userId, row);
+      await (_database.delete(_database.timerSessionRecords)..where(
+            (record) => record.id.equals(id) & record.userId.equals(userId),
+          ))
+          .go();
       return true;
     }
     if (await _hasNewerTombstone('timer_sessions', id, userId, row)) {
@@ -1257,12 +1303,20 @@ class SyncDownloadExecutor {
     String id,
     String userId,
     Map<String, Object?> row,
-  ) {
-    return _database
+  ) async {
+    final key = _tombstoneKey(table, id, userId);
+    final existing = await (_database.select(
+      _database.appSettings,
+    )..where((setting) => setting.key.equals(key))).getSingleOrNull();
+    if (existing != null &&
+        !_dateTime(row, 'updated_at').isAfter(existing.updatedAt)) {
+      return;
+    }
+    await _database
         .into(_database.appSettings)
         .insertOnConflictUpdate(
           AppSettingsCompanion.insert(
-            key: _tombstoneKey(table, id, userId),
+            key: key,
             value: _dateTime(row, 'deleted_at').toIso8601String(),
             updatedAt: _dateTime(row, 'updated_at'),
           ),

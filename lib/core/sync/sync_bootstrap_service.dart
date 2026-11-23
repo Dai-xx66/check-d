@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
 import 'sync_download_service.dart';
+import 'sync_owner_references.dart';
 import 'sync_queue_service.dart';
 
 const offlineDataOwner = 'offline-user';
@@ -296,36 +297,17 @@ class OfflineDataMergeService {
   }
 
   Future<void> _validateOwnershipGraph(String userId) async {
-    const relations = <(String, String, String, String)>[
-      ('long_term_task_records', 'task_id', 'local_tasks', 'id'),
-      ('task_schedule_records', 'task_id', 'local_tasks', 'id'),
-      ('one_time_reminder_records', 'task_id', 'local_tasks', 'id'),
-      ('task_completion_records', 'task_id', 'local_tasks', 'id'),
-      ('timer_session_records', 'task_id', 'local_tasks', 'id'),
-      ('course_schedule_rule_records', 'course_id', 'course_records', 'id'),
-      (
-        'schedule_template_segment_records',
-        'template_id',
-        'schedule_template_records',
-        'id',
-      ),
-      (
-        'ad_hoc_timer_interval_records',
-        'timer_id',
-        'ad_hoc_timer_records',
-        'id',
-      ),
-    ];
-    for (final relation in relations) {
+    for (final relation in syncOwnerReferences) {
       final rows = await _database
           .customSelect(
-            'SELECT 1 FROM ${relation.$1} child JOIN ${relation.$3} parent '
-            'ON child.${relation.$2} = parent.${relation.$4} '
-            'WHERE (child.user_id = ? AND parent.user_id = ?) '
+            'SELECT 1 FROM ${relation.localTable} child '
+            'JOIN ${relation.parentTable} parent '
+            'ON child.${relation.parentColumn} = parent.id '
+            'WHERE (child.user_id = ? AND parent.user_id IS NOT ?) '
             'OR (child.user_id = ? AND parent.user_id = ?) LIMIT 1',
             variables: [
               const Variable<String>(offlineDataOwner),
-              Variable<String>(userId),
+              const Variable<String>(offlineDataOwner),
               Variable<String>(userId),
               const Variable<String>(offlineDataOwner),
             ],
