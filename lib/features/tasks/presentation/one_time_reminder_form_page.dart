@@ -313,7 +313,7 @@ class _OneTimeReminderFormPageState
                           ],
                           const Divider(height: 28),
                           if (_scheduledAt == null)
-                            const Text(
+                            Text(
                               '只有设置具体执行时间后，才能开启提前提醒和到点提醒。',
                               style: TextStyle(color: AppColors.muted),
                             )

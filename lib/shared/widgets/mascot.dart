@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_skin.dart';
 
 enum MascotState {
   idle,
@@ -46,6 +47,38 @@ const checkDSheepAssets = <SheepState, String>{
 
 String sheepAssetFor(SheepState state) => checkDSheepAssets[state]!;
 
+enum DailyProp { planter, booksAndCup, leafSprig }
+
+/// Small decorative objects that never intercept app controls or announcements.
+class CheckDDailyProp extends StatelessWidget {
+  const CheckDDailyProp({required this.prop, required this.size, super.key});
+
+  final DailyProp prop;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    Theme.of(context);
+    if (AppSkinHost.current.id == AppSkinId.lamb) {
+      return const SizedBox.shrink();
+    }
+    final asset = switch (prop) {
+      DailyProp.planter => 'assets/images/decor_planter.png',
+      DailyProp.booksAndCup => 'assets/images/decor_books_cup.png',
+      DailyProp.leafSprig => 'assets/images/decor_leaf_sprig.png',
+    };
+    return IgnorePointer(
+      child: Image.asset(
+        asset,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        excludeFromSemantics: true,
+      ),
+    );
+  }
+}
+
 SheepState resolveCheckDSheepState({
   bool hasCurrentCourse = false,
   bool isCourseBreak = false,
@@ -68,6 +101,7 @@ class CheckDSheep extends StatefulWidget {
     this.size = MascotSize.standard,
     this.compact = false,
     this.framed = true,
+    this.artworkState,
     this.assetOverrideForTesting,
     super.key,
   });
@@ -76,6 +110,9 @@ class CheckDSheep extends StatefulWidget {
   final double size;
   final bool compact;
   final bool framed;
+
+  /// Allows decorative placements to choose a pose while retaining their status.
+  final SheepState? artworkState;
   @visibleForTesting
   final String? assetOverrideForTesting;
 
@@ -156,15 +193,22 @@ class _CheckDSheepState extends State<CheckDSheep>
 
   @override
   Widget build(BuildContext context) {
+    // Subscribe so a skin change also refreshes the themed artwork.
+    Theme.of(context);
     final presentation = _sheepPresentation(widget.state);
+    final skinId = AppSkinHost.current.id;
+    final baseAsset = sheepAssetFor(widget.state);
+    final themedAsset = skinId == AppSkinId.lamb
+        ? baseAsset
+        : sheepAssetFor(
+            widget.artworkState ?? widget.state,
+          ).replaceFirst('/sheep_', '/sheep_${skinId.name}_');
     final artwork = Image.asset(
-      widget.assetOverrideForTesting ?? sheepAssetFor(widget.state),
+      widget.assetOverrideForTesting ?? themedAsset,
       key: ValueKey('check-d-sheep-${widget.state.name}'),
       fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) => Image.asset(
-        checkDSheepFallbackAsset,
-        fit: BoxFit.contain,
-      ),
+      errorBuilder: (context, error, stackTrace) =>
+          Image.asset(checkDSheepFallbackAsset, fit: BoxFit.contain),
     );
     final framedArtwork = widget.framed
         ? Stack(
@@ -345,7 +389,7 @@ class MascotWidget extends StatelessWidget {
             decoration: BoxDecoration(
               color: tint,
               shape: BoxShape.circle,
-              boxShadow: const [AppShadows.soft],
+              boxShadow: [AppShadows.soft],
             ),
             child: Padding(
               padding: EdgeInsets.all(compact ? 7 : 5),
@@ -356,7 +400,7 @@ class MascotWidget extends StatelessWidget {
             ),
           ),
           if (celebration) ...[
-            const Positioned(
+            Positioned(
               top: -4,
               left: 0,
               child: Icon(
@@ -365,7 +409,7 @@ class MascotWidget extends StatelessWidget {
                 color: AppColors.creamYellow,
               ),
             ),
-            const Positioned(
+            Positioned(
               right: -2,
               top: 10,
               child: Icon(
@@ -376,7 +420,7 @@ class MascotWidget extends StatelessWidget {
             ),
           ],
           if (state == MascotState.encouraging)
-            const Positioned(
+            Positioned(
               right: 1,
               bottom: 2,
               child: Icon(
@@ -423,7 +467,7 @@ class MascotEmptyState extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 message,
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                style: TextStyle(fontSize: 12, color: AppColors.muted),
               ),
             ],
           ),

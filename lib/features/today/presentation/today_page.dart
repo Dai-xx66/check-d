@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_skin.dart';
 import '../../../shared/utils/app_time.dart';
 import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
@@ -267,26 +268,27 @@ class _DesktopWorkspaceHeader extends ConsumerWidget {
     final adHocTimers =
         ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
     final sheepState = _mobileSheepState(data, taskTimers, adHocTimers);
+    final usesNewArtwork = AppSkinHost.current.id != AppSkinId.lamb;
     return Container(
       height: 142,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x96FFF3E8), Color(0x52FFFAF6), Color(0x24FFE8EE)],
-          stops: [0, .58, 1],
-        ),
+      decoration: BoxDecoration(
+        gradient: AppGradients.header,
         borderRadius: BorderRadius.all(AppRadius.feature),
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          const Positioned(
+            right: 116,
+            bottom: 13,
+            child: CheckDDailyProp(prop: DailyProp.planter, size: 32),
+          ),
           Positioned(
-            right: 14,
-            bottom: -2,
+            right: usesNewArtwork ? 24 : 14,
+            bottom: usesNewArtwork ? 8 : -2,
             child: CheckDSheep(
               state: sheepState,
-              size: MascotSize.heroLarge,
+              size: usesNewArtwork ? 108 : MascotSize.heroLarge,
               framed: false,
             ),
           ),
@@ -298,7 +300,7 @@ class _DesktopWorkspaceHeader extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.wb_sunny_rounded,
                         color: AppColors.creamYellow,
                         size: 28,
@@ -321,7 +323,7 @@ class _DesktopWorkspaceHeader extends ConsumerWidget {
                   const Spacer(),
                   Text(
                     data.dateText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.ink,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -329,13 +331,10 @@ class _DesktopWorkspaceHeader extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data.isToday ? '专注让每一天更靠近理想的自己 ♡' : data.encouragement,
+                    data.isToday ? '按自己的节奏，把今天过好。' : data.encouragement,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -429,13 +428,13 @@ class _DesktopAgenda extends StatelessWidget {
               : '${data.date.month}月${data.date.day}日时间轴',
           trailing: Text(
             data.dateText,
-            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+            style: TextStyle(color: AppColors.muted, fontSize: 11),
           ),
         ),
         const SizedBox(height: 7),
         CheckDSurface(
           level: CheckDSurfaceLevel.plain,
-          color: const Color(0x8CFFFFFF),
+          color: AppColors.surface,
           padding: const EdgeInsets.fromLTRB(15, 8, 15, 10),
           child: _DesktopTimeline(
             entries: timeline,
@@ -576,10 +575,8 @@ class _DesktopDayCard extends ConsumerWidget {
             level: selected
                 ? CheckDSurfaceLevel.glassSoft
                 : CheckDSurfaceLevel.raised,
-            color: selected ? const Color(0xA6FFF2F5) : const Color(0xA8FFFFFF),
-            borderColor: selected
-                ? const Color(0x30FFFFFF)
-                : const Color(0x48FFFFFF),
+            color: selected ? AppColors.blush : AppColors.surface,
+            borderColor: selected ? AppColors.border : AppColors.border,
             child: CheckDPressable(
               onTap: onTap,
               pressedScale: .985,
@@ -589,12 +586,24 @@ class _DesktopDayCard extends ConsumerWidget {
                   if (selected)
                     Positioned(
                       right: 12,
-                      bottom: -12,
+                      bottom: AppSkinHost.current.id == AppSkinId.lamb
+                          ? -12
+                          : 0,
                       child: CheckDSheep(
                         state: running > 0 ? SheepState.focus : SheepState.idle,
+                        artworkState: SheepState.focus,
                         size: MascotSize.lg,
                         compact: true,
                         framed: false,
+                      ),
+                    ),
+                  if (selected)
+                    const Positioned(
+                      right: 93,
+                      bottom: 3,
+                      child: CheckDDailyProp(
+                        prop: DailyProp.booksAndCup,
+                        size: 50,
                       ),
                     ),
                   Padding(
@@ -897,7 +906,7 @@ class _DesktopPendingItems extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (sorted.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 48,
               child: Center(
                 child: Text(
@@ -974,7 +983,7 @@ class _DesktopPendingChip extends ConsumerWidget {
           ? CheckDSurfaceLevel.raised
           : CheckDSurfaceLevel.plain,
       radius: const BorderRadius.all(AppRadius.control),
-      color: paused ? const Color(0x8CF3EEFF) : null,
+      color: paused ? AppColors.lavender : null,
       child: AnimatedContainer(
         duration: AppMotion.duration(context, AppMotion.standard),
         curve: AppMotion.curve,
@@ -1128,7 +1137,7 @@ class _DesktopTimeline extends ConsumerWidget {
       return Column(
         children: [
           if (entries.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 52,
               child: Center(
                 child: Text(
@@ -1148,7 +1157,7 @@ class _DesktopTimeline extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.primary),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.add_alarm_rounded, color: AppColors.primary),
                   SizedBox(width: 8),
@@ -1381,7 +1390,7 @@ class _DesktopTimelineRow extends StatelessWidget {
     duration: AppMotion.duration(context, AppMotion.standard),
     curve: AppMotion.curve,
     decoration: BoxDecoration(
-      color: highlighted ? const Color(0x66FFE8EF) : Colors.transparent,
+      color: highlighted ? AppColors.blush : Colors.transparent,
       borderRadius: const BorderRadius.all(AppRadius.control),
     ),
     child: IntrinsicHeight(
@@ -1407,9 +1416,7 @@ class _DesktopTimelineRow extends StatelessWidget {
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               if (!last)
-                Expanded(
-                  child: Container(width: 1, color: const Color(0xFFE6E8EA)),
-                ),
+                Expanded(child: Container(width: 1, color: AppColors.border)),
             ],
           ),
           const SizedBox(width: 12),
@@ -1431,7 +1438,7 @@ class _DesktopTimelineRow extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppColors.muted,
                           ),
@@ -1570,7 +1577,7 @@ class _DesktopSummaryMetric extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+              style: TextStyle(fontSize: 10, color: AppColors.muted),
             ),
           ],
         ),
@@ -1604,11 +1611,11 @@ class _DesktopContextPanel extends StatelessWidget {
                 ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 13),
-                  decoration: const BoxDecoration(
-                    color: Color(0xAAFFFFFF),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.all(AppRadius.chip),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(
                         Icons.search_rounded,
@@ -1649,7 +1656,7 @@ class _DesktopMotivationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => CheckDSurface(
     level: CheckDSurfaceLevel.glassSoft,
-    color: const Color(0xCFFFF5EF),
+    color: AppColors.surfaceSoft,
     child: SizedBox(
       height: 132,
       child: Padding(
@@ -1657,9 +1664,9 @@ class _DesktopMotivationCard extends StatelessWidget {
         child: Align(
           alignment: Alignment.topLeft,
           child: Text(
-            '每一个专注的日子\n都在靠近更好的自己 ♡',
+            '专注当下，\n也照顾好自己的节奏。',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF855B63),
+              color: AppColors.muted,
               height: 1.55,
             ),
           ),
@@ -1816,7 +1823,7 @@ class _DesktopMiniCalendarState extends State<_DesktopMiniCalendar> {
                             ? FontWeight.w800
                             : FontWeight.w500,
                         color: selected
-                            ? Colors.white
+                            ? AppColors.onPrimary
                             : isCurrentMonth
                             ? AppColors.ink
                             : AppColors.muted.withValues(alpha: .55),
@@ -1902,11 +1909,11 @@ class _DesktopUpcomingItems extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              const Text(
+              Text(
                 '更多',
                 style: TextStyle(color: AppColors.muted, fontSize: 11),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.muted,
                 size: 17,
@@ -1915,7 +1922,7 @@ class _DesktopUpcomingItems extends ConsumerWidget {
           ),
           const SizedBox(height: 5),
           if (upcoming.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 34,
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -2029,7 +2036,7 @@ class _DesktopFocusCardState extends ConsumerState<_DesktopFocusCard> {
           ),
           if (total == 0) ...[
             const SizedBox(height: 4),
-            const Text(
+            Text(
               '当前没有进行中的课程或计时事项',
               style: TextStyle(color: AppColors.muted, fontSize: 11),
             ),
@@ -2186,7 +2193,7 @@ class _DesktopCurrentCourseLine extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.muted,
               fontSize: 10,
               fontFeatures: [FontFeature.tabularFigures()],
@@ -2511,7 +2518,7 @@ class _PendingTaskRow extends ConsumerWidget {
           ? CheckDSurfaceLevel.raised
           : CheckDSurfaceLevel.plain,
       radius: const BorderRadius.all(AppRadius.control),
-      color: paused ? const Color(0x78F3EEFF) : null,
+      color: paused ? AppColors.lavender : null,
       child: AnimatedContainer(
         duration: AppMotion.duration(context, AppMotion.standard),
         curve: AppMotion.curve,
@@ -2867,6 +2874,7 @@ class _ThreeDayCard extends ConsumerWidget {
     final completed = values.where((task) => task.isCompleted).length;
     final remaining = values.length - completed;
     final selected = emphasis > .72;
+    final usesNewArtwork = AppSkinHost.current.id != AppSkinId.lamb;
     final scale = .9 + emphasis * .1;
     final opacity = .58 + emphasis * .42;
     return Semantics(
@@ -2881,10 +2889,8 @@ class _ThreeDayCard extends ConsumerWidget {
             level: selected
                 ? CheckDSurfaceLevel.glassSoft
                 : CheckDSurfaceLevel.raised,
-            color: selected ? const Color(0xA6FFF2F5) : const Color(0xA8FFFFFF),
-            borderColor: selected
-                ? const Color(0x30FFFFFF)
-                : const Color(0x48FFFFFF),
+            color: selected ? AppColors.blush : AppColors.surface,
+            borderColor: selected ? AppColors.border : AppColors.border,
             radius: const BorderRadius.all(AppRadius.importantCard),
             child: CheckDPressable(
               borderRadius: const BorderRadius.all(AppRadius.importantCard),
@@ -2937,13 +2943,18 @@ class _ThreeDayCard extends ConsumerWidget {
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: selected ? 12 : 8,
+                    bottom: usesNewArtwork ? 0 : (selected ? 12 : 8),
                     child: IgnorePointer(
                       child: Opacity(
-                        opacity: selected ? .68 : .18,
+                        opacity: selected ? (usesNewArtwork ? .9 : .68) : .18,
                         child: CheckDSheep(
                           state: SheepState.idle,
-                          size: selected
+                          artworkState: selected
+                              ? SheepState.focus
+                              : SheepState.breakTime,
+                          size: usesNewArtwork
+                              ? (selected ? MascotSize.standard : MascotSize.md)
+                              : selected
                               ? MascotSize.lg
                               : MascotSize.compactLarge,
                           compact: true,
@@ -2952,6 +2963,15 @@ class _ThreeDayCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  if (selected)
+                    const Positioned(
+                      left: 3,
+                      bottom: 8,
+                      child: CheckDDailyProp(
+                        prop: DailyProp.leafSprig,
+                        size: 25,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -3001,7 +3021,7 @@ class _MobileScheduleCard extends ConsumerWidget {
                 const Spacer(),
                 Text(
                   '${date.month}月${date.day}日 · $weekday',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
@@ -3082,7 +3102,7 @@ class _MobileScheduleContents extends StatelessWidget {
     ]..sort((a, b) => a.startMinute.compareTo(b.startMinute));
 
     if (entries.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           '今天还没有明确时间的安排',
           style: TextStyle(color: AppColors.muted, fontSize: 12),
@@ -3171,9 +3191,7 @@ class _MobileScheduleRow extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
       decoration: BoxDecoration(
         gradient: highlighted
-            ? const LinearGradient(
-                colors: [Color(0x64FFF0F4), Color(0x30FFFFFF)],
-              )
+            ? LinearGradient(colors: [AppColors.blush, AppColors.surface])
             : null,
         borderRadius: const BorderRadius.all(AppRadius.control),
         boxShadow: highlighted
@@ -3207,11 +3225,53 @@ class _MobileScheduleRow extends ConsumerWidget {
               ),
               const SizedBox(width: 9),
               Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    AnimatedSwitcher(
+                      duration: AppMotion.duration(context, AppMotion.standard),
+                      child: Text(
+                        key: ValueKey(
+                          isCurrentCourse
+                              ? courseStatus
+                              : taskRunning
+                              ? 'running'
+                              : taskPaused
+                              ? 'paused'
+                              : subtitle,
+                        ),
+                        isCurrentCourse
+                            ? courseStatus
+                            : taskRunning
+                            ? '进行中 ${formatDuration(taskElapsed)}'
+                            : taskPaused
+                            ? '已暂停 ${formatDuration(taskElapsed)}'
+                            : subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: highlighted
+                              ? AppColors.primaryStrong
+                              : AppColors.muted,
+                          fontSize: 10,
+                          fontWeight: highlighted
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (task != null) _OneTimeScheduleButton(task: task),
@@ -3221,36 +3281,6 @@ class _MobileScheduleRow extends ConsumerWidget {
                   enabled: dateOnly(date) == dateOnly(now),
                   dimension: 34,
                 ),
-              AnimatedSwitcher(
-                duration: AppMotion.duration(context, AppMotion.standard),
-                child: Text(
-                  key: ValueKey(
-                    isCurrentCourse
-                        ? courseStatus
-                        : taskRunning
-                        ? 'running'
-                        : taskPaused
-                        ? 'paused'
-                        : subtitle,
-                  ),
-                  isCurrentCourse
-                      ? courseStatus
-                      : taskRunning
-                      ? '进行中 ${formatDuration(taskElapsed)}'
-                      : taskPaused
-                      ? '已暂停 ${formatDuration(taskElapsed)}'
-                      : subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: highlighted
-                        ? AppColors.primaryStrong
-                        : AppColors.muted,
-                    fontSize: 10,
-                    fontWeight: highlighted ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-              ),
             ],
           ),
           if (isCurrentCourse) ...[
@@ -3351,7 +3381,7 @@ class _MobileCurrentTimeLine extends StatelessWidget {
           width: 47,
           child: Text(
             _formatMinute(now.hour * 60 + now.minute),
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.current,
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -3359,17 +3389,15 @@ class _MobileCurrentTimeLine extends StatelessWidget {
             ),
           ),
         ),
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
-            color: Color(0xFFE34B62),
+            color: AppColors.current,
             shape: BoxShape.circle,
           ),
           child: SizedBox(width: 8, height: 8),
         ),
         const SizedBox(width: 6),
-        const Expanded(
-          child: Divider(color: Color(0xFFE34B62), thickness: 1.5),
-        ),
+        Expanded(child: Divider(color: AppColors.current, thickness: 1.5)),
       ],
     ),
   );
@@ -3471,10 +3499,7 @@ class _MobileActiveTimerPanel extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.keyboard_arrow_up_rounded,
-                color: AppColors.muted,
-              ),
+              Icon(Icons.keyboard_arrow_up_rounded, color: AppColors.muted),
             ],
           ),
         ),
@@ -3658,10 +3683,7 @@ class _MultiTaskTimerRow extends ConsumerWidget {
                     timer.isPaused
                         ? '已暂停 · ${formatDuration(timer.elapsedSecondsAt(now))}'
                         : formatDuration(timer.elapsedSecondsAt(now)),
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -3785,7 +3807,7 @@ class _AdHocRowState extends ConsumerState<_AdHocRow> {
                 Text(timer.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                 Text(
                   formatDuration(timer.accumulatedDurationSeconds),
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
@@ -3811,7 +3833,7 @@ class _AdHocRowState extends ConsumerState<_AdHocRow> {
               ),
             )
           else
-            const Icon(Icons.check_circle_rounded, color: AppColors.green),
+            Icon(Icons.check_circle_rounded, color: AppColors.green),
           if (timer.timerStatus != AdHocTimerStatus.ended && widget.enabled)
             IconButton(
               tooltip: '结束',
@@ -3894,7 +3916,7 @@ class _DesktopHeader extends StatelessWidget {
           children: [
             Text('今日', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 4),
-            Text(data.dateText, style: const TextStyle(color: AppColors.muted)),
+            Text(data.dateText, style: TextStyle(color: AppColors.muted)),
           ],
         ),
       ),
@@ -3922,26 +3944,27 @@ class _MobileHeader extends ConsumerWidget {
     final adHocTimers =
         ref.watch(unfinishedAdHocTimersProvider).value ?? const [];
     final state = _mobileSheepState(data, taskTimers, adHocTimers);
+    final usesNewArtwork = AppSkinHost.current.id != AppSkinId.lamb;
     return Container(
       height: 132,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x96FFF3E8), Color(0x4CFFFAF6), Color(0x20FFE8EE)],
-          stops: [0, .58, 1],
-        ),
+      decoration: BoxDecoration(
+        gradient: AppGradients.header,
         borderRadius: BorderRadius.all(AppRadius.feature),
       ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
+          const Positioned(
+            right: 86,
+            bottom: 14,
+            child: CheckDDailyProp(prop: DailyProp.planter, size: 28),
+          ),
           Positioned(
-            right: -4,
-            bottom: -4,
+            right: usesNewArtwork ? 14 : -4,
+            bottom: usesNewArtwork ? 10 : -4,
             child: CheckDSheep(
               state: state,
-              size: MascotSize.hero,
+              size: usesNewArtwork ? 84 : MascotSize.hero,
               framed: false,
             ),
           ),
@@ -3953,7 +3976,7 @@ class _MobileHeader extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.wb_sunny_rounded,
                         color: AppColors.creamYellow,
                         size: 25,
@@ -3976,7 +3999,7 @@ class _MobileHeader extends ConsumerWidget {
                     data.dateText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.ink,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -3987,10 +4010,7 @@ class _MobileHeader extends ConsumerWidget {
                     data.encouragement,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: AppColors.muted, fontSize: 11),
                   ),
                 ],
               ),
@@ -4004,10 +4024,10 @@ class _MobileHeader extends ConsumerWidget {
 
 String _greetingFor(DateTime now) => switch (now.hour) {
   < 6 => '夜深了',
-  < 11 => 'Good Morning !',
+  < 11 => '早上好',
   < 14 => '中午好！',
-  < 18 => 'Good Afternoon !',
-  _ => 'Good Evening !',
+  < 18 => '下午好',
+  _ => '晚上好',
 };
 
 SheepState _mobileSheepState(
@@ -4056,11 +4076,11 @@ class _DesktopSummary extends StatelessWidget {
   Widget build(BuildContext context) => Card(
     clipBehavior: Clip.antiAlias,
     child: DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xF9FFFFFF), Color(0xDFFFF5F8)],
+          colors: [AppColors.surface, AppColors.surfaceSoft],
         ),
       ),
       child: Padding(
@@ -4080,7 +4100,7 @@ class _DesktopSummary extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     '已完成 ${data.completed} 项，还有 ${data.remaining} 项待完成',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -4227,10 +4247,7 @@ class _TaskSection extends StatelessWidget {
           const SizedBox(width: 7),
           Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(width: 7),
-          Text(
-            '${tasks.length}',
-            style: const TextStyle(color: AppColors.muted),
-          ),
+          Text('${tasks.length}', style: TextStyle(color: AppColors.muted)),
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.of(context).push<void>(
@@ -4313,7 +4330,7 @@ class _TaskRow extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             _subtitle(task, elapsed),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.muted,
                               fontSize: 12,
                             ),
@@ -4355,7 +4372,7 @@ class _TaskRow extends ConsumerWidget {
                       if (task.hasDurationTarget)
                         Text(
                           '${formatDuration(elapsed)} / ${formatDuration(target)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             color: AppColors.muted,
                           ),
@@ -4504,7 +4521,7 @@ class _CompletionButtonState extends ConsumerState<_CompletionButton> {
                   context,
                   const Duration(milliseconds: 180),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_rounded,
                   size: 38,
                   color: AppColors.creamYellow,
@@ -4545,7 +4562,7 @@ class _TaskMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => PopupMenuButton<String>(
     tooltip: '更多操作',
-    icon: const Icon(Icons.more_horiz_rounded, color: AppColors.muted),
+    icon: Icon(Icons.more_horiz_rounded, color: AppColors.muted),
     onSelected: (value) async {
       if (value == 'edit') {
         Navigator.of(context).push<void>(
@@ -4728,7 +4745,7 @@ class _TodayArrangement extends StatelessWidget {
               children: [
                 Text('今日安排', style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
-                const Icon(Icons.today_outlined, color: AppColors.primary),
+                Icon(Icons.today_outlined, color: AppColors.primary),
               ],
             ),
             const SizedBox(height: 10),
@@ -4781,20 +4798,18 @@ class _CurrentTimeLine extends StatelessWidget {
       children: [
         Text(
           time,
-          style: const TextStyle(
-            color: Color(0xFFE34B62),
+          style: TextStyle(
+            color: AppColors.current,
             fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(width: 8),
-        const Expanded(
-          child: Divider(color: Color(0xFFE34B62), thickness: 1.4),
-        ),
+        Expanded(child: Divider(color: AppColors.current, thickness: 1.4)),
         const SizedBox(width: 5),
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
-            color: Color(0xFFE34B62),
+            color: AppColors.current,
             shape: BoxShape.circle,
           ),
           child: SizedBox(width: 8, height: 8),
@@ -4855,16 +4870,13 @@ class _CourseTimelineItem extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '课程 · $start–$end${item.classroom == null ? '' : ' · ${item.classroom}'}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.muted),
                   ),
                 ],
               ),
             ),
           ),
-          const Icon(Icons.school_outlined, size: 18, color: AppColors.muted),
+          Icon(Icons.school_outlined, size: 18, color: AppColors.muted),
         ],
       ),
     );
@@ -4929,7 +4941,7 @@ class _TimelineItem extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           task.tagId == null ? '未分类' : '已设置标签',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppColors.muted,
                           ),
@@ -4967,8 +4979,8 @@ class _ReviewSummary extends ConsumerWidget {
     final review = ref.watch(reviewProvider(period));
     return CheckDSurface(
       level: CheckDSurfaceLevel.raised,
-      color: const Color(0xC8FFF3EC),
-      borderColor: const Color(0x48FFFFFF),
+      color: AppColors.surfaceSoft,
+      borderColor: AppColors.border,
       child: review.when(
         loading: () => const SizedBox(
           height: 88,
@@ -5028,7 +5040,7 @@ class _ReviewSummary extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const Positioned(
+                  Positioned(
                     right: 12,
                     top: 0,
                     bottom: 0,
@@ -5076,10 +5088,7 @@ class _ProgressRing extends StatelessWidget {
               '${(progress * 100).round()}%',
               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
             ),
-            const Text(
-              '完成度',
-              style: TextStyle(fontSize: 10, color: AppColors.muted),
-            ),
+            Text('完成度', style: TextStyle(fontSize: 10, color: AppColors.muted)),
           ],
         ),
       ],
@@ -5132,10 +5141,7 @@ class _Metric extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: AppColors.primary),
             const SizedBox(width: 5),
-            Text(
-              label,
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
-            ),
+            Text(label, style: TextStyle(color: AppColors.muted, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 6),
@@ -5184,7 +5190,7 @@ class _MobileMetric extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: AppColors.muted),
+              style: TextStyle(fontSize: 10, color: AppColors.muted),
             ),
           ],
         ),

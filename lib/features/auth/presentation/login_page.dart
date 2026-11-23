@@ -43,7 +43,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.task_alt_rounded,
                       size: 52,
                       color: AppColors.primary,
@@ -62,7 +62,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Text(
                       _isRegisterMode ? '开始记录每天的行动与时间' : '继续今天的小目标',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.muted),
+                      style: TextStyle(color: AppColors.muted),
                     ),
                     const SizedBox(height: 32),
                     TextFormField(
@@ -113,7 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       const SizedBox(height: 14),
                       Text(
                         authState.errorMessage!,
-                        style: const TextStyle(color: AppColors.red),
+                        style: TextStyle(color: AppColors.red),
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -149,7 +149,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     if (!hasCloud) ...[
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         '云端尚未配置，当前可先使用离线模式。',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.muted, fontSize: 13),

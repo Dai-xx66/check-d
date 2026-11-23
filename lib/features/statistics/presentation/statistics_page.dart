@@ -249,7 +249,7 @@ class _PageHeader extends StatelessWidget {
           children: [
             Text('统计', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 3),
-            const Text(
+            Text(
               '记录每一份努力，看见更好的自己',
               style: TextStyle(color: AppColors.muted),
             ),
@@ -301,7 +301,7 @@ class _RangeNavigator extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
@@ -479,11 +479,11 @@ class _SummaryCards extends StatelessWidget {
             Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.blush,
                 shape: BoxShape.circle,
               ),
-              child: const CheckDIcon(
+              child: CheckDIcon(
                 CheckDIconType.focus,
                 color: AppColors.primaryStrong,
               ),
@@ -495,7 +495,7 @@ class _SummaryCards extends StatelessWidget {
                 children: [
                   Text(
                     period.focusLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.muted,
                       fontSize: 13,
                     ),
@@ -503,7 +503,7 @@ class _SummaryCards extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text(
                     timeLabel(report.focusSeconds),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
                       color: AppColors.ink,
@@ -513,7 +513,7 @@ class _SummaryCards extends StatelessWidget {
               ),
             ),
             if (report.focusSeconds > 0)
-              const CheckDIcon(
+              CheckDIcon(
                 CheckDIconType.insight,
                 color: AppColors.creamYellow,
                 size: 22,
@@ -601,7 +601,7 @@ class _CompactMetric extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+          style: TextStyle(fontSize: 11, color: AppColors.muted),
         ),
       ],
     ),
@@ -632,7 +632,7 @@ class _StatisticsEmptyState extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 7),
-          const Text(
+          Text(
             '完成一次专注后，\n这里会慢慢记录下你的节奏。',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted),
@@ -664,7 +664,7 @@ class _Panel extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle!,
-              style: const TextStyle(fontSize: 12, color: AppColors.muted),
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
             ),
           ],
           const SizedBox(height: 22),
@@ -703,7 +703,7 @@ class _SmartSummaryCard extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   summary.message,
-                  style: const TextStyle(color: AppColors.muted),
+                  style: TextStyle(color: AppColors.muted),
                 ),
               ],
             ),
@@ -723,7 +723,7 @@ class _TaskPerformance extends StatelessWidget {
     title: '周期事项表现',
     subtitle: '目标计时时长不会自动计为完成，以真实打卡记录为准',
     child: report.tasks.isEmpty
-        ? const Text('当前周期暂无周期事项', style: TextStyle(color: AppColors.muted))
+        ? Text('当前周期暂无周期事项', style: TextStyle(color: AppColors.muted))
         : Column(
             children: [
               for (var index = 0; index < report.tasks.length; index++) ...[
@@ -773,7 +773,7 @@ class _TaskRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '打卡 ${task.completed}/${task.expected} · 专注 ${timeLabel(task.seconds)} · 连续 ${task.currentStreak} 天',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: AppColors.muted),
                 ),
               ],
             ),
@@ -783,7 +783,7 @@ class _TaskRow extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(width: 6),
-          const CheckDIcon(CheckDIconType.forward, color: AppColors.muted),
+          CheckDIcon(CheckDIconType.forward, color: AppColors.muted),
         ],
       ),
     ),

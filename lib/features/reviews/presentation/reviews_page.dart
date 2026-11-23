@@ -227,7 +227,7 @@ class _Metric extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
       ],
     ),
@@ -248,7 +248,7 @@ class _ReviewCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(
+              Icon(
                 Icons.edit_note_outlined,
                 size: 34,
                 color: AppColors.primary,
@@ -260,7 +260,7 @@ class _ReviewCard extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 '记录发生的事、收获、改进方向和情绪。',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.muted),
@@ -331,7 +331,7 @@ class _Answer extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(value),
@@ -536,7 +536,7 @@ class _PromptField extends StatelessWidget {
         children: [
           Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(question, style: const TextStyle(color: AppColors.muted)),
+          Text(question, style: TextStyle(color: AppColors.muted)),
           const SizedBox(height: 14),
           TextField(
             controller: controller,

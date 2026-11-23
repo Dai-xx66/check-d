@@ -287,7 +287,7 @@ void main() {
     expect(find.text('Check D'), findsOneWidget);
     expect(find.text('三日日程'), findsOneWidget);
     expect(find.text('今日时间轴'), findsOneWidget);
-    expect(find.text('周期任务'), findsNothing);
+    expect(find.text('周期任务'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());

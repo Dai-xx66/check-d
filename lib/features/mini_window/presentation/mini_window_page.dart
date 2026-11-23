@@ -561,7 +561,7 @@ class _WidgetHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.auto_awesome_rounded,
                     size: 18,
                     color: AppColors.primary,
@@ -574,7 +574,7 @@ class _WidgetHeader extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     _clock(now),
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -612,7 +612,7 @@ class _QuietText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
-    child: Text(text, style: const TextStyle(color: AppColors.muted)),
+    child: Text(text, style: TextStyle(color: AppColors.muted)),
   );
 }
 
@@ -642,7 +642,7 @@ class _CourseCard extends StatelessWidget {
                   ),
                   Text(
                     course.phase == MiniCoursePhase.breakTime ? '课间休息' : '上课中',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -652,7 +652,7 @@ class _CourseCard extends StatelessWidget {
                         course.nextSegmentMinute != null
                     ? '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)} · ${_formatMinute(course.nextSegmentMinute!)}继续'
                     : '${_formatMinute(course.startMinute)}–${_formatMinute(course.endMinute)}',
-                style: const TextStyle(color: AppColors.muted),
+                style: TextStyle(color: AppColors.muted),
               ),
               const SizedBox(height: 8),
               _CourseProgress(course: course),
@@ -771,7 +771,7 @@ class _TimerRowState extends State<_TimerRow> {
                           timer.status == TimerStatus.running
                               ? '${_duration(timer.elapsedSeconds)}${timer.targetSeconds == null ? '' : ' / ${_duration(timer.targetSeconds!)}'}'
                               : '已暂停 · ${_duration(timer.elapsedSeconds)}',
-                          style: const TextStyle(color: AppColors.muted),
+                          style: TextStyle(color: AppColors.muted),
                         ),
                       ],
                     ),
@@ -820,7 +820,7 @@ class _NextCourse extends StatelessWidget {
     child: ListTile(
       onTap: onOpenMain,
       dense: true,
-      leading: const Icon(Icons.school_outlined, color: AppColors.blueMist),
+      leading: Icon(Icons.school_outlined, color: AppColors.blueMist),
       title: Text(course.title),
       subtitle: Text(
         _isToday(course.date)
@@ -854,7 +854,7 @@ class _PendingItems extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.circle_outlined,
                       size: 16,
                       color: AppColors.muted,
@@ -870,7 +870,7 @@ class _PendingItems extends StatelessWidget {
                     if (item.targetSeconds != null)
                       Text(
                         _duration(item.targetSeconds!),
-                        style: const TextStyle(color: AppColors.muted),
+                        style: TextStyle(color: AppColors.muted),
                       ),
                   ],
                 ),
@@ -882,7 +882,7 @@ class _PendingItems extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     '还有 $hiddenCount 项待完成',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: TextStyle(color: AppColors.muted),
                   ),
                 ),
               ),

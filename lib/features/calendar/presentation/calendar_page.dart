@@ -154,7 +154,7 @@ class _CalendarPane extends StatelessWidget {
                     child: Center(
                       child: Text(
                         weekday,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.muted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -231,7 +231,7 @@ class _CalendarDayCell extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: today || selected
-              ? const BorderSide(color: AppColors.primary, width: 1.5)
+              ? BorderSide(color: AppColors.primary, width: 1.5)
               : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
@@ -265,7 +265,7 @@ class _CalendarDayCell extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '${data.completionPercent.round()}%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.muted,
                       fontSize: 10,
                     ),
@@ -334,7 +334,7 @@ class _MonthSummary extends StatelessWidget {
               elapsedDays.length;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
@@ -369,7 +369,7 @@ class _MonthMetric extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 5),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),

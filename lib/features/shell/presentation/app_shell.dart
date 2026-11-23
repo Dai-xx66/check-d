@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/platform/desktop_mini_window.dart';
 import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
+import '../../../shared/widgets/app_brand_icon.dart';
 import '../../calendar/presentation/calendar_page.dart';
 import '../../courses/presentation/course_form_page.dart';
 import '../../courses/presentation/course_list_page.dart';
@@ -30,7 +31,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _selectedIndex = 0;
 
   static const _destinations = [
-    _Destination('今日', CheckDIconType.today),
+    _Destination('今天', CheckDIconType.today),
     _Destination('日历', CheckDIconType.calendar),
     _Destination('统计', CheckDIconType.statistics),
     _Destination('我的', CheckDIconType.profile),
@@ -45,6 +46,10 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // 显式建立 Theme 依赖：换肤时整壳必须重建，
+    // 否则页面里直接读 AppColors 的 widget 不会重新求值，出现旧色残留。
+    // ignore: unnecessary_statements
+    Theme.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 1024) {
@@ -313,10 +318,10 @@ class _MobileBottomBar extends StatelessWidget {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                     child: DecoratedBox(
-                      decoration: const BoxDecoration(
-                        color: Color(0xD4FFFEFC),
+                      decoration: BoxDecoration(
+                        color: AppColors.glassStrong,
                         border: Border.fromBorderSide(
-                          BorderSide(color: Color(0x70FFFFFF)),
+                          BorderSide(color: AppColors.border),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -344,10 +349,8 @@ class _MobileBottomBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.blush.withValues(alpha: .64),
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: .78),
-                      ),
-                      boxShadow: const [AppShadows.soft],
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [AppShadows.soft],
                     ),
                   ),
                 ),
@@ -390,26 +393,26 @@ class _MobileBottomBar extends StatelessWidget {
                                   Container(
                                     width: 54,
                                     height: 54,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          Color(0xFFF993AE),
+                                          AppColors.primary,
                                           AppColors.primaryStrong,
                                         ],
                                       ),
                                       shape: BoxShape.circle,
                                       boxShadow: [AppShadows.soft],
                                     ),
-                                    child: const CheckDIcon(
+                                    child: CheckDIcon(
                                       CheckDIconType.add,
                                       size: 30,
-                                      color: Colors.white,
+                                      color: AppColors.onPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 1),
-                                  const Text(
+                                  Text(
                                     '添加',
                                     style: TextStyle(
                                       color: AppColors.primary,
@@ -590,16 +593,16 @@ class _DesktopSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 244,
+    width: 224,
     padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xDBFFFEFC), Color(0xC8FFF9F6)],
+        colors: [AppColors.surface, AppColors.surfaceSoft],
       ),
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: const Color(0x78FFFFFF)),
+      border: Border.all(color: AppColors.border),
       boxShadow: const [
         BoxShadow(
           color: Color(0x0C5E3B43),
@@ -611,24 +614,11 @@ class _DesktopSidebar extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(8, 2, 8, 20),
           child: Row(
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox.square(
-                  dimension: 38,
-                  child: CheckDIcon(
-                    CheckDIconType.today,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
+              const AppBrandIcon(size: 40),
               SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -643,7 +633,7 @@ class _DesktopSidebar extends StatelessWidget {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'A kinder way to keep going ♡',
+                      '把时间留给重要的事',
                       maxLines: 1,
                       style: TextStyle(fontSize: 9, color: AppColors.muted),
                     ),
@@ -662,7 +652,7 @@ class _DesktopSidebar extends StatelessWidget {
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: onCreateRecurring,
-          icon: const CheckDIcon(CheckDIconType.add, color: Colors.white),
+          icon: CheckDIcon(CheckDIconType.add, color: AppColors.onPrimary),
           label: const Text('新建'),
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(42),
@@ -672,7 +662,7 @@ class _DesktopSidebar extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
             '快速创建',
@@ -691,7 +681,7 @@ class _DesktopSidebar extends StatelessWidget {
         ),
         _DesktopCreateLink(
           icon: CheckDIconType.recurring,
-          label: '周期事项',
+          label: '周期任务',
           onTap: onCreateRecurring,
         ),
         _DesktopCreateLink(
@@ -710,8 +700,8 @@ class _DesktopSidebar extends StatelessWidget {
           onTap: onOpenMiniWindow,
         ),
         const Spacer(),
-        const SizedBox(
-          height: 126,
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height < 900 ? 64 : 126,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -722,17 +712,24 @@ class _DesktopSidebar extends StatelessWidget {
                   opacity: .66,
                   child: CheckDSheep(
                     state: SheepState.idle,
+                    artworkState: SheepState.breakTime,
                     size: MascotSize.compactLarge,
                     compact: true,
                     framed: false,
                   ),
                 ),
               ),
+              if (MediaQuery.sizeOf(context).height >= 900)
+                const Positioned(
+                  right: 2,
+                  bottom: 3,
+                  child: CheckDDailyProp(prop: DailyProp.planter, size: 53),
+                ),
               Positioned(
                 right: 0,
                 top: 34,
                 child: Text(
-                  'Small Steps\nBright Days ♡',
+                  '每一步，都算数。',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.primaryStrong,
@@ -745,7 +742,7 @@ class _DesktopSidebar extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(color: AppColors.border),
+        Divider(color: AppColors.border),
         _DesktopCreateLink(
           icon: CheckDIconType.settings,
           label: '设置',
@@ -769,7 +766,7 @@ class _DesktopNavItem extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Material(
-      color: selected ? const Color(0x9CFFE6EC) : Colors.transparent,
+      color: selected ? AppColors.blush : Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -839,11 +836,11 @@ class _SweetBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFF7F1), Color(0xFFFFFCF9), Color(0xFFFFF8FA)],
+          colors: AppGradients.backdrop.colors,
           stops: [0, .54, 1],
         ),
       ),

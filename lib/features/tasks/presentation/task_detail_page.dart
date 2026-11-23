@@ -123,7 +123,7 @@ class _TaskDetailContent extends ConsumerWidget {
                                     task.kind == TaskKind.recurring
                                         ? _recurringSubtitle(task)
                                         : _oneTimeSubtitle(task),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.muted,
                                     ),
                                   ),
@@ -416,7 +416,7 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
                   const Spacer(),
                   Text(
                     '${formatDuration(elapsed)} / ${formatDuration(target)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.muted,
                       fontSize: 12,
                     ),
@@ -531,7 +531,7 @@ class _TimerControlState extends ConsumerState<_TimerControl> {
                           const Spacer(),
                           Text(
                             formatDuration(session.elapsedSecondsAt(now)),
-                            style: const TextStyle(color: AppColors.muted),
+                            style: TextStyle(color: AppColors.muted),
                           ),
                         ],
                       ),
@@ -639,7 +639,7 @@ class _CompletionHistory extends ConsumerWidget {
       error: (error, stackTrace) => const Text('历史记录加载失败'),
       data: (entries) {
         if (entries.isEmpty) {
-          return const Card(
+          return Card(
             child: Padding(
               padding: EdgeInsets.all(20),
               child: Text('还没有打卡记录', style: TextStyle(color: AppColors.muted)),
@@ -694,7 +694,7 @@ class _DetailValue extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 12),
+          style: TextStyle(color: AppColors.muted, fontSize: 12),
         ),
         const SizedBox(height: 5),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -713,7 +713,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label, style: const TextStyle(color: AppColors.muted)),
+        Text(label, style: TextStyle(color: AppColors.muted)),
         const Spacer(),
         Flexible(child: Text(value, textAlign: TextAlign.right)),
       ],
