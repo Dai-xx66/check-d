@@ -6,8 +6,11 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
+from checkd_task_agent.ledger import ConfirmationLedger
 from checkd_task_agent.mcp_server import (
     McpApplication,
     TOOLS,
@@ -15,6 +18,7 @@ from checkd_task_agent.mcp_server import (
     serve,
 )
 from checkd_task_agent.models import AgentError
+from .test_update_service import TASK_ID, snapshot
 
 
 class FakeService:
@@ -189,24 +193,82 @@ class McpApplicationTest(unittest.TestCase):
     def test_access_token_is_consumed_from_child_environment(self) -> None:
         secret = "temporary-user-access-token"
         with tempfile.TemporaryDirectory() as directory:
-            previous = dict(os.environ)
-            try:
-                os.environ.update(
-                    {
-                        "SUPABASE_URL": "https://example.supabase.co",
-                        "SUPABASE_PUBLISHABLE_KEY": "public-placeholder",
-                        "SUPABASE_USER_ACCESS_TOKEN": secret,
-                        "CHECKD_AGENT_STATE_PATH": f"{directory}/state.sqlite3",
-                    }
+            application = self._start_standalone(directory, token=secret)
+            self.assertIsInstance(application, McpApplication)
+            (database,) = Path(directory).glob("state.*.sqlite3")
+            self.assertNotIn(secret.encode(), database.read_bytes())
+
+    def _start_standalone(
+        self,
+        directory,
+        *,
+        user_id="test-user",
+        url="https://example.supabase.co",
+        token="temporary-user-access-token",
+    ):
+        with patch.dict(os.environ, {
+            "SUPABASE_URL": url,
+            "SUPABASE_PUBLISHABLE_KEY": "public-placeholder",
+            "SUPABASE_USER_ACCESS_TOKEN": token,
+            "CHECKD_AGENT_STATE_PATH": f"{directory}/state.sqlite3",
+        }), patch("checkd_task_agent.mcp_server.SupabaseTaskRepository") as repository_type:
+            repository = repository_type.return_value
+            repository.authenticated_user_id.return_value = user_id
+            repository.get_one_time_task_snapshot.return_value = snapshot()
+            application = build_application_from_environment()
+            repository.authenticated_user_id.assert_called_once_with()
+            self.assertNotIn("SUPABASE_USER_ACCESS_TOKEN", os.environ)
+            return application
+
+    def test_standalone_keeps_approvals_in_the_verified_project_and_account(self) -> None:
+        create_arguments = {
+            "name": "任务草稿",
+            "expected_duration_minutes": 10,
+            "deadline_date": "2026-11-28",
+            "idempotency_key": "create",
+        }
+        update_arguments = {
+            "task_id": TASK_ID,
+            "changes": {"name": "任务改名"},
+            "idempotency_key": "edit",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            legacy_state = Path(directory, "state.sqlite3")
+            ConfirmationLedger(legacy_state)
+            legacy_contents = legacy_state.read_bytes()
+            owner = self._start_standalone(directory)
+            creation = owner.call_tool("prepare_task_creation", create_arguments)
+            update = owner.call_tool("prepare_task_update", update_arguments)
+            same_account = self._start_standalone(directory, token="refreshed-access-token")
+            self.assertEqual(same_account.call_tool("prepare_task_creation", create_arguments), creation)
+            self.assertEqual(same_account.call_tool("prepare_task_update", update_arguments), update)
+            for account in (
+                self._start_standalone(directory, user_id="other-verified-user"),
+                self._start_standalone(directory, url="https://other-project.supabase.co"),
+            ):
+                with self.assertRaises(AgentError) as rejected_creation:
+                    account.call_tool("create_task", {
+                        "confirmation_id": creation["confirmation_id"],
+                        "user_confirmation_text": creation["confirmation_phrase"],
+                    })
+                self.assertEqual(rejected_creation.exception.code, "CONFIRMATION_NOT_FOUND")
+                with self.assertRaises(AgentError) as rejected_update:
+                    account.call_tool("update_task", {
+                        "update_confirmation_id": update["update_confirmation_id"],
+                        "user_confirmation_text": update["confirmation_phrase"],
+                    })
+                self.assertEqual(rejected_update.exception.code, "UPDATE_CONFIRMATION_NOT_FOUND")
+                self.assertNotEqual(
+                    account.call_tool("prepare_task_creation", create_arguments)["confirmation_id"],
+                    creation["confirmation_id"],
                 )
-                application = build_application_from_environment()
-                self.assertIsInstance(application, McpApplication)
-                self.assertNotIn("SUPABASE_USER_ACCESS_TOKEN", os.environ)
-                with open(f"{directory}/state.sqlite3", "rb") as state_file:
-                    self.assertNotIn(secret.encode(), state_file.read())
-            finally:
-                os.environ.clear()
-                os.environ.update(previous)
+                self.assertNotEqual(
+                    account.call_tool("prepare_task_update", update_arguments)["update_confirmation_id"],
+                    update["update_confirmation_id"],
+                )
+            self.assertEqual(same_account.call_tool("prepare_task_creation", create_arguments), creation)
+            self.assertEqual(same_account.call_tool("prepare_task_update", update_arguments), update)
+            self.assertEqual(legacy_state.read_bytes(), legacy_contents)
 
 
 if __name__ == "__main__":
