@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/sync/sync_queue_service.dart';
+
 abstract interface class TaskOccurrenceRemotePublisher {
   Future<TaskOccurrencePublishReceipt> publish({
     required String userId,
@@ -98,6 +100,50 @@ class SupabaseTaskOccurrenceRemotePublisher
     }
     _requireOwner(userId);
     return _readReceipt(response);
+  }
+
+  /// Checks the existing owner-readable checkpoint without putting the
+  /// server version in the occurrence RPC's request.
+  Future<int?> readCheckpointVersion(SyncDeviceCheckpoint checkpoint) async {
+    final owner = checkpoint.userId;
+    final session = _client.auth.currentSession;
+    if (session == null || session.user.id != owner) return null;
+    final authorization = 'Bearer ${session.accessToken}';
+    try {
+      final watermark = await _client
+          .from('agent_device_sync_watermarks')
+          .select('local_generation,server_data_version')
+          .eq('user_id', owner)
+          .eq('device_id', checkpoint.deviceId)
+          .maybeSingle()
+          .setHeader('Authorization', authorization)
+          .timeout(_timeout);
+      if (_client.auth.currentSession?.user.id != owner ||
+          watermark?['local_generation'] != checkpoint.localGeneration) {
+        return null;
+      }
+      final version = await _client
+          .from('agent_user_data_versions')
+          .select('data_version')
+          .eq('user_id', owner)
+          .maybeSingle()
+          .setHeader('Authorization', authorization)
+          .timeout(_timeout);
+      final dataVersion = version?['data_version'];
+      if (_client.auth.currentSession?.user.id == owner &&
+          dataVersion is int &&
+          dataVersion >= 0 &&
+          watermark?['server_data_version'] == dataVersion) {
+        return dataVersion;
+      }
+    } on PostgrestException {
+      return null;
+    } on TimeoutException {
+      return null;
+    } on http.ClientException {
+      return null;
+    }
+    return null;
   }
 
   String _encodeRequest(String deviceId, Map<String, Object?> snapshot) {

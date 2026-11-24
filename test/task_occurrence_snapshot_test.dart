@@ -59,6 +59,10 @@ void main() {
     expect(result.deviceId, isNot(otherDevice.deviceId));
     expect(result.generatedAt, isNot(otherDevice.generatedAt));
     expect(result.occurrences, otherDevice.occurrences);
+    expect(result.hasRecurringTasks, isTrue);
+    expect(result.omissions, {
+      TaskOccurrenceOmissionReason.skippedByOverride: 29,
+    });
     expect(result.taskDataVersion, otherDevice.taskDataVersion);
     expect(result.taskDataVersion, matches(r'^sha256:[a-f0-9]{64}$'));
     expect(result.toJson(), {
@@ -77,6 +81,135 @@ void main() {
       ],
     });
   });
+
+  test(
+    'daily rule emits each explicitly timed date in its inclusive range',
+    () async {
+      const expectedDates = ['2026-11-25', '2026-11-26', '2026-11-27'];
+      await fixture.addTask(
+        'daily',
+        from: expectedDates.first,
+        through: expectedDates.last,
+      );
+      for (final date in ['2026-11-24', ...expectedDates, '2026-11-28']) {
+        await fixture.addOverride(
+          'daily',
+          localDate: date,
+          start: 540,
+          end: 600,
+        );
+      }
+
+      final result = await fixture.build();
+      expect(result.hasRecurringTasks, isTrue);
+      expect(result.omissions, isEmpty);
+      expect(result.occurrences, [
+        for (final date in expectedDates) _occurrence('daily', date, 540, 600),
+      ]);
+    },
+  );
+
+  test(
+    'uses date-specific overrides and skips only unsupported instances',
+    () async {
+      await fixture.addTask(
+        'read',
+        from: _first,
+        through: '2026-11-28',
+        fixedStart: 540,
+        goalSeconds: 2700,
+      );
+      await fixture.addOverride(
+        'read',
+        localDate: _first,
+        start: 570,
+        end: 630,
+      );
+      await fixture.addOverride(
+        'read',
+        localDate: '2026-11-25',
+        action: DayOverrideAction.skip,
+      );
+      await fixture.addOverride('read', localDate: '2026-11-27', start: 600);
+      await fixture.addOverride(
+        'read',
+        localDate: '2026-11-28',
+        start: 630,
+        end: 645,
+      );
+      await fixture.addOverride(
+        'read',
+        localDate: '2026-11-29',
+        action: DayOverrideAction.skip,
+      );
+
+      final result = await fixture.build();
+      expect(result.occurrences, [
+        _occurrence('read', _first, 570, 630),
+        _occurrence('read', '2026-11-28', 630, 645),
+      ]);
+      expect(result.omissions, {
+        TaskOccurrenceOmissionReason.skippedByOverride: 1,
+        TaskOccurrenceOmissionReason.missingPlannedEnd: 2,
+      });
+      expect(result.toJson(), isNot(contains('omissions')));
+    },
+  );
+
+  test(
+    'completion and exclusion apply only to the owner and local date',
+    () async {
+      const days = [_first, '2026-11-25', '2026-11-26', '2026-11-27'];
+      await fixture.addTask('plan', from: days.first, through: days.last);
+      for (final date in days) {
+        await fixture.addOverride(
+          'plan',
+          localDate: date,
+          start: 540,
+          end: 600,
+        );
+      }
+      final before = await fixture.build();
+      await fixture.addCompletion('plan', date: days[0], completed: true);
+      await fixture.addCompletion('plan', date: days[1], targetReached: true);
+      await fixture.addCompletion(
+        'plan',
+        date: days[2],
+        exclusionReason: 'skip',
+      );
+      await fixture.addCompletion(
+        'plan',
+        date: days[3],
+        owner: _other,
+        completed: true,
+      );
+
+      final result = await fixture.build();
+      expect(result.occurrences, [
+        // Timer-derived target progress is independent of explicit completion.
+        _occurrence('plan', days[1], 540, 600),
+        _occurrence('plan', days[3], 540, 600),
+      ]);
+      expect(result.omissions, {
+        TaskOccurrenceOmissionReason.completed: 1,
+        TaskOccurrenceOmissionReason.excluded: 1,
+      });
+      expect(result.taskDataVersion, isNot(before.taskDataVersion));
+      final completion = fixture.database.taskCompletionRecords;
+      await (fixture.database.update(completion)..where(
+            (row) => row.taskId.equals('plan') & row.localDate.equals(days[0]),
+          ))
+          .write(
+            const TaskCompletionRecordsCompanion(
+              isSuccess: Value(false),
+              completedAt: Value(null),
+            ),
+          );
+      final undone = await fixture.build();
+      expect(undone.occurrences.first, _occurrence('plan', days[0], 540, 600));
+      expect(undone.taskDataVersion, isNot(result.taskDataVersion));
+    },
+  );
 
   test('reuses adjusted workdays and holiday pause before timing', () async {
     const madeUpWorkday = '2026-11-28'; // Saturday.
@@ -171,31 +304,41 @@ void main() {
     expect(result.occurrences, [_occurrence('current', _first, 540, 630)]);
   });
 
-  test('never uses execution duration as a default planned end', () async {
-    await fixture.addTask(
-      'timed',
-      from: _first,
-      through: _first,
-      fixedStart: 540,
-      goalSeconds: 2700,
-    );
-    await fixture.addOverride(
-      'timed',
-      localDate: _first,
-      start: 580,
-      end: 590,
-      deleted: true,
-    );
+  test(
+    'active recurring items lacking a planned range yield an empty snapshot',
+    () async {
+      await fixture.addTask(
+        'timed',
+        from: _first,
+        through: _first,
+        fixedStart: 540,
+        goalSeconds: 2700,
+      );
+      await fixture.addOverride(
+        'timed',
+        localDate: _first,
+        start: 580,
+        end: 590,
+        deleted: true,
+      );
+      await fixture.addTask('free', from: _first, through: _first);
+      await fixture.addTask('missing-start', from: _first, through: _first);
+      await fixture.addOverride('missing-start', localDate: _first, end: 1440);
 
-    await expectLater(
-      fixture.build(),
-      throwsA(_snapshotFailure('unresolved_occurrence_time')),
-    );
-  });
+      final result = await fixture.build();
+      expect(result.hasRecurringTasks, isTrue);
+      expect(result.occurrences, isEmpty);
+      expect(result.omissions, {
+        TaskOccurrenceOmissionReason.missingPlannedStart: 1,
+        TaskOccurrenceOmissionReason.missingPlannedEnd: 1,
+        TaskOccurrenceOmissionReason.missingPlannedStartAndEnd: 1,
+      });
+    },
+  );
 
-  test('rejects incomplete planned time and foreign required rule', () async {
+  test('rejects malformed minutes and foreign required rule', () async {
     await fixture.addTask('plan', from: _first, through: _first);
-    await fixture.addOverride('plan', localDate: _first, start: 540);
+    await fixture.addOverride('plan', localDate: _first, start: -1, end: 60);
     await expectLater(
       fixture.build(),
       throwsA(_snapshotFailure('invalid_occurrence_time')),
@@ -243,10 +386,12 @@ void main() {
   );
 
   test(
-    'publishes a complete empty window for a settled empty account',
+    'distinguishes an empty account from active recurring items without rows',
     () async {
       final result = await fixture.build();
       expect(result.occurrences, isEmpty);
+      expect(result.hasRecurringTasks, isFalse);
+      expect(result.omissions, isEmpty);
       expect(result.fromDate, _first);
       expect(result.throughDate, _last);
     },
@@ -344,6 +489,33 @@ class _Fixture {
             weekdaysMask: mask,
             startsOn: from,
             endsOn: Value(through),
+            createdAt: _clock,
+            updatedAt: _clock,
+          ),
+        );
+  }
+
+  Future<void> addCompletion(
+    String task, {
+    required String date,
+    String owner = _owner,
+    bool completed = false,
+    bool targetReached = false,
+    String? exclusionReason,
+  }) async {
+    await database
+        .into(database.taskCompletionRecords)
+        .insert(
+          TaskCompletionRecordsCompanion.insert(
+            id: '$owner:$task:$date',
+            taskId: task,
+            userId: owner,
+            localDate: date,
+            isSuccess: Value(completed),
+            targetReached: Value(targetReached),
+            actualDurationSeconds: Value(targetReached ? 2700 : 0),
+            completedAt: Value(completed ? _clock : null),
+            exclusionReason: Value(exclusionReason),
             createdAt: _clock,
             updatedAt: _clock,
           ),

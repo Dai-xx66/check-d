@@ -17,6 +17,9 @@ void main() {
   late List<Duration> delays;
   late Object? syncEpoch;
   late String version;
+  late bool hasRecurringTasks;
+  late int? checkpointVersion;
+  late int versionReads;
   late TaskOccurrencePublishService service;
 
   setUp(() async {
@@ -29,6 +32,9 @@ void main() {
     delays = [];
     syncEpoch = 1;
     version = 'fixture-v1';
+    hasRecurringTasks = true;
+    checkpointVersion = 12;
+    versionReads = 0;
     service = TaskOccurrencePublishService(
       queue: queue,
       buildSnapshot: (checkpoint) async => TaskOccurrenceSnapshot(
@@ -39,11 +45,16 @@ void main() {
         throughDate: '2026-12-24',
         generatedAt: DateTime.utc(2026, 11, 24, 3),
         taskDataVersion: version,
+        hasRecurringTasks: hasRecurringTasks,
         occurrences: const [],
       ),
       remote: remote,
       currentSyncEpoch: (userId) => userId == owner ? syncEpoch : null,
       delay: (duration) async => delays.add(duration),
+      readCheckpointVersion: (_) async {
+        versionReads++;
+        return checkpointVersion;
+      },
     );
   });
 
@@ -112,6 +123,36 @@ void main() {
       syncEpoch = null;
       expect(await service.publish(checkpoint), isFalse);
       expect(remote.requests, hasLength(1));
+    },
+  );
+  test(
+    'no recurring rules skips the remote checkpoint and occurrence RPC',
+    () async {
+      hasRecurringTasks = false;
+
+      expect(await service.publish(checkpoint), isFalse);
+      expect(remote.requests, isEmpty);
+      expect(versionReads, 0);
+    },
+  );
+
+  test(
+    'missing or mismatched remote version never reports acceptance',
+    () async {
+      checkpointVersion = null;
+      expect(await service.publish(checkpoint), isFalse);
+      expect(remote.requests, isEmpty);
+
+      checkpointVersion = 11;
+      expect(await service.publish(checkpoint), isFalse);
+      expect(await service.publish(checkpoint), isFalse);
+      expect(remote.requests, hasLength(1));
+
+      syncEpoch = 2;
+      checkpointVersion = 12;
+      expect(await service.publish(checkpoint), isTrue);
+      expect(await service.publish(checkpoint), isTrue);
+      expect(remote.requests, hasLength(2));
     },
   );
 }

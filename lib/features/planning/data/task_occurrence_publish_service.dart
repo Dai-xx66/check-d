@@ -1,9 +1,10 @@
+import 'dart:developer' as developer;
+
 import '../../../core/sync/sync_queue_service.dart';
 import 'task_occurrence_remote.dart';
 import 'task_occurrence_snapshot.dart';
 
-/// Publishes a snapshot only while the same owner's settled checkpoint remains
-/// current. Acceptance by one RPC is separate from server planning readiness.
+/// Acceptance by the occurrence RPC is separate from server planning readiness.
 class TaskOccurrencePublishService {
   TaskOccurrencePublishService({
     required SyncQueueService queue,
@@ -11,11 +12,13 @@ class TaskOccurrencePublishService {
     buildSnapshot,
     required TaskOccurrenceRemotePublisher remote,
     required Object? Function(String userId) currentSyncEpoch,
+    Future<int?> Function(SyncDeviceCheckpoint)? readCheckpointVersion,
     Future<void> Function(Duration)? delay,
   }) : _queue = queue,
        _buildSnapshot = buildSnapshot,
        _remote = remote,
        _currentSyncEpoch = currentSyncEpoch,
+       _readCheckpointVersion = readCheckpointVersion,
        _delay = delay ?? Future<void>.delayed;
 
   static const _retryDelays = [
@@ -28,51 +31,93 @@ class TaskOccurrencePublishService {
   _buildSnapshot;
   final TaskOccurrenceRemotePublisher _remote;
   final Object? Function(String userId) _currentSyncEpoch;
+  final Future<int?> Function(SyncDeviceCheckpoint)? _readCheckpointVersion;
   final Future<void> Function(Duration) _delay;
 
-  // Rejecting a payload permanently shouldn't resend it every watermark tick.
-  // Another generation or data/window version creates a new publication.
+  // A refresh of the same device ACK is not a new local generation or restore.
+  // Do not relabel the same published input at a different server version.
+  final _observed = <(String, String), (int, Object, bool)>{};
   final _rejections = <(String, String), (int, String, String, String)>{};
-  final _published = <(String, String), (int, DateTime, Object)>{};
 
   Future<bool> publish(SyncDeviceCheckpoint checkpoint) async {
     final epoch = _currentSyncEpoch(checkpoint.userId);
-    if (epoch == null) return false;
-    if (!await _isCurrent(checkpoint, epoch)) return false;
+    if (epoch == null || !await _isCurrent(checkpoint, epoch)) return false;
     final ownerDevice = (checkpoint.userId, checkpoint.deviceId);
-    final watermark = (checkpoint.localGeneration, checkpoint.updatedAt, epoch);
-    if (_published[ownerDevice] == watermark) return true;
+    final observed = _observed[ownerDevice];
+    if (observed != null &&
+        observed.$1 == checkpoint.localGeneration &&
+        observed.$2 == epoch) {
+      return observed.$3;
+    }
     final snapshot = await _buildSnapshot(checkpoint);
     if (snapshot.userId != checkpoint.userId ||
         snapshot.deviceId != checkpoint.deviceId ||
-        snapshot.localGeneration != checkpoint.localGeneration) {
+        snapshot.localGeneration != checkpoint.localGeneration ||
+        !snapshot.hasRecurringTasks) {
       return false;
     }
-    final version = (
+    final inputVersion = (
       checkpoint.localGeneration,
       snapshot.taskDataVersion,
       snapshot.fromDate,
       snapshot.throughDate,
     );
-    if (_rejections[ownerDevice] == version) return false;
+    if (_rejections[ownerDevice] == inputVersion) return false;
 
+    final missingTiming = snapshot.omissions.entries
+        .where(
+          (entry) => switch (entry.key) {
+            TaskOccurrenceOmissionReason.missingPlannedStart ||
+            TaskOccurrenceOmissionReason.missingPlannedEnd ||
+            TaskOccurrenceOmissionReason.missingPlannedStartAndEnd => true,
+            _ => false,
+          },
+        )
+        .map((entry) => '${entry.key.name}=${entry.value}')
+        .join(', ');
+    if (missingTiming.isNotEmpty) {
+      developer.log(missingTiming, name: 'checkd.task_occurrence');
+    }
+
+    final readVersion = _readCheckpointVersion;
+    final expectedVersion = await readVersion?.call(checkpoint);
+    if (readVersion != null && expectedVersion == null) return false;
     final payload = snapshot.toJson();
+
     for (var attempt = 0; ; attempt++) {
+      if (attempt > 0 &&
+          readVersion != null &&
+          await readVersion(checkpoint) != expectedVersion) {
+        return false;
+      }
       if (!await _isCurrent(checkpoint, epoch)) return false;
       try {
-        await _remote.publish(
+        final receipt = await _remote.publish(
           userId: checkpoint.userId,
           deviceId: checkpoint.deviceId,
           snapshot: payload,
         );
         if (!await _isCurrent(checkpoint, epoch)) return false;
+        final matchesVersion =
+            expectedVersion == null ||
+            receipt.serverDataVersion == expectedVersion;
+        _observed[ownerDevice] = (
+          checkpoint.localGeneration,
+          epoch,
+          matchesVersion,
+        );
+        if (!matchesVersion) return false;
         _rejections.remove(ownerDevice);
-        _published[ownerDevice] = watermark;
+        developer.log(
+          'server_data_version=${receipt.serverDataVersion} '
+          'occurrence_digest=${receipt.occurrenceDigest}',
+          name: 'checkd.task_occurrence',
+        );
         return true;
       } on TaskOccurrencePublishFailure catch (error) {
         if (!await _isCurrent(checkpoint, epoch)) return false;
         if (!error.retryable) {
-          _rejections[ownerDevice] = version;
+          _rejections[ownerDevice] = inputVersion;
           return false;
         }
         if (attempt == _retryDelays.length) return false;
