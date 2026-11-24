@@ -41,6 +41,11 @@ has no receipt and the record changed, the user must review the current task
 and confirm again. The ledger creates the receipt table on startup and must
 remain persistent across restarts.
 
+The standalone stdio agent verifies the Supabase session at startup and adds
+the project/account hash to its configured state filename. Existing files
+without an account binding are left on disk. Prepare earlier pending changes
+again after checking for any prior writes.
+
 ## Account route configuration
 
 Enable only in a non-production test deployment until OAuth and data coverage
