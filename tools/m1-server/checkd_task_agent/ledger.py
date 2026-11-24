@@ -138,6 +138,19 @@ class ConfirmationLedger:
                 """
             )
 
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS task_update_write_receipts (
+                    confirmation_id TEXT NOT NULL,
+                    component TEXT NOT NULL CHECK(component IN ('task', 'reminder')),
+                    version TEXT NOT NULL,
+                    PRIMARY KEY (confirmation_id, component),
+                    FOREIGN KEY (confirmation_id)
+                        REFERENCES task_update_confirmations(confirmation_id)
+                )
+                """
+            )
+
     def prepare(
         self,
         draft: TaskDraft,
@@ -392,6 +405,35 @@ class ConfirmationLedger:
             assert row is not None
             return self._record(row)
 
+    def find_prepared_update(
+        self,
+        idempotency_key: str,
+        task_id: str,
+        changes: dict[str, object],
+    ) -> UpdateConfirmationRecord | None:
+        key = idempotency_key.strip()
+        if not key or len(key) > 128:
+            raise AgentError("INVALID_IDEMPOTENCY_KEY", "idempotency_key 必须为 1–128 个字符。")
+        with self._connect() as connection:
+            return self._existing_update(connection, key, task_id, changes)
+
+    def _existing_update(
+        self,
+        connection: sqlite3.Connection,
+        key: str,
+        task_id: str,
+        changes: dict[str, object],
+    ) -> UpdateConfirmationRecord | None:
+        row = connection.execute(
+            "SELECT * FROM task_update_confirmations WHERE idempotency_key=?", (key,)
+        ).fetchone()
+        if row is None:
+            return None
+        record = self._update_record(row)
+        if record.task_id != task_id or record.changes != changes:
+            raise AgentError("IDEMPOTENCY_CONFLICT", "同一 idempotency_key 已用于不同的修改内容。")
+        return record
+
     def prepare_update(
         self,
         *,
@@ -408,16 +450,10 @@ class ConfirmationLedger:
             raise AgentError("INVALID_IDEMPOTENCY_KEY", "idempotency_key 必须为 1–128 个字符。")
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            row = connection.execute(
-                "SELECT * FROM task_update_confirmations WHERE idempotency_key=?", (key,)
-            ).fetchone()
-            if row is not None:
-                record = self._update_record(row)
-                if record.digest != digest:
-                    connection.execute("ROLLBACK")
-                    raise AgentError("IDEMPOTENCY_CONFLICT", "同一 idempotency_key 已用于不同的修改内容。")
+            existing = self._existing_update(connection, key, task_id, changes)
+            if existing is not None:
                 connection.execute("COMMIT")
-                return record
+                return existing
             confirmation_id = str(uuid.uuid4())
             code = f"{secrets.randbelow(1_000_000):06d}"
             expires_at = now.astimezone(timezone.utc) + ttl
@@ -514,6 +550,36 @@ class ConfirmationLedger:
             connection.execute("COMMIT")
             assert row is not None
             return self._update_record(row)
+
+    def update_write_receipts(self, confirmation_id: str) -> dict[str, str]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT component, version FROM task_update_write_receipts WHERE confirmation_id=?",
+                (confirmation_id,),
+            )
+            return {row["component"]: row["version"] for row in rows}
+
+    def record_update_write(
+        self,
+        confirmation_id: str,
+        component: str,
+        version: str,
+        *,
+        now: datetime,
+        lease_owner: str,
+    ) -> None:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO task_update_write_receipts (confirmation_id, component, version)
+                SELECT confirmation_id, ?, ? FROM task_update_confirmations
+                WHERE confirmation_id=? AND status='creating' AND lease_owner=?
+                    AND lease_expires_at>?
+                """,
+                (component, version, confirmation_id, lease_owner, now.astimezone(timezone.utc).isoformat()),
+            )
+            if cursor.rowcount != 1:
+                raise AgentError("LEASE_LOST", "修改租约已失效，请重新读取并核对任务。")
 
     def complete_update(
         self,

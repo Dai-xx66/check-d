@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
-from .ledger import ConfirmationLedger
+from .ledger import ConfirmationLedger, UpdateConfirmationRecord
 from .models import AgentError, DEFAULT_TIMEZONE, _parse_date, _parse_instant
 
 
@@ -34,12 +34,17 @@ _SNAPSHOT_KEYS = (
 
 
 class TaskUpdateRepository(Protocol):
+    def authenticated_user_id(self) -> str: ...
+
     def get_one_time_task_snapshot(self, task_id: str) -> dict[str, object]: ...
 
     def update_one_time_task(
         self,
         original_snapshot: dict[str, object],
         target_snapshot: dict[str, object],
+        *,
+        write_receipts: dict[str, str] | None = None,
+        record_write: Callable[[str, str], None] | None = None,
     ) -> dict[str, object]: ...
 
 
@@ -70,6 +75,10 @@ class TaskUpdateService:
     ) -> dict[str, object]:
         task_id = _require_uuid(task_id)
         normalized_changes = _validate_changes(changes)
+        existing = self._ledger.find_prepared_update(idempotency_key, task_id, normalized_changes)
+        if existing is not None:
+            self._repository.authenticated_user_id()
+            return self._prepared_response(existing)
         original = self._repository.get_one_time_task_snapshot(task_id)
         _assert_editable(original)
         target = _apply_changes(original, normalized_changes)
@@ -87,16 +96,21 @@ class TaskUpdateService:
             now=now,
             ttl=self._confirmation_ttl,
         )
+        return self._prepared_response(record)
+
+    def _prepared_response(self, record: UpdateConfirmationRecord) -> dict[str, object]:
         if record.status == "completed" and record.result is not None:
             return record.result
+        original = record.original_snapshot
+        target = _apply_changes(original, record.changes)
         return {
             "ok": True,
             "status": record.status,
             "update_confirmation_id": record.confirmation_id,
-            "task_id": task_id,
+            "task_id": record.task_id,
             "original": _public_snapshot(original),
             "updated": _public_snapshot(target),
-            "changed_fields": changed_fields,
+            "changed_fields": _changed_fields(original, target),
             "confirmation_phrase": record.confirmation_phrase,
             "expires_at": record.expires_at.isoformat(),
             "write_performed": False,
@@ -109,18 +123,35 @@ class TaskUpdateService:
         user_confirmation_text: str,
     ) -> dict[str, object]:
         now = self._now()
+        lease_owner = f"{self._instance_id}:{uuid.uuid4()}"
         record = self._ledger.claim_update(
             update_confirmation_id,
             user_confirmation_text,
             now=now,
-            lease_owner=self._instance_id,
+            lease_owner=lease_owner,
             lease_ttl=self._update_lease_ttl,
         )
         if record.status == "completed" and record.result is not None:
+            self._repository.authenticated_user_id()
             return record.result
+
+        def record_write(component: str, version: str) -> None:
+            self._ledger.record_update_write(
+                record.confirmation_id,
+                component,
+                version,
+                now=self._now(),
+                lease_owner=lease_owner,
+            )
+
         try:
             target = _apply_changes(record.original_snapshot, record.changes)
-            verified = self._repository.update_one_time_task(record.original_snapshot, target)
+            verified = self._repository.update_one_time_task(
+                record.original_snapshot,
+                target,
+                write_receipts=self._ledger.update_write_receipts(record.confirmation_id),
+                record_write=record_write,
+            )
             result = {
                 "ok": True,
                 "status": "updated",
@@ -133,14 +164,14 @@ class TaskUpdateService:
                 record.confirmation_id,
                 result,
                 now=self._now(),
-                lease_owner=self._instance_id,
+                lease_owner=lease_owner,
             ).result or result
         except AgentError as error:
             self._ledger.fail_update(
                 record.confirmation_id,
                 error,
                 now=self._now(),
-                lease_owner=self._instance_id,
+                lease_owner=lease_owner,
             )
             raise
         except Exception as error:
@@ -149,7 +180,7 @@ class TaskUpdateService:
                 record.confirmation_id,
                 safe,
                 now=self._now(),
-                lease_owner=self._instance_id,
+                lease_owner=lease_owner,
             )
             raise safe from error
 
