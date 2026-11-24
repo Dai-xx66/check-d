@@ -13,6 +13,10 @@ import '../../features/courses/data/course_repository.dart';
 import '../../features/courses/data/semester_repository.dart';
 import '../../features/schedule/data/day_schedule_repository.dart';
 import '../../features/planning/data/course_occurrence_snapshot.dart';
+import '../../features/planning/data/task_occurrence_publish_service.dart';
+import '../../features/planning/data/task_occurrence_remote.dart';
+import '../../features/planning/data/task_occurrence_snapshot.dart';
+import '../holiday/holiday_providers.dart';
 
 final syncApplyScopeProvider = Provider<SyncApplyScope>((ref) {
   return SyncApplyScope();
@@ -67,11 +71,42 @@ final syncFailureDiagnosticsProvider =
 final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
   final client = ref.watch(supabaseClientProvider);
   if (client == null) return null;
+  final database = ref.watch(appDatabaseProvider);
+  final queue = ref.watch(syncQueueServiceProvider);
+  final applyScope = ref.watch(syncApplyScopeProvider);
+  final occurrenceRepository = DriftTaskOccurrenceSnapshotRepository(
+    database: database,
+    syncQueue: queue,
+    holidayCalendar: ref.watch(holidayCalendarProvider),
+  );
+  final occurrencePublisher = TaskOccurrencePublishService(
+    queue: queue,
+    buildSnapshot: occurrenceRepository.build,
+    remote: SupabaseTaskOccurrenceRemotePublisher(client),
+    currentSyncEpoch: (userId) {
+      if (!ref.mounted ||
+          client.auth.currentSession?.user.id != userId ||
+          applyScope.isApplying) {
+        return null;
+      }
+      final status = ref.read(syncAccountStatusProvider);
+      if (status.userId != userId ||
+          !status.initialRestoreComplete ||
+          (status.phase != SyncAccountPhase.synced &&
+              (status.phase != SyncAccountPhase.syncing ||
+                  status.stage != SyncAccountStage.upload))) {
+        return null;
+      }
+      return status.restoreStartedAt;
+    },
+  );
+  final remote = SupabaseSyncRemoteStore(client);
   final executor = SyncUploadExecutor(
-    database: ref.watch(appDatabaseProvider),
-    queue: ref.watch(syncQueueServiceProvider),
-    remote: SupabaseSyncRemoteStore(client),
+    database: database,
+    queue: queue,
+    remote: remote,
     currentUserId: () => client.auth.currentUser?.id,
+    publishTaskOccurrenceSnapshot: occurrencePublisher.publish,
     publishCourseOccurrenceSnapshot: (checkpoint) async {
       tzdata.initializeTimeZones();
       final now = tz.TZDateTime.now(tz.getLocation('Asia/Shanghai'));
@@ -79,8 +114,6 @@ final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
       final through = from.add(
         Duration(days: DriftCourseOccurrenceSnapshotRepository.maximumDays - 1),
       );
-      final database = ref.read(appDatabaseProvider);
-      final queue = ref.read(syncQueueServiceProvider);
       final snapshot = await DriftCourseOccurrenceSnapshotRepository(
         userId: checkpoint.userId,
         courses: CourseRepository(
@@ -100,17 +133,14 @@ final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
         ),
         syncQueue: queue,
       ).build(from: from, through: through);
-      await SupabaseSyncRemoteStore(client).publishCourseOccurrenceSnapshot(
+      await remote.publishCourseOccurrenceSnapshot(
         userId: checkpoint.userId,
         deviceId: checkpoint.deviceId,
         snapshot: snapshot.toJson(),
       );
     },
   );
-  final coordinator = SyncUploadCoordinator(
-    executor,
-    ref.watch(syncQueueServiceProvider),
-  );
+  final coordinator = SyncUploadCoordinator(executor, queue);
   ref.onDispose(coordinator.dispose);
   return coordinator;
 });
