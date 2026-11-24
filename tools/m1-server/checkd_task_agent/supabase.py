@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
@@ -181,22 +182,6 @@ class SupabaseTaskRepository:
             "created_at": timestamp,
             "updated_at": timestamp,
         }
-        self._upsert("tasks", task_row, on_conflict="id")
-        self._upsert("one_time_reminders", reminder_row, on_conflict="task_id")
-
-        task = self._select_one(
-            "tasks",
-            filters={"id": task_id, "user_id": user_id},
-            fields="id,user_id,name,type,color,icon_name,notes,status,deleted_at",
-        )
-        reminder = self._select_one(
-            "one_time_reminders",
-            filters={"task_id": task_id, "user_id": user_id},
-            fields=(
-                "task_id,user_id,has_scheduled_date,planned_date,due_date,due_at,"
-                "is_timed,completed_at"
-            ),
-        )
         expected_task = {
             key: task_row[key]
             for key in ("id", "user_id", "name", "type", "color", "icon_name", "notes", "status", "deleted_at")
@@ -214,6 +199,28 @@ class SupabaseTaskRepository:
                 "completed_at",
             )
         }
+        if draft.planned_at is not None:
+            expected_reminder["scheduled_at"] = draft.planned_at
+
+        # Confirmation retries use the same task ID. Insert only missing rows
+        # and check an existing parent before inserting the dependent reminder.
+        task_filters = {"id": task_id, "user_id": user_id}
+        task_fields = ",".join(expected_task)
+        self._insert_once("tasks", task_row, on_conflict="id")
+        task = self._select_one("tasks", filters=task_filters, fields=task_fields)
+        if not _rows_match(task, expected_task):
+            raise AgentError(
+                "READBACK_MISMATCH",
+                "云端已有同一任务，但内容与已确认草稿不同。请查看现有任务。",
+            )
+
+        self._insert_once("one_time_reminders", reminder_row, on_conflict="task_id")
+        task = self._select_one("tasks", filters=task_filters, fields=task_fields)
+        reminder = self._select_one(
+            "one_time_reminders",
+            filters={"task_id": task_id, "user_id": user_id},
+            fields=",".join(expected_reminder),
+        )
         if not _rows_match(task, expected_task) or not _rows_match(reminder, expected_reminder):
             raise AgentError(
                 "READBACK_MISMATCH",
@@ -342,33 +349,48 @@ class SupabaseTaskRepository:
         self,
         original_snapshot: dict[str, object],
         target_snapshot: dict[str, object],
+        *,
+        write_receipts: dict[str, str] | None = None,
+        record_write: Callable[[str, str], None] | None = None,
     ) -> dict[str, object]:
         user_id = self.authenticated_user_id()
         task_id = _required_string(original_snapshot, "id")
         current = self.get_one_time_task_snapshot(task_id)
-        if _snapshot_business_equal(current, target_snapshot):
-            return _snapshot_dto(current)
-        if not _snapshot_equal(current, original_snapshot):
-            raise AgentError("CONCURRENT_MODIFICATION", "任务在确认后已发生变化，请重新读取并准备修改。")
+        component_fields = {
+            "task": ("name", "notes"),
+            "reminder": ("scheduled_at", "has_scheduled_date", "planned_at", "planned_date", "deadline_date", "deadline_at"),
+        }
+        pending = {
+            component
+            for component, fields in component_fields.items()
+            if any(original_snapshot.get(field) != target_snapshot.get(field) for field in fields)
+        }
+        expected = dict(original_snapshot)
+        completed: set[str] = set()
 
-        parent_changed = any(
-            current.get(field) != target_snapshot.get(field)
-            for field in ("name", "notes")
-        )
-        child_changed = any(
-            current.get(field) != target_snapshot.get(field)
-            for field in (
-                "scheduled_at",
-                "has_scheduled_date",
-                "planned_date",
-                "deadline_date",
-                "deadline_at",
-            )
-        )
-        completed_components: list[str] = []
+        def accept_write(component: str, version: str) -> None:
+            for field in component_fields[component]:
+                expected[field] = target_snapshot.get(field)
+            expected[f"{component}_updated_at"] = version
+            completed.add(component)
+
+        # A matching value alone doesn't prove this approval wrote it. Verify
+        # the exact version returned by the accepted PATCH before resuming.
+        for component, version in (write_receipts or {}).items():
+            if component not in pending:
+                raise AgentError("CONCURRENT_MODIFICATION", "已记录的修改和确认范围不一致，请重新准备。")
+            accept_write(component, version)
+        if not _snapshot_equal(current, expected):
+            raise AgentError("CONCURRENT_MODIFICATION", "任务版本与本次确认不符，请重新读取并准备修改。")
+
+        def remember_write(component: str, version: str) -> None:
+            accept_write(component, version)
+            if record_write is not None:
+                record_write(component, version)
+
         try:
-            if parent_changed:
-                self._conditional_update(
+            if "task" in pending - completed:
+                version = self._conditional_update(
                     "tasks",
                     {
                         "name": target_snapshot.get("name"),
@@ -384,10 +406,11 @@ class SupabaseTaskRepository:
                     ],
                     component="task",
                     return_field="id",
+                    expected_id=task_id,
                 )
-                completed_components.append("task")
-            if child_changed:
-                self._conditional_update(
+                remember_write("task", version)
+            if "reminder" in pending - completed:
+                version = self._conditional_update(
                     "one_time_reminders",
                     {
                         "scheduled_at": target_snapshot.get("scheduled_at"),
@@ -403,20 +426,22 @@ class SupabaseTaskRepository:
                     ],
                     component="reminder",
                     return_field="task_id",
+                    expected_id=task_id,
                 )
-                completed_components.append("reminder")
+                remember_write("reminder", version)
         except AgentError as error:
-            if completed_components:
+            if completed:
                 raise AgentError(
                     "PARTIAL_UPDATE",
-                    "任务修改可能只完成了部分云端写入，请重试以执行回读核验。",
+                    "任务只完成了部分云端写入。"
+                    + ("请重试以核对已写入的部分。" if error.retryable else "请重新读取任务，核对后再确认。"),
                     retryable=error.retryable,
                     details={"failed_component": "task_or_reminder"},
                 ) from error
             raise
 
         readback = self.get_one_time_task_snapshot(task_id)
-        if not _snapshot_business_equal(readback, target_snapshot):
+        if not _snapshot_equal(readback, expected):
             raise AgentError(
                 "READBACK_MISMATCH",
                 "修改后的云端任务与预期不一致，不返回成功。",
@@ -432,11 +457,11 @@ class SupabaseTaskRepository:
         *,
         component: str,
         return_field: str,
-    ) -> None:
+        expected_id: str,
+    ) -> str:
         # one_time_reminders uses task_id as its primary key; it has no id
-        # column.  The selected field is only used to verify that exactly one
-        # row matched the optimistic-concurrency filter.
-        params = [("select", return_field), *filters]
+        # column. The returned primary key and version identify this write.
+        params = [("select", f"{return_field},updated_at"), *filters]
         response = self._request(
             "PATCH",
             f"/rest/v1/{table}?{urllib.parse.urlencode(params)}",
@@ -459,8 +484,17 @@ class SupabaseTaskRepository:
                 details=details,
             )
         payload = _safe_json(response)
-        if not isinstance(payload, list) or len(payload) != 1 or not isinstance(payload[0], dict):
+        if (
+            not isinstance(payload, list)
+            or len(payload) != 1
+            or not isinstance(payload[0], dict)
+            or payload[0].get(return_field) != expected_id
+        ):
             raise AgentError("CONCURRENT_MODIFICATION", f"云端 {component} 记录已变化或不存在。")
+        version = _instant_or_none(payload[0].get("updated_at"), "updated_at")
+        if version is None:
+            raise AgentError("REMOTE_RESPONSE_INVALID", "云端未返回修改版本，请重新读取任务。")
+        return version
 
     def _one_time_page(
         self,
@@ -535,7 +569,7 @@ class SupabaseTaskRepository:
             raise AgentError("REMOTE_RESPONSE_INVALID", "云端返回了无法解析的任务数据。")
         return [dict(row) for row in payload]
 
-    def _upsert(self, table: str, row: dict[str, object], *, on_conflict: str) -> None:
+    def _insert_once(self, table: str, row: dict[str, object], *, on_conflict: str) -> None:
         query = urllib.parse.urlencode({"on_conflict": on_conflict})
         response = self._request(
             "POST",
@@ -543,7 +577,7 @@ class SupabaseTaskRepository:
             body=json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
             extra_headers={
                 "Content-Type": "application/json",
-                "Prefer": "resolution=merge-duplicates,return=minimal",
+                "Prefer": "resolution=ignore-duplicates,return=minimal",
             },
         )
         self._require_write_success(response, table)
@@ -672,11 +706,14 @@ def _looks_privileged(value: str) -> bool:
 
 def _rows_match(actual: dict[str, object], expected: dict[str, object]) -> bool:
     for key, value in expected.items():
+        if key not in actual:
+            return False
         actual_value = actual.get(key)
-        if key == "due_at" and isinstance(actual_value, str) and isinstance(value, str):
-            if datetime.fromisoformat(actual_value.replace("Z", "+00:00")) != datetime.fromisoformat(
-                value.replace("Z", "+00:00")
-            ):
+        if key in {"due_at", "scheduled_at"} and isinstance(actual_value, str) and isinstance(value, str):
+            try:
+                if _parse_instant(actual_value, key) != _parse_instant(value, key):
+                    return False
+            except AgentError:
                 return False
         elif actual_value != value:
             return False

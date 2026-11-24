@@ -50,7 +50,10 @@ class FakeUpdateRepository:
             raise AgentError("NOT_FOUND", "未找到该单次事项。")
         return dict(self.snapshot)
 
-    def update_one_time_task(self, original_snapshot, target_snapshot):
+    def authenticated_user_id(self):
+        return "synthetic-user"
+
+    def update_one_time_task(self, original_snapshot, target_snapshot, *, write_receipts=None, record_write=None):
         self.update_calls.append((original_snapshot, target_snapshot))
         if self.update_error:
             raise self.update_error
@@ -173,6 +176,23 @@ class TaskUpdateServiceTest(unittest.TestCase):
         with self.assertRaises(AgentError) as caught:
             self.service.cancel_task_update(update_confirmation_id=fresh["update_confirmation_id"])
         self.assertEqual(caught.exception.code, "ALREADY_UPDATED")
+
+    def test_prepare_repeated_after_apply_returns_original_result(self):
+        prepared = self.prepare()
+        applied = self.service.update_task(
+            update_confirmation_id=prepared["update_confirmation_id"],
+            user_confirmation_text=prepared["confirmation_phrase"],
+        )
+        self.assertEqual(self.prepare(), applied)
+        self.assertEqual(len(self.repo.update_calls), 1)
+
+    def test_prepare_repeated_after_snapshot_change_keeps_original_approval(self):
+        prepared = self.prepare()
+        self.repo.snapshot["notes"] = "已在手机操作"
+        self.assertEqual(self.prepare(), prepared)
+        with self.assertRaises(AgentError) as caught:
+            self.prepare({"name": "不同目标"})
+        self.assertEqual(caught.exception.code, "IDEMPOTENCY_CONFLICT")
 
     def test_server_snapshot_change_blocks_write(self):
         draft = self.prepare()

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 import urllib.parse
+from datetime import datetime, timezone
+from pathlib import Path
 
+from checkd_task_agent.ledger import ConfirmationLedger
 from checkd_task_agent.models import AgentError
 from checkd_task_agent.supabase import HttpResponse, SupabaseTaskRepository
+from checkd_task_agent.update_service import TaskUpdateService
 from .test_query_repository import TASK_A, USER_ID, jwt, row
 
 
@@ -38,12 +43,13 @@ class UpdateTransport:
         if self.patch_status != 200:
             return HttpResponse(self.patch_status, self.patch_body)
         values = json.loads(body.decode()) if body else {}
+        version = f"2026-11-11T00:01:00.{self.patch_count:06d}Z"
         if table == "tasks":
-            self.rows[0]["tasks"].update(values)
-            return HttpResponse(200, json.dumps([{"id": TASK_A}]).encode())
+            self.rows[0]["tasks"].update(values, updated_at=version)
+            return HttpResponse(200, json.dumps([{"id": TASK_A, "updated_at": version}]).encode())
         if table == "one_time_reminders":
-            self.rows[0].update(values)
-            return HttpResponse(200, json.dumps([{"id": TASK_A}]).encode())
+            self.rows[0].update(values, updated_at=version)
+            return HttpResponse(200, json.dumps([{"task_id": TASK_A, "updated_at": version}]).encode())
         raise AssertionError(table)
 
 
@@ -99,7 +105,7 @@ class UpdateRepositoryTest(unittest.TestCase):
             for method, url, _, _ in self.transport.requests
             if method == "PATCH" and urlsplit_table(url) == "one_time_reminders"
         )
-        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(reminder_url).query)["select"], ["task_id"])
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(reminder_url).query)["select"], ["task_id,updated_at"])
 
     def test_execution_time_update_does_not_require_reminder_rules(self):
         """A missing reminder_rules row must not block schedule editing."""
@@ -168,6 +174,17 @@ class UpdateRepositoryTest(unittest.TestCase):
             self.repository.update_one_time_task(original, dict(original, name="新名称"))
         self.assertEqual(caught.exception.code, "CONCURRENT_MODIFICATION")
         self.assertEqual([method for method, *_ in self.transport.requests], ["GET", "GET", "GET"])
+
+    def test_matching_target_from_other_client_without_receipt_is_a_conflict(self):
+        original = self.repository.get_one_time_task_snapshot(TASK_A)
+        self.transport.rows[0]["tasks"].update(
+            name="新名称",
+            updated_at="2026-11-11T11:20:00.123456+08:00",
+        )
+        with self.assertRaises(AgentError) as caught:
+            self.repository.update_one_time_task(original, dict(original, name="新名称"))
+        self.assertEqual(caught.exception.code, "CONCURRENT_MODIFICATION")
+        self.assertEqual(self.transport.patch_count, 0)
 
     def test_other_user_and_expired_jwt_are_not_editable(self):
         self.transport.rows[0]["user_id"] = "00000000-0000-0000-0000-000000000099"
@@ -238,6 +255,52 @@ class UpdateRepositoryTest(unittest.TestCase):
         self.assertEqual(caught.exception.code, "PARTIAL_UPDATE")
         self.assertTrue(caught.exception.retryable)
         self.assertEqual(self.transport.rows[0]["tasks"]["name"], "新名称")
+
+    def _confirm_after_child_failure(self, path):
+        service = TaskUpdateService(
+            ConfirmationLedger(path), self.repository,
+            clock=lambda: datetime(2026, 11, 11, 1, tzinfo=timezone.utc),
+        )
+        prepared = service.prepare_task_update(
+            task_id=TASK_A,
+            changes={"name": "新名称", "planned_at": "2026-11-12T17:30:00+08:00"},
+            idempotency_key="partial-task-update",
+        )
+        self.transport.fail_on_child_patch = True
+        confirm = {
+            "update_confirmation_id": prepared["update_confirmation_id"],
+            "user_confirmation_text": prepared["confirmation_phrase"],
+        }
+        self.assertEqual(self.transport.patch_count, 0)
+        with self.assertRaises(AgentError) as caught:
+            service.update_task(**confirm)
+        self.assertEqual(caught.exception.code, "PARTIAL_UPDATE")
+        self.transport.fail_on_child_patch = False
+        return TaskUpdateService(
+            ConfirmationLedger(path), self.repository,
+            clock=lambda: datetime(2026, 11, 11, 1, tzinfo=timezone.utc),
+        ), confirm
+
+    def test_retry_after_restart_only_patches_unfinished_reminder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service, confirm = self._confirm_after_child_failure(Path(directory) / "ledger.sqlite3")
+            result = service.update_task(**confirm)
+            self.assertTrue(result["readback_verified"])
+            self.assertEqual(result["task"]["planned_at"], "2026-11-12T17:30:00+08:00")
+            self.assertEqual(service.update_task(**confirm), result)
+        self.assertEqual(
+            [urlsplit_table(url) for method, url, _, _ in self.transport.requests if method == "PATCH"],
+            ["tasks", "one_time_reminders", "one_time_reminders"],
+        )
+
+    def test_recovery_rejects_later_parent_version_even_with_same_name_and_notes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            service, confirm = self._confirm_after_child_failure(Path(directory) / "ledger.sqlite3")
+            self.transport.rows[0]["tasks"]["updated_at"] = "2026-11-11T00:01:00.000009Z"
+            with self.assertRaises(AgentError) as caught:
+                service.update_task(**confirm)
+            self.assertEqual(caught.exception.code, "CONCURRENT_MODIFICATION")
+            self.assertEqual(self.transport.patch_count, 2)
 
     def test_readback_mismatch_never_returns_verified_success(self):
         original = self.repository.get_one_time_task_snapshot(TASK_A)
