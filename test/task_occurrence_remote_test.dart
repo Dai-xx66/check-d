@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/planning/data/task_occurrence_remote.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -66,6 +67,46 @@ void main() {
     Map<String, Object?> payload = snapshot,
   }) =>
       publisher.publish(userId: userId, deviceId: deviceId, snapshot: payload);
+
+  test(
+    'live watermark evidence uses the same account, device and version',
+    () async {
+      final checkpoint = SyncDeviceCheckpoint(
+        userId: owner,
+        deviceId: device,
+        localGeneration: 7,
+        acknowledgedGeneration: 7,
+        updatedAt: DateTime.utc(2026, 11, 26),
+      );
+      var currentVersion = 13;
+      respond = (request) async {
+        expect(request.method, 'GET');
+        expect(request.headers['authorization'], 'Bearer $sessionToken');
+        expect(request.url.queryParameters['user_id'], 'eq.$owner');
+        if (request.url.path.endsWith('/agent_device_sync_watermarks')) {
+          expect(request.url.queryParameters['device_id'], 'eq.$device');
+          return http.Response(
+            '[{"local_generation":7,"server_data_version":13}]',
+            200,
+            headers: const {'content-type': 'application/json'},
+            request: request,
+          );
+        }
+        expect(request.url.path, endsWith('/agent_user_data_versions'));
+        return http.Response(
+          '[{"data_version":$currentVersion}]',
+          200,
+          headers: const {'content-type': 'application/json'},
+          request: request,
+        );
+      };
+
+      expect(await publisher.readCheckpointVersion(checkpoint), 13);
+      currentVersion = 14;
+      expect(await publisher.readCheckpointVersion(checkpoint), isNull);
+      expect(requests, hasLength(4));
+    },
+  );
 
   test('posts the device snapshot with the expected owner token', () async {
     final receipt = await publish();

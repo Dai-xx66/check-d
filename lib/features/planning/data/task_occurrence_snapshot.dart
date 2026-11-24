@@ -21,6 +21,8 @@ class TaskOccurrenceSnapshot {
     required this.generatedAt,
     required this.taskDataVersion,
     required this.occurrences,
+    required this.hasRecurringTasks,
+    this.omissions = const {},
   });
 
   static const timezone = 'Asia/Shanghai';
@@ -34,6 +36,11 @@ class TaskOccurrenceSnapshot {
   final DateTime generatedAt;
   final String taskDataVersion;
   final List<Map<String, Object?>> occurrences;
+  final bool hasRecurringTasks;
+
+  /// Local counts by reason for due instances omitted from the planning window.
+  /// The RPC payload contains only normalized occurrence rows.
+  final Map<TaskOccurrenceOmissionReason, int> omissions;
 
   Map<String, Object?> toJson() => {
     'from_date': fromDate,
@@ -46,6 +53,15 @@ class TaskOccurrenceSnapshot {
     'local_generation': localGeneration,
     'occurrences': occurrences,
   };
+}
+
+enum TaskOccurrenceOmissionReason {
+  skippedByOverride,
+  completed,
+  excluded,
+  missingPlannedStart,
+  missingPlannedEnd,
+  missingPlannedStartAndEnd,
 }
 
 class TaskOccurrenceSnapshotException implements Exception {
@@ -93,25 +109,25 @@ class DriftTaskOccurrenceSnapshotRepository {
     final through = from.add(const Duration(days: maximumDays - 1));
     final fromDate = localDateKey(from);
     final throughDate = localDateKey(through);
-    final (plans, overrides) = await _database.transaction(() async {
-      await _requireCheckpoint(checkpoint);
-      final activePlans = await _loadPlans(checkpoint.userId);
-      return (
-        activePlans,
-        await _loadOverrides(
-          checkpoint.userId,
-          activePlans.map((plan) => plan.taskId).toSet(),
-        ),
-      );
-    });
+    final (plans, overrides, completedDays) = await _database.transaction(
+      () async {
+        await _requireCheckpoint(checkpoint);
+        final activePlans = await _loadPlans(checkpoint.userId);
+        final activeIds = activePlans.map((plan) => plan.taskId).toSet();
+        return (
+          activePlans,
+          await _loadOverrides(checkpoint.userId, activeIds),
+          await _loadCompletedDays(checkpoint.userId, activeIds),
+        );
+      },
+    );
 
     final rows = <Map<String, Object?>>[];
+    final omissions = <TaskOccurrenceOmissionReason, int>{};
     final holidayCalendar = _SnapshotHolidayCalendar(_holidayCalendar);
     for (var day = from; !day.isAfter(through);) {
       final date = localDateKey(day);
       for (final plan in plans) {
-        final override = overrides[(plan.taskId, date)];
-        if (override?.action == DayOverrideAction.skip.name) continue;
         if (!await isRecurringTaskDue(
           schedule: plan.rule,
           holidayPause: plan.holidayPause,
@@ -120,7 +136,17 @@ class DriftTaskOccurrenceSnapshotRepository {
         )) {
           continue;
         }
-        rows.add(_normalizeOccurrence(plan, date, override));
+        final key = (plan.taskId, date);
+        final override = overrides[key];
+        final omission = override?.action == DayOverrideAction.skip.name
+            ? TaskOccurrenceOmissionReason.skippedByOverride
+            : completedDays[key];
+        if (omission != null) {
+          _countOmission(omissions, omission);
+          continue;
+        }
+        final row = _normalizeOccurrence(plan, date, override, omissions);
+        if (row != null) rows.add(row);
       }
       day = day.add(const Duration(days: 1));
     }
@@ -146,8 +172,10 @@ class DriftTaskOccurrenceSnapshotRepository {
       fromDate: fromDate,
       throughDate: throughDate,
       generatedAt: generatedAt,
-      taskDataVersion: _taskDataVersion(plans, overrides.values),
+      taskDataVersion: _taskDataVersion(plans, overrides.values, completedDays),
       occurrences: List.unmodifiable(rows),
+      hasRecurringTasks: plans.isNotEmpty,
+      omissions: Map.unmodifiable(omissions),
     );
   }
 
@@ -249,6 +277,28 @@ class DriftTaskOccurrenceSnapshotRepository {
           (row.itemId, row.localDate): row,
     };
   }
+
+  Future<Map<(String, String), TaskOccurrenceOmissionReason>>
+  _loadCompletedDays(String ownerId, Set<String> activeTaskIds) async {
+    if (activeTaskIds.isEmpty) return {};
+    final query = _database.select(_database.taskCompletionRecords)
+      ..where(
+        (row) =>
+            row.userId.equals(ownerId) &
+            (row.isSuccess.equals(true) | row.exclusionReason.isNotNull()),
+      )
+      ..orderBy([
+        (row) => OrderingTerm.asc(row.taskId),
+        (row) => OrderingTerm.asc(row.localDate),
+      ]);
+    return {
+      for (final row in await query.get())
+        if (activeTaskIds.contains(row.taskId))
+          (row.taskId, row.localDate): row.exclusionReason != null
+              ? TaskOccurrenceOmissionReason.excluded
+              : TaskOccurrenceOmissionReason.completed,
+    };
+  }
 }
 
 typedef _RecurringPlan = ({
@@ -261,6 +311,7 @@ typedef _RecurringPlan = ({
 String _taskDataVersion(
   List<_RecurringPlan> plans,
   Iterable<DailyItemOverrideRecord> overrides,
+  Map<(String, String), TaskOccurrenceOmissionReason> completedDays,
 ) {
   // Hash the rule inputs in canonical order. The generated date range and
   // output rows have their own fields and can change as the window rolls.
@@ -289,29 +340,41 @@ String _taskDataVersion(
           'end_minute': row.plannedEndMinute,
         },
     ],
+    'omitted_days': [
+      for (final entry in completedDays.entries)
+        {
+          'task_id': entry.key.$1,
+          'local_date': entry.key.$2,
+          'reason': entry.value.name,
+        },
+    ],
   };
   return 'sha256:${sha256.convert(utf8.encode(jsonEncode(input)))}';
 }
 
-Map<String, Object?> _normalizeOccurrence(
+Map<String, Object?>? _normalizeOccurrence(
   _RecurringPlan plan,
   String date,
   DailyItemOverrideRecord? override,
+  Map<TaskOccurrenceOmissionReason, int> omissions,
 ) {
-  final overrideStart = override?.plannedStartMinute;
+  final start = override?.plannedStartMinute ?? plan.scheduledMinute;
   final end = override?.plannedEndMinute;
-  if ((overrideStart == null) != (end == null)) {
+  if ((start != null && (start < 0 || start >= 1440)) ||
+      (end != null && (end <= 0 || end > 1440)) ||
+      (start != null && end != null && end <= start)) {
     throw const TaskOccurrenceSnapshotException('invalid_occurrence_time');
   }
-  final start = overrideStart ?? plan.scheduledMinute;
-  // A default planned end is not stored on recurring tasks. Until the wire
-  // contract specifies a fallback, a due item with unresolved time prevents
-  // publication of the complete window for this generation.
+  // The recurring rule supplies an optional start. Only a day override can
+  // supply an actual planned end. A timer goal is independent of this range.
   if (start == null || end == null) {
-    throw const TaskOccurrenceSnapshotException('unresolved_occurrence_time');
-  }
-  if (start < 0 || start >= 1440 || end <= start || end > 1440) {
-    throw const TaskOccurrenceSnapshotException('invalid_occurrence_time');
+    final reason = switch ((start, end)) {
+      (null, null) => TaskOccurrenceOmissionReason.missingPlannedStartAndEnd,
+      (null, _) => TaskOccurrenceOmissionReason.missingPlannedStart,
+      _ => TaskOccurrenceOmissionReason.missingPlannedEnd,
+    };
+    _countOmission(omissions, reason);
+    return null;
   }
   return Map.unmodifiable({
     'task_id': plan.taskId,
@@ -321,6 +384,13 @@ Map<String, Object?> _normalizeOccurrence(
     'start_minute': start,
     'end_minute': end,
   });
+}
+
+void _countOmission(
+  Map<TaskOccurrenceOmissionReason, int> omissions,
+  TaskOccurrenceOmissionReason reason,
+) {
+  omissions.update(reason, (count) => count + 1, ifAbsent: () => 1);
 }
 
 DateTime? _parseDate(String? date) {

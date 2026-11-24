@@ -79,10 +79,12 @@ final syncUploadCoordinatorProvider = Provider<SyncUploadCoordinator?>((ref) {
     syncQueue: queue,
     holidayCalendar: ref.watch(holidayCalendarProvider),
   );
+  final occurrenceRemote = SupabaseTaskOccurrenceRemotePublisher(client);
   final occurrencePublisher = TaskOccurrencePublishService(
     queue: queue,
     buildSnapshot: occurrenceRepository.build,
-    remote: SupabaseTaskOccurrenceRemotePublisher(client),
+    remote: occurrenceRemote,
+    readCheckpointVersion: occurrenceRemote.readCheckpointVersion,
     currentSyncEpoch: (userId) {
       if (!ref.mounted ||
           client.auth.currentSession?.user.id != userId ||
