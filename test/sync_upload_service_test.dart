@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:check_d/core/database/app_database.dart';
@@ -154,6 +155,90 @@ void main() {
       );
     },
   );
+
+  test('publishes task occurrences after a settled device ACK', () async {
+    executor = SyncUploadExecutor(
+      database: database,
+      queue: queue,
+      remote: remote,
+      currentUserId: () => authenticatedUserId,
+      publishTaskOccurrenceSnapshot: (checkpoint) async {
+        expect(remote.checkpoints.single, (
+          checkpoint.deviceId,
+          checkpoint.localGeneration,
+        ));
+        final local = await queue.settledCheckpoint(checkpoint.userId);
+        expect(local?.acknowledgedGeneration, checkpoint.localGeneration);
+        return true;
+      },
+    );
+    await tasks.saveRecurringTask(_timedDraft('排程'));
+    final result = await executor.flush();
+
+    expect(result.uploaded, 1);
+    expect(result.checkpointAcknowledged, isTrue);
+    expect(await result.taskOccurrencePublication, isTrue);
+  });
+
+  test(
+    'occurrence retries leave business synchronization independent',
+    () async {
+      final started = Completer<void>();
+      final finish = Completer<bool>();
+      var publications = 0;
+      executor = SyncUploadExecutor(
+        database: database,
+        queue: queue,
+        remote: remote,
+        currentUserId: () => authenticatedUserId,
+        publishTaskOccurrenceSnapshot: (_) async {
+          publications++;
+          if (publications > 1) return true;
+          started.complete();
+          return finish.future;
+        },
+      );
+
+      final initial = await executor.flush();
+      await started.future;
+      expect(initial.checkpointAcknowledged, isTrue);
+      expect(finish.isCompleted, isFalse);
+      final overlapping = await executor.flush();
+      expect(overlapping.busy, isFalse);
+      expect(overlapping.taskOccurrencePublication, isNull);
+      expect(publications, 1);
+
+      finish.complete(false);
+      expect(await initial.taskOccurrencePublication, isFalse);
+
+      final recovered = await executor.flush();
+      expect(recovered.checkpointAcknowledged, isFalse);
+      expect(await recovered.taskOccurrencePublication, isTrue);
+      expect(remote.checkpoints, hasLength(1));
+    },
+  );
+
+  test('a changed generation during ACK prevents task publication', () async {
+    var publishes = 0;
+    executor = SyncUploadExecutor(
+      database: database,
+      queue: queue,
+      remote: remote,
+      currentUserId: () => authenticatedUserId,
+      publishTaskOccurrenceSnapshot: (_) async {
+        publishes++;
+        return true;
+      },
+    );
+    remote.onAcknowledge = () async {
+      await tasks.saveRecurringTask(_timedDraft('确认期间修改'));
+    };
+    final result = await executor.flush();
+
+    expect(publishes, 0);
+    expect(result.checkpointAcknowledged, isFalse);
+    expect(result.taskOccurrencePublication, isNull);
+  });
 
   test('failed or unscoped pending work prevents device checkpoint', () async {
     final taskId = await tasks.saveRecurringTask(_timedDraft('失败不确认'));

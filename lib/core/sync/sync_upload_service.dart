@@ -145,6 +145,7 @@ class SyncFlushResult {
     this.unauthenticated = false,
     this.busy = false,
     this.checkpointAcknowledged = false,
+    this.taskOccurrencePublication,
     this.identityMismatch = false,
   });
 
@@ -154,6 +155,10 @@ class SyncFlushResult {
   final bool unauthenticated;
   final bool busy;
   final bool checkpointAcknowledged;
+
+  /// Optional background result for this device's occurrence RPC.
+  /// This is independent of the business outbox and global planning readiness.
+  final Future<bool>? taskOccurrencePublication;
   final bool identityMismatch;
 }
 
@@ -167,11 +172,14 @@ class SyncUploadExecutor {
     required String? Function() currentUserId,
     Future<void> Function(SyncDeviceCheckpoint checkpoint)?
     publishCourseOccurrenceSnapshot,
+    Future<bool> Function(SyncDeviceCheckpoint checkpoint)?
+    publishTaskOccurrenceSnapshot,
   }) : _database = database,
        _queue = queue,
        _remote = remote,
        _currentUserId = currentUserId,
-       _publishCourseOccurrenceSnapshot = publishCourseOccurrenceSnapshot;
+       _publishCourseOccurrenceSnapshot = publishCourseOccurrenceSnapshot,
+       _publishTaskOccurrenceSnapshot = publishTaskOccurrenceSnapshot;
 
   final AppDatabase _database;
   final SyncQueueService _queue;
@@ -179,6 +187,9 @@ class SyncUploadExecutor {
   final String? Function() _currentUserId;
   final Future<void> Function(SyncDeviceCheckpoint checkpoint)?
   _publishCourseOccurrenceSnapshot;
+  final Future<bool> Function(SyncDeviceCheckpoint checkpoint)?
+  _publishTaskOccurrenceSnapshot;
+  Future<bool>? _taskOccurrenceInFlight;
   bool _isFlushing = false;
 
   Future<SyncFlushResult> flush({bool force = false, int limit = 100}) async {
@@ -247,6 +258,7 @@ class SyncUploadExecutor {
         }
       }
       var checkpointAcknowledged = false;
+      Future<bool>? taskOccurrencePublication;
       if (!identityMismatch &&
           _currentUserId() == userId &&
           failed == 0 &&
@@ -276,17 +288,48 @@ class SyncUploadExecutor {
             // the queued business data. The next successful flush retries it.
           }
         }
+        if (_publishTaskOccurrenceSnapshot != null &&
+            !identityMismatch &&
+            (checkpoint == null || checkpointAcknowledged)) {
+          // The existing ACK registers the active device generation. An
+          // already acknowledged generation may need a task-only retry.
+          final settled = await _queue.settledCheckpoint(userId);
+          if (settled != null &&
+              settled.acknowledgedGeneration == settled.localGeneration &&
+              _currentUserId() == userId) {
+            taskOccurrencePublication = _startTaskOccurrencePublication(
+              settled,
+            );
+          }
+        }
       }
       return SyncFlushResult(
         uploaded: uploaded,
         failed: failed,
         skipped: skipped,
         checkpointAcknowledged: checkpointAcknowledged,
+        taskOccurrencePublication: taskOccurrencePublication,
         identityMismatch: identityMismatch,
       );
     } finally {
       _isFlushing = false;
     }
+  }
+
+  Future<bool>? _startTaskOccurrencePublication(
+    SyncDeviceCheckpoint checkpoint,
+  ) {
+    if (_taskOccurrenceInFlight != null) return null;
+    // The upload/restore coordinator must not wait for occurrence retries.
+    return _taskOccurrenceInFlight = Future<bool>(() async {
+      if (_currentUserId() != checkpoint.userId) return false;
+      try {
+        return await _publishTaskOccurrenceSnapshot!(checkpoint) &&
+            _currentUserId() == checkpoint.userId;
+      } on Object {
+        return false;
+      }
+    }).whenComplete(() => _taskOccurrenceInFlight = null);
   }
 
   Future<List<_CloudWrite>> _prepareWrites(

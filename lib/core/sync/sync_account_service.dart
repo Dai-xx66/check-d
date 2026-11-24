@@ -171,7 +171,7 @@ class SyncAccountCoordinator {
         (_) => _run(userId, initial: initial, forceDownload: forceDownload),
       );
     }
-    final generation = _generation;
+    final generation = ++_generation;
     _inFlightUserId = userId;
     return _inFlight =
         _perform(
@@ -393,6 +393,7 @@ class SyncAccountCoordinator {
           userId: userId,
           lastSuccessAt: now,
           initialRestoreComplete: true,
+          restoreStartedAt: restoreStartedAt,
         ),
       );
     } on TimeoutException {
