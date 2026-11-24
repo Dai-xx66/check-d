@@ -10,6 +10,7 @@ import 'package:check_d/core/theme/app_skin.dart';
 import 'package:check_d/core/theme/appearance_preferences.dart';
 import 'package:check_d/features/courses/data/course_repository.dart';
 import 'package:check_d/features/courses/data/semester_repository.dart';
+import 'package:check_d/features/profile/data/reminder_defaults_repository.dart';
 import 'package:check_d/features/schedule/data/day_schedule_repository.dart';
 import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
@@ -626,6 +627,73 @@ void main() {
             .getSingleOrNull(),
         isNull,
       );
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    },
+  );
+
+  test(
+    'deleted cloud reminder defaults stay deleted until a newer write',
+    () async {
+      const table = 'user_preferences';
+      const removedVersion = '2030-01-01T12:00:00.800Z';
+      final preferences = ReminderDefaultsRepository(
+        database: database,
+        userId: userId,
+        syncQueue: SyncQueueService(database),
+      );
+      final original = _row('preference-1', {
+        'preference_key': 'reminder_defaults',
+        'value': {'atTimeEnabled': true},
+      });
+      remote.tables[table] = [original];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      expect((await preferences.load()).atTimeEnabled, isTrue);
+
+      remote.tables[table] = [
+        {...original, 'updated_at': removedVersion, 'deleted_at': _time(11)},
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      expect((await preferences.load()).atTimeEnabled, isFalse);
+
+      remote.tables[table] = [
+        {
+          ...original,
+          'updated_at': '2030-01-01T12:00:00.700Z',
+          'deleted_at': _time(11),
+        },
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      for (final olderVersion in ['2030-01-01T12:00:00.750Z', removedVersion]) {
+        remote.tables[table] = [
+          {...original, 'id': 'preference-2', 'updated_at': olderVersion},
+        ];
+        expect((await executor.reconcile()).succeeded, isTrue);
+        expect((await preferences.load()).atTimeEnabled, isFalse);
+      }
+
+      currentUserId = 'user-2';
+      remote.tables[table] = [
+        {...original, 'id': 'other-preference', 'user_id': currentUserId},
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      final otherPreferences = ReminderDefaultsRepository(
+        database: database,
+        userId: currentUserId,
+        syncQueue: SyncQueueService(database),
+      );
+      expect((await otherPreferences.load()).atTimeEnabled, isTrue);
+      expect((await preferences.load()).atTimeEnabled, isFalse);
+
+      currentUserId = userId;
+      remote.tables[table] = [
+        {
+          ...original,
+          'id': 'preference-2',
+          'updated_at': '2030-01-01T12:00:00.900Z',
+        },
+      ];
+      expect((await executor.reconcile()).succeeded, isTrue);
+      expect((await preferences.load()).atTimeEnabled, isTrue);
       expect(await database.select(database.syncOperations).get(), isEmpty);
     },
   );

@@ -1372,7 +1372,9 @@ class SyncDownloadExecutor {
   }
 
   Future<bool> _applyPreference(Map<String, Object?> row, String userId) async {
-    if (_stringOr(row, 'preference_key', '') != 'reminder_defaults') {
+    const table = 'user_preferences';
+    const preferenceKey = 'reminder_defaults';
+    if (_stringOr(row, 'preference_key', '') != preferenceKey) {
       return false;
     }
     final key = 'reminder-defaults:$userId';
@@ -1382,9 +1384,15 @@ class SyncDownloadExecutor {
     if (!_isRemoteNewer(localUpdatedAt: local?.updatedAt, remote: row)) {
       return false;
     }
+    // A preference's identity is its per-account key, even if the cloud row's
+    // UUID changes on recreation.
+    if (await _hasNewerTombstone(table, preferenceKey, userId, row)) {
+      return false;
+    }
     if (_deleted(row)) {
       // A deleted cloud preference intentionally falls back to the local app
       // default; device/UI preferences remain untouched.
+      await _recordTombstone(table, preferenceKey, userId, row);
       if (local != null) {
         await (_database.delete(
           _database.appSettings,
