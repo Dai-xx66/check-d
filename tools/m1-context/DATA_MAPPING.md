@@ -1,0 +1,134 @@
+# ContextSnapshot 数据映射
+
+每个快照字段的来源表与列、缺失时的返回值。M0 集成时对着这张表就能判断「这个字段为什么是空」。
+
+约定：**空 ≠ 0，缺 = `unknown`/`null` + `status` 降级**，不用默认值冒充。
+
+## 一、快照顶层
+
+| 快照字段 | 来源 | 缺失时 |
+|---|---|---|
+| `as_of` | 服务端 `now()` | — |
+| `timezone` | 入参 `p_timezone`（默认 Asia/Shanghai） | 仅回显，不参与日期运算 |
+| `window.from/through` | 入参 | 跨度 > 31 天 → `RANGE_TOO_LARGE`；倒序 → `INVALID_RANGE` |
+| `semester` | `semesters`（`is_current=true` 且 `deleted_at is null`，按 `updated_at desc` 取一条） | 无 → `{"status":"missing"}`，并阻断课程展开 |
+| `status` | 派生 | `blocked`（无学期）/ `partial`（有 unknown 或 occurrence 缺失）/ `ok` |
+| `blocking[]` | 派生 | 每条 `{code, message}`，机器可读 |
+
+## 二、`fixed_events`（课程实例）
+
+| 字段 | 来源 |
+|---|---|
+| `date` | 窗口内每一天（`generate_series`） |
+| `ref_id` | `courses.id` |
+| `title` | `courses.name` |
+| `start_minute` / `end_minute` | `course_schedule_rules.starts_at_minute` / `ends_at_minute`（0–1440，本地分钟） |
+| `week_no` | `(date - semesters.first_week_start_date) / 7 + 1`（整数除法） |
+| `source` | 固定串 `courses+course_schedule_rules` |
+
+筛选条件（全部满足才出现）：
+
+1. `courses.user_id = auth.uid()`、`courses.deleted_at is null`、`courses.status = 'active'`
+2. `course_schedule_rules.deleted_at is null`、`course_schedule_rules.weekday = isodow(date)`（1=周一…7=周日）
+3. `1 <= week_no <= semesters.total_weeks`
+4. `start_week`/`end_week` 若存在则需落在区间内
+5. 周次规则：
+   - `week_numbers` **非空** → 以清单为准（优先级最高）
+   - 否则 `everyWeek` / `oddWeeks`(奇周) / `evenWeeks`(偶周) / `everyNWeeks`(与 `interval_weeks` 配合)
+   - 都不匹配 → 不出现
+
+> 为什么课程由 M1 展开而不是读 occurrence：`courses` + `rules` + `semesters` 三者已能唯一确定「某天几点有课」，
+> 且这是 M1 模块 03 的职责范围；长周期**任务**的实例仍然只由客户端发布，两者不同类。
+
+## 三、`free_slots`（可用时段）
+
+算法：每天 `[day_start_minute, day_end_minute)` 按分钟打点，减去当天所有课程段，再合并连续分钟为区间，丢弃 `< 5` 分钟的碎片。
+
+| 字段 | 含义 |
+|---|---|
+| `date` | 本地日期 |
+| `start_minute` / `end_minute` | 相对当天 0 点的分钟数（左闭右开） |
+| `minutes` | `end_minute - start_minute` |
+
+默认日窗 `480`（08:00）– `1380`（23:00），可由入参调整；`day_end_minute > 1440` 或 `start >= end` → `INVALID_DAY_WINDOW`。
+
+**它只扣课程，不扣任务。** 因为长周期任务实例需客户端发布，M1 不自己造；单次任务的时间占位也没有可靠字段。
+`status=partial` 就是这个事实的标记，**不要把它读成「这段时间真的全空」**。
+
+## 四、`tasks`
+
+| 快照字段 | 来源 |
+|---|---|
+| `task_id` / `name` | `tasks.id` / `tasks.name` |
+| `type` | `tasks.type`（`long_term` \| `one_time`） |
+| `due_date` / `due_at` / `planned_date` / `available_from` | `one_time_reminders` 同名列（仅单次任务） |
+| `completed` | 存在 `task_completions` 行：`task_id` 匹配、`user_id` 匹配、`deleted_at is null`、`is_success = true` |
+| `estimated_minutes` | `long_term_tasks.target_duration_seconds / 60`（向上取整） |
+| `estimated_status` | 有上面那列 → `known`；否则 `unknown` |
+
+**已知缺口（不是 bug，是表结构决定）**：`one_time_reminders` 没有「预计时长」列，所以单次任务的 `estimated_minutes` 恒为 `null`。
+要补这个字段属于数据层变更，需与 M2 对齐后另开迁移。
+
+任务进入窗口的条件：
+
+- `long_term`：全部纳入（长期任务一直在窗口内）
+- `one_time`：`due_date` 或 `planned_date` 落在窗口内，或 `due_at` 落在窗口时段内，或提醒行缺失（保留可见，标 unknown）
+- 一律排除：`tasks.deleted_at is not null`、`tasks.status <> 'active'`、`type` 不属于上述两种
+
+## 五、`workload`
+
+| 字段 | 来源 |
+|---|---|
+| `known_minutes` | 未完成任务中 `estimated_minutes` 非空者求和 |
+| `unknown_estimate_count` | 未完成但无预计时长的任务数 |
+| `open_task_count` | 未完成任务总数（含 unknown） |
+| `status` | 无 unknown → `known`；有 → `partial` |
+
+## 六、`freshness`
+
+| 字段 | 取值 | 判定 |
+|---|---|---|
+| `semester` | `ok` / `missing` | 是否存在 `is_current` 学期 |
+| `task_occurrences` | `published` / `missing` | `agent_task_occurrence_snapshots` 是否存在且 `from_date <= window.from` 且 `through_date >= window.through` |
+| `completions` | `ok` | 完成记录直接来自表，无额外新鲜度概念 |
+| `overall` | 同顶层 `status` | — |
+
+`blocking.code` 现有三种：
+
+- `SEMESTER_MISSING`：无当前学期，课程无法定位周次
+- `TASK_OCCURRENCES_UNAVAILABLE`：`agent_task_occurrence_snapshots` 表不存在（M3 的迁移尚未执行）
+- `TASK_OCCURRENCES_MISSING`：表存在但没有覆盖该窗口的记录
+
+## 七、`BehaviorEvent` 映射
+
+| 事件字段 | 目标列 | 约束 |
+|---|---|---|
+| `event_id` | `behavior_events.event_id` | 客户端生成 uuid；与 `user_id` 组成主键 |
+| `task_id` | `task_id` | 可空；非空时必须属于当前账号，否则 `TASK_NOT_OWNED` |
+| `plan_id` | `plan_id` | 可空文本，不透明引用 |
+| `event_type` | `event_type` | 八种枚举之一，新增需改约束并通知消费者 |
+| `occurred_at` | `occurred_at` | 带时区；存储照原样 |
+| `planned_minutes` | `planned_minutes` | 可空，≥0 |
+| `actual_minutes` | `actual_minutes` | 可空，≥0；**不得由计时器时长自动推导为「已完成」** |
+| `source` | `source` | `app` / `workbuddy` / `import` / `test`；`test` 必须可区分 |
+| `reason` | `reason` | 可空，≤500 字符 |
+| — | `user_id` | **不接受入参**，一律 `auth.uid()` |
+
+## 八、与既有表的关系（不改动它们）
+
+```
+auth.users
+  └─ profiles（时区、显示名）
+  └─ semesters ──────────┐          提供 first_week_start_date / total_weeks
+  └─ courses ────────────┤
+        └─ course_schedule_rules ───┘  → fixed_events / free_slots
+  └─ tasks
+        ├─ long_term_tasks ───────────→ estimated_minutes（仅长期任务）
+        ├─ one_time_reminders ────────→ due_date / due_at / planned_date
+        ├─ task_completions ──────────→ completed
+        └─ timer_sessions ────────────→ （不参与快照；只作 M2 行为统计原料）
+  └─ behavior_events（本 PR 新增）───→ 事件查询
+  └─ agent_task_occurrence_snapshots（M3，可能未建）→ freshness.task_occurrences
+```
+
+本 PR 对上述既有表**零结构改动**：只新增一张表与三个函数。
