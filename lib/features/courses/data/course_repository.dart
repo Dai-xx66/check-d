@@ -68,64 +68,90 @@ class CourseRepository {
     );
   }
 
-  Future<String> saveCourse(CourseDraft draft, {String? courseId}) async {
-    if (draft.name.trim().isEmpty) {
-      throw ArgumentError.value(draft.name, 'name', '请填写课程名称');
-    }
-    final now = DateTime.now().toUtc();
-    final id = courseId ?? _uuid.v4();
-    await _database
-        .into(_database.courseRecords)
-        .insertOnConflictUpdate(
-          CourseRecordsCompanion.insert(
-            id: id,
-            userId: _userId,
-            name: draft.name.trim(),
-            colorValue: draft.colorValue,
-            teacher: Value(_clean(draft.teacher)),
-            classroom: Value(_clean(draft.classroom)),
-            semester: Value(_clean(draft.semester)),
-            semesterId: Value(draft.semesterId),
-            semesterStartsOn: Value(_dateOnlyUtc(draft.semesterStartsOn)),
-            semesterEndsOn: Value(_dateOnlyUtc(draft.semesterEndsOn)),
-            notes: Value(_clean(draft.notes)),
-            createdAt: now,
-            updatedAt: now,
-          ),
+  Future<String> saveCourse(CourseDraft draft, {String? courseId}) =>
+      _database.transaction(() async {
+        if (draft.name.trim().isEmpty) {
+          throw ArgumentError.value(draft.name, 'name', '请填写课程名称');
+        }
+        final semesterId = draft.semesterId;
+        if (semesterId != null) {
+          final semester =
+              await (_database.select(_database.semesterRecords)..where(
+                    (row) =>
+                        row.id.equals(semesterId) &
+                        row.userId.equals(_userId) &
+                        row.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull();
+          if (semester == null) throw StateError('学期不存在');
+        }
+        final now = DateTime.now().toUtc();
+        final id = courseId ?? _uuid.v4();
+        final existing = await (_database.select(
+          _database.courseRecords,
+        )..where((row) => row.id.equals(id))).getSingleOrNull();
+        if (existing != null && existing.userId != _userId) {
+          throw StateError('课程不存在');
+        }
+        await _database
+            .into(_database.courseRecords)
+            .insertOnConflictUpdate(
+              CourseRecordsCompanion.insert(
+                id: id,
+                userId: _userId,
+                name: draft.name.trim(),
+                colorValue: draft.colorValue,
+                teacher: Value(_clean(draft.teacher)),
+                classroom: Value(_clean(draft.classroom)),
+                semester: Value(_clean(draft.semester)),
+                semesterId: Value(draft.semesterId),
+                semesterStartsOn: Value(_dateOnlyUtc(draft.semesterStartsOn)),
+                semesterEndsOn: Value(_dateOnlyUtc(draft.semesterEndsOn)),
+                notes: Value(_clean(draft.notes)),
+                createdAt: existing?.createdAt ?? now,
+                updatedAt: now,
+              ),
+            );
+        await _syncQueue.enqueue(
+          entityType: 'courses',
+          entityId: id,
+          operation: SyncOperationType.upsert,
+          payload: {
+            'id': id,
+            'name': draft.name.trim(),
+            'color': draft.colorValue,
+            'teacher': _clean(draft.teacher),
+            'classroom': _clean(draft.classroom),
+            'semester': _clean(draft.semester),
+            'semester_id': draft.semesterId,
+            'semester_starts_on': _dateOnlyUtc(
+              draft.semesterStartsOn,
+            )?.toIso8601String(),
+            'semester_ends_on': _dateOnlyUtc(
+              draft.semesterEndsOn,
+            )?.toIso8601String(),
+            'notes': _clean(draft.notes),
+            'updated_at': now.toIso8601String(),
+          },
+          userId: _userId,
         );
-    await _syncQueue.enqueue(
-      entityType: 'courses',
-      entityId: id,
-      operation: SyncOperationType.upsert,
-      payload: {
-        'id': id,
-        'name': draft.name.trim(),
-        'color': draft.colorValue,
-        'teacher': _clean(draft.teacher),
-        'classroom': _clean(draft.classroom),
-        'semester': _clean(draft.semester),
-        'semester_id': draft.semesterId,
-        'semester_starts_on': _dateOnlyUtc(
-          draft.semesterStartsOn,
-        )?.toIso8601String(),
-        'semester_ends_on': _dateOnlyUtc(
-          draft.semesterEndsOn,
-        )?.toIso8601String(),
-        'notes': _clean(draft.notes),
-        'updated_at': now.toIso8601String(),
-      },
-      userId: _userId,
-    );
-    return id;
-  }
+        return id;
+      });
 
   Future<String> saveScheduleRule(
     CourseScheduleRuleDraft draft, {
     String? ruleId,
-  }) async {
+  }) => _database.transaction(() async {
     _validateScheduleRule(draft);
+    await _validateScheduleRuleParents(draft);
     final now = DateTime.now().toUtc();
     final id = ruleId ?? _uuid.v4();
+    final existing = await (_database.select(
+      _database.courseScheduleRuleRecords,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    if (existing != null && existing.userId != _userId) {
+      throw StateError('课程安排不存在');
+    }
     await _database
         .into(_database.courseScheduleRuleRecords)
         .insertOnConflictUpdate(
@@ -147,7 +173,7 @@ class CourseRepository {
             classroomOverride: Value(_clean(draft.classroomOverride)),
             notes: Value(_clean(draft.notes)),
             remindBeforeMinutes: Value(draft.remindBeforeMinutes),
-            createdAt: now,
+            createdAt: existing?.createdAt ?? now,
             updatedAt: now,
           ),
         );
@@ -177,12 +203,57 @@ class CourseRepository {
       userId: _userId,
     );
     return id;
+  });
+
+  Future<void> _validateScheduleRuleParents(
+    CourseScheduleRuleDraft draft,
+  ) async {
+    final course =
+        await (_database.select(_database.courseRecords)..where(
+              (row) =>
+                  row.id.equals(draft.courseId) &
+                  row.userId.equals(_userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (course == null) throw StateError('课程不存在');
+
+    final templateId = draft.scheduleTemplateId;
+    if (templateId == null) {
+      if (draft.sectionIds.isNotEmpty) throw StateError('节次需要关联作息模板');
+      return;
+    }
+    final template =
+        await (_database.select(_database.scheduleTemplateRecords)..where(
+              (row) =>
+                  row.id.equals(templateId) &
+                  row.userId.equals(_userId) &
+                  row.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (template == null) throw StateError('作息模板不存在');
+
+    final sectionIds = draft.sectionIds.toSet();
+    if (sectionIds.isEmpty) return;
+    final sections =
+        await (_database.select(_database.scheduleTemplateSegmentRecords)
+              ..where(
+                (row) =>
+                    row.id.isIn(sectionIds) &
+                    row.templateId.equals(templateId) &
+                    row.userId.equals(_userId) &
+                    row.deletedAt.isNull(),
+              ))
+            .get();
+    if (sections.length != sectionIds.length) {
+      throw StateError('节次不存在或不属于所选作息模板');
+    }
   }
 
   Future<String> saveScheduleTemplate(
     ScheduleTemplateDraft draft, {
     String? templateId,
-  }) async {
+  }) => _database.transaction(() async {
     if (draft.name.trim().isEmpty) {
       throw ArgumentError.value(draft.name, 'name', '请填写作息模板名称');
     }
@@ -202,6 +273,12 @@ class CourseRepository {
     }
     final now = DateTime.now().toUtc();
     final id = templateId ?? _uuid.v4();
+    final existing = await (_database.select(
+      _database.scheduleTemplateRecords,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    if (existing != null && existing.userId != _userId) {
+      throw StateError('作息模板不存在');
+    }
     late List<ScheduleTemplateSegmentDraft> savedSegments;
     late List<String> removedSegmentIds;
     await _database.transaction(() async {
@@ -209,7 +286,10 @@ class CourseRepository {
           ? const <ScheduleTemplateSegmentRecord>[]
           : await (_database.select(_database.scheduleTemplateSegmentRecords)
                   ..where(
-                    (row) => row.templateId.equals(id) & row.deletedAt.isNull(),
+                    (row) =>
+                        row.templateId.equals(id) &
+                        row.userId.equals(_userId) &
+                        row.deletedAt.isNull(),
                   )
                   ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)]))
                 .get();
@@ -286,7 +366,7 @@ class CourseRepository {
               name: draft.name.trim(),
               timezone: Value(draft.timezone),
               isDefault: Value(draft.isDefault),
-              createdAt: now,
+              createdAt: existing?.createdAt ?? now,
               updatedAt: now,
             ),
           );
@@ -305,9 +385,11 @@ class CourseRepository {
             );
       }
       if (templateId != null) {
-        await (_database.delete(
-          _database.scheduleTemplateSegmentRecords,
-        )..where((row) => row.templateId.equals(id))).go();
+        await (_database.delete(_database.scheduleTemplateSegmentRecords)
+              ..where(
+                (row) => row.templateId.equals(id) & row.userId.equals(_userId),
+              ))
+            .go();
       }
       for (var index = 0; index < savedSegments.length; index++) {
         final segment = savedSegments[index];
@@ -363,7 +445,7 @@ class CourseRepository {
       );
     }
     return id;
-  }
+  });
 
   Stream<List<ScheduleTemplateDetails>> watchScheduleTemplates() async* {
     final query = _database.select(_database.scheduleTemplateRecords)

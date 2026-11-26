@@ -63,9 +63,11 @@ void main() {
   });
 
   test('due reminder, advance reminder and alarm are separate rules', () async {
-    const ownerId = 'task-1';
+    final ownerId = await tasks.saveOneTimeReminder(
+      const OneTimeReminderDraft(name: 'Review', colorValue: 1),
+    );
     final dueId = await schedule.saveReminderRule(
-      const ReminderRuleDraft(
+      ReminderRuleDraft(
         ownerType: DayItemType.oneTime,
         ownerId: ownerId,
         reminderKind: ReminderKind.due,
@@ -73,7 +75,7 @@ void main() {
       ),
     );
     final advanceId = await schedule.saveReminderRule(
-      const ReminderRuleDraft(
+      ReminderRuleDraft(
         ownerType: DayItemType.oneTime,
         ownerId: ownerId,
         reminderKind: ReminderKind.advance,
@@ -82,7 +84,7 @@ void main() {
       ),
     );
     final alarmId = await schedule.saveAlarmRule(
-      const AlarmRuleDraft(
+      AlarmRuleDraft(
         ownerType: DayItemType.oneTime,
         ownerId: ownerId,
         enabled: true,

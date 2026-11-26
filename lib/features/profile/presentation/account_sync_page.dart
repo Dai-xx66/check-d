@@ -16,6 +16,7 @@ class AccountSyncPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
     final client = ref.watch(supabaseClientProvider);
     final user = client?.auth.currentUser;
     final sync = ref.watch(syncAccountStatusProvider);
@@ -110,10 +111,15 @@ class AccountSyncPage extends ConsumerWidget {
           _SyncDiagnosticsCard(diagnostics: diagnostics),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () =>
-                ref.read(authControllerProvider.notifier).signOut(),
+            onPressed: auth.isSubmitting
+                ? null
+                : () => ref.read(authControllerProvider.notifier).signOut(),
             child: const Text('退出登录'),
           ),
+          if (auth.errorMessage case final message?) ...[
+            const SizedBox(height: 8),
+            Text(message, style: TextStyle(color: AppColors.red)),
+          ],
           const SizedBox(height: 8),
           Text(
             '退出登录不会删除本机数据或云端数据。',

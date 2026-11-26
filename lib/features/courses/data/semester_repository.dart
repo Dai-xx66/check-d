@@ -46,71 +46,78 @@ class SemesterRepository {
     );
   }
 
-  Future<String> saveSemester(SemesterDraft draft, {String? semesterId}) async {
-    _validate(draft);
-    if (draft.scheduleTemplateId != null) {
-      final template =
-          await (_database.select(_database.scheduleTemplateRecords)..where(
-                (row) =>
-                    row.id.equals(draft.scheduleTemplateId!) &
-                    row.userId.equals(_userId) &
-                    row.deletedAt.isNull(),
-              ))
-              .getSingleOrNull();
-      if (template == null) throw ArgumentError('请选择有效的作息模板');
-    }
-    final now = DateTime.now().toUtc();
-    final id = semesterId ?? _uuid.v4();
-    await _database.transaction(() async {
-      if (draft.isCurrent) {
-        await (_database.update(_database.semesterRecords)..where(
-              (row) =>
-                  row.userId.equals(_userId) &
-                  row.id.equals(id).not() &
-                  row.deletedAt.isNull(),
-            ))
-            .write(
-              SemesterRecordsCompanion(
-                isCurrent: const Value(false),
-                updatedAt: Value(now),
-              ),
-            );
-      }
-      await _database
-          .into(_database.semesterRecords)
-          .insertOnConflictUpdate(
-            SemesterRecordsCompanion.insert(
-              id: id,
-              userId: _userId,
-              name: draft.name.trim(),
-              firstWeekStartDate: _dateOnlyUtc(draft.firstWeekStartDate),
-              totalWeeks: draft.totalWeeks,
-              scheduleTemplateId: Value(draft.scheduleTemplateId),
-              isCurrent: Value(draft.isCurrent),
-              createdAt: now,
-              updatedAt: now,
-            ),
-          );
-    });
-    await _syncQueue.enqueue(
-      entityType: 'semesters',
-      entityId: id,
-      operation: SyncOperationType.upsert,
-      payload: {
-        'id': id,
-        'name': draft.name.trim(),
-        'first_week_start_date': _dateOnlyUtc(
-          draft.firstWeekStartDate,
-        ).toIso8601String(),
-        'total_weeks': draft.totalWeeks,
-        'schedule_template_id': draft.scheduleTemplateId,
-        'is_current': draft.isCurrent,
-        'updated_at': now.toIso8601String(),
-      },
-      userId: _userId,
-    );
-    return id;
-  }
+  Future<String> saveSemester(SemesterDraft draft, {String? semesterId}) =>
+      _database.transaction(() async {
+        _validate(draft);
+        if (draft.scheduleTemplateId != null) {
+          final template =
+              await (_database.select(_database.scheduleTemplateRecords)..where(
+                    (row) =>
+                        row.id.equals(draft.scheduleTemplateId!) &
+                        row.userId.equals(_userId) &
+                        row.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull();
+          if (template == null) throw ArgumentError('请选择有效的作息模板');
+        }
+        final now = DateTime.now().toUtc();
+        final id = semesterId ?? _uuid.v4();
+        final existing = await (_database.select(
+          _database.semesterRecords,
+        )..where((row) => row.id.equals(id))).getSingleOrNull();
+        if (existing != null && existing.userId != _userId) {
+          throw StateError('学期不存在');
+        }
+        await _database.transaction(() async {
+          if (draft.isCurrent) {
+            await (_database.update(_database.semesterRecords)..where(
+                  (row) =>
+                      row.userId.equals(_userId) &
+                      row.id.equals(id).not() &
+                      row.deletedAt.isNull(),
+                ))
+                .write(
+                  SemesterRecordsCompanion(
+                    isCurrent: const Value(false),
+                    updatedAt: Value(now),
+                  ),
+                );
+          }
+          await _database
+              .into(_database.semesterRecords)
+              .insertOnConflictUpdate(
+                SemesterRecordsCompanion.insert(
+                  id: id,
+                  userId: _userId,
+                  name: draft.name.trim(),
+                  firstWeekStartDate: _dateOnlyUtc(draft.firstWeekStartDate),
+                  totalWeeks: draft.totalWeeks,
+                  scheduleTemplateId: Value(draft.scheduleTemplateId),
+                  isCurrent: Value(draft.isCurrent),
+                  createdAt: existing?.createdAt ?? now,
+                  updatedAt: now,
+                ),
+              );
+        });
+        await _syncQueue.enqueue(
+          entityType: 'semesters',
+          entityId: id,
+          operation: SyncOperationType.upsert,
+          payload: {
+            'id': id,
+            'name': draft.name.trim(),
+            'first_week_start_date': _dateOnlyUtc(
+              draft.firstWeekStartDate,
+            ).toIso8601String(),
+            'total_weeks': draft.totalWeeks,
+            'schedule_template_id': draft.scheduleTemplateId,
+            'is_current': draft.isCurrent,
+            'updated_at': now.toIso8601String(),
+          },
+          userId: _userId,
+        );
+        return id;
+      });
 
   Future<void> setCurrentSemester(String semesterId) async {
     final semester =

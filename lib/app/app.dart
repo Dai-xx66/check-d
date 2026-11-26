@@ -27,7 +27,9 @@ class CheckDApp extends ConsumerStatefulWidget {
 }
 
 class _CheckDAppState extends ConsumerState<CheckDApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final _router = GoRouter(
+    navigatorKey: _navigatorKey,
     routes: [GoRoute(path: '/', builder: (context, state) => const _AppGate())],
   );
 
@@ -39,6 +41,15 @@ class _CheckDAppState extends ConsumerState<CheckDApp> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      authControllerProvider.select((auth) => (auth.status, auth.userId)),
+      (_, _) {
+        // Imperative detail/settings routes otherwise survive a root gate
+        // rebuild and can keep the previous account's screen on top.
+        _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+        _router.go('/');
+      },
+    );
     // 皮肤：优先用已加载的偏好，首帧（偏好尚未读出）用启动时写好的运行时值。
     final skinId =
         ref.watch(appearanceControllerProvider).value?.skin ??

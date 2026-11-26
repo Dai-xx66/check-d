@@ -850,7 +850,9 @@ class _EditableRule {
     scheduleTemplateId: timeMode == CourseScheduleTimeMode.periods
         ? scheduleTemplateId
         : null,
-    sectionIds: sectionIds,
+    sectionIds: timeMode == CourseScheduleTimeMode.periods
+        ? sectionIds
+        : const [],
     timeMode: timeMode,
     classroomOverride: classroomOverride,
     notes: notes,
@@ -876,7 +878,9 @@ class _EditableRule {
       scheduleTemplateId: timeMode == CourseScheduleTimeMode.periods
           ? scheduleTemplateId
           : null,
-      sectionIds: sectionIds,
+      sectionIds: timeMode == CourseScheduleTimeMode.periods
+          ? sectionIds
+          : const [],
       timeMode: timeMode,
       classroomOverride: classroomOverride,
       notes: notes,

@@ -9,6 +9,11 @@ class AuthRepository {
 
   User? get currentUser => _client?.auth.currentUser;
 
+  /// Includes session restoration, expiry, and sign-ins made outside the form.
+  Stream<User?> get userChanges =>
+      _client?.auth.onAuthStateChange.map((event) => event.session?.user) ??
+      const Stream.empty();
+
   Future<void> signIn({required String email, required String password}) async {
     final client = _requireClient();
     await client.auth.signInWithPassword(email: email, password: password);
