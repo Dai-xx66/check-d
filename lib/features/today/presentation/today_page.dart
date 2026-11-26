@@ -8,6 +8,7 @@ import '../../../shared/utils/app_time.dart';
 import '../../../shared/widgets/check_d_design.dart';
 import '../../../shared/widgets/mascot.dart';
 import '../../../shared/widgets/glass_button.dart';
+import '../../agent/presentation/agent_page.dart';
 import '../../calendar/domain/calendar_models.dart';
 import '../../reviews/application/review_providers.dart';
 import '../../reviews/domain/review_models.dart';
@@ -208,6 +209,8 @@ class _DesktopTodayWorkspaceState
                     data: data,
                     onToday: () => widget.onDateSelected(DateTime.now()),
                   ),
+                  const SizedBox(height: 12),
+                  const AgentEntryCard(),
                   const SizedBox(height: 12),
                   _DesktopAgenda(
                     data: data,
@@ -2348,6 +2351,8 @@ class _MobileLayout extends StatelessWidget {
           child: Column(
             children: [
               _MobileHeader(data: data),
+              const SizedBox(height: 12),
+              const AgentEntryCard(compact: true),
               if (!data.isToday) ...[
                 const SizedBox(height: 4),
                 Align(

@@ -5,8 +5,10 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   desktop_multi_window
+  pdfx
   screen_retriever_windows
   url_launcher_windows
+  webview_windows
   window_manager
 )
 

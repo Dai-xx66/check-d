@@ -10,6 +10,23 @@ import 'notification_service.dart';
 
 enum ScheduledReminderKind { advance, atTime }
 
+class SupplementalReminder {
+  const SupplementalReminder({
+    required this.id,
+    required this.when,
+    required this.title,
+    required this.body,
+    this.atTimeOccurrenceId,
+  });
+  final int id;
+  final DateTime when;
+  final String title, body;
+  final String? atTimeOccurrenceId;
+}
+
+typedef SupplementalReminderSource =
+    Future<List<SupplementalReminder>> Function(DateTime now, DateTime through);
+
 class ReminderScheduler {
   ReminderScheduler({
     required NotificationPlatformService notifications,
@@ -18,6 +35,7 @@ class ReminderScheduler {
     required SemesterRepository semesters,
     required DayScheduleRepository schedule,
     this.horizonDays = 14,
+    this.supplementalSource,
   }) : _notifications = notifications,
        _tasks = tasks,
        _courses = courses,
@@ -30,8 +48,10 @@ class ReminderScheduler {
   final SemesterRepository _semesters;
   final DayScheduleRepository _schedule;
   final int horizonDays;
+  final SupplementalReminderSource? supplementalSource;
   bool _refreshing = false;
   bool _refreshQueued = false;
+  final _scheduledAtTimeOccurrences = <String>{};
 
   Future<void> refreshFuture({DateTime? now}) async {
     if (_refreshing) {
@@ -58,6 +78,7 @@ class ReminderScheduler {
       // This also removes legacy daily/weekly schedules made by pre-Stage 8
       // builds. Every future notification is immediately rebuilt below.
       await _notifications.cancelAllPending();
+      _scheduledAtTimeOccurrences.clear();
       for (var offset = 0; offset < horizonDays; offset++) {
         final day = calendarDateOnly(current).add(Duration(days: offset));
         final tasks = await _tasks.watchTasksForDate(day).first;
@@ -78,6 +99,25 @@ class ReminderScheduler {
             now: current,
           );
         }
+      }
+      final supplemental =
+          await supplementalSource?.call(
+            current,
+            current.add(Duration(days: horizonDays)),
+          ) ??
+          const [];
+      for (final reminder in supplemental) {
+        if (!reminder.when.isAfter(current)) continue;
+        if (reminder.atTimeOccurrenceId != null &&
+            _scheduledAtTimeOccurrences.contains(reminder.atTimeOccurrenceId)) {
+          continue;
+        }
+        await _notifications.scheduleAt(
+          id: reminder.id,
+          when: reminder.when,
+          title: reminder.title,
+          body: reminder.body,
+        );
       }
     } finally {
       _refreshing = false;
@@ -128,6 +168,9 @@ class ReminderScheduler {
         title: occurrence.title,
         body: _bodyFor(occurrence, kind, advance),
       );
+      if (kind == ScheduledReminderKind.atTime) {
+        _scheduledAtTimeOccurrences.add(occurrence.id);
+      }
     }
   }
 
