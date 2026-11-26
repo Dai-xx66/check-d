@@ -1,0 +1,88 @@
+{
+ "environment": {
+  "app": "WorkBuddy 5.9.3",
+  "electron": "37.10.3",
+  "chrome": "138",
+  "os": "Windows x64",
+  "transport": "stdio MCP",
+  "server": "tools/m1-mock/tool_server.py"
+ },
+ "contract": "c53b1a91c17cd9acdee6d3937c093fcf97515ba0",
+ "cases": [
+  {
+   "id": "W1",
+   "capability": "custom MCP stdio registration",
+   "status": "pass",
+   "detail": "7/7 tools loaded"
+  },
+  {
+   "id": "W2",
+   "capability": "real tool invocation",
+   "status": "pass",
+   "request_id": "c0c500ff-443c-434d-9420-1395b7c1c40a",
+   "trace_id": "trace_e0de08266854414f",
+   "internal_tool_call_id": "call_2c9192d4d0f245d69764e113",
+   "tasks": 4
+  },
+  {
+   "id": "W3",
+   "capability": "tool call id exposed to model",
+   "status": "fail",
+   "detail": "model only received business trace_id"
+  },
+  {
+   "id": "W4",
+   "capability": "remote HTTPS MCP",
+   "status": "blocked"
+  },
+  {
+   "id": "W5",
+   "capability": "second account / share link / read-only call",
+   "status": "blocked"
+  },
+  {
+   "id": "W6",
+   "capability": "trusted user confirmation signal",
+   "status": "blocked",
+   "detail": "connection-level trust only; no identity/time/anti-replay"
+  },
+  {
+   "id": "W7",
+   "capability": "timeout",
+   "status": "pass",
+   "detail": "initialize timeout 30000ms, observed 30028ms"
+  },
+  {
+   "id": "W8",
+   "capability": "unreachable",
+   "status": "pass",
+   "detail": "MCP error -32000: Connection closed"
+  },
+  {
+   "id": "W9",
+   "capability": "401",
+   "status": "pass",
+   "detail": "AUTH_REQUIRED retryable=false; no HTTP status via MCP"
+  }
+ ],
+ "artifacts": {
+  "401.png": {
+   "sha256": "0733a23f51fc3f9d0c3714fe8122a2b01d3d7a2564fe4f36085ced0a7a1960aa"
+  },
+  "call-result.png": {
+   "sha256": "05a6a5cc6e347827027299712b9f1955cbdb8df783d49a2720d8988b995710bc"
+  },
+  "list-call.png": {
+   "sha256": "05a6a5cc6e347827027299712b9f1955cbdb8df783d49a2720d8988b995710bc"
+  },
+  "mcp-7-tools.png": {
+   "sha256": "75f0052ffe5ef8a3caecc169dd072c959bbc67bb5c94fc73ddd9f928584d4f35"
+  },
+  "mcp-connect-error.png": {
+   "sha256": "720c621ae0b1506d2fddd8f1cd90d5b92bddd54430d75d8ef78cc6fb5e8301b3"
+  },
+  "mcp-manager.png": {
+   "sha256": "f7588d73dea2cade74eca794a8f5dec9370448c4baf6985bbea6fb96d2f8b08a"
+  }
+ }
+}

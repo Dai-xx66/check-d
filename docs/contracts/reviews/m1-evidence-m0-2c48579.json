@@ -1,0 +1,1143 @@
+{
+ "baseline_contract": "2c48579a6f0ab2b9181a9246f893c1c0a8dce7c6",
+ "server": {
+  "name": "checkd-agent-mock",
+  "version": "0.4.0"
+ },
+ "core": {
+  "passed": 13,
+  "total": 13,
+  "results": [
+   {
+    "case": "P1 Proposal 不暴露内部 DTO 字段",
+    "expected": "no internal fields",
+    "got": "leaked=[]",
+    "pass": true,
+    "note": "",
+    "response": {
+     "proposal_id": "proposal_0017",
+     "snapshot_ref": "snap_1f68f3f876d7169b",
+     "base_version": "1f68f3f876d7169b63d43f3690a3db0fddd5a124f4e4c3f2df092ef7463c943e",
+     "input_digest": "35efca54dda1b35f73a1bb7db33e8f82bd4f4d072c2c8d2df527c524c1c78492",
+     "status": "draft",
+     "generated_at": "2026-10-31T18:31:26+08:00",
+     "expires_at": "2026-10-31T19:01:26+08:00",
+     "blocks": [
+      {
+       "block_id": "b_0001",
+       "task_id": "t_1001",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T11:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 5400
+      },
+      {
+       "block_id": "b_0003",
+       "task_id": "t_1002",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0005",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0007",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0009",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0011",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0013",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0015",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      }
+     ],
+     "changes": [
+      {
+       "change_id": "ch_0002",
+       "type": "schedule_one_time",
+       "task_id": "t_1001",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0004",
+       "type": "schedule_one_time",
+       "task_id": "t_1002",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0006",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 610
+      },
+      {
+       "change_id": "ch_0008",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0010",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0012",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 640
+      },
+      {
+       "change_id": "ch_0014",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      },
+      {
+       "change_id": "ch_0016",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      }
+     ],
+     "unplanned_tasks": [],
+     "explanations": [
+      {
+       "code": "PRESERVED_FIXED_EVENTS",
+       "message": "固定课程与外部固定事件不可移动。"
+      }
+     ]
+    },
+    "group": "core"
+   },
+   {
+    "case": "P2 Proposal 必填字段齐全",
+    "expected": "all required fields",
+    "got": "missing=[]",
+    "pass": true,
+    "note": "",
+    "response": {
+     "proposal_id": "proposal_0017",
+     "snapshot_ref": "snap_1f68f3f876d7169b",
+     "base_version": "1f68f3f876d7169b63d43f3690a3db0fddd5a124f4e4c3f2df092ef7463c943e",
+     "input_digest": "35efca54dda1b35f73a1bb7db33e8f82bd4f4d072c2c8d2df527c524c1c78492",
+     "status": "draft",
+     "generated_at": "2026-10-31T18:31:26+08:00",
+     "expires_at": "2026-10-31T19:01:26+08:00",
+     "blocks": [
+      {
+       "block_id": "b_0001",
+       "task_id": "t_1001",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T11:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 5400
+      },
+      {
+       "block_id": "b_0003",
+       "task_id": "t_1002",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0005",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0007",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0009",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0011",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0013",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0015",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      }
+     ],
+     "changes": [
+      {
+       "change_id": "ch_0002",
+       "type": "schedule_one_time",
+       "task_id": "t_1001",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0004",
+       "type": "schedule_one_time",
+       "task_id": "t_1002",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0006",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 610
+      },
+      {
+       "change_id": "ch_0008",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0010",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0012",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 640
+      },
+      {
+       "change_id": "ch_0014",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      },
+      {
+       "change_id": "ch_0016",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      }
+     ],
+     "unplanned_tasks": [],
+     "explanations": [
+      {
+       "code": "PRESERVED_FIXED_EVENTS",
+       "message": "固定课程与外部固定事件不可移动。"
+      }
+     ]
+    },
+    "group": "core"
+   },
+   {
+    "case": "E1 explanations 为对象数组且 code 有值",
+    "expected": "objects with code+message",
+    "got": "codes=['PRESERVED_FIXED_EVENTS']",
+    "pass": true,
+    "note": "枚举待 B 提供映射",
+    "response": {
+     "proposal_id": "proposal_0017",
+     "snapshot_ref": "snap_1f68f3f876d7169b",
+     "base_version": "1f68f3f876d7169b63d43f3690a3db0fddd5a124f4e4c3f2df092ef7463c943e",
+     "input_digest": "35efca54dda1b35f73a1bb7db33e8f82bd4f4d072c2c8d2df527c524c1c78492",
+     "status": "draft",
+     "generated_at": "2026-10-31T18:31:26+08:00",
+     "expires_at": "2026-10-31T19:01:26+08:00",
+     "blocks": [
+      {
+       "block_id": "b_0001",
+       "task_id": "t_1001",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T11:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 5400
+      },
+      {
+       "block_id": "b_0003",
+       "task_id": "t_1002",
+       "task_kind": "one_time",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "one_time_schedule",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0005",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:10:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0007",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0009",
+       "task_id": "t_1003",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T08:30:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 1800
+      },
+      {
+       "block_id": "b_0011",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-29T09:40:00+08:00",
+       "end_at": "2026-10-29T10:40:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0013",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-30T08:00:00+08:00",
+       "end_at": "2026-10-30T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      },
+      {
+       "block_id": "b_0015",
+       "task_id": "t_1004",
+       "task_kind": "recurring",
+       "start_at": "2026-10-31T08:00:00+08:00",
+       "end_at": "2026-10-31T09:00:00+08:00",
+       "source": "proposal",
+       "persistable_as": "daily_override",
+       "duration_source": "task_target",
+       "duration_seconds": 3600
+      }
+     ],
+     "changes": [
+      {
+       "change_id": "ch_0002",
+       "type": "schedule_one_time",
+       "task_id": "t_1001",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0004",
+       "type": "schedule_one_time",
+       "task_id": "t_1002",
+       "planned_date": "2026-10-29",
+       "scheduled_at": "2026-10-29T09:40:00+08:00"
+      },
+      {
+       "change_id": "ch_0006",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 610
+      },
+      {
+       "change_id": "ch_0008",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0010",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1003",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 510
+      },
+      {
+       "change_id": "ch_0012",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-29",
+       "action": "reschedule",
+       "planned_start_minute": 580,
+       "planned_end_minute": 640
+      },
+      {
+       "change_id": "ch_0014",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-30",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      },
+      {
+       "change_id": "ch_0016",
+       "type": "upsert_daily_override",
+       "item_type": "recurring",
+       "item_id": "t_1004",
+       "local_date": "2026-10-31",
+       "action": "reschedule",
+       "planned_start_minute": 480,
+       "planned_end_minute": 540
+      }
+     ],
+     "unplanned_tasks": [],
+     "explanations": [
+      {
+       "code": "PRESERVED_FIXED_EVENTS",
+       "message": "固定课程与外部固定事件不可移动。"
+      }
+     ]
+    },
+    "group": "core"
+   },
+   {
+    "case": "E2 响应信封符合 examples",
+    "expected": "api_version/request_id/trace_id/status",
+    "got": "['api_version', 'data', 'request_id', 'status', 'trace_id']",
+    "pass": true,
+    "note": "",
+    "response": {},
+    "group": "core"
+   },
+   {
+    "case": "R1-1 Token 过期后 apply → APPROVAL_EXPIRED",
+    "expected": "APPROVAL_EXPIRED",
+    "got": "APPROVAL_EXPIRED",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 6,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_6\", \"trace_id\": \"trace_cea126d218674d53\", \"status\": \"error\", \"error\": {\"code\": \"APPROVAL_EXPIRED\", \"message\": \"审批 Token 已过期。\", \"retryable\": false, \"details\": []}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_6",
+       "trace_id": "trace_cea126d218674d53",
+       "status": "error",
+       "error": {
+        "code": "APPROVAL_EXPIRED",
+        "message": "审批 Token 已过期。",
+        "retryable": false,
+        "details": []
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "R1-2 Proposal 仍有效时重新审批生成新 approval_id",
+    "expected": "new approval_id",
+    "got": "old=appr_0018 new=appr_0019",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 7,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_request_approval_7\", \"trace_id\": \"trace_4167efb8bc3e42cc\", \"status\": \"success\", \"data\": {\"approval_id\": \"appr_0019\", \"proposal_id\": \"proposal_0017\", \"status\": \"pending\", \"approval_url\": \"https://approval.mock.local/p/appr_0019\", \"expires_at\": \"2026-10-31T19:01:26+08:00\"}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_request_approval_7",
+       "trace_id": "trace_4167efb8bc3e42cc",
+       "status": "success",
+       "data": {
+        "approval_id": "appr_0019",
+        "proposal_id": "proposal_0017",
+        "status": "pending",
+        "approval_url": "https://approval.mock.local/p/appr_0019",
+        "expires_at": "2026-10-31T19:01:26+08:00"
+       }
+      },
+      "isError": false
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "R1-3 旧 Token 永久失效",
+    "expected": "APPROVAL_EXPIRED",
+    "got": "APPROVAL_EXPIRED",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 8,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_8\", \"trace_id\": \"trace_5154667f55054f3a\", \"status\": \"error\", \"error\": {\"code\": \"APPROVAL_EXPIRED\", \"message\": \"审批或 Token 已过期。\", \"retryable\": false, \"details\": []}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_8",
+       "trace_id": "trace_5154667f55054f3a",
+       "status": "error",
+       "error": {
+        "code": "APPROVAL_EXPIRED",
+        "message": "审批或 Token 已过期。",
+        "retryable": false,
+        "details": []
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "R1-4 新 Token 可成功应用",
+    "expected": "success",
+    "got": null,
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 10,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_10\", \"trace_id\": \"trace_aea08561c6384141\", \"status\": \"success\", \"data\": {\"proposal_id\": \"proposal_0017\", \"base_version\": \"1f68f3f876d7169b63d43f3690a3db0fddd5a124f4e4c3f2df092ef7463c943e\", \"result_version\": \"ver_0026\", \"idempotency_key\": \"r1-apply-3\", \"applied_changes\": [{\"change_id\": \"ch_0002\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1001\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0004\", \"type\": \"schedule_one_time\", \"task_id\": \"t_1002\", \"planned_date\": \"2026-10-29\", \"scheduled_at\": \"2026-10-29T09:40:00+08:00\"}, {\"change_id\": \"ch_0006\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-29\", \"action\": \"reschedule\", \"planned_start_minute\": 580, \"planned_end_minute\": 610, \"override_id\": \"ov_0020\"}, {\"change_id\": \"ch_0008\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-30\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 510, \"override_id\": \"ov_0021\"}, {\"change_id\": \"ch_0010\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1003\", \"local_date\": \"2026-10-31\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 510, \"override_id\": \"ov_0022\"}, {\"change_id\": \"ch_0012\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1004\", \"local_date\": \"2026-10-29\", \"action\": \"reschedule\", \"planned_start_minute\": 580, \"planned_end_minute\": 640, \"override_id\": \"ov_0023\"}, {\"change_id\": \"ch_0014\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1004\", \"local_date\": \"2026-10-30\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 540, \"override_id\": \"ov_0024\"}, {\"change_id\": \"ch_0016\", \"type\": \"upsert_daily_override\", \"item_type\": \"recurring\", \"item_id\": \"t_1004\", \"local_date\": \"2026-10-31\", \"action\": \"reschedule\", \"planned_start_minute\": 480, \"planned_end_minute\": 540, \"override_id\": \"ov_0025\"}], \"readback_verified\": true, \"applied_at\": \"2026-10-31T18:31:26+08:00\"}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_10",
+       "trace_id": "trace_aea08561c6384141",
+       "status": "success",
+       "data": {
+        "proposal_id": "proposal_0017",
+        "base_version": "1f68f3f876d7169b63d43f3690a3db0fddd5a124f4e4c3f2df092ef7463c943e",
+        "result_version": "ver_0026",
+        "idempotency_key": "r1-apply-3",
+        "applied_changes": [
+         {
+          "change_id": "ch_0002",
+          "type": "schedule_one_time",
+          "task_id": "t_1001",
+          "planned_date": "2026-10-29",
+          "scheduled_at": "2026-10-29T09:40:00+08:00"
+         },
+         {
+          "change_id": "ch_0004",
+          "type": "schedule_one_time",
+          "task_id": "t_1002",
+          "planned_date": "2026-10-29",
+          "scheduled_at": "2026-10-29T09:40:00+08:00"
+         },
+         {
+          "change_id": "ch_0006",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1003",
+          "local_date": "2026-10-29",
+          "action": "reschedule",
+          "planned_start_minute": 580,
+          "planned_end_minute": 610,
+          "override_id": "ov_0020"
+         },
+         {
+          "change_id": "ch_0008",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1003",
+          "local_date": "2026-10-30",
+          "action": "reschedule",
+          "planned_start_minute": 480,
+          "planned_end_minute": 510,
+          "override_id": "ov_0021"
+         },
+         {
+          "change_id": "ch_0010",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1003",
+          "local_date": "2026-10-31",
+          "action": "reschedule",
+          "planned_start_minute": 480,
+          "planned_end_minute": 510,
+          "override_id": "ov_0022"
+         },
+         {
+          "change_id": "ch_0012",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1004",
+          "local_date": "2026-10-29",
+          "action": "reschedule",
+          "planned_start_minute": 580,
+          "planned_end_minute": 640,
+          "override_id": "ov_0023"
+         },
+         {
+          "change_id": "ch_0014",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1004",
+          "local_date": "2026-10-30",
+          "action": "reschedule",
+          "planned_start_minute": 480,
+          "planned_end_minute": 540,
+          "override_id": "ov_0024"
+         },
+         {
+          "change_id": "ch_0016",
+          "type": "upsert_daily_override",
+          "item_type": "recurring",
+          "item_id": "t_1004",
+          "local_date": "2026-10-31",
+          "action": "reschedule",
+          "planned_start_minute": 480,
+          "planned_end_minute": 540,
+          "override_id": "ov_0025"
+         }
+        ],
+        "readback_verified": true,
+        "applied_at": "2026-10-31T18:31:26+08:00"
+       }
+      },
+      "isError": false
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "X1-a 首次写入进入 readback_pending",
+    "expected": "READBACK_PENDING",
+    "got": "READBACK_PENDING",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 6,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_6\", \"trace_id\": \"trace_2c6722172aa34cbc\", \"status\": \"error\", \"error\": {\"code\": \"READBACK_PENDING\", \"message\": \"写入可能已提交但回读未完成。\", \"retryable\": false, \"details\": [{\"field\": \"proposal.status\", \"reason\": \"readback_pending\"}]}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_6",
+       "trace_id": "trace_2c6722172aa34cbc",
+       "status": "error",
+       "error": {
+        "code": "READBACK_PENDING",
+        "message": "写入可能已提交但回读未完成。",
+        "retryable": false,
+        "details": [
+         {
+          "field": "proposal.status",
+          "reason": "readback_pending"
+         }
+        ]
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "X1-1 readback_pending + 新幂等键 → READBACK_PENDING",
+    "expected": "READBACK_PENDING",
+    "got": "READBACK_PENDING",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 7,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_7\", \"trace_id\": \"trace_3d9e1149fa3a431a\", \"status\": \"error\", \"error\": {\"code\": \"READBACK_PENDING\", \"message\": \"写入可能已发生，只能用同一幂等键继续回读。\", \"retryable\": false, \"details\": [{\"field\": \"proposal.status\", \"reason\": \"readback_pending\"}, {\"field\": \"input.idempotency_key\", \"reason\": \"reuse_same_key_for_readback_only\"}]}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_7",
+       "trace_id": "trace_3d9e1149fa3a431a",
+       "status": "error",
+       "error": {
+        "code": "READBACK_PENDING",
+        "message": "写入可能已发生，只能用同一幂等键继续回读。",
+        "retryable": false,
+        "details": [
+         {
+          "field": "proposal.status",
+          "reason": "readback_pending"
+         },
+         {
+          "field": "input.idempotency_key",
+          "reason": "reuse_same_key_for_readback_only"
+         }
+        ]
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "X1-2 新键仍未写入（零写入保持）",
+    "expected": "READBACK_PENDING",
+    "got": "READBACK_PENDING",
+    "pass": true,
+    "note": "no duplicate write",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 8,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_8\", \"trace_id\": \"trace_c2cbcb4a10a24a0b\", \"status\": \"error\", \"error\": {\"code\": \"READBACK_PENDING\", \"message\": \"写入可能已发生，只能用同一幂等键继续回读。\", \"retryable\": false, \"details\": [{\"field\": \"proposal.status\", \"reason\": \"readback_pending\"}, {\"field\": \"input.idempotency_key\", \"reason\": \"reuse_same_key_for_readback_only\"}]}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_8",
+       "trace_id": "trace_c2cbcb4a10a24a0b",
+       "status": "error",
+       "error": {
+        "code": "READBACK_PENDING",
+        "message": "写入可能已发生，只能用同一幂等键继续回读。",
+        "retryable": false,
+        "details": [
+         {
+          "field": "proposal.status",
+          "reason": "readback_pending"
+         },
+         {
+          "field": "input.idempotency_key",
+          "reason": "reuse_same_key_for_readback_only"
+         }
+        ]
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "ORD-1 已应用 + 新键 → ALREADY_APPLIED",
+    "expected": "ALREADY_APPLIED",
+    "got": "ALREADY_APPLIED",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 7,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_7\", \"trace_id\": \"trace_42b65903992d4973\", \"status\": \"error\", \"error\": {\"code\": \"ALREADY_APPLIED\", \"message\": \"该提案已成功应用。\", \"retryable\": false, \"details\": []}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_7",
+       "trace_id": "trace_42b65903992d4973",
+       "status": "error",
+       "error": {
+        "code": "ALREADY_APPLIED",
+        "message": "该提案已成功应用。",
+        "retryable": false,
+        "details": []
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   },
+   {
+    "case": "ORD-2 已应用优先于 Token 过期",
+    "expected": "ALREADY_APPLIED",
+    "got": "ALREADY_APPLIED",
+    "pass": true,
+    "note": "",
+    "response": {
+     "jsonrpc": "2.0",
+     "id": 8,
+     "result": {
+      "content": [
+       {
+        "type": "text",
+        "text": "{\"api_version\": \"checkd.agent.v1\", \"request_id\": \"req_apply_approved_changes_8\", \"trace_id\": \"trace_694ba5a3d4284ce1\", \"status\": \"error\", \"error\": {\"code\": \"ALREADY_APPLIED\", \"message\": \"该提案已成功应用。\", \"retryable\": false, \"details\": []}}"
+       }
+      ],
+      "structuredContent": {
+       "api_version": "checkd.agent.v1",
+       "request_id": "req_apply_approved_changes_8",
+       "trace_id": "trace_694ba5a3d4284ce1",
+       "status": "error",
+       "error": {
+        "code": "ALREADY_APPLIED",
+        "message": "该提案已成功应用。",
+        "retryable": false,
+        "details": []
+       }
+      },
+      "isError": true
+     }
+    },
+    "group": "core"
+   }
+  ]
+ },
+ "examples": {
+  "passed": 19,
+  "total": 20,
+  "results": [
+   {
+    "id": "EX-01",
+    "name": "list_tasks_with_recurring_and_one_time",
+    "status": "pass",
+    "note": "4 tasks",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-02",
+    "name": "get_calendar_with_course_and_unexpected_meeting",
+    "status": "pass",
+    "note": "1 events",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-03",
+    "name": "empty_task_list_is_success",
+    "status": "pass",
+    "note": "empty tasks",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-04",
+    "name": "empty_calendar_is_success",
+    "status": "pass",
+    "note": "empty calendar",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-05",
+    "name": "unauthorized_request",
+    "status": "pass",
+    "note": "code=AUTH_REQUIRED",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-06",
+    "name": "generate_schedule_proposal",
+    "status": "pass",
+    "note": "draft + ttl",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-07",
+    "name": "validate_schedule_pending_approval",
+    "status": "pass",
+    "note": "valid",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-08",
+    "name": "request_approval_creates_pending_only",
+    "status": "pass",
+    "note": "pending only",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-09",
+    "name": "get_approval_status_pending_without_token",
+    "status": "pass",
+    "note": "pending no token",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-10",
+    "name": "get_approval_status_first_approved_delivery",
+    "status": "pass",
+    "note": "approved + token",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-11",
+    "name": "get_approval_status_after_token_was_issued",
+    "status": "pass",
+    "note": "token_issued + null",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-12",
+    "name": "apply_while_external_approval_is_pending",
+    "status": "pass",
+    "note": "code=APPROVAL_PENDING",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-13",
+    "name": "apply_approved_changes_success",
+    "status": "pass",
+    "note": "readback ok",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-14",
+    "name": "same_idempotency_key_replays_original_result",
+    "status": "pass",
+    "note": "same result",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-15",
+    "name": "already_applied_with_new_idempotency_key",
+    "status": "pass",
+    "note": "code=ALREADY_APPLIED",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-16",
+    "name": "proposal_expired_before_approval",
+    "status": "pass",
+    "note": "code=PROPOSAL_EXPIRED",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-17",
+    "name": "consumed_token_cannot_authorize_another_apply",
+    "status": "not_executable",
+    "note": "按 §6.5 判定顺序，已 applied 的 Proposal 先返回 ALREADY_APPLIED；APPROVAL_CONSUMED 在该状态不可达，需 M0 明确",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-18",
+    "name": "approval_token_expired_before_apply",
+    "status": "pass",
+    "note": "code=APPROVAL_EXPIRED",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-19",
+    "name": "base_version_changed_before_apply",
+    "status": "pass",
+    "note": "code=SNAPSHOT_CONFLICT",
+    "expected": "matches example"
+   },
+   {
+    "id": "EX-20",
+    "name": "write_may_have_succeeded_but_readback_is_pending",
+    "status": "pass",
+    "note": "code=READBACK_PENDING",
+    "expected": "matches example"
+   }
+  ]
+ }
+}
