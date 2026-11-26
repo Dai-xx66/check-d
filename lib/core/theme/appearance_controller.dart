@@ -18,28 +18,62 @@ final appearanceRepositoryProvider = Provider<AppearancePreferencesRepository>(
 /// 依赖的是 `MaterialApp.theme` 变化 —— 所有读过 `Theme.of(context)` 的
 /// 页面会自动 rebuild。`AppShell` 已显式建立该依赖，无需每个页面单独处理。
 class AppearanceController extends AsyncNotifier<AppearancePreferences> {
+  Future<void> _saveTail = Future<void>.value();
+  AppearancePreferences _lastSaved = const AppearancePreferences();
+
   @override
   Future<AppearancePreferences> build() async {
     final prefs = await ref.watch(appearanceRepositoryProvider).load();
-    AppSkinHost.apply(AppSkin.of(prefs.skin));
+    if (ref.mounted) {
+      _lastSaved = prefs;
+      AppSkinHost.apply(AppSkin.of(prefs.skin));
+    }
     return prefs;
   }
 
   Future<void> selectSkin(AppSkinId id) async {
-    final current = state.value ?? const AppearancePreferences();
+    // Do not overwrite another saved preference with its default while the
+    // initial database read is still in flight.
+    if (state.isLoading || !state.hasValue) await future;
+    if (!ref.mounted) return;
+    final current = state.requireValue;
     if (current.skin == id) return;
     AppSkinHost.apply(AppSkin.of(id));
     final next = current.copyWith(skin: id);
     state = AsyncData(next);
-    await ref.read(appearanceRepositoryProvider).save(next);
+    await _save(next);
   }
 
   Future<void> selectIcon(AppIconStyle style) async {
-    final current = state.value ?? const AppearancePreferences();
+    if (state.isLoading || !state.hasValue) await future;
+    if (!ref.mounted) return;
+    final current = state.requireValue;
     if (current.icon == style) return;
     final next = current.copyWith(icon: style);
     state = AsyncData(next);
-    await ref.read(appearanceRepositoryProvider).save(next);
+    await _save(next);
+  }
+
+  Future<void> _save(AppearancePreferences next) {
+    final repository = ref.read(appearanceRepositoryProvider);
+    final write = _saveTail.then((_) async {
+      try {
+        await repository.save(next);
+        _lastSaved = next;
+      } catch (_) {
+        // A failed older write must not undo a newer optimistic selection.
+        // If this is still the active choice, restore the last durable value
+        // so selecting the same option again actually retries the save.
+        if (ref.mounted && identical(state.value, next)) {
+          state = AsyncData(_lastSaved);
+          AppSkinHost.apply(AppSkin.of(_lastSaved.skin));
+        }
+        rethrow;
+      }
+    });
+    // Serialize writes, but keep the queue usable after a failed operation.
+    _saveTail = write.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return write;
   }
 }
 

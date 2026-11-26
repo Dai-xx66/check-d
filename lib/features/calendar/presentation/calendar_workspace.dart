@@ -927,7 +927,10 @@ class _TimeGrid extends StatelessWidget {
                 3 +
                 layout.lane * ((colWidth - 6) / layout.laneCount),
             width: math.max(
-              24,
+              // A minimum card width can spill into the next day when several
+              // courses share a narrow phone column. Keep each overlap lane
+              // inside its day; full details remain available on tap/hold.
+              1.0,
               (colWidth - 6) / layout.laneCount -
                   (layout.laneCount > 1 ? 3 : 0),
             ),
