@@ -15,6 +15,9 @@
 | `tools/m1-context/preference_profile.py` | 偏好契约的 Python 参考实现（weekday 每日默认 / 版本 CAS / 上限校验） |
 | `tools/m1-context/test_preference_profile.py` | 35 项验收测试 |
 | `tools/m1-context/test_migration_permissions.py` | 14 项迁移权限静态检查（表级写权限、写策略、DEFINER 加固、含反向自检） |
+| `tools/m1-context/test_semester_and_schedule.py` | 17 项：跨学期课程过滤 + 长期任务排期 |
+| `tools/m1-context/render_week_report.py` | 把快照渲染成一页 HTML 周视图（截图/答辩用，无外部依赖；生成的 .html 不入库） |
+| `tools/m1-context/fixtures/seed_semester_schedule.json` | 专测学期过滤与排期的 fixture，与 seed.json 分开 |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
 | `tools/m1-context/samples/preference_profile_sample.json` | 偏好固定样例（input / expected / resolved 三段） |
 | `docs/contracts/stage04-shared-contract-v1-freeze.md` | **冻结版共享契约**（偏好映射 / 三版本号 / 写入授权 / 事件约束 / 三态 / 变更流程） |
@@ -131,7 +134,7 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 cd tools/m1-context
 python -m unittest test_context_snapshot -v          # 25 项：快照算法
 python -m unittest test_preference_profile -v        # 35 项：偏好契约
-python -m unittest discover -p 'test_*.py' -v        # 一次跑全部 74 项
+python -m unittest discover -p 'test_*.py' -v        # 一次跑全部 91 项
 python context_snapshot.py fixtures/seed.json \
        --from 2026-11-26 --through 2026-11-28 --energy 3   # 打印样例
 ```

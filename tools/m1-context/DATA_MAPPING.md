@@ -29,12 +29,17 @@
 筛选条件（全部满足才出现）：
 
 1. `courses.user_id = auth.uid()`、`courses.deleted_at is null`、`courses.status = 'active'`
+1b. **`courses.semester_id` 必须属于某个 `is_current` 学期，或为 `null`**
+   （2026-11-26 补。判据用「任意一个 is_current」而不是某一个 id：数据异常下若有多条
+   `is_current`，按单 id 过滤会把挂在另一条上的课整批丢掉。`semester_id` 为 `null` 的是
+   `semesters` 表出现之前建的历史课程，继续纳入，否则老用户整张课表会消失。）
 2. `course_schedule_rules.deleted_at is null`、`course_schedule_rules.weekday = isodow(date)`（1=周一…7=周日）
 3. `1 <= week_no <= semesters.total_weeks`
 4. `start_week`/`end_week` 若存在则需落在区间内
 5. 周次规则：
    - `week_numbers` **非空** → 以清单为准（优先级最高）
    - 否则 `everyWeek` / `oddWeeks`(奇周) / `evenWeeks`(偶周) / `everyNWeeks`(与 `interval_weeks` 配合)
+   - `week_rule_type = 'custom'` 且 `week_numbers` 为空 → **不上课**（fail closed）
    - 都不匹配 → 不出现
 
 > 为什么课程由 M1 展开而不是读 occurrence：`courses` + `rules` + `semesters` 三者已能唯一确定「某天几点有课」，
@@ -71,9 +76,14 @@
 
 任务进入窗口的条件：
 
-- `long_term`：全部纳入（长期任务一直在窗口内）
+- `long_term`：**必须被 `task_schedules` 的排期覆盖本窗口**（2026-11-26 补）
+  - 没有任何 `task_schedules` 行 → 视为老数据/未设排期，**保留**（否则长期任务整批消失）
+  - 有排期行 → 窗口内至少一天同时满足：`starts_on <= 该天`、`ends_on is null or ends_on >= 该天`、
+    `weekdays_mask` 的对应位为 1（bit0 = 周一 … bit6 = 周日，与客户端 `WeekdayMask` 一致）
+  - `weekdays_mask` 为 `null` 时回退到 `weekdays` 数组；两者都空 → **不做**（fail closed）
+  - 同一任务多条排期，任一命中即可
 - `one_time`：`due_date` 或 `planned_date` 落在窗口内，或 `due_at` 落在窗口时段内，或提醒行缺失（保留可见，标 unknown）
-- 一律排除：`tasks.deleted_at is not null`、`tasks.status <> 'active'`、`type` 不属于上述两种
+- 一律排除：`tasks.deleted_at is not null`、`tasks.status <> 'active'`（含 `paused`）、`type` 不属于上述两种
 
 ## 五、`workload`
 
@@ -162,6 +172,20 @@ auth.users
 ```
 
 本 PR 对上述既有表**零结构改动**：只新增两张表与五个函数。
+
+## 八之二、盘点 Flutter Drift 后发现、但**未修**的三处
+
+2026-11-26 把 `lib/core/database/app_database.dart` 的 24 张 Drift 表与服务端 migration 逐列比对，
+除已修的两处（`courses.semester_id` 未用、`task_schedules` 未读），还有三处**没有动**，原因写在下面。
+不改的原因不是省事，是改了就要动语义，而语义归 M2 或需要 M2 确认。
+
+| # | 现象 | 为什么不改 | 需要谁 |
+|---|---|---|---|
+| 1 | 单次任务的完成事实有两个来源：`task_completions.is_success` 与 `one_time_reminders.completed_at`。当前只认前者 | 改成「两源任一即完成」会改变「完成事实」的定义。若 App 标记完成时只写 `completed_at`，现在的实现会把已完成任务算成未完成（负荷虚高）；反之若两源会分叉，OR 判断会过度算完成。**两种错法都比不改危险** | M2 确认 App 标记完成时写哪张表、是否两张都写 |
+| 2 | `long_term_tasks.scheduled_minute_of_day` / `reminder_minute_of_day` 未读 | 当前 `tasks` 输出里没有「几点做」这个字段，读了也没处放。若后续要输出建议时段，需要先改契约 | 设计决策，暂不需要 |
+| 3 | 客户端 `course_schedule_rules.time_mode`（`customTime` / 模板节次）在服务端**没有对应列**；服务端只有 `starts_at_minute` / `ends_at_minute` | 说明时间在同步时已被折算成分钟数落库。若用户改了作息模板而规则行没跟着更新，服务端会保留旧时间——那是同步层的问题，不是快照层 | M2（同步逻辑）+ M3（服务端校验） |
+
+第 1 条是**上游依赖**：在 M2 给答案之前，`completed` 字段的准确性只能保证「按 `task_completions` 定义正确」，不能保证「与 App 界面一致」。
 
 ## 九、配套文档
 

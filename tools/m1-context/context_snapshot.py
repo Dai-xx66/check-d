@@ -115,6 +115,41 @@ def _merge_free(days: list[date], busy: dict[date, list[tuple[int, int]]],
     return out
 
 
+def _long_term_scheduled_in_window(task_id: str,
+                                   schedules: list[dict[str, Any]],
+                                   days: list[date]) -> bool:
+    """长期任务在本窗口内是否有「该做」的天。
+
+    与 0002 migration 同语义：
+      - 没有任何排期行 → True（老数据兼容；否则长期任务会整批消失）
+      - 有排期行 → 窗口内至少一天命中 weekdays_mask（bit0 = 周一）
+      - mask 缺失时回退到 weekdays 数组；两者都没有 → False（fail closed）
+    """
+    rows = [s for s in schedules
+            if s.get("task_id") == task_id and not s.get("deleted_at")]
+    if not rows:
+        return True
+    for row in rows:
+        starts_on = _parse_date(row.get("starts_on"))
+        ends_on = _parse_date(row.get("ends_on"))
+        mask = row.get("weekdays_mask")
+        weekdays = row.get("weekdays") or []
+        for day in days:
+            if starts_on and day < starts_on:
+                continue
+            if ends_on and day > ends_on:
+                continue
+            if isinstance(mask, int):
+                if mask & (1 << (day.isoweekday() - 1)):
+                    return True
+            elif weekdays:
+                if day.isoweekday() in weekdays:
+                    return True
+            else:
+                return False
+    return False
+
+
 def build_snapshot(
     *,
     window_from: date | str,
@@ -126,6 +161,7 @@ def build_snapshot(
     one_time_reminders: list[dict[str, Any]] | None = None,
     long_term_tasks: list[dict[str, Any]] | None = None,
     completions: list[dict[str, Any]] | None = None,
+    task_schedules: list[dict[str, Any]] | None = None,
     occurrences_available: bool = False,
     occurrences_cover_window: bool = False,
     timezone: str = "Asia/Shanghai",
@@ -149,12 +185,16 @@ def build_snapshot(
     one_time_reminders = one_time_reminders or []
     long_term_tasks = long_term_tasks or []
     completions = completions or []
+    task_schedules = task_schedules or []
 
     blocking: list[dict[str, str]] = []
 
     # ---------- 学期锚点 ----------
-    current = next((s for s in semesters
-                    if s.get("is_current") and not s.get("deleted_at")), None)
+    # 与 SQL 一致：多条 is_current 时取 updated_at 最新的一条（数据异常下的确定性）。
+    current_candidates = [s for s in semesters
+                          if s.get("is_current") and not s.get("deleted_at")]
+    current_candidates.sort(key=lambda s: str(s.get("updated_at") or ""), reverse=True)
+    current = current_candidates[0] if current_candidates else None
     if current is None:
         semester_status = "missing"
         semester_block = {"status": "missing"}
@@ -169,8 +209,17 @@ def build_snapshot(
                           "total_weeks": total_weeks}
 
     # ---------- 固定事件：课程展开 ----------
-    course_by_id = {c["id"]: c for c in courses
-                    if not c.get("deleted_at") and c.get("status", "active") == "active"}
+    # 只展开属于当前学期的课程。semester_id 为 null 的历史课程（semesters 表出现前
+    # 创建的）继续纳入，否则老用户整张课表会消失。
+    # 判据是「属于任意一个 is_current 学期」而非某一个 id：数据异常下若有多条
+    # is_current，按单 id 过滤会把挂在另一条上的课整批丢掉。
+    current_sids = {s.get("id") for s in current_candidates if s.get("id")}
+    course_by_id = {
+        c["id"]: c for c in courses
+        if not c.get("deleted_at")
+        and c.get("status", "active") == "active"
+        and (c.get("semester_id") is None or c.get("semester_id") in current_sids)
+    }
     days = list(_iter_days(start, through))
     fixed_events: list[dict[str, Any]] = []
     if current is not None:
@@ -238,6 +287,10 @@ def build_snapshot(
         else:
             reminder = reminder or {}
             long_row = long_row or {}
+            # 长期任务只有在排期覆盖本窗口时才算「本窗口该做」。
+            # 没有排期行 = 老数据/未设排期 → 保留，否则长期任务会整批消失。
+            if not _long_term_scheduled_in_window(task["id"], task_schedules, days):
+                continue
 
         seconds = (long_row or {}).get("target_duration_seconds")
         estimated = None if seconds is None else (int(seconds) + 59) // 60
@@ -332,6 +385,7 @@ def main() -> int:
         one_time_reminders=seed.get("one_time_reminders", []),
         long_term_tasks=seed.get("long_term_tasks", []),
         completions=seed.get("task_completions", []),
+        task_schedules=seed.get("task_schedules", []),
         occurrences_available=seed.get("occurrences_available", False),
         occurrences_cover_window=seed.get("occurrences_cover_window", False),
         energy_self_report=args.energy,

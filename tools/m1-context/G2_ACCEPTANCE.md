@@ -9,7 +9,7 @@
 | G2 要求 | 结论 | 依据 |
 |---|---|---|
 | 可运行接口 | **PASS** | 新增 2 张表（`behavior_events` / `preference_profiles`）+ 5 个函数（`append_behavior_event` / `list_behavior_events` / `checkd_context_snapshot` / `upsert_preference_profile` / `get_preference_profile`）+ 5 条 RLS 策略；Python 参考实现一条命令出快照 JSON |
-| 测试 | **PASS** | `python -m unittest discover -p 'test_*.py'` → **74 项通过 / 0 失败**（快照 25 + 偏好契约 35 + 迁移权限静态检查 14，0.012s） |
+| 测试 | **PASS** | `python -m unittest discover -p 'test_*.py'` → **91 项通过 / 0 失败**（快照 25 + 偏好契约 35 + 迁移权限静态 14 + 跨学期与排期 17，0.016s） |
 | PR | **PASS** | PR #22（`Dai-xx66/check-d` ← `Tony2215:feat/m1-stage04-context-snapshot`），分支 head 以 PR 页面为准；本文件所在提交之后可能再更新一两次文档，head 会变，**引用时请取 PR 页面上当时的 head** |
 | 最小真实数据验证 | **BLOCKED** | M1 侧无数据库连接（无 psql、无容器、TLS 到 Supabase 不通），生产库按红线不得由 M1 直连 |
 
@@ -53,6 +53,8 @@
 | 写入授权收紧（表级 insert/update 收回，只走 RPC） | **代码已改，真实库未验** | `ERROR_CODES.md` §四之二；迁移 §3；需执行后用 authenticated 试直写被拒才算 PASS |
 | 八种 `event_type` 与计时事实（不从 `task_completed` 推算时长） | **契约已写** | 冻结契约 §4；存储侧约束已存在，语义对齐待 M2 确认 |
 | `estimated_minutes` 三态（`null` / `unknown` / `missing`） | **PASS（契约 + 测试）** | 冻结契约 §6；`test_missing_estimate_is_unknown_not_zero` |
+| 跨学期课程不混入当前周（盘点 Drift 后补的缺口） | **PASS（fixture）** | `test_previous_semester_course_excluded`、`test_legacy_course_without_semester_still_appears`、`test_multiple_current_semesters_keep_all_their_courses` |
+| 长期任务按 `task_schedules` 判断本窗口该不该做（同批补的缺口） | **PASS（fixture）** | `test_weekend_only_excluded_on_thursday`、`test_schedule_starting_after_window_excluded`、`test_ended_schedule_excluded`、`test_task_without_schedule_row_kept`、`test_empty_mask_and_no_weekdays_means_never` |
 
 ## 三、可复现命令（M0 本地照跑）
 
@@ -62,10 +64,10 @@ git clone https://github.com/Tony2215/check-d.git && cd check-d
 git checkout feat/m1-stage04-context-snapshot     # 分支 head 见 PR #22 页面
 cd tools/m1-context
 
-# 1) 测例（74 项，纯标准库，无网络无数据库）
+# 1) 测例（91 项，纯标准库，无网络无数据库）
 python -m unittest discover -p 'test_*.py' -v
-# 实测：Ran 74 tests in 0.012s / OK
-# 分项：test_context_snapshot 25 · test_preference_profile 35 · test_migration_permissions 14
+# 实测：Ran 91 tests in 0.016s / OK
+# 分项：test_context_snapshot 25 · test_preference_profile 35 · test_migration_permissions 14 · test_semester_and_schedule 17
 
 # 2) 出快照（固定 fixture，可直接给适配层当输入）
 python context_snapshot.py fixtures/seed.json \
@@ -107,7 +109,7 @@ fixture 给的是 `UNAVAILABLE`；按 M3 报告，真实库的 occurrence 表**�
 
 本轮据此交付：
 
-- **可给 M0 直接消费的**：快照与偏好的 JSON 结构与语义、字段映射、错误码、74 项测试、固定 fixture 与样例、冻结版共享契约。适配层可以现在开始写，接口不会因为 SQL 未执行而变。
+- **可给 M0 直接消费的**：快照与偏好的 JSON 结构与语义、字段映射、错误码、91 项测试、固定 fixture 与样例、冻结版共享契约。适配层可以现在开始写，接口不会因为 SQL 未执行而变。
 - **不得对外表述为「已跑通」的**：三个 migration 是否能在真实库执行、RLS 是否真的隔离两账号、表级写权限收回是否真的生效、`event_id` 幂等是否真的不重复、真实数据下的快照值。
 - **M0 集成时的硬提醒**：`status=partial` 时 `free_slots` 只保证「没有课」，不保证「没有任务」；缺失硬约束时不得宣称方案可执行。
 
