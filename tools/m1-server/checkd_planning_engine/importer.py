@@ -84,7 +84,7 @@ def import_snapshot(payload: dict[str, Any]) -> Snapshot:
             int(row.get("minimum_block_minutes",30)),row.get("effort_confidence"),
             int(row.get("priority",0)),row.get("maximum_continuous_minutes"),
             int(row.get("minimum_rest_minutes",0)),tuple(row.get("depends_on",()))))
-    for row in [*payload["course_occurrences"],*payload["occupied_blocks"]]:
+    for row in [*payload["course_occurrences"],*payload["occupied_blocks"],*payload.get("task_occurrences", [])]:
         busy.append(Block(instant(row["starts_at"]),instant(row["ends_at"]),row.get("task_id"),row.get("kind","course")))
     normalized={k:v for k,v in payload.items() if k!="display_names"}
     digest=sha256(json.dumps(normalized,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -386,7 +387,12 @@ def build_application_from_environment() -> McpApplication:
         publishable_key=key,
         user_access_token=token,
     )
-    ledger = ConfirmationLedger(state_path)
+    # A standalone host may reuse this setting across CheckD accounts.
+    # Bind persisted approvals to the verified account as well as its project.
+    user_id = repository.authenticated_user_id()
+    scope = hashlib.sha256(f"{url.rstrip('/')}\0{user_id}".encode()).hexdigest()
+    path = Path(state_path).expanduser()
+    ledger = ConfirmationLedger(path.with_name(f"{path.stem}.{scope}{path.suffix}"))
     return McpApplication(
         TaskCreationService(ledger, repository),
         query_service=TaskQueryService(repository),

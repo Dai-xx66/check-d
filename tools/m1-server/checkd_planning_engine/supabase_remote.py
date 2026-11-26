@@ -41,6 +41,58 @@ def _jwt_payload(token: str) -> dict[str, Any]:
         return {}
 
 
+def planning_freshness_mode() -> str:
+    """Select the freshness judgement mode.
+
+    ``legacy`` (default) reproduces the 15-minute hard TTL shipped in production
+    010 byte-for-byte. ``version`` enables the version-driven judgement ruled by
+    M0 on 2026-11-23. Defaulting to legacy keeps deployment a no-op until the
+    environment is opted in, so the change is trivially reversible.
+    """
+    return (os.environ.get("CHECKD_PLANNING_FRESHNESS_MODE") or "legacy").strip().lower()
+
+
+def planning_trust_window_seconds() -> int:
+    """Upper bound for device-sync age *once versions already match*.
+
+    Default 24h, not 15min: M0 rejected a 15-minute manual-sync requirement.
+    Clamped to [60s, 30d] so a bad env value can neither disable freshness nor
+    extend it indefinitely (M0: do not delete TTL / do not extend infinitely).
+    """
+    raw = os.environ.get("CHECKD_PLANNING_TRUST_WINDOW_SECONDS") or "86400"
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        value = 86400
+    return max(60, min(value, 30 * 86400))
+
+
+def task_occurrence_evidence_enabled() -> bool:
+    """Opt-in gate for client-published long-term task occurrences.
+
+    Default OFF: production 010 keeps the fail-closed blocker
+    ``recurring_occurrences_not_resolved`` untouched, and no new REST table is
+    queried. Only an explicit opt-in in version-freshness mode allows the
+    evidence chain to clear the blocker. Rollback is one env var, no code
+    redeploy required.
+    """
+    raw = (os.environ.get("CHECKD_TASK_OCCURRENCE_EVIDENCE_ENABLED") or "0")
+    return (raw.strip().lower() in {"1", "true", "yes", "on"}
+            and planning_freshness_mode() == "version")
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 class SupabaseAccessTokenVerifier:
     """Validate a CheckD JWT through Auth, then use Auth's returned user ID."""
     def __init__(self, *, supabase_url: str, publishable_key: str,
@@ -298,6 +350,124 @@ class SupabaseRestSnapshotProvider:
             "p_approval_id": approval_id, "p_token_digest": token_digest,
         })
 
+    def _resolve_version_freshness(self, *, base: dict[str, Any], token: str,
+                                   start: str, end: str,
+                                   checkpoint_status: dict[str, Any],
+                                   rules: list[dict[str, Any]]):
+        """Version-driven freshness judgement (M0 2026-11-23 ruling).
+
+        Returns (checkpoints_current, course_snapshot_valid, course_occurrences,
+        course_snapshot_rows, freshness_state, freshness_reason).
+
+        A ``trusted_current``: every active device acknowledged the *current*
+          server data_version inside the trust window and its snapshot matches
+          that exact version/generation with one shared digest -> real planning.
+        B ``provisional_synced``: cloud data is readable but device freshness is
+          unprovable (version behind, missing watermark/snapshot, beyond window)
+          -> preview only, approval/apply stay fail-closed upstream.
+        C ``rebuild_required``: version/generation/digest inconsistency -> must
+          rebuild the snapshot; stale proposals must not execute.
+
+        Time never invalidates a version-consistent device within the trust
+        window; a version mismatch invalidates immediately.
+        """
+        current = checkpoint_status.get("server_data_version")
+        if type(current) is not int:
+            try:
+                rows = self._get("agent_user_data_versions", {
+                    **base, "select": "data_version", "limit": "1"},
+                    token, required=True)
+                current = int(rows[0].get("data_version")) if rows else 0
+            except (SupabaseReadError, KeyError, TypeError, ValueError):
+                return (False, False, [], [],
+                        "provisional_synced", "data_version_unavailable")
+        trust_window = planning_trust_window_seconds()
+        now = datetime.now(timezone.utc)
+        try:
+            watermarks = self._get("agent_device_sync_watermarks", {
+                **base,
+                "select": "device_id,server_data_version,local_generation,acknowledged_at,device_status",
+                "device_status": "eq.active",
+                "order": "device_id.asc", "limit": "100",
+            }, token, required=True)
+        except SupabaseReadError:
+            return (False, False, [], [],
+                    "provisional_synced", "device_watermark_unavailable")
+        watermarks = [w for w in watermarks
+                      if isinstance(w, dict) and w.get("device_id")]
+        if not watermarks:
+            return (False, False, [], [],
+                    "provisional_synced", "no_active_device_watermark")
+        device_versions: dict[str, int] = {}
+        for row in watermarks:
+            try:
+                device_versions[str(row["device_id"])] = int(row.get("server_data_version"))
+            except (TypeError, ValueError):
+                device_versions[str(row["device_id"])] = -1
+        if any(value != current for value in device_versions.values()):
+            # Cloud moved on (data_version changed) but a device never confirmed
+            # it: an unsynced local change may exist -> rebuild, never claim fresh.
+            return (False, False, [], [],
+                    "rebuild_required", "device_version_behind_current")
+        oldest_ack = min((_parse_ts(row.get("acknowledged_at")) or now)
+                         for row in watermarks)
+        if oldest_ack < now - timedelta(seconds=trust_window):
+            # Versions match, but the device has been silent long enough that an
+            # offline local edit cannot be ruled out -> preview only.
+            return (False, False, [], [],
+                    "provisional_synced", "device_sync_exceeds_trust_window")
+        if not rules:
+            # No scheduled courses, so no occurrence snapshot is required.
+            return (True, True, [], [],
+                    "trusted_current", "no_course_rules_version_current")
+        try:
+            snapshots = self._get("agent_course_occurrence_snapshots", {
+                **base,
+                "select": "device_id,from_date,through_date,timezone,builder_version,course_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
+                "server_data_version": f"eq.{current}",
+                "from_date": f"lte.{start}", "through_date": f"gte.{end}",
+                "timezone": "eq.Asia/Shanghai",
+                "builder_version": "eq.checkd_flutter_course_occurrence_v1",
+                "order": "generated_at.desc", "limit": "100",
+            }, token, required=True)
+        except SupabaseReadError:
+            return (False, False, [], [],
+                    "provisional_synced", "course_snapshot_unavailable")
+        by_device: dict[str, dict[str, Any]] = {}
+        for row in snapshots:
+            if isinstance(row, dict) and str(row.get("device_id")) not in by_device:
+                by_device[str(row.get("device_id"))] = row
+        matched: list[dict[str, Any]] = []
+        for device_id in device_versions:
+            row = by_device.get(device_id)
+            if row is None:
+                return (False, False, [], [],
+                        "provisional_synced", "missing_snapshot_for_device")
+            expected_generation = next(
+                (item.get("local_generation") for item in watermarks
+                 if str(item.get("device_id")) == device_id), None)
+            try:
+                if int(row.get("local_generation")) != int(expected_generation):
+                    return (False, False, [], [],
+                            "rebuild_required", "generation_mismatch")
+            except (TypeError, ValueError):
+                return (False, False, [], [],
+                        "rebuild_required", "generation_unreadable")
+            matched.append(row)
+        digests = {row.get("occurrence_digest") for row in matched}
+        if len(digests) != 1 or None in digests:
+            return (False, False, [], [],
+                    "rebuild_required", "digest_mismatch")
+        try:
+            occurrences = self._normalize_course_occurrences(matched, start, end)
+        except (SupabaseReadError, KeyError, ValueError, TypeError):
+            # Snapshot integrity cannot be proven: fail closed into rebuild,
+            # never claim trusted_current and never drop the whole snapshot.
+            return (False, False, [], matched,
+                    "rebuild_required", "course_occurrence_invalid")
+        return (True, True, occurrences, matched,
+                "trusted_current", "version_current_within_trust_window")
+
     @staticmethod
     def _normalize_course_occurrences(rows: list[dict[str, Any]], start: str,
                                      end: str) -> list[dict[str, Any]]:
@@ -306,10 +476,15 @@ class SupabaseRestSnapshotProvider:
         for row in rows:
             for occurrence in row.get("occurrences", []):
                 local_day = date.fromisoformat(occurrence["local_date"])
+                # Flutter snapshots cover a wider horizon than the requested
+                # planning window. Out-of-window items are not selected; only
+                # in-window items are validated and returned.
+                if not start <= local_day.isoformat() <= end:
+                    continue
                 begin = int(occurrence["start_minute"])
                 finish = int(occurrence["end_minute"])
-                if (not start <= local_day.isoformat() <= end or begin < 0
-                        or begin >= 1440 or finish <= begin or finish > 1440
+                if (begin < 0 or begin >= 1440 or finish <= begin
+                        or finish > 1440
                         or occurrence.get("timezone") != "Asia/Shanghai"):
                     raise SupabaseReadError("course_occurrence_validation")
                 midnight = datetime.combine(local_day, datetime.min.time(), zone)
@@ -324,6 +499,126 @@ class SupabaseRestSnapshotProvider:
         normalized.sort(key=lambda item: (item["starts_at"], item["ends_at"],
                                           item["occurrence_id"]))
         return normalized
+
+    @staticmethod
+    def _normalize_task_occurrences(rows: list[dict[str, Any]], start: str,
+                                    end: str,
+                                    recurring_ids: set[str]) -> list[dict[str, Any]]:
+        """Validate and normalize client-published long-term task occurrences.
+
+        The server never expands a recurring rule. It only accepts instances
+        the client already built, and rejects anything that is not owned by a
+        genuinely recurring task in the requested window.
+        """
+        zone = ZoneInfo("Asia/Shanghai")
+        normalized: list[dict[str, Any]] = []
+        for row in rows:
+            for occurrence in row.get("occurrences", []):
+                local_day = date.fromisoformat(occurrence["local_date"])
+                # Client snapshots may cover a wider horizon than the requested
+                # planning window: crop out-of-window items, validate the rest.
+                if not start <= local_day.isoformat() <= end:
+                    continue
+                begin = int(occurrence["start_minute"])
+                finish = int(occurrence["end_minute"])
+                if (begin < 0 or begin >= 1440 or finish <= begin
+                        or finish > 1440
+                        or occurrence.get("timezone") != "Asia/Shanghai"
+                        or str(occurrence.get("task_id")) not in recurring_ids
+                        or not occurrence.get("occurrence_id")):
+                    raise SupabaseReadError("task_occurrence_validation")
+                midnight = datetime.combine(local_day, datetime.min.time(), zone)
+                normalized.append({
+                    "starts_at": (midnight + timedelta(minutes=begin)).isoformat(),
+                    "ends_at": (midnight + timedelta(minutes=finish)).isoformat(),
+                    "task_id": occurrence["task_id"],
+                    "occurrence_id": occurrence["occurrence_id"],
+                    "kind": "task_occurrence",
+                })
+        normalized.sort(key=lambda item: (item["starts_at"], item["ends_at"],
+                                          item["occurrence_id"]))
+        return normalized
+
+    def _resolve_task_occurrence_evidence(self, *, base: dict[str, Any],
+                                          token: str, start: str, end: str,
+                                          checkpoint_status: dict[str, Any],
+                                          task_rows: list[dict[str, Any]],
+                                          freshness_state: str):
+        """Return (valid, snapshot_rows, occurrences, reason).
+
+        Only a version-consistent, device-owned, digest-consistent client
+        snapshot can clear ``recurring_occurrences_not_resolved``. Expanding a
+        long-term task server-side would fabricate the evidence chain, so the
+        blocker stays fail-closed on every B/C freshness state or any mismatch.
+        """
+        recurring_ids = {str(row.get("id")) for row in task_rows
+                         if isinstance(row, dict)
+                         and row.get("type") != "one_time"}
+        if not recurring_ids:
+            return (True, [], [], "no_recurring_tasks")
+        if not task_occurrence_evidence_enabled():
+            return (False, [], [], "task_occurrence_evidence_disabled")
+        if freshness_state != "trusted_current":
+            return (False, [], [], "freshness_not_trusted")
+        current = checkpoint_status.get("server_data_version")
+        if type(current) is not int:
+            return (False, [], [], "data_version_unavailable")
+        try:
+            watermarks = self._get("agent_device_sync_watermarks", {
+                **base,
+                "select": "device_id,server_data_version,local_generation,device_status",
+                "device_status": "eq.active",
+                "order": "device_id.asc", "limit": "100",
+            }, token, required=True)
+        except SupabaseReadError:
+            return (False, [], [], "device_watermark_unavailable")
+        devices: dict[str, Any] = {}
+        for row in watermarks:
+            if isinstance(row, dict) and row.get("device_id"):
+                devices[str(row["device_id"])] = row.get("local_generation")
+        if not devices:
+            return (False, [], [], "no_active_device_watermark")
+        try:
+            rows = self._get("agent_task_occurrence_snapshots", {
+                **base,
+                "select": "device_id,from_date,through_date,timezone,builder_version,task_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
+                "server_data_version": f"eq.{current}",
+                "from_date": f"lte.{start}", "through_date": f"gte.{end}",
+                "timezone": "eq.Asia/Shanghai",
+                "builder_version": "eq.checkd_flutter_task_occurrence_v1",
+                "order": "generated_at.desc", "limit": "100",
+            }, token, required=True)
+        except SupabaseReadError:
+            return (False, [], [], "task_snapshot_unavailable")
+        by_device: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            if isinstance(row, dict) and str(row.get("device_id")) not in by_device:
+                by_device[str(row.get("device_id"))] = row
+        matched: list[dict[str, Any]] = []
+        for device_id, expected_generation in devices.items():
+            row = by_device.get(device_id)
+            if row is None:
+                return (False, [], [], "missing_task_snapshot_for_device")
+            try:
+                if int(row.get("server_data_version")) != current:
+                    return (False, [], [], "task_snapshot_version_behind")
+                if int(row.get("local_generation")) != int(expected_generation):
+                    return (False, [], [], "task_generation_mismatch")
+            except (TypeError, ValueError):
+                return (False, [], [], "task_snapshot_unreadable")
+            matched.append(row)
+        digests = {row.get("occurrence_digest") for row in matched}
+        if (len(digests) != 1 or not isinstance(next(iter(digests)), str)
+                or not next(iter(digests))):
+            return (False, [], [], "task_digest_mismatch")
+        try:
+            occurrences = self._normalize_task_occurrences(
+                matched, start, end, recurring_ids)
+        except (SupabaseReadError, KeyError, ValueError, TypeError):
+            return (False, [], [], "task_occurrence_invalid")
+        if not occurrences:
+            return (False, [], [], "task_occurrences_empty")
+        return (True, matched, occurrences, "task_occurrences_version_current")
 
     def fetch_authenticated(self, identity: RemoteIdentity, start: str,
                             end: str) -> dict[str, Any]:
@@ -403,59 +698,76 @@ class SupabaseRestSnapshotProvider:
         except SupabaseReadError:
             planning_fence = {"ok": False, "ready": False,
                               "blockers": ["trusted_planning_fence_unavailable"]}
-        checkpoints_current = (
-            checkpoint_status.get("planning_ready") is True
-            and checkpoint_status.get("device_checkpoints_current") is True
-            and checkpoint_status.get("course_occurrences_cover_window") is True
-        )
-        course_snapshot_rows: list[dict[str, Any]] = []
-        course_occurrences: list[dict[str, Any]] = []
-        course_snapshot_valid = not rules
-        if checkpoints_current:
-            version = checkpoint_status.get("server_data_version")
-            cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-            try:
-                active_devices = self._get("agent_device_sync_watermarks", {
-                    **base, "select": "device_id", "device_status": "eq.active",
-                    "order": "device_id.asc", "limit": "100",
-                }, token, required=True)
-                active_device_ids: list[str] = []
-                try:
-                    active_device_ids = sorted({str(UUID(row["device_id"]))
-                                                for row in active_devices
-                                                if isinstance(row, dict)
-                                                and isinstance(row.get("device_id"), str)})
-                except (ValueError, TypeError, KeyError):
-                    # Never broaden a malformed active-device list into a
-                    # query that could count a retired device snapshot.
-                    active_device_ids = []
-                if (type(checkpoint_status.get("known_device_count")) is int
-                        and len(active_device_ids)
-                        == checkpoint_status["known_device_count"]
-                        and active_device_ids):
-                    course_snapshot_rows = self._get("agent_course_occurrence_snapshots", {
-                        **base,
-                        "select": "device_id,from_date,through_date,timezone,builder_version,course_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
-                        "device_id": f"in.({','.join(active_device_ids)})",
-                        "server_data_version": f"eq.{version}",
-                        "from_date": f"lte.{start}", "through_date": f"gte.{end}",
-                        "timezone": "eq.Asia/Shanghai",
-                        "builder_version": "eq.checkd_flutter_course_occurrence_v1",
-                        "generated_at": f"gte.{cutoff}",
-                        "order": "generated_at.desc", "limit": "100",
-                    }, token, required=True)
-            except SupabaseReadError:
-                course_snapshot_rows = []
-            device_count = checkpoint_status.get("known_device_count")
-            digests = {row.get("occurrence_digest") for row in course_snapshot_rows}
-            course_snapshot_valid = (
-                type(device_count) is int and device_count > 0
-                and len(course_snapshot_rows) == device_count
-                and len(digests) == 1 and None not in digests
+        freshness_state = "legacy"
+        freshness_reason = "legacy_time_ttl"
+        if planning_freshness_mode() == "version":
+            (checkpoints_current, course_snapshot_valid, course_occurrences,
+             course_snapshot_rows, freshness_state, freshness_reason) = \
+                self._resolve_version_freshness(
+                    base=base, token=token, start=start, end=end,
+                    checkpoint_status=checkpoint_status, rules=rules)
+        else:
+            checkpoints_current = (
+                checkpoint_status.get("planning_ready") is True
+                and checkpoint_status.get("device_checkpoints_current") is True
+                and checkpoint_status.get("course_occurrences_cover_window") is True
             )
-            if course_snapshot_valid:
-                course_occurrences = self._normalize_course_occurrences(
-                    course_snapshot_rows, start, end)
+            course_snapshot_rows: list[dict[str, Any]] = []
+            course_occurrences: list[dict[str, Any]] = []
+            course_snapshot_valid = not rules
+            if checkpoints_current:
+                version = checkpoint_status.get("server_data_version")
+                cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+                try:
+                    active_devices = self._get("agent_device_sync_watermarks", {
+                        **base, "select": "device_id", "device_status": "eq.active",
+                        "order": "device_id.asc", "limit": "100",
+                    }, token, required=True)
+                    active_device_ids: list[str] = []
+                    try:
+                        active_device_ids = sorted({str(UUID(row["device_id"]))
+                                                    for row in active_devices
+                                                    if isinstance(row, dict)
+                                                    and isinstance(row.get("device_id"), str)})
+                    except (ValueError, TypeError, KeyError):
+                        # Never broaden a malformed active-device list into a
+                        # query that could count a retired device snapshot.
+                        active_device_ids = []
+                    if (type(checkpoint_status.get("known_device_count")) is int
+                            and len(active_device_ids)
+                            == checkpoint_status["known_device_count"]
+                            and active_device_ids):
+                        course_snapshot_rows = self._get("agent_course_occurrence_snapshots", {
+                            **base,
+                            "select": "device_id,from_date,through_date,timezone,builder_version,course_data_version,generated_at,server_data_version,occurrence_digest,occurrences,local_generation",
+                            "device_id": f"in.({','.join(active_device_ids)})",
+                            "server_data_version": f"eq.{version}",
+                            "from_date": f"lte.{start}", "through_date": f"gte.{end}",
+                            "timezone": "eq.Asia/Shanghai",
+                            "builder_version": "eq.checkd_flutter_course_occurrence_v1",
+                            "generated_at": f"gte.{cutoff}",
+                            "order": "generated_at.desc", "limit": "100",
+                        }, token, required=True)
+                except SupabaseReadError:
+                    course_snapshot_rows = []
+                device_count = checkpoint_status.get("known_device_count")
+                digests = {row.get("occurrence_digest") for row in course_snapshot_rows}
+                course_snapshot_valid = (
+                    type(device_count) is int and device_count > 0
+                    and len(course_snapshot_rows) == device_count
+                    and len(digests) == 1 and None not in digests
+                )
+                if course_snapshot_valid:
+                    course_occurrences = self._normalize_course_occurrences(
+                        course_snapshot_rows, start, end)
+
+        # Long-term task occurrence evidence must be resolved before source_data
+        # is assembled, so the snapshot digest binds the exact evidence used.
+        (task_occurrence_valid, task_snapshot_rows, task_occurrences,
+         task_occurrence_reason) = self._resolve_task_occurrence_evidence(
+            base=base, token=token, start=start, end=end,
+            checkpoint_status=checkpoint_status, task_rows=task_rows,
+            freshness_state=freshness_state)
 
         by_task = {str(row.get("task_id")): row for row in reminders}
         task_dtos: list[dict[str, Any]] = []
@@ -493,11 +805,24 @@ class SupabaseRestSnapshotProvider:
             "time_blocks": visible_blocks, "completions": completions,
             "course_snapshot": course_snapshot_rows,
         }
+        if task_occurrence_evidence_enabled():
+            source_data["task_occurrence_snapshot"] = task_snapshot_rows
         digest = sha256(json.dumps(source_data, sort_keys=True, separators=(",", ":"),
                                   ensure_ascii=False, default=str).encode()).hexdigest()
         fence_blockers = planning_fence.get("blockers", [])
         if not isinstance(fence_blockers, list):
             fence_blockers = ["trusted_planning_fence_invalid"]
+        if freshness_state == "trusted_current":
+            # Version mode A-state already proved device/version freshness, so
+            # the fence's time-based freshness blockers are stale evidence.
+            # Strip only those four; keep every other blocker intact.
+            stale_freshness = {
+                "device_sync_watermark_stale",
+                "device_sync_watermark_unavailable",
+                "local_unsynced_changes_unknown",
+                "course_occurrence_digest_unavailable",
+            }
+            fence_blockers = [b for b in fence_blockers if b not in stale_freshness]
         execution_blockers = list(fence_blockers) if planning_fence.get("ready") is not True else []
         if not checkpoints_current and not execution_blockers:
             execution_blockers = [
@@ -508,15 +833,41 @@ class SupabaseRestSnapshotProvider:
             execution_blockers.append("stage14a_deadline_fields_unavailable")
         planning_blockers = (["flutter_course_occurrences_unavailable_or_stale"]
                              if rules and not course_snapshot_valid else [])
-        if any(row.get("type") != "one_time" for row in task_rows):
+        if (any(row.get("type") != "one_time" for row in task_rows)
+                and not task_occurrence_valid):
             planning_blockers.append("recurring_occurrences_not_resolved")
-        return {
+        # A-state: derive snapshot identity from the version-backed Flutter
+        # evidence chain, not from the legacy time-TTL fence (which reports a
+        # null digest whenever it is not "ready").
+        if freshness_state == "trusted_current":
+            v_digests = {row.get("occurrence_digest") for row in course_snapshot_rows}
+            v_digest = next((d for d in v_digests
+                             if isinstance(d, str) and d), None)
+            source_version = (
+                "read:version:%s:%s" % (checkpoint_status.get("server_data_version"),
+                                        v_digest[:16]) if v_digest else None)
+            course_digest = v_digest
+            # A snapshot identity must also bind the long-term task evidence,
+            # otherwise two different task-occurrence snapshots would share one
+            # source_snapshot_version and an older proposal could still match.
+            if task_occurrence_valid and task_snapshot_rows:
+                t_digest = next(
+                    (row.get("occurrence_digest") for row in task_snapshot_rows
+                     if isinstance(row.get("occurrence_digest"), str)
+                     and row.get("occurrence_digest")), None)
+                if t_digest and source_version:
+                    source_version = "%s:%s" % (source_version, t_digest[:16])
+        else:
+            source_version = planning_fence.get("snapshot_version")
+            course_digest = planning_fence.get("course_occurrence_digest")
+        snapshot = {
             "schema_version": "checkd.planning.snapshot.v1",
             "subject_ref": owner, "source": "supabase_postgrest_user_jwt",
             "captured_at": captured_at, "version": f"read:{digest}",
             "sync_state": "current" if checkpoints_current and course_snapshot_valid else "unknown",
             "provisional": not (checkpoints_current and course_snapshot_valid
-                                 and planning_fence.get("ready") is True),
+                                 and (planning_fence.get("ready") is True
+                                      or freshness_state == "trusted_current")),
             "timezone": "Asia/Shanghai", "now": datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(),
             "horizon_end": datetime.combine(date.fromisoformat(end), datetime.max.time(),
                                                ZoneInfo("Asia/Shanghai")).isoformat(),
@@ -537,9 +888,11 @@ class SupabaseRestSnapshotProvider:
             "readiness_blockers": execution_blockers,
             "planning_blockers": planning_blockers,
             "execution_eligible": False,
+            "freshness_state": freshness_state,
+            "freshness_reason": freshness_reason,
             "planning_ready": checkpoints_current and course_snapshot_valid,
-            "source_snapshot_version": planning_fence.get("snapshot_version"),
-            "course_occurrence_digest": planning_fence.get("course_occurrence_digest"),
+            "source_snapshot_version": source_version,
+            "course_occurrence_digest": course_digest,
             "course_snapshot": {
                 "validated": course_snapshot_valid,
                 "server_data_version": checkpoint_status.get("server_data_version"),
@@ -552,6 +905,18 @@ class SupabaseRestSnapshotProvider:
             },
             "limitation_codes": execution_blockers + planning_blockers,
         }
+        if task_occurrence_evidence_enabled():
+            snapshot["task_occurrences"] = task_occurrences
+            snapshot["task_occurrence_evidence"] = {
+                "validated": task_occurrence_valid,
+                "reason": task_occurrence_reason,
+                "builder_version": "checkd_flutter_task_occurrence_v1",
+                "occurrence_digest": next(
+                    (row.get("occurrence_digest") for row in task_snapshot_rows
+                     if isinstance(row.get("occurrence_digest"), str)
+                     and row.get("occurrence_digest")), None),
+            }
+        return snapshot
 
     def fetch_plan_proposals(self, identity: RemoteIdentity, *,
                              proposal_id: str | None = None,

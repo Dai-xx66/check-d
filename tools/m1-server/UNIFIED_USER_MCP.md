@@ -32,6 +32,20 @@ switch to `task:write`, but the production builder rejects this mode until a
 real WorkBuddy OAuth grant verifier exists. A user JWT still drives PostgREST
 and RLS; no service-role credential is used.
 
+On the isolated write path, retrying a confirmed creation uses the same task
+ID and inserts only missing rows. It checks the original task and reads back
+the scheduled instant before reporting success. An update saves a receipt in
+the user's existing SQLite ledger after each accepted PATCH. A retry verifies
+the saved versions and applies only the unfinished work. If an earlier PATCH
+has no receipt and the record changed, the user must review the current task
+and confirm again. The ledger creates the receipt table on startup and must
+remain persistent across restarts.
+
+The standalone stdio agent verifies the Supabase session at startup and adds
+the project/account hash to its configured state filename. Existing files
+without an account binding are left on disk. Prepare earlier pending changes
+again after checking for any prior writes.
+
 ## Account route configuration
 
 Enable only in a non-production test deployment until OAuth and data coverage
