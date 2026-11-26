@@ -65,12 +65,17 @@ Python 参考实现抛 `ValueError(code)`；SQL 侧 `raise exception using errco
 | code | 触发条件 | SQLSTATE |
 |---|---|---|
 | `INVALID_PROFILE` | 入参不是 JSON 对象 | `22023` |
-| `CONFIRMATION_REQUIRED` | 写入未带 `confirm=true` | `22023` |
+| `CONFIRMATION_REQUIRED` | 写入未带 `confirm=true`（字符串 `"true"`、数字 `1` 也算未确认） | `22023` |
 | `INVALID_PREFERRED_SLOTS` | `preferred_slots` 不是数组 | `22023` |
-| `TOO_MANY_SLOTS` | 时段条数 > 32 | `22023` |
+| `TOO_MANY_SLOTS` | 时段条数 > 32；`detail` 带原始条数，**不截断** | `22023` |
 | `INVALID_SLOT` | 数组里某一条不是 JSON 对象 | `22023` |
-| `INVALID_SLOT_RANGE` | `weekday` 不在 1–7、`start_minute` 不在 0–1439、`end_minute` 不在 1–1440、或 `end_minute <= start_minute`、或字段缺失 | `22023` |
+| `INVALID_SLOT_RANGE` | `weekday` 给了值但不在 1–7、`start_minute` 不在 0–1439、`end_minute` 不在 1–1440、`end_minute <= start_minute`、或 `start_minute`/`end_minute` 缺失。**`weekday` 缺省或为 `null` 合法**（= 每日默认） | `22023` |
 | `INVALID_SOURCE` | `source` 不是 `explicit` / `inferred` | `22023` |
+| `VERSION_CONFLICT` | `p_expected_version` 与当前 `data_version` 不等；`detail` 带**当前真实版本**。首次写入时 `expected_version` 必须为 `null` 或 `0` | `40001` |
+
+`VERSION_CONFLICT` 的 `40001` 是 `serialization_failure`。调用方处置：**不要重试同一个 expected_version**，先 `get_preference_profile()` 重读拿新版本，再基于新数据重新决定是否写。
+
+`VERSION_CONFLICT` 与 `schema_version` 无关：前者是「同一行被改过」，后者是「结构变了」。把两者混用是本节最常被问倒的点，详见 `docs/contracts/stage04-shared-contract-v1-freeze.md` §2。
 
 两处**不走自定义码**，如实标出，避免适配层以为全能按 code 分支：
 
@@ -80,6 +85,18 @@ Python 参考实现抛 `ValueError(code)`；SQL 侧 `raise exception using errco
 | `focus_minutes` / `break_minutes` 传了非数字字符串 | PostgreSQL 原始 `22P02`（`invalid_text_representation`），未包自定义码 |
 
 `CONFIRMATION_REQUIRED` 是**产品约束**而非技术校验：偏好只能由用户确认后写入，不能由模型推断直接落库。`inferred` 写入时 `confirmed_at` 恒为 `null`，消费方不得把未确认行当偏好用。
+
+### 四之二、直写表会被拒（这是冻结口径，不是故障）
+
+| 操作 | 期望结果 |
+|---|---|
+| `POST /rest/v1/preference_profiles`（authenticated） | `42501` `permission denied for table preference_profiles`（PostgREST 映射为 HTTP 403） |
+| `PATCH` / `DELETE` 同表 | 同上 |
+| `POST /rest/v1/rpc/upsert_preference_profile` | 正常，按本节错误码返回 |
+
+原因：表级 `insert`/`update` 权限已收回，写入只能进 `upsert_preference_profile()`。
+否则客户端可以直接写 `confirmed_at = now()` 绕过 `confirm` 校验，「用户确认后才落库」这条红线就形同虚设。
+**M2 侧如果现在还走直连写表，必须改走 RPC，这是契约变更，见冻结契约 §3。**
 
 ## 五、快照内部的缺失状态（不抛错）
 

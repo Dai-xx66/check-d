@@ -12,7 +12,11 @@
 | `tools/m1-context/context_snapshot.py` | 与 SQL 同算法的 Python 参考实现（可离线跑） |
 | `tools/m1-context/fixtures/seed.json` | fixture（结构取自真实表语义，值已脱敏） |
 | `tools/m1-context/test_context_snapshot.py` | 25 项验收测试 |
+| `tools/m1-context/preference_profile.py` | 偏好契约的 Python 参考实现（weekday 每日默认 / 版本 CAS / 上限校验） |
+| `tools/m1-context/test_preference_profile.py` | 35 项验收测试 |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
+| `tools/m1-context/samples/preference_profile_sample.json` | 偏好固定样例（input / expected / resolved 三段） |
+| `docs/contracts/stage04-shared-contract-v1-freeze.md` | **冻结版共享契约**（偏好映射 / 三版本号 / 写入授权 / 事件约束 / 三态 / 变更流程） |
 | `tools/m1-context/DATA_MAPPING.md` | 每个快照字段的来源表/列与缺失行为 |
 | `tools/m1-context/ERROR_CODES.md` | 缺失状态与 reason code / SQLSTATE 全集 |
 | `tools/m1-context/G2_ACCEPTANCE.md` | G2 四要素结论、验收清单逐条、复现命令、降级声明 |
@@ -123,7 +127,9 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 
 ```bash
 cd tools/m1-context
-python -m unittest test_context_snapshot -v          # 25 项测试
+python -m unittest test_context_snapshot -v          # 25 项：快照算法
+python -m unittest test_preference_profile -v        # 35 项：偏好契约
+python -m unittest discover -p 'test_*.py' -v        # 一次跑全部 60 项
 python context_snapshot.py fixtures/seed.json \
        --from 2026-11-26 --through 2026-11-28 --energy 3   # 打印样例
 ```

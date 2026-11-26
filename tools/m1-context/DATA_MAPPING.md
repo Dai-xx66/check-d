@@ -114,8 +114,27 @@
 | `reason` | `reason` | 可空，≤500 字符 |
 | — | `user_id` | **不接受入参**，一律 `auth.uid()` |
 
-## 八、与既有表的关系（不改动它们）
+## 七之二、`PreferenceProfile` 映射
 
+存储契约归 M1，画像语义归 M2。本节只写「载荷字段怎么落到列上」。
+
+| 载荷字段 | 目标列 | 约束 |
+|---|---|---|
+| `preferred_slots` | `preferred_slots` (jsonb) | 数组，≤32 条；每条 `{weekday: 1-7 或 null, start_minute: 0-1439, end_minute: 1-1440}`，`end > start` |
+| `preferred_slots[].weekday` | 同列 JSON 内 | **缺省或 `null` = 每日默认**；显式 weekday 覆盖每日默认，两者**不叠加**、**不归一化** |
+| `focus_minutes` | `focus_minutes` | 5–480，可空 |
+| `break_minutes` | `break_minutes` | 0–120，可空 |
+| `source` | `source` | `explicit` / `inferred` |
+| `confirm` | **不落库** | 仅写入校验；非严格 `true` → `CONFIRMATION_REQUIRED` |
+| `expected_version` | **不落库** | 仅乐观锁比较；冲突 → `VERSION_CONFLICT`（`40001`） |
+| — | `confirmed_at` | 仅 `explicit` 由服务端写 `now()`；`inferred` 恒 `null` |
+| — | `schema_version` | 恒 `1`（结构版本），不随写入递增 |
+| — | `data_version` | 服务端维护，每次成功 upsert +1，首次写入为 1，无行为 0 |
+| — | `user_id` | **不接受入参**，一律 `auth.uid()` |
+
+解析某天生效时段：`weekday == d` 的条目存在则只用它们，否则用 `weekday is null` 的条目；都没有 → 空列表（**不等于全天可用**）。分段可能重叠，算可用窗口前先合并。
+
+## 八、与既有表的关系（不改动它们）
 ```
 auth.users
   └─ profiles（时区、显示名）

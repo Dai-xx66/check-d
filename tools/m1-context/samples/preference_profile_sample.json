@@ -1,0 +1,38 @@
+{
+  "_note": "PreferenceProfile 固定样例。input 是客户端提交载荷，expected 是服务端 upsert 首次写入后的结果，resolved 是按 weekday 解析出的生效时段（1=周一…7=周日）。值与真实用户无关。",
+  "input": {
+    "confirm": true,
+    "preferred_slots": [
+      { "weekday": null, "start_minute": 1140, "end_minute": 1260 },
+      { "weekday": 3, "start_minute": 420, "end_minute": 480 },
+      { "weekday": 6, "start_minute": 540, "end_minute": 660 }
+    ],
+    "focus_minutes": 25,
+    "break_minutes": 5,
+    "source": "explicit"
+  },
+  "expected": {
+    "status": "ok",
+    "preferred_slots": [
+      { "weekday": null, "start_minute": 1140, "end_minute": 1260 },
+      { "weekday": 3, "start_minute": 420, "end_minute": 480 },
+      { "weekday": 6, "start_minute": 540, "end_minute": 660 }
+    ],
+    "focus_minutes": 25,
+    "break_minutes": 5,
+    "source": "explicit",
+    "confirmed_at": "SET_BY_SERVER",
+    "schema_version": 1,
+    "data_version": 1,
+    "saved": true
+  },
+  "resolved": {
+    "1": [{ "start_minute": 1140, "end_minute": 1260 }],
+    "2": [{ "start_minute": 1140, "end_minute": 1260 }],
+    "3": [{ "start_minute": 420, "end_minute": 480 }],
+    "4": [{ "start_minute": 1140, "end_minute": 1260 }],
+    "5": [{ "start_minute": 1140, "end_minute": 1260 }],
+    "6": [{ "start_minute": 540, "end_minute": 660 }],
+    "7": [{ "start_minute": 1140, "end_minute": 1260 }]
+  }
+}
