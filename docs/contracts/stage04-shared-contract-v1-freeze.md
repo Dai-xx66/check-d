@@ -97,6 +97,16 @@
 - 把 `data_version` 写进 JSON 返回值以外的地方（比如当结构版本判断兼容性）→ 结构升级时会误判。
 - 客户端自己算 `data_version+1` 传上来 → 服务端忽略传入值，只认自己的计数。
 
+### 2.1 系统里有两套版本机制，不可互相冒充（M3 11-26 15:08 指出，成立）
+
+| 机制 | 所在位置 | 当前实际行为 | 是 CAS 吗 |
+|---|---|---|---|
+| **偏好行版本** | `preference_profiles.data_version` + `expected_version` | 服务端比较版本，不等则抛 `VERSION_CONFLICT` / `40001`；同账号用咨询锁串行化 | **是** |
+| **提案快照版本** | `create_plan_proposal` 的 `p_expected_snapshot_version` → 落 `source_snapshot_version` 列 | **只记录，不比较、不抛错**；没有 `40001` | **否** |
+
+两套机制服务不同对象（用户偏好行 vs 调度提案的来源快照），**版本号不可互换、错误码不可套用**。
+若第四阶段要求审批链也做乐观锁 CAS，属于契约变更，需单独立项；在那之前，**不得把审批链的 `p_expected_snapshot_version` 描述成「已做并发校验」**。
+
 ## 3. 写入授权（唯一路径）
 
 ### 3.1 原先的问题
@@ -146,11 +156,27 @@ select public.upsert_preference_profile(
 | 时间 | `occurred_at` 带时区，存储原样，不转本地时间 |
 
 **计时事实（对应任务单第二节第 4 项）**
-
 - 专注时长的**唯一来源**是真实计时记录（`timer_sessions` / `TimerSession`）。
 - `task_completed` 事件的 `actual_minutes` 只在客户端有实测计时时填写；**没有实测就留 `null`**。
 - **禁止**用 `task_completed` 出现这件事反推专注时长，也禁止用「计划时长」填补 `actual_minutes`。
 - 这条不是建议：任务书 §8 红线写明「不能让 LLM 伪造完成记录」，推算时长与伪造同性质。
+
+### 4.1 八种 `event_type` 的存储侧期望（待 M2 确认，未落为约束）
+
+语义归属 M2。下表是 **M1 建议的存储侧最小约定**，目的是让采集端与消费端对同一字段有同一套期待。**确认前 SQL 不强制**，只作为对接口径。
+
+| `event_type` | `task_id` | `plan_id` | `planned_minutes` | `actual_minutes` | 备注 |
+|---|---|---|---|---|---|
+| `plan_accepted` | 可空 | 期望有 | 可空 | 期望 `null` | 用户接受提案 |
+| `plan_rejected` | 可空 | 期望有 | 可空 | 期望 `null` | 拒绝；`reason` 建议填 |
+| `plan_modified` | 可空 | 期望有 | 可空 | 期望 `null` | 改动后接受 |
+| `task_started` | 期望有 | 可空 | 可空 | 期望 `null` | 刚开始，还没有耗时 |
+| `task_completed` | 期望有 | 可空 | 可空 | 可空（无实测则 `null`） | 完成 |
+| `task_deferred` | 期望有 | 可空 | 可空 | 期望 `null` | 推迟；`reason` 建议填 |
+| `preference_confirmed` | 期望 `null` | 可空 | 期望 `null` | 期望 `null` | 偏好确认，与具体任务无关 |
+| `manual_note` | 可空 | 可空 | 可空 | 可空 | 自由记录；`reason` 建议填 |
+
+「期望 `null`」不等于「必须 `null`」：SQL 目前只约束枚举与取值范围，**不约束字段间组合**。M2 确认本表后若认为需要强约束，再单独提一次迁移把它落成 `CHECK`——不会悄悄加上去让客户端半夜报错。
 
 ## 5. ContextSnapshot
 
@@ -195,8 +221,9 @@ select public.upsert_preference_profile(
 | # | 事项 | 谁确认 | 状态 |
 |---|---|---|---|
 | 1 | `weekday: null` = 每日默认，显式覆盖不叠加、不归一化 | M2 | ⬜ 待确认 |
-| 2 | `schema_version` / `data_version` / `expected_version` 三分，`VERSION_CONFLICT` 走 `40001` | M2、M3 | ⬜ 待确认 |
+| 2 | `schema_version` / `data_version` / `expected_version` 三分，`VERSION_CONFLICT` 走 `40001` | M2、M3 | ✅ **M3 已确认**（11-26 15:08，服务端权限契约口径一致；另指出审批链是另一套机制，已补 §2.1）｜M2 ⬜ |
 | 3 | 表级 insert/update 收回，写入只走 RPC | M2 | ⬜ 待确认（会改你的写入路径） |
 | 4 | 八种 `event_type` 与 M2 采集点一一对应，`test` 来源可区分 | M2 | ⬜ 待确认 |
 | 5 | 专注时长只取 `timer_sessions`，不从 `task_completed` 推算 | M2 | ⬜ 待确认 |
-| 6 | 三个 migration 在隔离库或生产库执行（需 M0 定） | M0 | ⬜ 待定 |
+| 6 | 三个 migration 在隔离库或生产库执行（需 M0 定） | M0 | ⬜ 待定；**M3 建议优先隔离库**（正式库已有她写入的 TEST 数据且无 DELETE 权限，叠加 DDL 风险更高） |
+| 7 | §4.1 八种事件与字段组合的期望，确认后是否落为 `CHECK` | M2 | ⬜ 待确认 |
