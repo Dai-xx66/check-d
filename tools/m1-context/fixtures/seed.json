@@ -81,7 +81,7 @@
     { "task_id": "t-done", "planned_date": "2026-11-26", "due_date": "2026-11-26", "due_at": null, "available_from": null, "deleted_at": null }
   ],
   "long_term_tasks": [
-    { "task_id": "t-vocab", "check_mode": "timer", "target_duration_seconds": 3600, "target_days": null, "deleted_at": null }
+    { "task_id": "t-vocab", "check_mode": "timed", "target_duration_seconds": 3600, "target_days": null, "deleted_at": null }
   ],
   "task_completions": [
     { "task_id": "t-done", "is_success": true, "local_date": "2026-11-26", "timezone": "Asia/Shanghai", "deleted_at": null }

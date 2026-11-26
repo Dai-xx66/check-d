@@ -75,12 +75,12 @@
     { "id": "t-paused", "name": "暂停任务", "type": "long_term", "status": "paused", "deleted_at": null }
   ],
   "long_term_tasks": [
-    { "task_id": "t-daily", "check_mode": "timer", "target_duration_seconds": 1800, "deleted_at": null },
-    { "task_id": "t-weekday", "check_mode": "timer", "target_duration_seconds": 3600, "deleted_at": null },
-    { "task_id": "t-weekend", "check_mode": "timer", "target_duration_seconds": 1200, "deleted_at": null },
-    { "task_id": "t-nosched", "check_mode": "simple", "target_duration_seconds": null, "deleted_at": null },
-    { "task_id": "t-future", "check_mode": "timer", "target_duration_seconds": 2400, "deleted_at": null },
-    { "task_id": "t-paused", "check_mode": "timer", "target_duration_seconds": 5400, "deleted_at": null }
+    { "task_id": "t-daily", "check_mode": "timed", "target_duration_seconds": 1800, "deleted_at": null },
+    { "task_id": "t-weekday", "check_mode": "timed", "target_duration_seconds": 3600, "deleted_at": null },
+    { "task_id": "t-weekend", "check_mode": "timed", "target_duration_seconds": 1200, "deleted_at": null },
+    { "task_id": "t-nosched", "check_mode": "untimed", "target_duration_seconds": null, "deleted_at": null },
+    { "task_id": "t-future", "check_mode": "timed", "target_duration_seconds": 2400, "deleted_at": null },
+    { "task_id": "t-paused", "check_mode": "timed", "target_duration_seconds": 5400, "deleted_at": null }
   ],
   "task_schedules": [
     {

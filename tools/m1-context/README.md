@@ -17,6 +17,7 @@
 | `tools/m1-context/test_migration_permissions.py` | 14 项迁移权限静态检查（表级写权限、写策略、DEFINER 加固、含反向自检） |
 | `tools/m1-context/test_semester_and_schedule.py` | 17 项：跨学期课程过滤 + 长期任务排期 |
 | `tools/m1-context/render_week_report.py` | 把快照渲染成一页 HTML 周视图（截图/答辩用，无外部依赖；生成的 .html 不入库） |
+| `tools/m1-context/isolated/` | **隔离库验证**：本地 PostgreSQL 上从头跑通三个 migration + 17 项行为验证（RLS/幂等/权限/排期），一键可复现 |
 | `tools/m1-context/fixtures/seed_semester_schedule.json` | 专测学期过滤与排期的 fixture，与 seed.json 分开 |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
 | `tools/m1-context/samples/preference_profile_sample.json` | 偏好固定样例（input / expected / resolved 三段） |
@@ -121,8 +122,8 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 | 项 | 为什么没验 | 谁来补 |
 |---|---|---|
 | 三个 migration 能否在真实库执行 | 本机无 psql / 无容器；到 Supabase 的 5432 直连超时（443 可达但只能做表级 CRUD，跑不了 DDL） | M0 或任意有库权限的成员执行一次 |
-| RLS 是否真的隔离两个账号 | 同上 | 需两个测试账号各跑一次读写 |
-| 表级写权限收回是否真生效 | 同上 | 用 authenticated 直接 POST 表应被拒（403/42501），调 RPC 应成功 |
+| ~~RLS 是否真的隔离两个账号~~ | **已在隔离库验证**（见 `isolated/`），正式库仍需一次 | — |
+| ~~表级写权限收回是否真生效~~ | **已在隔离库验证**：登录用户直写表返回 `permission denied` | — |
 | `event_id` 幂等是否真的不重复 | 需要真实 INSERT … ON CONFLICT | 同上 |
 | 真实任务/课程数据下的快照 | 需要用户 JWT | 同上 |
 

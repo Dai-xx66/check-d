@@ -95,6 +95,7 @@ begin
         r.week_rule_type,
         r.start_week,
         r.end_week,
+        r.interval_weeks,
         coalesce(r.week_numbers, '[]'::jsonb) as week_numbers
       from days d
       join public.course_schedule_rules r
