@@ -65,13 +65,14 @@ create policy behavior_events_owner_select
   on public.behavior_events for select to authenticated
   using (auth.uid() = user_id);
 
+-- 不建 insert 策略，也不授予表级 INSERT（2026-11-26 按 M0 审查意见修正）。
+-- 原因：直写表会绕过 append_behavior_event() 里的 task_id 归属校验与统一输入校验，
+-- 能写出引用他人 task_id 的事件。唯一写入口是 append_behavior_event(jsonb)。
+-- 这里的 drop 是给「曾经建过该策略」的库做的清理，保证迁移可重跑。
 drop policy if exists behavior_events_owner_insert on public.behavior_events;
-create policy behavior_events_owner_insert
-  on public.behavior_events for insert to authenticated
-  with check (auth.uid() = user_id);
 
 revoke all on public.behavior_events from public, anon, authenticated;
-grant select, insert on public.behavior_events to authenticated;
+grant select on public.behavior_events to authenticated;
 
 -- 追加一条事件。幂等：同一 event_id 重复调用返回 inserted=false，不新增行。
 -- owner 一律由 auth.uid() 决定，调用方无法指定别人的 user_id。

@@ -9,7 +9,7 @@
 | G2 要求 | 结论 | 依据 |
 |---|---|---|
 | 可运行接口 | **PASS** | 新增 2 张表（`behavior_events` / `preference_profiles`）+ 5 个函数（`append_behavior_event` / `list_behavior_events` / `checkd_context_snapshot` / `upsert_preference_profile` / `get_preference_profile`）+ 5 条 RLS 策略；Python 参考实现一条命令出快照 JSON |
-| 测试 | **PASS** | `python -m unittest discover -p 'test_*.py'` → **60 项通过 / 0 失败**（快照 25 + 偏好契约 35，0.008s） |
+| 测试 | **PASS** | `python -m unittest discover -p 'test_*.py'` → **74 项通过 / 0 失败**（快照 25 + 偏好契约 35 + 迁移权限静态检查 14，0.012s） |
 | PR | **PASS** | PR #22（`Dai-xx66/check-d` ← `Tony2215:feat/m1-stage04-context-snapshot`），分支 head 以 PR 页面为准；本文件所在提交之后可能再更新一两次文档，head 会变，**引用时请取 PR 页面上当时的 head** |
 | 最小真实数据验证 | **BLOCKED** | M1 侧无数据库连接（无 psql、无容器、TLS 到 Supabase 不通），生产库按红线不得由 M1 直连 |
 
@@ -37,7 +37,7 @@
 | # | 任务书原文（摘要） | 当前状态 | 证据 / 缺口 |
 |---|---|---|---|
 | 1 | 同一测试账号写入行为事件，重读仍有效；相同 `event_id` 重试不重复计数 | **BLOCKED（真实库）** | SQL 已实现 `on conflict (user_id,event_id) do nothing` + 返回 `inserted:false`；表不存在（PGRST205，M3 只读探测），**未在任何真实库执行** |
-| 2 | 账号 A 不能读取/修改账号 B 的行为、偏好或任务；匿名/过期身份被拒绝 | **BLOCKED（真实库）** | RLS 5 条策略已写：`behavior_events` select/insert 两条、`preference_profiles` select/insert/update 三条，全部 `auth.uid() = user_id`；事件表**无 update/delete 授权**；`AUTH_REQUIRED` 闸在每个函数入口；**双账号实测未做**，表也不存在 |
+| 2 | 账号 A 不能读取/修改账号 B 的行为、偏好或任务；匿名/过期身份被拒绝 | **BLOCKED（真实库）** | RLS 只有 2 条 SELECT 策略（`behavior_events` / `preference_profiles` 各一条，`auth.uid() = user_id`）；**表级写权限一律不授、也不建写策略**，写入只能走 `security definer` 函数；`AUTH_REQUIRED` 闸在每个函数入口；静态检查 14 项钉死此口径；**双账号实测未做**，表也不存在 |
 | 3 | 固定课程改变后 `free_slots` 与 `workload` 随之变化；过期/不完整/未展开数据被标记，不生成虚假可用时段 | **PASS（fixture）** | `test_free_slots_change_when_course_changes`（同名断言：改课 → 空闲段跟着变）、`test_no_free_slot_when_day_fully_booked`（不编造时段）、`test_occurrences_missing_marks_partial`（未展开标 `partial`）、`test_missing_semester_blocks_courses`（学期缺失标 `blocked`）、`test_tiny_gap_dropped`、`test_three_days_two_segments_on_course_day`、`test_workload_splits_known_and_unknown`，共 7 项 |
 | 4 | 真实任务、计时与完成记录可读取；缺字段返回 `unknown`；不改变原有完成事实 | **部分 PASS（字段映射可审查），真实读取 BLOCKED** | 字段来源见 `DATA_MAPPING.md` 第四节；`one_time_reminders` 无时长列 ⇒ 单次任务 `estimated_minutes` 恒 `null`、`estimated_status=unknown`（`test_missing_estimate_is_unknown_not_zero`）；**真实数据读取需用户 JWT，M1 无** |
 | 5 | 时区、跨日、空数据、无可用窗口测试通过；原有任务/课程/同步不回归 | **PASS（算法层）** | 时区：`test_timezone_is_echoed_not_used_for_date_math`；跨日：`test_cross_day_window_covers_each_day`；空数据：`test_empty_data_does_not_crash`；无可用窗口：`test_no_free_slot_when_day_fully_booked`；边界：`test_window_over_31_days_rejected`、`test_reversed_window_rejected`、`test_invalid_energy_rejected`；不回归：`test_archived_course_excluded`、`test_archived_task_excluded`、`test_outside_semester_weeks_ignored`。迁移只新增对象，**不改既有表结构** |
@@ -62,10 +62,10 @@ git clone https://github.com/Tony2215/check-d.git && cd check-d
 git checkout feat/m1-stage04-context-snapshot     # 分支 head 见 PR #22 页面
 cd tools/m1-context
 
-# 1) 测例（60 项，纯标准库，无网络无数据库）
+# 1) 测例（74 项，纯标准库，无网络无数据库）
 python -m unittest discover -p 'test_*.py' -v
-# 实测：Ran 60 tests in 0.008s / OK
-# 分项：test_context_snapshot 25 项 · test_preference_profile 35 项
+# 实测：Ran 74 tests in 0.012s / OK
+# 分项：test_context_snapshot 25 · test_preference_profile 35 · test_migration_permissions 14
 
 # 2) 出快照（固定 fixture，可直接给适配层当输入）
 python context_snapshot.py fixtures/seed.json \
@@ -107,7 +107,7 @@ fixture 给的是 `UNAVAILABLE`；按 M3 报告，真实库的 occurrence 表**�
 
 本轮据此交付：
 
-- **可给 M0 直接消费的**：快照与偏好的 JSON 结构与语义、字段映射、错误码、60 项测试、固定 fixture 与样例、冻结版共享契约。适配层可以现在开始写，接口不会因为 SQL 未执行而变。
+- **可给 M0 直接消费的**：快照与偏好的 JSON 结构与语义、字段映射、错误码、74 项测试、固定 fixture 与样例、冻结版共享契约。适配层可以现在开始写，接口不会因为 SQL 未执行而变。
 - **不得对外表述为「已跑通」的**：三个 migration 是否能在真实库执行、RLS 是否真的隔离两账号、表级写权限收回是否真的生效、`event_id` 幂等是否真的不重复、真实数据下的快照值。
 - **M0 集成时的硬提醒**：`status=partial` 时 `free_slots` 只保证「没有课」，不保证「没有任务」；缺失硬约束时不得宣称方案可执行。
 

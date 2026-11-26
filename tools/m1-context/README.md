@@ -14,6 +14,7 @@
 | `tools/m1-context/test_context_snapshot.py` | 25 项验收测试 |
 | `tools/m1-context/preference_profile.py` | 偏好契约的 Python 参考实现（weekday 每日默认 / 版本 CAS / 上限校验） |
 | `tools/m1-context/test_preference_profile.py` | 35 项验收测试 |
+| `tools/m1-context/test_migration_permissions.py` | 14 项迁移权限静态检查（表级写权限、写策略、DEFINER 加固、含反向自检） |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
 | `tools/m1-context/samples/preference_profile_sample.json` | 偏好固定样例（input / expected / resolved 三段） |
 | `docs/contracts/stage04-shared-contract-v1-freeze.md` | **冻结版共享契约**（偏好映射 / 三版本号 / 写入授权 / 事件约束 / 三态 / 变更流程） |
@@ -118,6 +119,7 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 |---|---|---|
 | 三个 migration 能否在真实库执行 | 本机无 psql / 无容器；到 Supabase 的 5432 直连超时（443 可达但只能做表级 CRUD，跑不了 DDL） | M0 或任意有库权限的成员执行一次 |
 | RLS 是否真的隔离两个账号 | 同上 | 需两个测试账号各跑一次读写 |
+| 表级写权限收回是否真生效 | 同上 | 用 authenticated 直接 POST 表应被拒（403/42501），调 RPC 应成功 |
 | `event_id` 幂等是否真的不重复 | 需要真实 INSERT … ON CONFLICT | 同上 |
 | 真实任务/课程数据下的快照 | 需要用户 JWT | 同上 |
 
@@ -129,7 +131,7 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 cd tools/m1-context
 python -m unittest test_context_snapshot -v          # 25 项：快照算法
 python -m unittest test_preference_profile -v        # 35 项：偏好契约
-python -m unittest discover -p 'test_*.py' -v        # 一次跑全部 60 项
+python -m unittest discover -p 'test_*.py' -v        # 一次跑全部 74 项
 python context_snapshot.py fixtures/seed.json \
        --from 2026-11-26 --through 2026-11-28 --energy 3   # 打印样例
 ```

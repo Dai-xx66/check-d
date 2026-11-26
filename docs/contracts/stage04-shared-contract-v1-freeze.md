@@ -119,15 +119,22 @@
 
 | 对象 | authenticated | anon | 说明 |
 |---|---|---|---|
+| `behavior_events` SELECT | ✅ | ❌ | 只能读自己的行（RLS `auth.uid() = user_id`） |
+| `behavior_events` INSERT/UPDATE/DELETE | ❌ | ❌ | **不授表级写权限、不建写策略**；唯一写入口见下 |
+| `append_behavior_event(jsonb)` | ✅ EXECUTE | ❌ | 事件唯一写入路径（内部校验 `task_id` 归属与幂等） |
 | `preference_profiles` SELECT | ✅ | ❌ | 只能读自己的行（RLS） |
-| `preference_profiles` INSERT/UPDATE | ❌ **已收回** | ❌ | 表级写权限一律不授 |
+| `preference_profiles` INSERT/UPDATE/DELETE | ❌ | ❌ | **不授表级写权限、不建写策略** |
 | `upsert_preference_profile(jsonb, integer)` | ✅ EXECUTE | ❌ | **唯一写入路径** |
 | `get_preference_profile()` | ✅ EXECUTE | ❌ | 唯一读取路径（带 `status`） |
-| `append_behavior_event(jsonb)` | ✅ EXECUTE | ❌ | 事件唯一写入路径 |
-| `behavior_events` INSERT | ❌ | ❌ | 只能走函数，避免绕过归属与幂等 |
+
+**两张表共用同一模式**：只建 SELECT 策略、只授 SELECT；写策略（insert/update/delete）一律不建，即使建了也永远不会被触发（表属主 bypass RLS），留着只会误导。
 
 **为什么只靠 RLS 拦不住**：RLS 管的是「哪些行」，不管「怎么写的」。要强制「必须经过确认流程」，只能不给表级写权限，让写操作只能进函数。
 **归属由谁保证**：函数是 `security definer`，以属主身份写表；表属主默认 bypass RLS，所以函数内 `v_user := auth.uid()` 才是唯一归属保证。这也正是禁止客户端直写表的原因——直写时归属只由 RLS 决定，而确认流程无人强制。
+
+> **2026-11-26 16:xx 修订记录（M0 审查提出，属实）**：本节表格先写成了「只授 SELECT」，但 0001 migration 当时仍是 `grant select, insert` + insert 策略，文档比 SQL 严，两个文件自相矛盾。
+> 已修：0001 与 0003 都改为**只建 SELECT 策略、只授 SELECT**，并用 `drop policy if exists` 清理历史写策略；同时新增静态检查 `test_migration_permissions.py`（14 项）把这条口径钉死，防止再漂移。
+> 这类不一致表还没建时没有任何运行时测试能发现，只能靠静态检查。
 
 ### 3.3 对 M2 的影响（必须改）
 
@@ -210,6 +217,7 @@ select public.upsert_preference_profile(
 |---|---|---|
 | 偏好校验与解析规则（weekday null / 覆盖 / 不归一化 / 32 上限 / 版本 CAS） | **PASS（Python 层）** | `python -m unittest test_preference_profile -v` → 35 项通过 |
 | 快照算法 | **PASS（Python 层）** | `python -m unittest test_context_snapshot -v` → 25 项通过 |
+| 权限模式与本文档一致（表级写权限、写策略、DEFINER 加固） | **PASS（静态检查）** | `python -m unittest test_migration_permissions -v` → 14 项通过，含 4 项反向自检 |
 | 三个 migration 能否在真实库执行 | **BLOCKED** | 表不存在（PGRST205，M3 只读探测）；本机无 psql / 容器，5432 直连超时 |
 | RLS 双账号隔离 | **BLOCKED** | 同上，且需两个测试账号 |
 | 表级权限收回是否真的生效 | **BLOCKED** | 需在真实库执行后，用 authenticated 角色试直写表并被拒，才算验过 |

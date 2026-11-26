@@ -80,18 +80,10 @@ create policy preference_profiles_owner_select
   on public.preference_profiles for select to authenticated
   using (auth.uid() = user_id);
 
--- C) 写入策略保留（函数以 definer 身份写入时仍受 RLS 约束检查），
---    但表级 insert/update 权限已收回，authenticated 角色不能直接写表。
+-- C) 与 behavior_events 同一模式：只建 SELECT 策略，不建 insert/update 策略。
+--    这里的 drop 是给「曾经建过这些策略」的库做清理，保证迁移可重跑。
 drop policy if exists preference_profiles_owner_insert on public.preference_profiles;
-create policy preference_profiles_owner_insert
-  on public.preference_profiles for insert to authenticated
-  with check (auth.uid() = user_id);
-
 drop policy if exists preference_profiles_owner_update on public.preference_profiles;
-create policy preference_profiles_owner_update
-  on public.preference_profiles for update to authenticated
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
 
 -- C) 只读权限；写权限不授予任何客户端角色。
 --    这条是唯一能真正拦住「绕过 confirm 直接写表」的手段：只靠 RLS 不行，
@@ -100,7 +92,7 @@ revoke all on public.preference_profiles from public, anon, authenticated;
 grant select on public.preference_profiles to authenticated;
 
 -- 归属保证在哪：函数是 security definer，以属主身份写表；表属主默认 bypass RLS，
--- 所以 RLS 策略在函数里其实不生效，真正决定 user_id 的是函数内的 v_user := auth.uid()。
+-- 所以 RLS 策略在函数里并不生效，真正决定 user_id 的是函数内的 v_user := auth.uid()。
 -- 这也正是「客户端不许直接写表」的原因——直写时归属只由 RLS 决定，而确认流程无人强制。
 
 -- 保存偏好。必须显式确认；未确认直接拒绝。
