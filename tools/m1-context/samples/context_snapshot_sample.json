@@ -1,0 +1,113 @@
+{
+  "as_of": "2026-11-26T02:35:36.579388Z",
+  "timezone": "Asia/Shanghai",
+  "window": {
+    "from": "2026-11-26",
+    "through": "2026-11-28"
+  },
+  "semester": {
+    "status": "ok",
+    "first_week_start_date": "2026-08-31",
+    "total_weeks": 18
+  },
+  "fixed_events": [
+    {
+      "kind": "course",
+      "ref_id": "c-data-structure",
+      "title": "数据结构",
+      "date": "2026-11-26",
+      "start_minute": 490,
+      "end_minute": 710,
+      "week_no": 13,
+      "source": "courses+course_schedule_rules"
+    }
+  ],
+  "free_slots": [
+    {
+      "date": "2026-11-26",
+      "start_minute": 480,
+      "end_minute": 490,
+      "minutes": 10
+    },
+    {
+      "date": "2026-11-26",
+      "start_minute": 710,
+      "end_minute": 1380,
+      "minutes": 670
+    },
+    {
+      "date": "2026-11-27",
+      "start_minute": 480,
+      "end_minute": 1380,
+      "minutes": 900
+    },
+    {
+      "date": "2026-11-28",
+      "start_minute": 480,
+      "end_minute": 1380,
+      "minutes": 900
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "t-done",
+      "name": "已完成的作业",
+      "type": "one_time",
+      "due_date": "2026-11-26",
+      "due_at": null,
+      "planned_date": "2026-11-26",
+      "available_from": null,
+      "completed": true,
+      "estimated_minutes": null,
+      "estimated_status": "unknown"
+    },
+    {
+      "task_id": "t-lab-report",
+      "name": "实验报告",
+      "type": "one_time",
+      "due_date": "2026-11-27",
+      "due_at": null,
+      "planned_date": "2026-11-26",
+      "available_from": "2026-11-25",
+      "completed": false,
+      "estimated_minutes": null,
+      "estimated_status": "unknown"
+    },
+    {
+      "task_id": "t-vocab",
+      "name": "背单词",
+      "type": "long_term",
+      "due_date": null,
+      "due_at": null,
+      "planned_date": null,
+      "available_from": null,
+      "completed": false,
+      "estimated_minutes": 60,
+      "estimated_status": "known"
+    }
+  ],
+  "workload": {
+    "known_minutes": 60,
+    "unknown_estimate_count": 1,
+    "open_task_count": 2,
+    "status": "partial"
+  },
+  "energy_self_report": 3,
+  "day_window": {
+    "start_minute": 480,
+    "end_minute": 1380
+  },
+  "freshness": {
+    "semester": "ok",
+    "task_occurrences": "missing",
+    "completions": "ok",
+    "overall": "partial"
+  },
+  "status": "partial",
+  "blocking": [
+    {
+      "code": "TASK_OCCURRENCES_UNAVAILABLE",
+      "message": "Occurrence snapshot table is absent; long-term instances are not expanded here."
+    }
+  ]
+}

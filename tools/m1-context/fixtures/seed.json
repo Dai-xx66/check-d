@@ -1,0 +1,91 @@
+{
+  "_note": "Stage04 M1 ContextSnapshot fixture。结构取自真实课程/任务表语义，值已脱敏。first_week_start_date=2026-08-31（周一），故 2026-11-26 为第 13 教学周。",
+  "semesters": [
+    {
+      "id": "sem-2026-fall",
+      "name": "2026 秋季学期",
+      "first_week_start_date": "2026-08-31",
+      "total_weeks": 18,
+      "is_current": true,
+      "deleted_at": null
+    }
+  ],
+  "courses": [
+    { "id": "c-data-structure", "name": "数据结构", "status": "active", "deleted_at": null },
+    { "id": "c-physics", "name": "大学物理", "status": "active", "deleted_at": null },
+    { "id": "c-ielts-writing", "name": "IELTS写作", "status": "active", "deleted_at": null },
+    { "id": "c-archived", "name": "已归档课程", "status": "archived", "deleted_at": null }
+  ],
+  "course_schedule_rules": [
+    {
+      "id": "r-ds-thu",
+      "course_id": "c-data-structure",
+      "weekday": 4,
+      "starts_at_minute": 490,
+      "ends_at_minute": 710,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    },
+    {
+      "id": "r-physics-tue",
+      "course_id": "c-physics",
+      "weekday": 2,
+      "starts_at_minute": 1120,
+      "ends_at_minute": 1220,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+      "deleted_at": null
+    },
+    {
+      "id": "r-ielts-tue-even",
+      "course_id": "c-ielts-writing",
+      "weekday": 2,
+      "starts_at_minute": 490,
+      "ends_at_minute": 590,
+      "week_rule_type": "evenWeeks",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    },
+    {
+      "id": "r-archived-mon",
+      "course_id": "c-archived",
+      "weekday": 1,
+      "starts_at_minute": 600,
+      "ends_at_minute": 660,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    }
+  ],
+  "tasks": [
+    { "id": "t-lab-report", "name": "实验报告", "type": "one_time", "status": "active", "deleted_at": null },
+    { "id": "t-vocab", "name": "背单词", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-done", "name": "已完成的作业", "type": "one_time", "status": "active", "deleted_at": null },
+    { "id": "t-archived", "name": "已归档任务", "type": "one_time", "status": "archived", "deleted_at": null }
+  ],
+  "one_time_reminders": [
+    { "task_id": "t-lab-report", "planned_date": "2026-11-26", "due_date": "2026-11-27", "due_at": null, "available_from": "2026-11-25", "deleted_at": null },
+    { "task_id": "t-done", "planned_date": "2026-11-26", "due_date": "2026-11-26", "due_at": null, "available_from": null, "deleted_at": null }
+  ],
+  "long_term_tasks": [
+    { "task_id": "t-vocab", "check_mode": "timer", "target_duration_seconds": 3600, "target_days": null, "deleted_at": null }
+  ],
+  "task_completions": [
+    { "task_id": "t-done", "is_success": true, "local_date": "2026-11-26", "timezone": "Asia/Shanghai", "deleted_at": null }
+  ],
+  "occurrences_available": false,
+  "occurrences_cover_window": false
+}
