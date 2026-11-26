@@ -8,10 +8,14 @@
 |---|---|
 | `supabase/migrations/202611260001_stage04_behavior_events.sql` | 新表 `behavior_events`（append-only）+ 2 个函数 + RLS |
 | `supabase/migrations/202611260002_stage04_context_snapshot.sql` | `checkd_context_snapshot()`：情境快照读模型 |
+| `supabase/migrations/202611260003_stage04_preference_profiles.sql` | 新表 `preference_profiles`（存储契约归 M1，语义归 M2）+ 2 个函数 + RLS；强制 `confirm=true` |
 | `tools/m1-context/context_snapshot.py` | 与 SQL 同算法的 Python 参考实现（可离线跑） |
 | `tools/m1-context/fixtures/seed.json` | fixture（结构取自真实表语义，值已脱敏） |
 | `tools/m1-context/test_context_snapshot.py` | 25 项验收测试 |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
+| `tools/m1-context/DATA_MAPPING.md` | 每个快照字段的来源表/列与缺失行为 |
+| `tools/m1-context/ERROR_CODES.md` | 缺失状态与 reason code / SQLSTATE 全集 |
+| `tools/m1-context/G2_ACCEPTANCE.md` | G2 四要素结论、验收清单逐条、复现命令、降级声明 |
 
 ## 一、ContextSnapshot
 
@@ -108,7 +112,7 @@ week_no = (day - first_week_start_date) / 7 + 1     -- 整数除法
 
 | 项 | 为什么没验 | 谁来补 |
 |---|---|---|
-| 两个 migration 能否在真实库执行 | 本机无 psql / 无容器 / TLS 到 Supabase 不通 | M0 或任意有库权限的成员执行一次 |
+| 三个 migration 能否在真实库执行 | 本机无 psql / 无容器；到 Supabase 的 5432 直连超时（443 可达但只能做表级 CRUD，跑不了 DDL） | M0 或任意有库权限的成员执行一次 |
 | RLS 是否真的隔离两个账号 | 同上 | 需两个测试账号各跑一次读写 |
 | `event_id` 幂等是否真的不重复 | 需要真实 INSERT … ON CONFLICT | 同上 |
 | 真实任务/课程数据下的快照 | 需要用户 JWT | 同上 |
@@ -128,6 +132,6 @@ python context_snapshot.py fixtures/seed.json \
 
 ## 六、并入主线的前置
 
-1. 两个 migration 需在测试库跑一次，把 `\d+ behavior_events` 与一次 `checkd_context_snapshot` 的真实输出贴进 PR。
+1. 三个 migration 需在测试库跑一次，把 `\d+ behavior_events` 与一次 `checkd_context_snapshot` 的真实输出贴进 PR。
 2. 与 #20/#21 的 occurrence 契约对齐：确认 `agent_task_occurrence_snapshots` 的窗口字段名（`from_date`/`through_date`）与本实现一致。
 3. RLS 双账号验证通过后再谈并入 main。

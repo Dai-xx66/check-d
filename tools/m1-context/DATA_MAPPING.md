@@ -131,4 +131,10 @@ auth.users
   └─ agent_task_occurrence_snapshots（M3，可能未建）→ freshness.task_occurrences
 ```
 
-本 PR 对上述既有表**零结构改动**：只新增一张表与三个函数。
+本 PR 对上述既有表**零结构改动**：只新增两张表与五个函数。
+
+## 九、配套文档
+
+- `ERROR_CODES.md`：`blocking.code`、函数抛出的自定义码、表约束拒绝（`23514`）三层的完整对照，含 SQLSTATE 与调用方处置。
+- `G2_ACCEPTANCE.md`：G2 四要素结论、最低验收清单逐条状态、复现命令、降级交付声明。
+- `samples/context_snapshot_sample.json`：除 `as_of` 外可与 CLI 输出逐字段比对的期望值。
