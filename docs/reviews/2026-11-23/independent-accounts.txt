@@ -1,0 +1,44 @@
+00:00 +0: loading test/auth_controller_test.dart
+00:00 +0: test/auth_controller_test.dart: (setUpAll)
+00:00 +0: test/auth_controller_test.dart: restored session selects the authenticated account immediately
+00:00 +1: test/auth_controller_test.dart: account switch rebuilds repositories and hides the old account
+00:00 +2: test/repository_account_isolation_test.dart: course edit cannot take ownership of another account record
+00:00 +3: test/auth_controller_test.dart: sync health switches accounts and clears after session expiry
+00:00 +4: test/repository_account_isolation_test.dart: explicit import identity remains supported for a new record
+00:00 +5: test/auth_controller_test.dart: external auth events do not leave explicit offline mode
+00:00 +6: test/repository_account_isolation_test.dart: same owner can edit a course without replacing its creation time
+00:00 +7: test/repository_account_isolation_test.dart: same owner can edit a course without replacing its creation time
+00:00 +8: test/repository_account_isolation_test.dart: same owner can edit a course without replacing its creation time
+00:00 +9: test/auth_controller_test.dart: sign-up without a session requests email confirmation
+00:00 +10: test/repository_account_isolation_test.dart: concurrent explicit identity imports cannot steal the winning owner
+00:00 +11: test/auth_controller_test.dart: failed sign-out remains on the account and reports a safe error
+[Auth][signOut] StateError
+00:00 +12: test/repository_account_isolation_test.dart: course rule edit cannot take ownership of another account record
+00:00 +13: test/repository_account_isolation_test.dart: course rule edit cannot take ownership of another account record
+00:00 +14: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +15: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +16: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +17: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +18: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +19: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +20: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +21: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +22: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +23: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +24: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +25: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +26: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +27: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +28: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +29: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +30: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +31: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +32: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +33: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +34: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +35: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:00 +36: test/auth_controller_test.dart: identity change to null clears pushed account pages
+00:01 +37: test/account_sync_page_test.dart: My exposes Account & Sync with readable status
+00:01 +38: test/auth_controller_test.dart: identity change to account-b clears pushed account pages
+00:01 +39: test/auth_controller_test.dart: (tearDownAll)
+00:01 +39: All tests passed!

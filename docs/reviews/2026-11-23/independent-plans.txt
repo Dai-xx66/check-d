@@ -1,0 +1,6 @@
+00:00 +0: loading test/plan_repository_test.dart
+00:00 +0: plan progress is calculated from linked recurring task completions
+00:00 +1: plan data validation rejects blank names and unrelated task types
+00:00 +2: an existing plan subscription follows completion and its cancellation
+00:00 +3: an existing plan subscription follows a linked task schedule edit
+00:00 +4: All tests passed!

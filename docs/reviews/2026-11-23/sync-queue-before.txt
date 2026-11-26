@@ -1,0 +1,36 @@
+00:00 +0: loading test/sync_upload_service_test.dart
+00:00 +0: pending local task uploads with authenticated ownership
+00:00 +1: failed operation is retained while a later operation uploads
+00:00 +2: unauthenticated and offline mode leave local work pending
+00:00 +3: duplicate operations converge through idempotent upserts
+00:00 +4: failed batch cannot starve a later pending task
+00:00 +4 -1: failed batch cannot starve a later pending task [E]
+  Expected: <1>
+    Actual: <0>
+
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\sync_upload_service_test.dart 152:5            main.<fn>
+
+00:00 +4 -1: failed operations rotate after an attempted retry
+00:00 +4 -2: failed operations rotate after an attempted retry [E]
+  Expected: [1, 1, 0]
+    Actual: MappedListIterable<SyncOperation, int>:[2, 0, 0]
+     Which: at location [0] is <2> instead of <1>
+
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\sync_upload_service_test.dart 181:5            main.<fn>
+
+00:00 +4 -2: archived task is uploaded as a soft archive
+00:00 +5 -2: two different running timers upload independently
+00:00 +6 -2: one-time upload keeps date-only and exact deadline shapes distinct
+00:00 +7 -2: second task write records long-term table and SQLSTATE
+00:00 +8 -2: third task write records schedule table and SQLSTATE
+00:00 +9 -2: JSON serialization failures are safely classified
+00:00 +10 -2: one-time child failure records its exact table
+00:00 +11 -2: Some tests failed.
+
+Failing tests:
+  test/sync_upload_service_test.dart: failed batch cannot starve a later pending task
+  test/sync_upload_service_test.dart: failed operations rotate after an attempted retry

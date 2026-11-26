@@ -1,0 +1,18 @@
+00:00 +0: loading test/sync_bootstrap_service_test.dart
+00:00 +0: offline merge rejects a parent owned by a third account
+00:00 +0 -1: offline merge rejects a parent owned by a third account [E]
+  Expected: throws <Instance of 'OfflineDataConflict'>
+    Actual: <Instance of 'Future<SyncBootstrapResult>'>
+     Which: emitted <Instance of 'SyncBootstrapResult'>
+
+  package:matcher                                    expectLater
+  package:flutter_test/src/widget_tester.dart 507:8  expectLater
+  test\sync_bootstrap_service_test.dart 235:11       main.<fn>
+  ===== asynchronous gap ===========================
+  dart:async                                         _CustomZone.registerUnaryCallback
+  test\sync_bootstrap_service_test.dart 213:5        main.<fn>
+
+00:00 +0 -1: Some tests failed.
+
+Failing tests:
+  test/sync_bootstrap_service_test.dart: offline merge rejects a parent owned by a third account

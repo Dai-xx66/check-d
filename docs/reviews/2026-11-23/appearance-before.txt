@@ -1,0 +1,35 @@
+00:00 +0: loading test/appearance_controller_test.dart
+00:00 +0: failed appearance save restores the saved choice and can be retried
+00:00 +0 -1: failed appearance save restores the saved choice and can be retried [E]
+  Expected: AppSkinId:<AppSkinId.lamb>
+    Actual: AppSkinId:<AppSkinId.slate>
+
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\appearance_controller_test.dart 63:5           main.<fn>
+
+00:00 +0 -1: selection during initial load preserves the other saved preference
+00:00 +0 -2: selection during initial load preserves the other saved preference [E]
+  Expected: AppIconStyle:<AppIconStyle.neutral>
+    Actual: AppIconStyle:<AppIconStyle.lamb>
+
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\appearance_controller_test.dart 87:5           main.<fn>
+
+00:00 +0 -2: rapid skin and icon selections persist in the order they were made
+00:00 +0 -3: rapid skin and icon selections persist in the order they were made [E]
+  Expected: an object with length of <1>
+    Actual: [Instance of 'AppearancePreferences', Instance of 'AppearancePreferences']
+     Which: has length of <2>
+
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test\appearance_controller_test.dart 105:5          main.<fn>
+
+00:00 +0 -3: Some tests failed.
+
+Failing tests:
+  test/appearance_controller_test.dart: failed appearance save restores the saved choice and can be retried
+  test/appearance_controller_test.dart: rapid skin and icon selections persist in the order they were made
+  test/appearance_controller_test.dart: selection during initial load preserves the other saved preference
