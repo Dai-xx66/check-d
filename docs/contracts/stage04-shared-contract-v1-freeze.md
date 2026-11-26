@@ -158,6 +158,7 @@ select public.upsert_preference_profile(
 
 1. **缺失不伪造**：缺数据返回 `null` / `unknown` / `missing` + `blocking.code`，不给默认值。
 2. **`status=partial` 时 `free_slots` 只保证「没有课」，不保证「没有任务」**。长周期任务实例由客户端发布，服务端不展开。
+   两种「没有实例」不可合并：`TASK_OCCURRENCES_UNAVAILABLE` = 表根本不存在（schema 缺件）；`TASK_OCCURRENCES_MISSING` = 表在但该窗口无发布记录（数据未就绪）。按 M3 11-26 报告，真实库该表已建，故实际会走 `MISSING`。
 3. 课程由 M1 展开（`courses` + `course_schedule_rules` + `semesters` 三者可唯一确定），周次 `week_no = (day - first_week_start_date) / 7 + 1`。
 
 ## 6. 三态语义（`null` / `unknown` / `missing`）

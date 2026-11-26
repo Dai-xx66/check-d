@@ -96,8 +96,19 @@
 `blocking.code` 现有三种：
 
 - `SEMESTER_MISSING`：无当前学期，课程无法定位周次
-- `TASK_OCCURRENCES_UNAVAILABLE`：`agent_task_occurrence_snapshots` 表不存在（M3 的迁移尚未执行）
-- `TASK_OCCURRENCES_MISSING`：表存在但没有覆盖该窗口的记录
+- `TASK_OCCURRENCES_UNAVAILABLE`：`agent_task_occurrence_snapshots` 表**不存在**（迁移未执行）——防御分支
+- `TASK_OCCURRENCES_MISSING`：表存在，但没有覆盖该窗口的发布记录（客户端尚未发布）
+
+> **两种「没有实例」必须分开，不能都写成「表不存在」**（M3 11-26 提醒，成立）：
+>
+> | code | 缺的是什么 | 谁来解 |
+> |---|---|---|
+> | `TASK_OCCURRENCES_UNAVAILABLE` | schema 缺件：表根本不存在 | 执行 M3 的迁移 |
+> | `TASK_OCCURRENCES_MISSING` | 数据未就绪：表在、该窗口无发布记录 | 客户端发布 occurrence 快照即可 |
+>
+> 按 M3 11-26 报告，该表在真实库**已建**（她已在其上完成发布与幂等回读），所以真实库走的是 `MISSING` 而不是 `UNAVAILABLE`。
+> 本 PR 的 fixture 样例给的是 `UNAVAILABLE`，因为 fixture 只描述算法分支、不代表真实库状态。
+> **执行 migration 后必须以真实库复验这两支的判定**，不能拿 fixture 的 code 当现网事实。
 
 ## 七、`BehaviorEvent` 映射
 

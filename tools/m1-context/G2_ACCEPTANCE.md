@@ -98,6 +98,9 @@ PY
 
 样例的 `status=partial` 是**预期结果，不是失败**：`blocking[0].code = TASK_OCCURRENCES_UNAVAILABLE`，原因见 `DATA_MAPPING.md` 第六节。
 
+**这一条按 M3 11-26 的提醒订正过**：`UNAVAILABLE`（表不存在）与 `MISSING`（表在但该窗口未发布）是两种状态，不能合并成一句「表不存在」。
+fixture 给的是 `UNAVAILABLE`；按 M3 报告，真实库的 occurrence 表**已建**，因此真实快照会是 `MISSING`。执行 migration 后必须复验这一判定，不能拿 fixture 的 code 当现网事实。
+
 ## 五、降级交付声明（按任务书 §5「G2 未通过时」条款）
 
 任务书原文允许：*保留已通过模块，用标明测试数据的 fixture 完成集成；生产真实数据仍可做只读预览，缺失硬约束时不得宣称可执行。*
