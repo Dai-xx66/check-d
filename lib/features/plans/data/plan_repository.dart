@@ -27,9 +27,24 @@ class PlanRepository {
     final query = _database.select(_database.planRecords)
       ..where((row) => row.userId.equals(userId) & row.deletedAt.isNull())
       ..orderBy([(row) => OrderingTerm.asc(row.startsOn)]);
-    return query.watch().asyncMap(
-      (plans) => Future.wait(plans.map(_toDetails)),
+    // _toDetails derives progress from linked tasks and their completions.
+    // Watching only planRecords leaves an already-open plan page stale when
+    // those facts change without an edit to the plan itself.
+    final trigger = _database.customSelect(
+      'SELECT 1',
+      readsFrom: {
+        _database.planRecords,
+        _database.planTaskRecords,
+        _database.localTasks,
+        _database.taskScheduleRecords,
+        _database.longTermTaskRecords,
+        _database.taskCompletionRecords,
+      },
     );
+    return trigger.watch().asyncMap((_) async {
+      final plans = await query.get();
+      return Future.wait(plans.map(_toDetails));
+    });
   }
 
   Future<String> save(PlanDraft draft, {String? planId}) async {

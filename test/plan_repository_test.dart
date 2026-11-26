@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:check_d/core/database/app_database.dart';
 import 'package:check_d/core/sync/sync_queue_service.dart';
 import 'package:check_d/features/plans/data/plan_repository.dart';
@@ -6,6 +8,17 @@ import 'package:check_d/features/tasks/data/task_repository.dart';
 import 'package:check_d/features/tasks/domain/task_models.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Future<PlanDetails> _nextMatchingPlan(
+  StreamIterator<List<PlanDetails>> updates,
+  bool Function(PlanDetails) matches,
+) => (() async {
+  while (await updates.moveNext()) {
+    final plan = updates.current.single;
+    if (matches(plan)) return plan;
+  }
+  throw StateError('Plan stream ended before the expected progress update');
+})().timeout(const Duration(seconds: 5));
 
 void main() {
   late AppDatabase database;
@@ -94,4 +107,98 @@ void main() {
       );
     },
   );
+
+  test('an existing plan subscription follows completion and its cancellation',
+      () async {
+    final today = dateOnly(DateTime.now());
+    final taskId = await tasks.saveRecurringTask(
+      RecurringTaskDraft(
+        name: '每日阅读',
+        colorValue: 1,
+        executionMode: RecurringExecutionMode.untimed,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: today,
+        holidayPause: false,
+      ),
+    );
+    await plans.save(
+      PlanDraft(
+        name: '今天的阅读',
+        type: PlanType.month,
+        colorValue: 1,
+        startsOn: today,
+        endsOn: today,
+        taskIds: {taskId},
+      ),
+    );
+    final updates = StreamIterator(plans.watchPlans());
+    addTearDown(updates.cancel);
+    final initial = await _nextMatchingPlan(updates, (_) => true);
+    expect(initial.dueCount, 1);
+    expect(initial.completedCount, 0);
+
+    await tasks.toggleRecurringCompletion(taskId, today);
+    final completed = await _nextMatchingPlan(
+      updates,
+      (plan) => plan.completedCount == 1,
+    );
+    expect(completed.progressPercent, 100);
+
+    await tasks.toggleRecurringCompletion(taskId, today);
+    final cancelled = await _nextMatchingPlan(
+      updates,
+      (plan) => plan.completedCount == 0,
+    );
+    expect(cancelled.dueCount, 1);
+    expect(cancelled.progressPercent, 0);
+  });
+
+  test('an existing plan subscription follows a linked task schedule edit',
+      () async {
+    final today = dateOnly(DateTime.now());
+    final taskId = await tasks.saveRecurringTask(
+      RecurringTaskDraft(
+        name: '每日阅读',
+        colorValue: 1,
+        executionMode: RecurringExecutionMode.untimed,
+        schedulePreset: SchedulePreset.daily,
+        weekdays: WeekdayMask.toDays(WeekdayMask.everyDay),
+        startsOn: today,
+        holidayPause: false,
+      ),
+    );
+    await plans.save(
+      PlanDraft(
+        name: '今天的阅读',
+        type: PlanType.month,
+        colorValue: 1,
+        startsOn: today,
+        endsOn: today,
+        taskIds: {taskId},
+      ),
+    );
+    final updates = StreamIterator(plans.watchPlans());
+    addTearDown(updates.cancel);
+    expect((await _nextMatchingPlan(updates, (_) => true)).dueCount, 1);
+
+    await tasks.saveRecurringTask(
+      RecurringTaskDraft(
+        name: '改为明天阅读',
+        colorValue: 1,
+        executionMode: RecurringExecutionMode.untimed,
+        schedulePreset: SchedulePreset.custom,
+        weekdays: {today.weekday % 7 + 1},
+        startsOn: today,
+        holidayPause: false,
+      ),
+      taskId: taskId,
+    );
+    final updated = await _nextMatchingPlan(
+      updates,
+      (plan) => plan.dueCount == 0,
+    );
+    expect(updated.completedCount, 0);
+    expect(updated.taskIds, {taskId});
+  });
 }
