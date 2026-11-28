@@ -1,0 +1,141 @@
+{
+  "_note": "专测「跨学期课程过滤」与「长期任务排期」。与 seed.json 分开，避免改动既有断言。窗口用 2026-11-26（周四，第 13 教学周）。",
+  "semesters": [
+    {
+      "id": "sem-2026-fall",
+      "name": "2026 秋季学期",
+      "first_week_start_date": "2026-08-31",
+      "total_weeks": 18,
+      "is_current": true,
+      "updated_at": "2026-09-01T00:00:00Z",
+      "deleted_at": null
+    },
+    {
+      "id": "sem-2026-spring",
+      "name": "2026 春季学期",
+      "first_week_start_date": "2026-02-23",
+      "total_weeks": 18,
+      "is_current": false,
+      "updated_at": "2026-02-20T00:00:00Z",
+      "deleted_at": null
+    }
+  ],
+  "courses": [
+    { "id": "c-now", "name": "本学期课", "status": "active", "semester_id": "sem-2026-fall", "deleted_at": null },
+    { "id": "c-old", "name": "上学期课", "status": "active", "semester_id": "sem-2026-spring", "deleted_at": null },
+    { "id": "c-legacy", "name": "无学期课程", "status": "active", "semester_id": null, "deleted_at": null }
+  ],
+  "course_schedule_rules": [
+    {
+      "id": "r-now",
+      "course_id": "c-now",
+      "weekday": 4,
+      "starts_at_minute": 490,
+      "ends_at_minute": 710,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    },
+    {
+      "id": "r-old",
+      "course_id": "c-old",
+      "weekday": 4,
+      "starts_at_minute": 600,
+      "ends_at_minute": 660,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    },
+    {
+      "id": "r-legacy",
+      "course_id": "c-legacy",
+      "weekday": 4,
+      "starts_at_minute": 800,
+      "ends_at_minute": 860,
+      "week_rule_type": "everyWeek",
+      "start_week": null,
+      "end_week": null,
+      "interval_weeks": null,
+      "week_numbers": [],
+      "deleted_at": null
+    }
+  ],
+  "tasks": [
+    { "id": "t-daily", "name": "每天背单词", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-weekday", "name": "只在工作日", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-weekend", "name": "只在周末", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-nosched", "name": "老数据无排期", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-future", "name": "下月才开始", "type": "long_term", "status": "active", "deleted_at": null },
+    { "id": "t-paused", "name": "暂停任务", "type": "long_term", "status": "paused", "deleted_at": null }
+  ],
+  "long_term_tasks": [
+    { "task_id": "t-daily", "check_mode": "timed", "target_duration_seconds": 1800, "deleted_at": null },
+    { "task_id": "t-weekday", "check_mode": "timed", "target_duration_seconds": 3600, "deleted_at": null },
+    { "task_id": "t-weekend", "check_mode": "timed", "target_duration_seconds": 1200, "deleted_at": null },
+    { "task_id": "t-nosched", "check_mode": "untimed", "target_duration_seconds": null, "deleted_at": null },
+    { "task_id": "t-future", "check_mode": "timed", "target_duration_seconds": 2400, "deleted_at": null },
+    { "task_id": "t-paused", "check_mode": "timed", "target_duration_seconds": 5400, "deleted_at": null }
+  ],
+  "task_schedules": [
+    {
+      "id": "s-daily",
+      "task_id": "t-daily",
+      "schedule_type": "daily",
+      "weekdays_mask": 127,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_on": "2026-08-31",
+      "ends_on": null,
+      "deleted_at": null
+    },
+    {
+      "id": "s-weekday",
+      "task_id": "t-weekday",
+      "schedule_type": "weekdays",
+      "weekdays_mask": 31,
+      "weekdays": [1, 2, 3, 4, 5],
+      "starts_on": "2026-08-31",
+      "ends_on": null,
+      "deleted_at": null
+    },
+    {
+      "id": "s-weekend",
+      "task_id": "t-weekend",
+      "schedule_type": "weekends",
+      "weekdays_mask": 96,
+      "weekdays": [6, 7],
+      "starts_on": "2026-08-31",
+      "ends_on": null,
+      "deleted_at": null
+    },
+    {
+      "id": "s-future",
+      "task_id": "t-future",
+      "schedule_type": "daily",
+      "weekdays_mask": 127,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_on": "2026-12-01",
+      "ends_on": null,
+      "deleted_at": null
+    },
+    {
+      "id": "s-paused",
+      "task_id": "t-paused",
+      "schedule_type": "daily",
+      "weekdays_mask": 127,
+      "weekdays": [1, 2, 3, 4, 5, 6, 7],
+      "starts_on": "2026-08-31",
+      "ends_on": null,
+      "deleted_at": null
+    }
+  ],
+  "one_time_reminders": [],
+  "task_completions": [],
+  "occurrences_available": false,
+  "occurrences_cover_window": false
+}

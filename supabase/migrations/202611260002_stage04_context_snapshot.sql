@@ -30,6 +30,7 @@ as $$
 declare
   v_user      uuid := auth.uid();
   v_occ_table boolean;
+  v_occ_shape_ok boolean := false;
   v_sem       record;
   v_courses   jsonb := '[]'::jsonb;
   v_free      jsonb := '[]'::jsonb;
@@ -61,7 +62,7 @@ begin
   end if;
 
   -- ---------- 学期锚点 ----------
-  select s.first_week_start_date as fw, s.total_weeks as tw
+  select s.first_week_start_date as fw, s.total_weeks as tw, s.id as sid
     into v_sem
   from public.semesters s
   where s.user_id = v_user and s.is_current and s.deleted_at is null
@@ -94,6 +95,7 @@ begin
         r.week_rule_type,
         r.start_week,
         r.end_week,
+        r.interval_weeks,
         coalesce(r.week_numbers, '[]'::jsonb) as week_numbers
       from days d
       join public.course_schedule_rules r
@@ -101,6 +103,17 @@ begin
       join public.courses c
         on c.id = r.course_id and c.user_id = v_user
        and c.deleted_at is null and c.status = 'active'
+       -- 只展开属于当前学期的课程。semester_id 为 null 的历史课程（在 semesters 表
+       -- 出现之前创建的）继续纳入，否则老用户会整张课表消失。
+       -- 判据是「属于任意一个 is_current 学期」而非某一个 id：数据异常下若有多条
+       -- is_current，按单 id 过滤会把挂在另一条上的课整批丢掉。
+       and (
+         c.semester_id is null
+         or c.semester_id in (
+           select s2.id from public.semesters s2
+           where s2.user_id = v_user and s2.is_current and s2.deleted_at is null
+         )
+       )
       where extract(isodow from d.d)::int = r.weekday
     ),
     kept as (
@@ -200,6 +213,28 @@ begin
     left join public.one_time_reminders ot on ot.task_id = t.id
     left join public.long_term_tasks   lt on lt.task_id = t.id
     where t.user_id = v_user and t.deleted_at is null and t.status = 'active'
+      -- 长期任务只有在排期覆盖本窗口时才算「本窗口该做」。
+      -- 没有 task_schedules 行 = 老数据/未设排期，保留（否则长期任务会整批消失）。
+      and (
+        t.type <> 'long_term'
+        or not exists (
+          select 1 from public.task_schedules ts
+          where ts.task_id = t.id and ts.user_id = v_user)
+        or exists (
+          select 1 from public.task_schedules ts
+          where ts.task_id = t.id and ts.user_id = v_user
+            and ts.starts_on <= p_through
+            and (ts.ends_on is null or ts.ends_on >= p_from)
+            and exists (
+              select 1
+              from generate_series(p_from::timestamp, p_through::timestamp, interval '1 day') g
+              where g::date >= ts.starts_on
+                and (ts.ends_on is null or g::date <= ts.ends_on)
+                -- weekdays_mask 位序：bit0 = 周一 … bit6 = 周日（与客户端 WeekdayMask 一致）
+                and (ts.weekdays_mask & (1 << (extract(isodow from g)::int - 1))) <> 0
+            )
+        )
+      )
       and (
         t.type = 'long_term'
         or ot.due_date between p_from and p_through
@@ -236,12 +271,31 @@ begin
   from open_tasks;
 
   -- ---------- occurrence 快照可用性（M3 的表可能还没建） ----------
+  -- 注意：这张表的建表迁移不在本分支（M3 的 #20 仍是 open），所以 from_date /
+  -- through_date 这两个列名是**推断**的，没有本地 migration 可核。
+  -- 若真实库列名不同，直接查会抛 undefined_column 让整个函数挂掉。
+  -- 因此先验列存在，缺列时降级为 missing 并说明原因，绝不让快照整体报错。
   v_occ_table := to_regclass('public.agent_task_occurrence_snapshots') is not null;
+  if v_occ_table then
+    select count(*) = 3 into v_occ_shape_ok
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'agent_task_occurrence_snapshots'
+      and column_name in ('user_id', 'from_date', 'through_date');
+  else
+    v_occ_shape_ok := false;
+  end if;
+
   if not v_occ_table then
     v_occ_status := 'missing';
     v_blocking := v_blocking || jsonb_build_object(
       'code', 'TASK_OCCURRENCES_UNAVAILABLE',
       'message', 'Occurrence snapshot table is absent; long-term instances are not expanded here.');
+  elsif not v_occ_shape_ok then
+    v_occ_status := 'missing';
+    v_blocking := v_blocking || jsonb_build_object(
+      'code', 'TASK_OCCURRENCES_MISSING',
+      'message', 'Occurrence snapshot table exists but user_id/from_date/through_date are not all present; coverage cannot be judged.');
   else
     execute format(
       'select case when count(*) > 0 then ''published'' else ''missing'' end
