@@ -1,0 +1,17 @@
+{
+ "tool": "checkd-m1.apply_approved_changes",
+ "platform_confirmation_prompt": false,
+ "note": "平台未弹出任何确认框；仅 ToolSearch 加载参数定义",
+ "result": {
+  "api_version": "checkd.agent.v1",
+  "request_id": "req-20261101-list-tasks-001",
+  "trace_id": "trace_4b7c1a2691104eab",
+  "status": "error",
+  "error": {
+   "code": "AUTH_REQUIRED",
+   "message": "缺少或无法验证的身份凭证。",
+   "retryable": false,
+   "details": []
+  }
+ }
+}
