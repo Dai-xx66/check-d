@@ -61,6 +61,17 @@ EXPECTATIONS = [
     ("M1", "周六任务只剩周末任务 + 无排期老任务", "M1 任务 => 周末任务 | 无排期老任务"),
     ("N", "occurrence 表存在但无覆盖 → MISSING", '"task_occurrences": "missing"'),
     ("O", "同 ID 写三次后表里仍只有 1 行", "O 行数（应为 1）=> 1"),
+    # 完整链路（04_full_chain.sql）：偏好 → 快照 → 决策输入 → 事件 → 读回 → 跨账号
+    ("S2", "偏好写入后读回一致（data_version=1、2 段、focus=25）",
+     "S2 读偏好 => status=ok data_version=1 source=explicit slots=2 focus=25"),
+    ("S3", "快照同时给出课程/空闲/任务/负荷",
+     "S3 快照 => status=partial | 课=2 | 空闲段=3 | 任务=2"),
+    ("S4", "快照字段足以支撑一次决策（挑出时段、任务、时长）",
+     "S4 决策输入 => 时段710–800"),
+    ("S6a", "本链路事件 3 条", "S6 本链路事件数 => 3"),
+    ("S6b", "事件顺序 接受→开始→完成", "plan_accepted → task_started → task_completed"),
+    ("S6c", "同一 plan、实测时长合计 25", "去重后 1 个 plan，actual_minutes 合计 = 25"),
+    ("S7", "另一账号读不到这条链", "S7 B 看到的事件数 => 0"),
 ]
 
 
@@ -151,7 +162,7 @@ def main() -> int:
 
     # 4) 行为验证 + 快照验证
     combined = ""
-    for script in ("02_verify.sql", "03_snapshot.sql"):
+    for script in ("02_verify.sql", "03_snapshot.sql", "04_full_chain.sql"):
         ok, out = run_file(DB, HERE / script)
         record["steps"].append({"step": script, "ok": ok})
         combined += out

@@ -14,6 +14,7 @@
 - 幂等：同 `event_id` 写三次，表里仍 1 行
 - 偏好版本 CAS：`expected_version` 不符抛 `40001`
 - 学期归属与长期任务排期：上学期课不混入、周末任务不进工作日
+- **整条数据链路能通**：用户确认偏好 → 快照给出空闲与任务 → 挑出可执行时段 → 写「接受/开始/完成」三条事件 → 按窗口读回、plan 一致、实测时长对得上 → 另一账号读不到
 
 **不证明**
 
@@ -40,7 +41,7 @@ pgsql/bin/pg_ctl.exe -D "$(pwd)/data" -o "-p 55432 -c listen_addresses=127.0.0.1
 PG_BIN="$(pwd)/pgsql/bin" python tools/m1-context/isolated/run_isolated_verify.py
 ```
 
-输出 17 项 PASS/FAIL，并把证据写到 `isolated/evidence/isolated-db-verification-<日期>.json`。
+输出 24 项 PASS/FAIL，并把证据写到 `isolated/evidence/isolated-db-verification-<日期>.json`。
 
 ## 文件
 
@@ -49,6 +50,7 @@ PG_BIN="$(pwd)/pgsql/bin" python tools/m1-context/isolated/run_isolated_verify.p
 | `00_supabase_stub.sql` | 复刻 Supabase 里影响 migration 行为的几样东西：`auth` schema、`auth.users`、`auth.uid()`、三个角色、默认授权 |
 | `02_verify.sql` | 身份 / 权限 / RLS / 幂等 / 版本 CAS / 信任边界共 11 段 |
 | `03_snapshot.sql` | 学期归属、长期任务排期、occurrence 两态、空闲切分共 6 段 |
+| `04_full_chain.sql` | **完整链路**：偏好写入 → 读回 → 情境快照 → 决策输入 → 行为事件 → 读回 → 跨账号隔离，共 7 步 |
 | `run_isolated_verify.py` | 建库 → 跑 9 个既有 migration + 3 个新 migration → 跑两段验证 → 逐项判 PASS/FAIL → 落 JSON |
 
 ## 第一次跑就抓到的真 bug

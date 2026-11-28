@@ -11,7 +11,7 @@
 | 可运行接口 | **PASS** | 新增 2 张表（`behavior_events` / `preference_profiles`）+ 5 个函数（`append_behavior_event` / `list_behavior_events` / `checkd_context_snapshot` / `upsert_preference_profile` / `get_preference_profile`）+ 5 条 RLS 策略；Python 参考实现一条命令出快照 JSON |
 | 测试 | **PASS** | `python -m unittest discover -p 'test_*.py'` → **91 项通过 / 0 失败**（快照 25 + 偏好契约 35 + 迁移权限静态 14 + 跨学期与排期 17，0.016s） |
 | PR | **PASS** | PR #22（`Dai-xx66/check-d` ← `Tony2215:feat/m1-stage04-context-snapshot`），分支 head 以 PR 页面为准；本文件所在提交之后可能再更新一两次文档，head 会变，**引用时请取 PR 页面上当时的 head** |
-| 最小真实数据验证 | **PASS（隔离库）/ BLOCKED（正式库）** | 已在本地 PostgreSQL 17 + Supabase 适配底座上完整执行三个 migration，17 项行为验证全过（见 §七）；**正式库执行次数仍为 0** |
+| 最小真实数据验证 | **PASS（隔离库）/ BLOCKED（正式库）** | 已在本地 PostgreSQL 17 + Supabase 适配底座上完整执行三个 migration，24 项行为验证全过（见 §七）；**正式库执行次数仍为 0** |
 
 > **两句话必须一起说，缺一句就是误导**：
 > ① 三个 migration 现在**在一套真实 PostgreSQL 上跑通了**，包括建表、函数调用、RLS、幂等、权限拒绝；
@@ -139,7 +139,7 @@ fixture 给的是 `UNAVAILABLE`；按 M3 报告，真实库的 occurrence 表**�
 
 ```bash
 PG_BIN=<pgsql/bin> python tools/m1-context/isolated/run_isolated_verify.py
-# → 17/17 项通过，证据写 isolated/evidence/isolated-db-verification-<日期>.json
+# → 24/24 项通过，证据写 isolated/evidence/isolated-db-verification-<日期>.json
 ```
 
 | 组 | 用例 | 结果 |
@@ -158,6 +158,7 @@ PG_BIN=<pgsql/bin> python tools/m1-context/isolated/run_isolated_verify.py
 | 排期 | 周四只剩工作日任务；周六只剩周末任务；无排期老任务始终保留 | PASS |
 | 空闲切分 | 周四 3 段 / 共 620 分钟（与手算一致） | PASS |
 | occurrence 两态 | 表不存在 → `UNAVAILABLE`；表存在但无覆盖 → `MISSING` | PASS |
+| **完整链路** | 偏好写入→读回（data_version=1）→ 快照（课/空闲/任务/负荷）→ 挑出时段与任务 → 写接受/开始/完成三事件 → 读回 plan 一致、实测 25 分钟 → 另一账号 0 条 | PASS |
 
 **这一轮抓到的真 bug（静态检查与 Python 测试都发现不了）**
 

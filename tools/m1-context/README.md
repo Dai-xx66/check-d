@@ -17,7 +17,7 @@
 | `tools/m1-context/test_migration_permissions.py` | 14 项迁移权限静态检查（表级写权限、写策略、DEFINER 加固、含反向自检） |
 | `tools/m1-context/test_semester_and_schedule.py` | 17 项：跨学期课程过滤 + 长期任务排期 |
 | `tools/m1-context/render_week_report.py` | 把快照渲染成一页 HTML 周视图（截图/答辩用，无外部依赖；生成的 .html 不入库） |
-| `tools/m1-context/isolated/` | **隔离库验证**：本地 PostgreSQL 上从头跑通三个 migration + 17 项行为验证（RLS/幂等/权限/排期），一键可复现 |
+| `tools/m1-context/isolated/` | **隔离库验证**：本地 PostgreSQL 上从头跑通三个 migration + 24 项行为验证（RLS/幂等/权限/排期/完整链路），一键可复现 |
 | `tools/m1-context/fixtures/seed_semester_schedule.json` | 专测学期过滤与排期的 fixture，与 seed.json 分开 |
 | `tools/m1-context/samples/context_snapshot_sample.json` | 契约样例，M0 可直接对着它写适配 |
 | `tools/m1-context/samples/preference_profile_sample.json` | 偏好固定样例（input / expected / resolved 三段） |
